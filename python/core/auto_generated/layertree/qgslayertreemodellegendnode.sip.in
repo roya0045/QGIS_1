@@ -12,6 +12,7 @@
 
 
 
+
 class QgsLayerTreeModelLegendNode : QObject
 {
 %Docstring
@@ -260,6 +261,13 @@ Returns text format of the label to be shown on top of the symbol.
 Sets format of text to be shown on top of the symbol.
 
 .. versionadded:: 3.2
+%End
+
+    QgsExpressionContext createExpressionContext() const;
+%Docstring
+Create an expression context containing symbol elements
+
+\since: 3.8
 %End
 
   public slots:
