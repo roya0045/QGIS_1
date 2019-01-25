@@ -23,6 +23,7 @@
 #include "qgsproject.h"
 #include "qgsnetworkaccessmanager.h"
 #include "qgsnetworkcontentfetcherregistry.h"
+#include "qgsnetworkreply.h"
 #include "qgsproviderregistry.h"
 #include "qgsexpression.h"
 #include "qgsactionscoperegistry.h"
@@ -206,6 +207,8 @@ void QgsApplication::init( QString profileFolder )
   qRegisterMetaType<QgsStyle::StyleEntity>( "QgsStyle::StyleEntity" );
   qRegisterMetaType<QgsCoordinateReferenceSystem>( "QgsCoordinateReferenceSystem" );
   qRegisterMetaType<QgsAuthManager::MessageLevel>( "QgsAuthManager::MessageLevel" );
+  qRegisterMetaType<QgsNetworkRequestParameters>( "QgsNetworkRequestParameters" );
+  qRegisterMetaType<QgsNetworkReplyContent>( "QgsNetworkReplyContent" );
 
   ( void ) resolvePkgPath();
 

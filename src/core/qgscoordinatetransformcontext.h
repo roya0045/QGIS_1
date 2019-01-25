@@ -19,9 +19,10 @@
 #define QGSCOORDINATETRANSFORMCONTEXT_H
 
 #include "qgis_core.h"
-#include "qgis.h"
+#include "qgis_sip.h"
 #include "qgsdatumtransform.h"
 
+#include <QExplicitlySharedDataPointer>
 class QgsCoordinateReferenceSystem;
 class QgsReadWriteContext;
 class QgsCoordinateTransformContextPrivate;

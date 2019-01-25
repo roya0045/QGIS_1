@@ -19,13 +19,115 @@
 #define QGSNETWORKACCESSMANAGER_H
 
 #include <QList>
-#include "qgis.h"
+#include "qgsnetworkreply.h"
+#include "qgis_sip.h"
 #include <QStringList>
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
 #include <QNetworkRequest>
 
 #include "qgis_core.h"
+#include "qgis_sip.h"
+
+#ifndef SIP_RUN
+#include "qgsconfig.h"
+constexpr int sFilePrefixLength = CMAKE_SOURCE_DIR[sizeof( CMAKE_SOURCE_DIR ) - 1] == '/' ? sizeof( CMAKE_SOURCE_DIR ) + 1 : sizeof( CMAKE_SOURCE_DIR );
+
+#define QgsSetRequestInitiatorClass(request, _class) request.setAttribute( static_cast< QNetworkRequest::Attribute >( QgsNetworkRequestParameters::AttributeInitiatorClass ), _class ); request.setAttribute( static_cast< QNetworkRequest::Attribute >( QgsNetworkRequestParameters::AttributeInitiatorRequestId ), QString( __FILE__ ).mid( sFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")" );
+#define QgsSetRequestInitiatorId(request, str) request.setAttribute( static_cast< QNetworkRequest::Attribute >( QgsNetworkRequestParameters::AttributeInitiatorRequestId ), QString( __FILE__ ).mid( sFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + "): " + str );
+#endif
+
+/**
+ * \class QgsNetworkRequestParameters
+ * \ingroup core
+ * Encapsulates parameters and properties of a network request.
+ * \since QGIS 3.6
+ */
+class CORE_EXPORT QgsNetworkRequestParameters
+{
+  public:
+
+    //! Custom request attributes
+    enum RequestAttributes
+    {
+      AttributeInitiatorClass = QNetworkRequest::User + 3000, //!< Class name of original object which created the request
+      AttributeInitiatorRequestId, //!< Internal ID used by originator object to identify requests
+    };
+
+    /**
+     * Default constructor.
+     */
+    QgsNetworkRequestParameters() = default;
+
+    /**
+     * Constructor for QgsNetworkRequestParameters, with the specified network
+     * \a operation and original \a request.
+     */
+    QgsNetworkRequestParameters( QNetworkAccessManager::Operation operation,
+                                 const QNetworkRequest &request,
+                                 int requestId,
+                                 const QByteArray &content = QByteArray() );
+
+    /**
+     * Returns the request operation, e.g. GET or POST.
+     */
+    QNetworkAccessManager::Operation operation() const { return mOperation; }
+
+    /**
+     * Returns the network request.
+     *
+     * This is the original network request sent to QgsNetworkAccessManager, but with QGIS specific
+     * configuration options such as proxy handling and SSL exceptions applied.
+     */
+    QNetworkRequest request() const { return mRequest; }
+
+    /**
+     * Returns a string identifying the thread which the request originated from.
+     */
+    QString originatingThreadId() const { return mOriginatingThreadId; }
+
+    /**
+     * Returns a unique ID identifying the request.
+     */
+    int requestId() const { return mRequestId; }
+
+    /**
+     * Returns the request's content. This is only used for POST or PUT operation
+     * requests.
+     */
+    QByteArray content() const { return mContent; }
+
+    /**
+     * Returns the class name of the object which initiated this request.
+     *
+     * This is only available for QNetworkRequests which have had the
+     * QgsNetworkRequestParameters::AttributeInitiatorClass attribute set.
+     *
+     * \see initiatorRequestId()
+     */
+    QString initiatorClassName() const { return mInitiatorClass; }
+
+    /**
+     * Returns the internal ID used by the object which initiated this request to identify
+     * individual requests.
+     *
+     * This is only available for QNetworkRequests which have had the
+     * QgsNetworkRequestParameters::AttributeInitiatorRequestId attribute set.
+     *
+     * \see initiatorClassName()
+     */
+    QVariant initiatorRequestId() const { return mInitiatorRequestId; }
+
+  private:
+
+    QNetworkAccessManager::Operation mOperation;
+    QNetworkRequest mRequest;
+    QString mOriginatingThreadId;
+    int mRequestId = 0;
+    QByteArray mContent;
+    QString mInitiatorClass;
+    QVariant mInitiatorRequestId;
+};
 
 /**
  * \class QgsNetworkAccessManager
@@ -109,12 +211,83 @@ class CORE_EXPORT QgsNetworkAccessManager : public QNetworkAccessManager
     bool useSystemProxy() const { return mUseSystemProxy; }
 
   signals:
-    void requestAboutToBeCreated( QNetworkAccessManager::Operation, const QNetworkRequest &, QIODevice * );
-    void requestCreated( QNetworkReply * );
+
+    /**
+     * \deprecated Use the thread-safe requestAboutToBeCreated( QgsNetworkRequestParameters ) signal instead.
+     */
+    Q_DECL_DEPRECATED void requestAboutToBeCreated( QNetworkAccessManager::Operation, const QNetworkRequest &, QIODevice * ) SIP_DEPRECATED;
+
+    /**
+     * Emitted when a network request is about to be created.
+     *
+     * This signal is propagated to the main thread QgsNetworkAccessManager instance, so it is necessary
+     * only to connect to the main thread's signal in order to receive notifications about requests
+     * created in any thread.
+     *
+     * \see finished( QgsNetworkReplyContent )
+     * \see requestTimedOut( QgsNetworkRequestParameters )
+     * \since QGIS 3.6
+     */
+    void requestAboutToBeCreated( QgsNetworkRequestParameters request );
+
+    /**
+     * This signal is emitted whenever a pending network reply is finished.
+     *
+     * The \a reply parameter will contain a QgsNetworkReplyContent object, containing all the useful
+     * information relating to the reply, including headers and reply content.
+     *
+     * This signal is propagated to the main thread QgsNetworkAccessManager instance, so it is necessary
+     * only to connect to the main thread's signal in order to receive notifications about requests
+     * created in any thread.
+     *
+     * \see requestAboutToBeCreated( QgsNetworkRequestParameters )
+     * \see requestTimedOut( QgsNetworkRequestParameters )
+     * \since QGIS 3.6
+     */
+    void finished( QgsNetworkReplyContent reply );
+
+    /**
+     * Emitted when a network request has timed out.
+     *
+     * This signal is propagated to the main thread QgsNetworkAccessManager instance, so it is necessary
+     * only to connect to the main thread's signal in order to receive notifications about requests
+     * created in any thread.
+     *
+     * \see requestAboutToBeCreated( QgsNetworkRequestParameters )
+     * \see finished( QgsNetworkReplyContent )
+     * \since QGIS 3.6
+     */
+    void requestTimedOut( QgsNetworkRequestParameters request );
+
+    /**
+     * Emitted when a network reply receives a progress report.
+     *
+     * The \a requestId argument reflects the unique ID identifying the original request which the progress report relates to.
+     *
+     * The \a bytesReceived parameter indicates the number of bytes received, while \a bytesTotal indicates the total number
+     * of bytes expected to be downloaded. If the number of bytes to be downloaded is not known, \a bytesTotal will be -1.
+     *
+     * This signal is propagated to the main thread QgsNetworkAccessManager instance, so it is necessary
+     * only to connect to the main thread's signal in order to receive notifications about requests
+     * created in any thread.
+     *
+     * \since QGIS 3.6
+     */
+    void downloadProgress( int requestId, qint64 bytesReceived, qint64 bytesTotal );
+
+    /**
+     * \deprecated Use the thread-safe requestAboutToBeCreated( QgsNetworkRequestParameters ) signal instead.
+     */
+    Q_DECL_DEPRECATED void requestCreated( QNetworkReply * ) SIP_DEPRECATED;
+
     void requestTimedOut( QNetworkReply * );
 
   private slots:
     void abortRequest();
+
+    void onReplyFinished( QNetworkReply *reply );
+
+    void onReplyDownloadProgress( qint64 bytesReceived, qint64 bytesTotal );
 
   protected:
     QNetworkReply *createRequest( QNetworkAccessManager::Operation op, const QNetworkRequest &req, QIODevice *outgoingData = nullptr ) override;

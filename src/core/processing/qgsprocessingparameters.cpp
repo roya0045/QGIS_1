@@ -30,6 +30,7 @@
 #include "qgsrasterfilewriter.h"
 #include "qgsvectorlayer.h"
 #include "qgsmeshlayer.h"
+#include "qgsapplication.h"
 
 #include <functional>
 
@@ -398,6 +399,11 @@ QgsFeatureSink *QgsProcessingParameters::parameterAsSink( const QgsProcessingPar
   {
     dest = val.toString();
   }
+  if ( dest == QgsProcessing::TEMPORARY_OUTPUT )
+  {
+    if ( const QgsProcessingDestinationParameter *destParam = dynamic_cast< const QgsProcessingDestinationParameter * >( definition ) )
+      dest = destParam->generateTemporaryDestination();
+  }
 
   if ( dest.isEmpty() )
     return nullptr;
@@ -623,6 +629,11 @@ QString QgsProcessingParameters::parameterAsOutputLayer( const QgsProcessingPara
   {
     dest = val.toString();
   }
+  if ( dest == QgsProcessing::TEMPORARY_OUTPUT )
+  {
+    if ( const QgsProcessingDestinationParameter *destParam = dynamic_cast< const QgsProcessingDestinationParameter * >( definition ) )
+      dest = destParam->generateTemporaryDestination();
+  }
 
   if ( destinationProject )
   {
@@ -681,7 +692,11 @@ QString QgsProcessingParameters::parameterAsFileOutput( const QgsProcessingParam
   {
     dest = val.toString();
   }
-
+  if ( dest == QgsProcessing::TEMPORARY_OUTPUT )
+  {
+    if ( const QgsProcessingDestinationParameter *destParam = dynamic_cast< const QgsProcessingDestinationParameter * >( definition ) )
+      val = destParam->generateTemporaryDestination();
+  }
   return dest;
 }
 

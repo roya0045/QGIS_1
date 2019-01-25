@@ -309,8 +309,10 @@ QgsSymbolSelectorWidget::QgsSymbolSelectorWidget( QgsSymbol *symbol, QgsStyle *s
     // have been generated using the temporary "downloading" svg. In this case
     // we require the preview to be regenerated to use the correct fetched
     // svg
+    mBlockModified = true;
     symbolChanged();
     updatePreview();
+    mBlockModified = false;
   } );
   connect( QgsApplication::imageCache(), &QgsImageCache::remoteImageFetched, this, [ = ]
   {
@@ -319,16 +321,20 @@ QgsSymbolSelectorWidget::QgsSymbolSelectorWidget( QgsSymbol *symbol, QgsStyle *s
     // have been generated using the temporary "downloading" image. In this case
     // we require the preview to be regenerated to use the correct fetched
     // image
+    mBlockModified = true;
     symbolChanged();
     updatePreview();
+    mBlockModified = false;
   } );
 
   connect( QgsProject::instance(), &QgsProject::projectColorsChanged, this, [ = ]
   {
     // if project color scheme changes, we need to redraw symbols - they may use project colors and accordingly
     // need updating to reflect the new colors
+    mBlockModified = true;
     symbolChanged();
     updatePreview();
+    mBlockModified = false;
   } );
 }
 
@@ -433,10 +439,12 @@ void QgsSymbolSelectorWidget::updateUi()
 
 void QgsSymbolSelectorWidget::updatePreview()
 {
-  QImage preview = mSymbol->bigSymbolPreviewImage( &mPreviewExpressionContext );
+  std::unique_ptr< QgsSymbol > symbolClone( mSymbol->clone() );
+  QImage preview = symbolClone->bigSymbolPreviewImage( &mPreviewExpressionContext );
   lblPreview->setPixmap( QPixmap::fromImage( preview ) );
   // Hope this is a appropriate place
-  emit symbolModified();
+  if ( !mBlockModified )
+    emit symbolModified();
 }
 
 void QgsSymbolSelectorWidget::updateLayerPreview()

@@ -20,7 +20,7 @@
 #include <QEvent>
 #include <QStringList>
 
-#include "qgis.h"
+#include "qgis_sip.h"
 #include "qgsconfig.h"
 #include "qgstranslationcontext.h"
 
@@ -457,23 +457,6 @@ class CORE_EXPORT QgsApplication : public QApplication
 
     //! Returns whether this machine uses big or little endian
     static endian_t endian();
-
-    /**
-     * Swap the endianness of the specified value.
-     * \note not available in Python bindings
-     */
-#ifndef SIP_RUN
-    template<typename T>
-    static void endian_swap( T &value )
-    {
-      char *data = reinterpret_cast<char *>( &value );
-      std::size_t n = sizeof( value );
-      for ( std::size_t i = 0, m = n / 2; i < m; ++i )
-      {
-        std::swap( data[i], data[n - 1 - i] );
-      }
-    }
-#endif
 
     /**
      * Returns a standard css style sheet for reports.

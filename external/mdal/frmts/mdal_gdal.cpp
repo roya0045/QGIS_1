@@ -166,7 +166,7 @@ std::string MDAL::DriverGdal::GDALFileName( const std::string &fileName )
 double MDAL::DriverGdal::parseMetadataTime( const std::string &time_s )
 {
   std::string time_trimmed = MDAL::trim( time_s );
-  std::vector<std::string> times = MDAL::split( time_trimmed, " ", MDAL::SkipEmptyParts );
+  std::vector<std::string> times = MDAL::split( time_trimmed, ' ' );
   return MDAL::toDouble( times[0] );
 }
 
@@ -181,7 +181,7 @@ MDAL::DriverGdal::metadata_hash MDAL::DriverGdal::parseMetadata( GDALMajorObject
     for ( int j = 0; GDALmetadata[j]; ++j )
     {
       std::string metadata_pair = GDALmetadata[j]; //KEY = VALUE
-      std::vector<std::string> metadata = MDAL::split( metadata_pair, "=", MDAL::SkipEmptyParts );
+      std::vector<std::string> metadata = MDAL::split( metadata_pair, '=' );
       if ( metadata.size() > 1 )
       {
         std::string key = MDAL::toLower( metadata[0] );
@@ -254,6 +254,60 @@ void MDAL::DriverGdal::parseRasterBands( const MDAL::GdalDataset *cfGDALDataset 
         // Face is there, and timestep too, this must be other part
         // of the existing vector
         timestep->second[data_index] = gdalBand;
+      }
+    }
+  }
+}
+
+void MDAL::DriverGdal::fixRasterBands()
+{
+  // go through all bands and find out if both x and y dataset are valid
+  // if such pair if found, make the group scalar by removal of null band pointer
+  // this can happen is parseBandInfo() returns false-positive in vector detection
+  for ( data_hash::iterator band = mBands.begin(); band != mBands.end(); band++ )
+  {
+    if ( band->second.empty() )
+      continue;
+
+    // scalars are always ok
+    bool is_scalar = ( band->second.begin()->second.size() == 1 );
+    if ( is_scalar )
+      continue;
+
+    // check if we have some null bands
+    int needs_fix = false;
+    for ( timestep_map::const_iterator time_step = band->second.begin(); time_step != band->second.end(); time_step++ )
+    {
+      std::vector<GDALRasterBandH> raster_bands = time_step->second;
+
+      if ( !raster_bands[0] )
+      {
+        needs_fix = true;
+        break;
+      }
+      if ( !raster_bands[1] )
+      {
+        needs_fix = true;
+        break;
+      }
+    }
+
+    // convert this vector to scalar
+    if ( needs_fix )
+    {
+      for ( timestep_map::iterator time_step = band->second.begin(); time_step != band->second.end(); time_step++ )
+      {
+        std::vector<GDALRasterBandH> &raster_bands = time_step->second;
+
+        if ( !raster_bands[0] )
+        {
+          raster_bands[0] = raster_bands[1];
+        }
+        // get rid of y-coord
+        raster_bands.resize( 1 );
+
+        // not we should have only 1 band and valid
+        assert( raster_bands[0] );
       }
     }
   }
@@ -335,9 +389,10 @@ void MDAL::DriverGdal::activateFaces( std::shared_ptr<MemoryDataset> tos )
     Face elem = mMesh->faces.at( idx );
     for ( size_t i = 0; i < 4; ++i )
     {
+      const size_t vertexIndex = elem[i];
       if ( isScalar )
       {
-        double val = values[elem[i]];
+        double val = values[vertexIndex];
         if ( std::isnan( val ) )
         {
           active[idx] = 0; //NOT ACTIVE
@@ -346,8 +401,8 @@ void MDAL::DriverGdal::activateFaces( std::shared_ptr<MemoryDataset> tos )
       }
       else
       {
-        double x = values[elem[2 * i]];
-        double y = values[elem[2 * i + 1]];
+        double x = values[2 * vertexIndex];
+        double y = values[2 * vertexIndex + 1];
         if ( std::isnan( x ) || std::isnan( y ) )
         {
           active[idx] = 0; //NOT ACTIVE
@@ -550,6 +605,12 @@ std::unique_ptr<MDAL::Mesh> MDAL::DriverGdal::load( const std::string &fileName,
         parseRasterBands( cfGDALDataset.get() );
       }
     }
+
+    // Fix consistency of groups
+    // It can happen that we thought that the
+    // group is vector based on name, but it could be just coicidence
+    // or clash in naming
+    fixRasterBands();
 
     // Create MDAL datasets
     addDatasetGroups();

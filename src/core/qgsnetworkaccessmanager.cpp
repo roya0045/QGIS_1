@@ -28,9 +28,11 @@
 #include "qgssettings.h"
 #include "qgsnetworkdiskcache.h"
 #include "qgsauthmanager.h"
+#include "qgsnetworkreply.h"
 
 #include <QUrl>
 #include <QTimer>
+#include <QBuffer>
 #include <QNetworkReply>
 #include <QThreadStorage>
 #include <QAuthenticator>
@@ -203,10 +205,26 @@ QNetworkReply *QgsNetworkAccessManager::createRequest( QNetworkAccessManager::Op
   }
 #endif
 
-  emit requestAboutToBeCreated( op, req, outgoingData );
-  QNetworkReply *reply = QNetworkAccessManager::createRequest( op, req, outgoingData );
+  static QAtomicInt sRequestId = 0;
+  const int requestId = ++sRequestId;
+  QByteArray content;
+  if ( QBuffer *buffer = qobject_cast<QBuffer *>( outgoingData ) )
+  {
+    content = buffer->buffer();
+  }
 
+  emit requestAboutToBeCreated( QgsNetworkRequestParameters( op, req, requestId, content ) );
+  Q_NOWARN_DEPRECATED_PUSH
+  emit requestAboutToBeCreated( op, req, outgoingData );
+  Q_NOWARN_DEPRECATED_POP
+  QNetworkReply *reply = QNetworkAccessManager::createRequest( op, req, outgoingData );
+  reply->setProperty( "requestId", requestId );
+
+  Q_NOWARN_DEPRECATED_PUSH
   emit requestCreated( reply );
+  Q_NOWARN_DEPRECATED_POP
+
+  connect( reply, &QNetworkReply::downloadProgress, this, &QgsNetworkAccessManager::onReplyDownloadProgress );
 
   // The timer will call abortRequest slot to abort the connection if needed.
   // The timer is stopped by the finished signal and is restarted on downloadProgress and
@@ -237,10 +255,25 @@ void QgsNetworkAccessManager::abortRequest()
   QgsDebugMsgLevel( QStringLiteral( "Abort [reply:%1] %2" ).arg( reinterpret_cast< qint64 >( reply ), 0, 16 ).arg( reply->url().toString() ), 3 );
   QgsMessageLog::logMessage( tr( "Network request %1 timed out" ).arg( reply->url().toString() ), tr( "Network" ) );
   // Notify the application
+  emit requestTimedOut( QgsNetworkRequestParameters( reply->operation(), reply->request(), reply->property( "requestId" ).toInt() ) );
   emit requestTimedOut( reply );
-
 }
 
+void QgsNetworkAccessManager::onReplyFinished( QNetworkReply *reply )
+{
+  emit finished( QgsNetworkReplyContent( reply ) );
+}
+
+void QgsNetworkAccessManager::onReplyDownloadProgress( qint64 bytesReceived, qint64 bytesTotal )
+{
+  if ( QNetworkReply *reply = qobject_cast< QNetworkReply *>( sender() ) )
+  {
+    bool ok = false;
+    int requestId = reply->property( "requestId" ).toInt( &ok );
+    if ( ok )
+      emit downloadProgress( requestId, bytesReceived, bytesTotal );
+  }
+}
 
 QString QgsNetworkAccessManager::cacheLoadControlName( QNetworkRequest::CacheLoadControl control )
 {
@@ -298,8 +331,19 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
              sMainNAM, &QNetworkAccessManager::proxyAuthenticationRequired,
              connectionType );
 
-    connect( this, &QgsNetworkAccessManager::requestTimedOut,
-             sMainNAM, &QgsNetworkAccessManager::requestTimedOut );
+    connect( this, qgis::overload< QNetworkReply *>::of( &QgsNetworkAccessManager::requestTimedOut ),
+             sMainNAM, qgis::overload< QNetworkReply *>::of( &QgsNetworkAccessManager::requestTimedOut ) );
+
+    connect( this, qgis::overload< QgsNetworkRequestParameters >::of( &QgsNetworkAccessManager::requestTimedOut ),
+             sMainNAM, qgis::overload< QgsNetworkRequestParameters >::of( &QgsNetworkAccessManager::requestTimedOut ) );
+
+    connect( this, qgis::overload< QgsNetworkRequestParameters >::of( &QgsNetworkAccessManager::requestAboutToBeCreated ),
+             sMainNAM, qgis::overload< QgsNetworkRequestParameters >::of( &QgsNetworkAccessManager::requestAboutToBeCreated ) );
+
+    connect( this, qgis::overload< QgsNetworkReplyContent >::of( &QgsNetworkAccessManager::finished ),
+             sMainNAM, qgis::overload< QgsNetworkReplyContent >::of( &QgsNetworkAccessManager::finished ) );
+
+    connect( this, &QgsNetworkAccessManager::downloadProgress, sMainNAM, &QgsNetworkAccessManager::downloadProgress );
 
 #ifndef QT_NO_SSL
     connect( this, &QNetworkAccessManager::sslErrors,
@@ -307,6 +351,8 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
              connectionType );
 #endif
   }
+
+  connect( this, &QNetworkAccessManager::finished, this, &QgsNetworkAccessManager::onReplyFinished );
 
   // check if proxy is enabled
   QgsSettings settings;
@@ -394,3 +440,17 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
     setCache( newcache );
 }
 
+//
+// QgsNetworkRequestParameters
+//
+
+QgsNetworkRequestParameters::QgsNetworkRequestParameters( QNetworkAccessManager::Operation operation, const QNetworkRequest &request, int requestId, const QByteArray &content )
+  : mOperation( operation )
+  , mRequest( request )
+  , mOriginatingThreadId( QStringLiteral( "0x%2" ).arg( reinterpret_cast<quintptr>( QThread::currentThread() ), 2 * QT_POINTER_SIZE, 16, QLatin1Char( '0' ) ) )
+  , mRequestId( requestId )
+  , mContent( content )
+  , mInitiatorClass( request.attribute( static_cast< QNetworkRequest::Attribute >( QgsNetworkRequestParameters::AttributeInitiatorClass ) ).toString() )
+  , mInitiatorRequestId( request.attribute( static_cast< QNetworkRequest::Attribute >( QgsNetworkRequestParameters::AttributeInitiatorRequestId ) ) )
+{
+}

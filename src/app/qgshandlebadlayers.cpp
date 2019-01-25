@@ -27,6 +27,7 @@
 #include "qgsmessagebar.h"
 #include "qgssettings.h"
 #include "qgslayertreeregistrybridge.h"
+#include "qgsapplication.h"
 
 #include <QDomDocument>
 #include <QDomElement>
@@ -81,7 +82,7 @@ QgsHandleBadLayers::QgsHandleBadLayers( const QList<QDomNode> &layers )
   mBrowseButton = new QPushButton( tr( "Browse" ) );
   buttonBox->addButton( mBrowseButton, QDialogButtonBox::ActionRole );
   mBrowseButton->setDisabled( true );
-  mApplyButton = new QPushButton( tr( "Apply changes" ) );
+  mApplyButton = new QPushButton( tr( "Apply Changes" ) );
   mApplyButton->setToolTip( tr( "Apply fixes to unavailable layers (remaining unavailable layers will be removed from the project)." ) );
   buttonBox->addButton( mApplyButton, QDialogButtonBox::ActionRole );
 

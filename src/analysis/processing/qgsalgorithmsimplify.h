@@ -20,9 +20,10 @@
 
 #define SIP_NO_FILE
 
-#include "qgis.h"
+#include "qgis_sip.h"
 #include "qgsprocessingalgorithm.h"
 #include "qgsmaptopixelgeometrysimplifier.h"
+#include "qgsapplication.h"
 
 ///@cond PRIVATE
 
