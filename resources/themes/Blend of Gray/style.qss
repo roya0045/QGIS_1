@@ -138,7 +138,7 @@ QPushButton
     border-color: @itemdarkbackground;
     border-style: solid;
     border-radius: 0.2em;
-    background-color:@itembackground;
+    background-color:@lightgradient;
     color:@text;
 }
 
@@ -149,8 +149,13 @@ QToolButton
     border-color: @itemdarkbackground;
     border-style: solid;
     border-radius: 0.2em;
-    background-color:@itembackground;
+    background-color:@lightgradient;
     color:@text;
+}
+
+QPushButton[autoRaise=true], QToolButton[autoRaise=true] {
+    border:1px solid rgba(0,0,0,0);
+    background-color:transparent;
 }
 
 QToolButton[popupMode="1"]
@@ -167,7 +172,7 @@ QToolButton::menu-button {
 QToolButton:hover, QToolButton::menu-button:hover
 {
     border-width: 1px;
-    border-color: #1e1e1e;
+    border-color: @itemdarkbackground;
     border-style: solid;
     border-radius: 0.2em;
     background-color: transparent;
@@ -189,10 +194,10 @@ QToolBar QToolButton, QToolButton::menu-button
 }
 
 QPushButton:hover, QToolButton:hover {
-    background-color: @itemalternativebackground;
+    background-color: @lightalternativegradient;
 }
 
-QPushButton:pressed, QToolButton:pressed {
+QPushButton:pressed, QToolButton:pressed, QTabWidget::top-bar QToolButton:pressed {
     background-color: @darkalternativegradient;
 }
 
@@ -272,6 +277,13 @@ QComboBox:item:checked {
     padding-left: 1.3em;
     height:1.25em;
     text-decoration:underline;
+}
+
+QComboBox::indicator {
+    background-color:transparent;
+    selection-background-color:transparent;
+    color:transparent;
+    selection-color:transparent;
 }
 
 QLineEdit:focus
@@ -514,18 +526,19 @@ QGroupBox::title {
     color: @text;
 }
 
+QGroupBox::indicator {
+    width: 0.9em;
+    height: 0.9em;
+}
+
 QGroupBox::indicator:unchecked {
     border: 1px solid @background;
     image: url(@theme_path/icons/qcheckbox-unchecked.svg);
-    width:0.8em;
-    height:0.8em;
 }
 
 QGroupBox::indicator:checked {
     border: 1px solid @background;
     image: url(@theme_path/icons/qcheckbox-checked.svg);
-    width:0.8em;
-    height:0.8em;
 }
 
 /* ==================================================================================== */
