@@ -120,7 +120,7 @@ QgsLayoutLegendWidget::QgsLayoutLegendWidget( QgsLayoutItemLegend *legend )
   mMoveUpToolButton->setIcon( QIcon( QgsApplication::iconPath( "mActionArrowUp.svg" ) ) );
   mMoveDownToolButton->setIcon( QIcon( QgsApplication::iconPath( "mActionArrowDown.svg" ) ) );
   mCountToolButton->setIcon( QIcon( QgsApplication::iconPath( "mActionSum.svg" ) ) );
-  mLayerExpressionButton->setIcon( QIcon( QgsApplication::iconPath( "mActionSum2.svg" ) ) );
+  mLayerExpressionButton->setIcon( QIcon( QgsApplication::iconPath( "mActionSum2mActionAddExpression.svg" ) ) );
 
   mFontColorButton->setColorDialogTitle( tr( "Select Font Color" ) );
   mFontColorButton->setContext( QStringLiteral( "composer" ) );
