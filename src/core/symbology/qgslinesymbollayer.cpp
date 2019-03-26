@@ -694,7 +694,7 @@ class MyLine
       else
       {
         mVertical = false;
-        mT = float( p2.y() - p1.y() ) / ( p2.x() - p1.x() );
+        mT = ( p2.y() - p1.y() ) / ( p2.x() - p1.x() );
         mIncreasing = ( p2.x() > p1.x() );
       }
 
@@ -1013,7 +1013,7 @@ void QgsMarkerLineSymbolLayer::renderPolylineInterval( const QPolygonF &points, 
   }
 
   double painterUnitInterval = rc.convertToPainterUnits( interval, mIntervalUnit, mIntervalMapUnitScale );
-  lengthLeft = painterUnitInterval - rc.convertToPainterUnits( offsetAlongLine, mIntervalUnit, mIntervalMapUnitScale );
+  lengthLeft = painterUnitInterval - rc.convertToPainterUnits( offsetAlongLine, mOffsetAlongLineUnit, mOffsetAlongLineMapUnitScale );
 
   int pointNum = 0;
   for ( int i = 1; i < points.count(); ++i )

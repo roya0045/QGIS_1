@@ -197,12 +197,12 @@ QgsDatumTransformTableWidget::QgsDatumTransformTableWidget( QWidget *parent )
 
 void QgsDatumTransformTableWidget::addDatumTransform()
 {
-  QgsDatumTransformDialog dlg( QgsCoordinateReferenceSystem(), QgsCoordinateReferenceSystem(), true );
+  QgsDatumTransformDialog dlg( QgsCoordinateReferenceSystem(), QgsCoordinateReferenceSystem(), true, false, false );
   if ( dlg.exec() )
   {
-    QPair< QPair<QgsCoordinateReferenceSystem, int>, QPair<QgsCoordinateReferenceSystem, int > > dt = dlg.selectedDatumTransforms();
+    const QgsDatumTransformDialog::TransformInfo dt = dlg.selectedDatumTransform();
     QgsCoordinateTransformContext context = mModel->transformContext();
-    context.addSourceDestinationDatumTransform( dt.first.first, dt.second.first, dt.first.second, dt.second.second );
+    context.addSourceDestinationDatumTransform( dt.sourceCrs, dt.destinationCrs, dt.sourceTransformId, dt.destinationTransformId );
     mModel->setTransformContext( context );
     selectionChanged();
   }
@@ -250,13 +250,13 @@ void QgsDatumTransformTableWidget::editDatumTransform()
     if ( sourceCrs.isValid() && destinationCrs.isValid() &&
          ( sourceTransform != -1 || destinationTransform != -1 ) )
     {
-      QgsDatumTransformDialog dlg( sourceCrs, destinationCrs, true, qMakePair( sourceTransform, destinationTransform ) );
+      QgsDatumTransformDialog dlg( sourceCrs, destinationCrs, true, false, false, qMakePair( sourceTransform, destinationTransform ) );
       if ( dlg.exec() )
       {
-        QPair< QPair<QgsCoordinateReferenceSystem, int>, QPair<QgsCoordinateReferenceSystem, int > > dt = dlg.selectedDatumTransforms();
+        const QgsDatumTransformDialog::TransformInfo dt = dlg.selectedDatumTransform();
         QgsCoordinateTransformContext context = mModel->transformContext();
         // QMap::insert takes care of replacing existing value
-        context.addSourceDestinationDatumTransform( sourceCrs, destinationCrs, dt.first.second, dt.second.second );
+        context.addSourceDestinationDatumTransform( sourceCrs, destinationCrs, dt.sourceTransformId, dt.destinationTransformId );
         mModel->setTransformContext( context );
       }
     }
