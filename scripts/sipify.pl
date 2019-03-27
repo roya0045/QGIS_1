@@ -675,7 +675,7 @@ while ($LINE_IDX < $LINE_COUNT){
     }
 
     # Skip forward declarations
-    if ($LINE =~ m/^\s*(enum\s+)?(class|struct) \w+(?<external> *SIP_EXTERNAL)?;\s*(\/\/.*)?$/){
+    if ($LINE =~ m/^\s*(class|struct) \w+(?<external> *SIP_EXTERNAL)?;\s*(\/\/.*)?$/){
         if ($+{external}){
             dbg_info('do not skip external forward declaration');
             $COMMENT = '';
@@ -959,15 +959,10 @@ while ($LINE_IDX < $LINE_COUNT){
         my $is_scope_based = "0";
         $is_scope_based = "1" if defined $2;
         my $monkeypatch = "0";
-        $monkeypatch = "1" if defined $is_scope_based eq "1" and $LINE =~ m/SIP_MONKEYPATCH_SCOPEENUM(_UNNEST)?(:?\(\s*(?<emkb>\w+)\s*,\s*(?<emkf>\w+)\s*\))?/;
-        my $enum_mk_base = "";
-        $enum_mk_base = $+{emkb} if defined $+{emkb};
-        if (defined $+{emkf} and $monkeypatch eq "1"){
-            push @OUTPUT_PYTHON, "$enum_mk_base.$+{emkf} = $enum_qualname\n";
-        }
+        $monkeypatch = "1" if defined $is_scope_based eq "1" and $LINE =~ m/SIP_MONKEYPATCH_SCOPEENUM/;
         if ($LINE =~ m/\{((\s*\w+)(\s*=\s*[\w\s\d<|]+.*?)?(,?))+\s*\}/){
           # one line declaration
-          $LINE !~ m/=/ or exit_with_error("Sipify does not handle enum one liners with value assignment. Use multiple lines instead. Or jusr write a new parser.");
+          $LINE !~ m/=/ or exit_with_error("spify.pl does not handle enum one liners with value assignment. Use multiple lines instead.");
           next;
         }
         else
@@ -988,35 +983,17 @@ while ($LINE_IDX < $LINE_COUNT){
                 do {no warnings 'uninitialized';
                     my $enum_decl = $LINE =~ s/^(\s*(?<em>\w+))(\s+SIP_\w+(?:\([^()]+\))?)?(?:\s*=\s*(?:[\w\s\d|+-]|::|<<)+)?(,?)(:?\s*\/\/!<\s*(?<co>.*)|.*)$/$1$3$4/r;
                     my $enum_member = $+{em};
+                    push @enum_members_doc, "'* $enum_member: ' + $ACTUAL_CLASS.$enum_qualname.$2.__doc__";
                     my $comment = $+{co};
-                    dbg_info("is_scope_based:$is_scope_based enum_mk_base:$enum_mk_base monkeypatch:$monkeypatch");
-                    if ($is_scope_based eq "1") {
-                        if ( $monkeypatch eq 1 ){
-                            if ($enum_mk_base ne "") {
-                                push @OUTPUT_PYTHON, "$enum_mk_base.$enum_member = $enum_qualname.$enum_member\n";
-                                push @OUTPUT_PYTHON, "$enum_mk_base.$enum_member.__doc__ = \"$comment\"\n" ;
-                                push @enum_members_doc, "'* ``$enum_member``: ' + $enum_qualname.$enum_member.__doc__";
-                            } else {
-                                push @OUTPUT_PYTHON, "$ACTUAL_CLASS.$enum_member = $ACTUAL_CLASS.$enum_qualname.$enum_member\n";
-                                push @OUTPUT_PYTHON, "$ACTUAL_CLASS.$enum_qualname.$enum_member.__doc__ = \"$comment\"\n";
-                                push @enum_members_doc, "'* ``$enum_member``: ' + $ACTUAL_CLASS.$enum_qualname.$enum_member.__doc__";
-                            }
-                        }
-                    }
+                    push @OUTPUT_PYTHON, "$ACTUAL_CLASS.$enum_qualname.$enum_member.__doc__ = \"$comment\"\n" if $is_scope_based eq "1";
+                    push @OUTPUT_PYTHON, "$ACTUAL_CLASS.$enum_member = $ACTUAL_CLASS.$enum_qualname.$enum_member\n" if $monkeypatch eq "1";
                     $enum_decl = fix_annotations($enum_decl);
                     write_output("ENU3", "$enum_decl\n");
                 };
                 detect_comment_block(strict_mode => UNSTRICT);
             }
             write_output("ENU4", "$LINE\n");
-            if ($is_scope_based eq "1") {
-                $COMMENT =~ s/\n/\\n/g;
-                if ( $ACTUAL_CLASS ne "" ){
-                    push @OUTPUT_PYTHON, "$ACTUAL_CLASS.$enum_qualname.__doc__ = '$COMMENT\\n\\n' + " . join(" + '\\n' + ", @enum_members_doc) . "\n# --\n";
-                } else {
-                    push @OUTPUT_PYTHON, "$enum_qualname.__doc__ = '$COMMENT\\n\\n' + " . join(" + '\\n' + ", @enum_members_doc) . "\n# --\n";
-                }
-            }
+            push @OUTPUT_PYTHON, "$ACTUAL_CLASS.$enum_qualname.__doc__ = '$COMMENT\\n\\n' + " . join(" + '\\n' + ", @enum_members_doc) . "\n# --\n" if $is_scope_based eq "1";
             # enums don't have Docstring apparently
             $COMMENT = '';
             next;

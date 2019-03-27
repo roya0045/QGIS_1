@@ -197,14 +197,14 @@ QVariant QgsLayerTreeModel::data( const QModelIndex &index, int role ) const
       // icons possibly overriding default icon
       switch ( layer->type() )
       {
-        case QgsMapLayerType::RasterLayer:
+        case QgsMapLayer::RasterLayer:
           return QgsLayerItem::iconRaster();
 
-        case QgsMapLayerType::MeshLayer:
+        case QgsMapLayer::MeshLayer:
           return QgsLayerItem::iconMesh();
 
-        case QgsMapLayerType::VectorLayer:
-        case QgsMapLayerType::PluginLayer:
+        case QgsMapLayer::VectorLayer:
+        case QgsMapLayer::PluginLayer:
           break;
       }
 
@@ -216,7 +216,7 @@ QVariant QgsLayerTreeModel::data( const QModelIndex &index, int role ) const
       {
         icon = legendIconEmbeddedInParent( nodeLayer );
       }
-      else if ( vlayer && layer->type() == QgsMapLayerType::VectorLayer )
+      else if ( vlayer && layer->type() == QgsMapLayer::VectorLayer )
       {
         if ( vlayer->geometryType() == QgsWkbTypes::PointGeometry )
           icon = QgsLayerItem::iconPoint();
@@ -877,7 +877,7 @@ void QgsLayerTreeModel::connectToLayer( QgsLayerTreeLayer *nodeLayer )
   QgsMapLayer *layer = nodeLayer->layer();
   connect( layer, &QgsMapLayer::legendChanged, this, &QgsLayerTreeModel::layerLegendChanged, Qt::UniqueConnection );
 
-  if ( layer->type() == QgsMapLayerType::VectorLayer )
+  if ( layer->type() == QgsMapLayer::VectorLayer )
   {
     // using unique connection because there may be temporarily more nodes for a layer than just one
     // which would create multiple connections, however disconnect() would disconnect all multiple connections

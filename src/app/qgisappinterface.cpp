@@ -83,7 +83,7 @@ QgsLayerTreeView *QgisAppInterface::layerTreeView()
 }
 
 void QgisAppInterface::addCustomActionForLayerType( QAction *action,
-    QString menu, QgsMapLayerType type, bool allLayers )
+    QString menu, QgsMapLayer::LayerType type, bool allLayers )
 {
   QgsAppLayerTreeViewMenuProvider *menuProvider = dynamic_cast<QgsAppLayerTreeViewMenuProvider *>( qgis->layerTreeView()->menuProvider() );
   if ( !menuProvider )

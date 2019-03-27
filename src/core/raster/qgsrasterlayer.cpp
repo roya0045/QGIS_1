@@ -100,7 +100,7 @@ const QgsRasterMinMaxOrigin::Limits
 QgsRasterLayer::MULTIPLE_BAND_MULTI_BYTE_MIN_MAX_LIMITS = QgsRasterMinMaxOrigin::CumulativeCut;
 
 QgsRasterLayer::QgsRasterLayer()
-  : QgsMapLayer( QgsMapLayerType::RasterLayer )
+  : QgsMapLayer( RasterLayer )
   , QSTRING_NOT_SET( QStringLiteral( "Not Set" ) )
   , TRSTRING_NOT_SET( tr( "Not Set" ) )
 
@@ -113,7 +113,7 @@ QgsRasterLayer::QgsRasterLayer( const QString &uri,
                                 const QString &baseName,
                                 const QString &providerKey,
                                 const LayerOptions &options )
-  : QgsMapLayer( QgsMapLayerType::RasterLayer, baseName, uri )
+  : QgsMapLayer( RasterLayer, baseName, uri )
     // Constant that signals property not used.
   , QSTRING_NOT_SET( QStringLiteral( "Not Set" ) )
   , TRSTRING_NOT_SET( tr( "Not Set" ) )

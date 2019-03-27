@@ -165,7 +165,7 @@ void QgsLayerStylingWidget::setLayer( QgsMapLayer *layer )
 
   switch ( layer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
     {
       QListWidgetItem *symbolItem = new QListWidgetItem( QgsApplication::getThemeIcon( QStringLiteral( "propertyicons/symbology.svg" ) ), QString() );
       symbolItem->setData( Qt::UserRole, Symbology );
@@ -184,7 +184,7 @@ void QgsLayerStylingWidget::setLayer( QgsMapLayer *layer )
 #endif
       break;
     }
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
     {
       QListWidgetItem *symbolItem = new QListWidgetItem( QgsApplication::getThemeIcon( QStringLiteral( "propertyicons/symbology.svg" ) ), QString() );
       symbolItem->setData( Qt::UserRole, Symbology );
@@ -204,7 +204,7 @@ void QgsLayerStylingWidget::setLayer( QgsMapLayer *layer )
       }
       break;
     }
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::MeshLayer:
     {
       QListWidgetItem *symbolItem = new QListWidgetItem( QgsApplication::getThemeIcon( QStringLiteral( "propertyicons/symbology.svg" ) ), QString() );
       symbolItem->setData( Qt::UserRole, Symbology );
@@ -220,7 +220,7 @@ void QgsLayerStylingWidget::setLayer( QgsMapLayer *layer )
       break;
     }
 
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::PluginLayer:
       break;
   }
 
@@ -403,7 +403,7 @@ void QgsLayerStylingWidget::updateCurrentWidgetLayer()
   {
     switch ( mCurrentLayer->type() )
     {
-      case QgsMapLayerType::VectorLayer:
+      case QgsMapLayer::VectorLayer:
       {
         QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( mCurrentLayer );
 
@@ -456,7 +456,7 @@ void QgsLayerStylingWidget::updateCurrentWidgetLayer()
         break;
       }
 
-      case QgsMapLayerType::RasterLayer:
+      case QgsMapLayer::RasterLayer:
       {
         QgsRasterLayer *rlayer = qobject_cast<QgsRasterLayer *>( mCurrentLayer );
         bool hasMinMaxCollapsedState = false;
@@ -535,7 +535,7 @@ void QgsLayerStylingWidget::updateCurrentWidgetLayer()
         break;
       }
 
-      case QgsMapLayerType::MeshLayer:
+      case QgsMapLayer::MeshLayer:
       {
         QgsMeshLayer *meshLayer = qobject_cast<QgsMeshLayer *>( mCurrentLayer );
         switch ( row )
@@ -569,7 +569,7 @@ void QgsLayerStylingWidget::updateCurrentWidgetLayer()
         break;
       }
 
-      case QgsMapLayerType::PluginLayer:
+      case QgsMapLayer::PluginLayer:
       {
         mStackedWidget->setCurrentIndex( mNotSupportedPage );
         break;
@@ -684,12 +684,12 @@ bool QgsLayerStyleManagerWidgetFactory::supportsLayer( QgsMapLayer *layer ) cons
 {
   switch ( layer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
-    case QgsMapLayerType::RasterLayer:
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::VectorLayer:
+    case QgsMapLayer::RasterLayer:
+    case QgsMapLayer::MeshLayer:
       return true;
 
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::PluginLayer:
       return false;
   }
   return false; // no warnings

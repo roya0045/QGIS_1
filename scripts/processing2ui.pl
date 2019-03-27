@@ -39,7 +39,7 @@ for my $f (<python/plugins/processing/algs/otb/description/*.xml>) {
 	my $xml = XMLin($f, ForceArray=>1);
 
 	foreach my $k (qw/longname group description/) {
-		$strings{"OTBAlgorithm"}{$xml->{$k}->[0]} = $f;
+		$strings{"OTBAlgorithm"}{$xml->{$k}->[0]} = 1;
 	}
 }
 
@@ -52,7 +52,7 @@ for my $f (<python/plugins/processing/algs/grass*/description/*.txt>) {
 	while( my($class, $name, $description, $rest) = split /\|/, scalar(<I>) ) {
 		next unless defined $description;
 		$description =~ s/\s+$//;
-		$strings{"GrassAlgorithm"}{$description} = $f;
+		$strings{"GrassAlgorithm"}{$description} = 1
 	}
 
 	close I;
@@ -60,8 +60,8 @@ for my $f (<python/plugins/processing/algs/grass*/description/*.txt>) {
 	chop $desc;
 	chop $group;
 
-	$strings{"GrassAlgorithm"}{$desc} = $f;
-	$strings{"GrassAlgorithm"}{$group} = $f;
+	$strings{"GrassAlgorithm"}{$desc} = 1;
+	$strings{"GrassAlgorithm"}{$group} = 1;
 }
 
 for my $f (<python/plugins/processing/algs/saga/description/*/*.txt>) {
@@ -86,7 +86,7 @@ for my $f (<python/plugins/processing/algs/help/*.yaml>) {
 	$base = uc $base;
 	my $yaml = LoadFile($f);
 	for my $k (keys %$yaml) {
-		$strings{"${base}Algorithm"}{$yaml->{$k}} = $f;
+		$strings{"${base}Algorithm"}{$yaml->{$k}} = 1;
 	}
 }
 
@@ -96,7 +96,7 @@ for my $f ( ("python/plugins/processing/gui/algnames.txt") ) {
 		chop;
 		s/^.*,//;
 		foreach my $v (split "/", $_) {
-			$strings{"AlgorithmClassification"}{$v} = $f;
+			$strings{"AlgorithmClassification"}{$v} = 1;
 		}
 	}
 	close I;
@@ -120,11 +120,7 @@ EOF
 
 	foreach my $v (keys %{ $strings{$k} } ) {
 		next if $v eq "";
-		my $c = $strings{$k}{$v};
-		$c =~ s#^.*/##;
-		$c =~ s#\.[^.]+$##;
-
-		print F "  <property><string extracomment=\"$c\">" . xmlescape($v) . "</string></property>\n";
+		print F "  <property><string>" . xmlescape($v) . "</string></property>\n";
 	}
 
 	print F <<EOF;

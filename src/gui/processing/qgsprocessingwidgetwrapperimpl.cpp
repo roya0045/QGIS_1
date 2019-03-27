@@ -1410,7 +1410,7 @@ void QgsProcessingExpressionWidgetWrapper::setParentLayerWrapperValue( const Qgs
   // need to grab ownership of layer if required - otherwise layer may be deleted when context
   // goes out of scope
   std::unique_ptr< QgsMapLayer > ownedLayer( context->takeResultLayer( layer->id() ) );
-  if ( ownedLayer && ownedLayer->type() == QgsMapLayerType::VectorLayer )
+  if ( ownedLayer && ownedLayer->type() == QgsMapLayer::VectorLayer )
   {
     mParentLayer.reset( qobject_cast< QgsVectorLayer * >( ownedLayer.release() ) );
     layer = mParentLayer.get();
@@ -2373,7 +2373,7 @@ QList<int> QgsProcessingPointWidgetWrapper::compatibleDataTypes() const
 
 QString QgsProcessingPointWidgetWrapper::modelerExpressionFormatString() const
 {
-  return tr( "string of the format 'x,y' or a geometry value (centroid is used)" );
+  return tr( "string of the format 'x,y'" );
 }
 
 QString QgsProcessingPointWidgetWrapper::parameterType() const

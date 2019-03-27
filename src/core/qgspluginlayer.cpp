@@ -19,7 +19,7 @@
 
 
 QgsPluginLayer::QgsPluginLayer( const QString &layerType, const QString &layerName )
-  : QgsMapLayer( QgsMapLayerType::PluginLayer, layerName )
+  : QgsMapLayer( PluginLayer, layerName )
   , mPluginLayerType( layerType )
 {
   mDataProvider = new QgsPluginLayerDataProvider( layerType, QgsDataProvider::ProviderOptions() );

@@ -167,7 +167,6 @@ void QgsLayoutPagePropertiesWidget::updatePageSize()
   mPage->layout()->pageCollection()->endPageSizeChange();
   mPage->layout()->undoStack()->endMacro();
 
-  refreshLayout();
   emit pageOrientationChanged();
 }
 

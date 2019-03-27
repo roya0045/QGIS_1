@@ -20,10 +20,8 @@
 #include "qgisapp.h"
 #include "qgsfieldcombobox.h"
 #include "qgsqmlwidgetwrapper.h"
-#include "qgshtmlwidgetwrapper.h"
 #include "qgsapplication.h"
 #include "qgscolorbutton.h"
-#include "qgscodeeditorhtml.h"
 
 QgsAttributesFormProperties::QgsAttributesFormProperties( QgsVectorLayer *layer, QWidget *parent )
   : QWidget( parent )
@@ -40,7 +38,6 @@ QgsAttributesFormProperties::QgsAttributesFormProperties( QgsVectorLayer *layer,
   availableWidgetsWidgetLayout->addWidget( mAvailableWidgetsTree );
   availableWidgetsWidgetLayout->setMargin( 0 );
   mAvailableWidgetsWidget->setLayout( availableWidgetsWidgetLayout );
-  mAvailableWidgetsTree->setSelectionMode( QAbstractItemView::SelectionMode::ExtendedSelection );
   mAvailableWidgetsTree->setHeaderLabels( QStringList() << tr( "Available Widgets" ) );
   mAvailableWidgetsTree->setType( DnDTree::Type::Drag );
 
@@ -68,7 +65,6 @@ QgsAttributesFormProperties::QgsAttributesFormProperties( QgsVectorLayer *layer,
   connect( mAvailableWidgetsTree, &QTreeWidget::itemSelectionChanged, this, &QgsAttributesFormProperties::onAttributeSelectionChanged );
   connect( mAddTabOrGroupButton, &QAbstractButton::clicked, this, &QgsAttributesFormProperties::addTabOrGroupButton );
   connect( mRemoveTabOrGroupButton, &QAbstractButton::clicked, this, &QgsAttributesFormProperties::removeTabOrGroupButton );
-  connect( mInvertSelectionButton, &QAbstractButton::clicked, this, &QgsAttributesFormProperties::onInvertSelectionButtonClicked );
   connect( mEditorLayoutComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsAttributesFormProperties::mEditorLayoutComboBox_currentIndexChanged );
   connect( pbnSelectEditForm, &QToolButton::clicked, this, &QgsAttributesFormProperties::pbnSelectEditForm_clicked );
   connect( mTbInitCode, &QPushButton::clicked, this, &QgsAttributesFormProperties::mTbInitCode_clicked );
@@ -142,17 +138,14 @@ void QgsAttributesFormProperties::initAvailableWidgetsTree()
   }
   catitem->setExpanded( true );
 
-  // QML/HTML widget
+  // QML widget
   catItemData = DnDTreeItemData( DnDTreeItemData::Container, QStringLiteral( "Other" ), tr( "Other Widgets" ) );
   catitem = mAvailableWidgetsTree->addItem( mAvailableWidgetsTree->invisibleRootItem(), catItemData );
 
   DnDTreeItemData itemData = DnDTreeItemData( DnDTreeItemData::QmlWidget, QStringLiteral( "QmlWidget" ), tr( "QML Widget" ) );
   itemData.setShowLabel( true );
-  mAvailableWidgetsTree->addItem( catitem, itemData );
 
-  auto itemDataHtml { DnDTreeItemData( DnDTreeItemData::HtmlWidget, QStringLiteral( "HtmlWidget" ), tr( "HTML Widget" ) ) };
-  itemDataHtml.setShowLabel( true );
-  mAvailableWidgetsTree->addItem( catitem, itemDataHtml );
+  mAvailableWidgetsTree->addItem( catitem, itemData );
   catitem ->setExpanded( true );
 }
 
@@ -162,7 +155,6 @@ void QgsAttributesFormProperties::initFormLayoutTree()
   mFormLayoutTree->clear();
   mFormLayoutTree->setSortingEnabled( false );
   mFormLayoutTree->setSelectionBehavior( QAbstractItemView::SelectRows );
-  mFormLayoutTree->setSelectionMode( QAbstractItemView::SelectionMode::ExtendedSelection );
   mFormLayoutTree->setAcceptDrops( true );
   mFormLayoutTree->setDragDropMode( QAbstractItemView::DragDrop );
 
@@ -484,19 +476,6 @@ QTreeWidgetItem *QgsAttributesFormProperties::loadAttributeEditorTreeItem( QgsAt
       newWidget = tree->addItem( parent, itemData );
       break;
     }
-
-    case QgsAttributeEditorElement::AeTypeHtmlElement:
-    {
-      const QgsAttributeEditorHtmlElement *htmlElementEditor = static_cast<const QgsAttributeEditorHtmlElement *>( widgetDef );
-      DnDTreeItemData itemData = DnDTreeItemData( DnDTreeItemData::HtmlWidget, widgetDef->name(), widgetDef->name() );
-      itemData.setShowLabel( widgetDef->showLabel() );
-      HtmlElementEditorConfiguration htmlEdConfig;
-      htmlEdConfig.htmlCode = htmlElementEditor->htmlCode();
-      itemData.setHtmlElementEditorConfiguration( htmlEdConfig );
-      newWidget = tree->addItem( parent, itemData );
-      break;
-    }
-
     case QgsAttributeEditorElement::AeTypeInvalid:
     {
       QgsDebugMsg( QStringLiteral( "Not loading invalid attribute editor type..." ) );
@@ -538,26 +517,10 @@ void QgsAttributesFormProperties::onAttributeSelectionChanged()
       mAttributeTypeDialog->setVisible( false );
       break;
     }
-    case DnDTreeItemData::HtmlWidget:
-    {
-      mAttributeRelationEdit->setVisible( false );
-      mAttributeTypeDialog->setVisible( false );
-      break;
-    }
 
   }
 }
 
-void QgsAttributesFormProperties::onInvertSelectionButtonClicked( bool checked )
-{
-  Q_UNUSED( checked );
-  const auto selectedItemList { mFormLayoutTree->selectedItems() };
-  const auto rootItem { mFormLayoutTree->invisibleRootItem() };
-  for ( int i = 0; i < rootItem->childCount(); ++i )
-  {
-    rootItem->child( i )->setSelected( ! selectedItemList.contains( rootItem->child( i ) ) );
-  }
-}
 
 void QgsAttributesFormProperties::addTabOrGroupButton()
 {
@@ -644,15 +607,6 @@ QgsAttributeEditorElement *QgsAttributesFormProperties::createAttributeEditorWid
       widgetDef = element;
       break;
     }
-
-    case DnDTreeItemData::HtmlWidget:
-    {
-      QgsAttributeEditorHtmlElement *element = new QgsAttributeEditorHtmlElement( item->text( 0 ), parent );
-      element->setHtmlCode( itemData.htmlElementEditorConfiguration().htmlCode );
-      widgetDef = element;
-      break;
-    }
-
   }
 
   widgetDef->setShowLabel( itemData.showLabel() );
@@ -669,7 +623,6 @@ void QgsAttributesFormProperties::mEditorLayoutComboBox_currentIndexChanged( int
       mUiFileFrame->setVisible( false );
       mAddTabOrGroupButton->setVisible( false );
       mRemoveTabOrGroupButton->setVisible( false );
-      mInvertSelectionButton->setVisible( false );
       break;
 
     case 1:
@@ -677,7 +630,6 @@ void QgsAttributesFormProperties::mEditorLayoutComboBox_currentIndexChanged( int
       mUiFileFrame->setVisible( false );
       mAddTabOrGroupButton->setVisible( true );
       mRemoveTabOrGroupButton->setVisible( true );
-      mInvertSelectionButton->setVisible( true );
       break;
 
     case 2:
@@ -685,7 +637,6 @@ void QgsAttributesFormProperties::mEditorLayoutComboBox_currentIndexChanged( int
       mUiFileFrame->setVisible( true );
       mAddTabOrGroupButton->setVisible( false );
       mRemoveTabOrGroupButton->setVisible( false );
-      mInvertSelectionButton->setVisible( false );
       break;
   }
 }
@@ -908,10 +859,6 @@ QTreeWidgetItem *DnDTree::addItem( QTreeWidgetItem *parent, QgsAttributesFormPro
       case QgsAttributesFormProperties::DnDTreeItemData::QmlWidget:
         //no icon for QmlWidget
         break;
-
-      case QgsAttributesFormProperties::DnDTreeItemData::HtmlWidget:
-        //no icon for HtmlWidget
-        break;
     }
   }
   newItem->setData( 0, QgsAttributesFormProperties::DnDTreeRole, data );
@@ -989,11 +936,6 @@ bool DnDTree::dropMimeData( QTreeWidgetItem *parent, int index, const QMimeData 
       }
 
       if ( itemElement.type() == QgsAttributesFormProperties::DnDTreeItemData::QmlWidget )
-      {
-        onItemDoubleClicked( newItem, 0 );
-      }
-
-      if ( itemElement.type() == QgsAttributesFormProperties::DnDTreeItemData::HtmlWidget )
       {
         onItemDoubleClicked( newItem, 0 );
       }
@@ -1337,85 +1279,6 @@ void DnDTree::onItemDoubleClicked( QTreeWidgetItem *item, int column )
     }
     break;
 
-    case QgsAttributesFormProperties::DnDTreeItemData::HtmlWidget:
-    {
-      QDialog dlg;
-      dlg.setWindowTitle( tr( "Configure HTML Widget" ) );
-
-      QVBoxLayout *mainLayout = new QVBoxLayout();
-      QHBoxLayout *htmlLayout = new QHBoxLayout();
-      QVBoxLayout *layout = new QVBoxLayout();
-      mainLayout->addLayout( htmlLayout );
-      htmlLayout->addLayout( layout );
-      dlg.setLayout( mainLayout );
-      layout->addWidget( baseWidget );
-
-      QLineEdit *title = new QLineEdit( itemData.name() );
-
-      //htmlCode
-      QgsCodeEditorHTML *htmlCode = new QgsCodeEditorHTML( );
-      htmlCode->setSizePolicy( QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Expanding );
-      htmlCode->setText( itemData.htmlElementEditorConfiguration().htmlCode );
-
-      QgsHtmlWidgetWrapper *htmlWrapper = new QgsHtmlWidgetWrapper( mLayer, nullptr, this );
-      QgsFeature previewFeature;
-      mLayer->getFeatures().nextFeature( previewFeature );
-
-      //update preview on text change
-      connect( htmlCode, &QgsCodeEditorHTML::textChanged, this, [ = ]
-      {
-        htmlWrapper->setHtmlCode( htmlCode->text( ) );
-        htmlWrapper->reinitWidget();
-        htmlWrapper->setFeature( previewFeature );
-      } );
-
-      QgsFieldExpressionWidget *expressionWidget = new QgsFieldExpressionWidget;
-      expressionWidget->setLayer( mLayer );
-      QToolButton *addExpressionButton = new QToolButton();
-      addExpressionButton->setIcon( QgsApplication::getThemeIcon( QStringLiteral( "/symbologyAdd.svg" ) ) );
-
-      connect( addExpressionButton, &QAbstractButton::clicked, this, [ = ]
-      {
-        htmlCode->insertText( QStringLiteral( "<script>document.write(expression.evaluate(\"%1\"));</script>" ).arg( expressionWidget->expression().replace( '"', QLatin1String( "\\\"" ) ) ) );
-      } );
-
-      layout->addWidget( new QLabel( tr( "Title" ) ) );
-      layout->addWidget( title );
-      QGroupBox *expressionWidgetBox = new QGroupBox( tr( "HTML Code" ) );
-      layout->addWidget( expressionWidgetBox );
-      expressionWidgetBox->setLayout( new QHBoxLayout );
-      expressionWidgetBox->layout()->addWidget( expressionWidget );
-      expressionWidgetBox->layout()->addWidget( addExpressionButton );
-      layout->addWidget( htmlCode );
-      QScrollArea *htmlPreviewBox = new QScrollArea();
-      htmlPreviewBox->setLayout( new QGridLayout );
-      htmlPreviewBox->setMinimumWidth( 400 );
-      htmlPreviewBox->layout()->addWidget( htmlWrapper->widget() );
-      //emit to load preview for the first time
-      emit htmlCode->textChanged();
-      htmlLayout->addWidget( htmlPreviewBox );
-
-      QDialogButtonBox *buttonBox = new QDialogButtonBox( QDialogButtonBox::Ok | QDialogButtonBox::Cancel );
-
-      connect( buttonBox, &QDialogButtonBox::accepted, &dlg, &QDialog::accept );
-      connect( buttonBox, &QDialogButtonBox::rejected, &dlg, &QDialog::reject );
-
-      mainLayout->addWidget( buttonBox );
-
-      if ( dlg.exec() )
-      {
-        QgsAttributesFormProperties::HtmlElementEditorConfiguration htmlEdCfg;
-        htmlEdCfg.htmlCode = htmlCode->text();
-        itemData.setName( title->text() );
-        itemData.setHtmlElementEditorConfiguration( htmlEdCfg );
-        itemData.setShowLabel( showLabelCheckbox->isChecked() );
-
-        item->setData( 0, QgsAttributesFormProperties::DnDTreeRole, itemData );
-        item->setText( 0, title->text() );
-      }
-    }
-    break;
-
     case QgsAttributesFormProperties::DnDTreeItemData::Field:
     {
       QDialog dlg;
@@ -1526,17 +1389,6 @@ QgsAttributesFormProperties::QmlElementEditorConfiguration QgsAttributesFormProp
 void QgsAttributesFormProperties::DnDTreeItemData::setQmlElementEditorConfiguration( QgsAttributesFormProperties::QmlElementEditorConfiguration qmlElementEditorConfiguration )
 {
   mQmlElementEditorConfiguration = qmlElementEditorConfiguration;
-}
-
-
-QgsAttributesFormProperties::HtmlElementEditorConfiguration QgsAttributesFormProperties::DnDTreeItemData::htmlElementEditorConfiguration() const
-{
-  return mHtmlElementEditorConfiguration;
-}
-
-void QgsAttributesFormProperties::DnDTreeItemData::setHtmlElementEditorConfiguration( QgsAttributesFormProperties::HtmlElementEditorConfiguration htmlElementEditorConfiguration )
-{
-  mHtmlElementEditorConfiguration = htmlElementEditorConfiguration;
 }
 
 QColor QgsAttributesFormProperties::DnDTreeItemData::backgroundColor() const

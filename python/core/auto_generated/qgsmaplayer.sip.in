@@ -13,15 +13,6 @@
 
 
 
-
-enum class QgsMapLayerType
-  {
-  VectorLayer,
-  RasterLayer,
-  PluginLayer,
-  MeshLayer
-};
-
 class QgsMapLayer : QObject
 {
 %Docstring
@@ -33,7 +24,7 @@ This is the base class for all map layer types (vector, raster).
 #include "qgsmaplayer.h"
 %End
 %ConvertToSubClassCode
-    QgsMapLayer * layer = qobject_cast<QgsMapLayer *>( sipCpp );
+    QgsMapLayer *layer = qobject_cast<QgsMapLayer *>( sipCpp );
 
     sipType = 0;
 
@@ -41,16 +32,16 @@ This is the base class for all map layer types (vector, raster).
     {
       switch ( layer->type() )
       {
-        case QgsMapLayerType::VectorLayer:
+        case QgsMapLayer::VectorLayer:
           sipType = sipType_QgsVectorLayer;
           break;
-        case QgsMapLayerType::RasterLayer:
+        case QgsMapLayer::RasterLayer:
           sipType = sipType_QgsRasterLayer;
           break;
-        case QgsMapLayerType::PluginLayer:
+        case QgsMapLayer::PluginLayer:
           sipType = sipType_QgsPluginLayer;
           break;
-        case QgsMapLayerType::MeshLayer:
+        case QgsMapLayer::MeshLayer:
           sipType = sipType_QgsMeshLayer;
           break;
         default:
@@ -60,6 +51,14 @@ This is the base class for all map layer types (vector, raster).
     }
 %End
   public:
+
+    enum LayerType
+    {
+      VectorLayer,
+      RasterLayer,
+      PluginLayer,
+      MeshLayer
+    };
 
     enum PropertyType
     {
@@ -96,7 +95,7 @@ This is the base class for all map layer types (vector, raster).
     typedef QFlags<QgsMapLayer::StyleCategory> StyleCategories;
 
 
-    QgsMapLayer( QgsMapLayerType type = QgsMapLayerType::VectorLayer, const QString &name = QString(), const QString &source = QString() );
+    QgsMapLayer( QgsMapLayer::LayerType type = VectorLayer, const QString &name = QString(), const QString &source = QString() );
 %Docstring
 Constructor for QgsMapLayer
 
@@ -118,7 +117,7 @@ is still unique.
 .. versionadded:: 3.0
 %End
 
-    QgsMapLayerType type() const;
+    QgsMapLayer::LayerType type() const;
 %Docstring
 Returns the type of the layer.
 %End

@@ -228,11 +228,7 @@ class CORE_EXPORT QgsExpression
      */
     QList<QgsExpression::ParserError> parserErrors() const;
 
-    /**
-     * Returns the root node of the expression.
-     *
-     * The root node is NULLPTR if parsing has failed.
-     */
+    //! Returns root node of the expression. Root node is null is parsing has failed
     const QgsExpressionNode *rootNode() const;
 
     /**

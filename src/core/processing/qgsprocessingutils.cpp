@@ -143,13 +143,13 @@ QgsMapLayer *QgsProcessingUtils::mapLayerFromStore( const QString &string, QgsMa
   {
     switch ( layer->type() )
     {
-      case QgsMapLayerType::VectorLayer:
+      case QgsMapLayer::VectorLayer:
         return !canUseLayer( qobject_cast< QgsVectorLayer * >( layer ) );
-      case QgsMapLayerType::RasterLayer:
+      case QgsMapLayer::RasterLayer:
         return !canUseLayer( qobject_cast< QgsRasterLayer * >( layer ) );
-      case QgsMapLayerType::PluginLayer:
+      case QgsMapLayer::PluginLayer:
         return true;
-      case QgsMapLayerType::MeshLayer:
+      case QgsMapLayer::MeshLayer:
         return !canUseLayer( qobject_cast< QgsMeshLayer * >( layer ) );
     }
     return true;
@@ -163,13 +163,13 @@ QgsMapLayer *QgsProcessingUtils::mapLayerFromStore( const QString &string, QgsMa
         return true;
 
       case Vector:
-        return l->type() == QgsMapLayerType::VectorLayer;
+        return l->type() == QgsMapLayer::VectorLayer;
 
       case Raster:
-        return l->type() == QgsMapLayerType::RasterLayer;
+        return l->type() == QgsMapLayer::RasterLayer;
 
       case Mesh:
-        return l->type() == QgsMapLayerType::MeshLayer;
+        return l->type() == QgsMapLayer::MeshLayer;
     }
     return true;
   };

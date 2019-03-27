@@ -582,12 +582,6 @@ QgsAttributeEditorElement *QgsEditFormConfig::attributeEditorElementFromDomEleme
     qmlElement->setQmlCode( elem.text() );
     newElement = qmlElement;
   }
-  else if ( elem.tagName() == QLatin1String( "attributeEditorHtmlElement" ) )
-  {
-    QgsAttributeEditorHtmlElement *htmlElement = new QgsAttributeEditorHtmlElement( elem.attribute( QStringLiteral( "name" ) ), parent );
-    htmlElement->setHtmlCode( elem.text() );
-    newElement = htmlElement;
-  }
 
   if ( newElement )
   {

@@ -7126,7 +7126,7 @@ void QgisApp::changeDataSource( QgsMapLayer *layer )
 {
   // Get provider type
   QString providerType( layer->providerType() );
-  QgsMapLayerType layerType( layer->type() );
+  QgsMapLayer::LayerType layerType( layer->type() );
 
   QgsDataSourceSelectDialog dlg( mBrowserModel, true, layerType );
 
@@ -7610,17 +7610,17 @@ QString QgisApp::saveAsFile( QgsMapLayer *layer, const bool onlySelected, const 
   if ( !layer )
     return QString();
 
-  QgsMapLayerType layerType = layer->type();
+  QgsMapLayer::LayerType layerType = layer->type();
   switch ( layerType )
   {
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
       return saveAsRasterFile( qobject_cast<QgsRasterLayer *>( layer ), defaultToAddToMap );
 
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
       return saveAsVectorFileGeneral( qobject_cast<QgsVectorLayer *>( layer ), true, onlySelected, defaultToAddToMap );
 
-    case QgsMapLayerType::MeshLayer:
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::MeshLayer:
+    case QgsMapLayer::PluginLayer:
       return QString();
   }
   return QString();
@@ -7850,9 +7850,16 @@ QString QgisApp::saveAsVectorFileGeneral( QgsVectorLayer *vlayer, bool symbology
     QgsCoordinateTransform ct;
     destCRS = QgsCoordinateReferenceSystem::fromSrsId( dialog->crs() );
 
-    if ( destCRS.isValid() )
+    if ( destCRS.isValid() && destCRS != vlayer->crs() )
     {
-      QgsDatumTransformDialog::run( vlayer->crs(), destCRS, this );
+      //ask user about datum transformation
+      QgsSettings settings;
+      QgsDatumTransformDialog dlg( vlayer->crs(), destCRS );
+      if ( dlg.availableTransformationCount() > 1 &&
+           settings.value( QStringLiteral( "Projections/showDatumTransformDialog" ), false ).toBool() )
+      {
+        dlg.exec();
+      }
       ct = QgsCoordinateTransform( vlayer->crs(), destCRS, QgsProject::instance() );
     }
 
@@ -9289,8 +9296,8 @@ void QgisApp::pasteStyle( QgsMapLayer *destinationLayer, QgsMapLayer::StyleCateg
       }
 
       bool isVectorStyle = doc.elementsByTagName( QStringLiteral( "pipe" ) ).isEmpty();
-      if ( ( selectionLayer->type() == QgsMapLayerType::RasterLayer && isVectorStyle ) ||
-           ( selectionLayer->type() == QgsMapLayerType::VectorLayer && !isVectorStyle ) )
+      if ( ( selectionLayer->type() == QgsMapLayer::RasterLayer && isVectorStyle ) ||
+           ( selectionLayer->type() == QgsMapLayer::VectorLayer && !isVectorStyle ) )
       {
         return;
       }
@@ -9886,17 +9893,36 @@ void QgisApp::projectCrsChanged()
   mMapCanvas->setDestinationCrs( QgsProject::instance()->crs() );
 
   // handle datum transforms
-  QList<QgsCoordinateReferenceSystem> alreadyAsked;
+  QList<QgsCoordinateReferenceSystem> transformsToAskFor = QList<QgsCoordinateReferenceSystem>();
   QMap<QString, QgsMapLayer *> layers = QgsProject::instance()->mapLayers();
   for ( QMap<QString, QgsMapLayer *>::const_iterator it = layers.constBegin(); it != layers.constEnd(); ++it )
   {
-    if ( !alreadyAsked.contains( it.value()->crs() ) )
+    if ( !transformsToAskFor.contains( it.value()->crs() ) &&
+         it.value()->crs() != QgsProject::instance()->crs() &&
+         !QgsProject::instance()->transformContext().hasTransform( it.value()->crs(), QgsProject::instance()->crs() ) &&
+         QgsDatumTransform::datumTransformations( it.value()->crs(), QgsProject::instance()->crs() ).count() > 1 )
     {
-      alreadyAsked.append( it.value()->crs() );
-      askUserForDatumTransform( it.value()->crs(),
-                                QgsProject::instance()->crs() );
+      transformsToAskFor.append( it.value()->crs() );
     }
   }
+  if ( transformsToAskFor.count() == 1 )
+  {
+    askUserForDatumTransform( transformsToAskFor.at( 0 ),
+                              QgsProject::instance()->crs() );
+  }
+  else if ( transformsToAskFor.count() > 1 )
+  {
+    bool ask = QgsSettings().value( QStringLiteral( "/Projections/showDatumTransformDialog" ), false ).toBool();
+    if ( ask )
+    {
+      visibleMessageBar()->pushMessage( tr( "Datum transforms" ),
+                                        tr( "Project CRS changed and datum transforms might need to be adapted." ),
+                                        Qgis::Warning,
+                                        5 );
+    }
+  }
+
+
 }
 
 // toggle overview status
@@ -10034,7 +10060,7 @@ void QgisApp::duplicateLayers( const QList<QgsMapLayer *> &lyrList )
     unSppType.clear();
     layerDupName = selectedLyr->name() + ' ' + tr( "copy" );
 
-    if ( selectedLyr->type() == QgsMapLayerType::PluginLayer )
+    if ( selectedLyr->type() == QgsMapLayer::PluginLayer )
     {
       unSppType = tr( "Plugin layer" );
     }
@@ -12371,7 +12397,7 @@ void QgisApp::showMapTip()
     {
       // QgsDebugMsg("Current layer for maptip display is: " + mypLayer->source());
       // only process vector layers
-      if ( mypLayer->type() == QgsMapLayerType::VectorLayer )
+      if ( mypLayer->type() == QgsMapLayer::VectorLayer )
       {
         // Show the maptip if the maptips button is depressed
         if ( mMapTipsVisible )
@@ -12470,7 +12496,7 @@ void QgisApp::legendLayerSelectionChanged()
   if ( selectedLayers.size() == 1 )
   {
     QgsLayerTreeLayer *l = selectedLayers.front();
-    if ( l->layer() && l->layer()->type() == QgsMapLayerType::VectorLayer )
+    if ( l->layer() && l->layer()->type() == QgsMapLayer::VectorLayer )
     {
       mLegendExpressionFilterButton->setEnabled( true );
       bool exprEnabled;
@@ -12651,7 +12677,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
   // Vector layers
   switch ( layer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
     {
       QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer );
       QgsVectorDataProvider *dprovider = vlayer->dataProvider();
@@ -12875,7 +12901,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       break;
     }
 
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
     {
       const QgsRasterLayer *rlayer = qobject_cast<const QgsRasterLayer *>( layer );
       if ( rlayer->dataProvider()->dataType( 1 ) != Qgis::ARGB32
@@ -12984,7 +13010,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       break;
     }
 
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::MeshLayer:
       mActionLocalHistogramStretch->setEnabled( false );
       mActionFullHistogramStretch->setEnabled( false );
       mActionLocalCumulativeCutStretch->setEnabled( false );
@@ -13045,7 +13071,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionIdentify->setEnabled( true );
       break;
 
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::PluginLayer:
       break;
 
   }
@@ -13699,7 +13725,43 @@ bool QgisApp::askUserForDatumTransform( const QgsCoordinateReferenceSystem &sour
 {
   Q_ASSERT( qApp->thread() == QThread::currentThread() );
 
-  return QgsDatumTransformDialog::run( sourceCrs, destinationCrs, this );
+  bool ok = false;
+
+  QgsCoordinateTransformContext context = QgsProject::instance()->transformContext();
+  if ( context.hasTransform( sourceCrs, destinationCrs ) )
+  {
+    ok = true;
+  }
+  else
+  {
+    //if several possibilities:  present dialog
+    QgsDatumTransformDialog dlg( sourceCrs, destinationCrs );
+    if ( dlg.availableTransformationCount() > 1 )
+    {
+      bool ask = QgsSettings().value( QStringLiteral( "/Projections/showDatumTransformDialog" ), false ).toBool();
+      if ( !ask )
+      {
+        ok = false;
+      }
+      else if ( dlg.exec() )
+      {
+        QPair< QPair<QgsCoordinateReferenceSystem, int>, QPair<QgsCoordinateReferenceSystem, int > > dt = dlg.selectedDatumTransforms();
+        QgsCoordinateTransformContext context = QgsProject::instance()->transformContext();
+        context.addSourceDestinationDatumTransform( dt.first.first, dt.second.first, dt.first.second, dt.second.second );
+        QgsProject::instance()->setTransformContext( context );
+        ok = true;
+      }
+      else
+      {
+        ok = false;
+      }
+    }
+    else
+    {
+      ok = true;
+    }
+  }
+  return ok;
 }
 
 void QgisApp::readDockWidgetSettings( QDockWidget *dockWidget, const QDomElement &elem )
@@ -13848,7 +13910,7 @@ void QgisApp::showLayerProperties( QgsMapLayer *mapLayer )
 
   switch ( mapLayer->type() )
   {
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
     {
       QgsRasterLayerProperties *rasterLayerPropertiesDialog = new QgsRasterLayerProperties( mapLayer, mMapCanvas, this );
       // Cannot use exec here due to raster transparency map tool:
@@ -13869,7 +13931,7 @@ void QgisApp::showLayerProperties( QgsMapLayer *mapLayer )
       break;
     }
 
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::MeshLayer:
     {
       QgsMeshLayerProperties meshLayerPropertiesDialog( mapLayer, mMapCanvas, this );
       mMapStyleWidget->blockUpdates( true );
@@ -13882,7 +13944,7 @@ void QgisApp::showLayerProperties( QgsMapLayer *mapLayer )
       break;
     }
 
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
     {
       QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( mapLayer );
 
@@ -13904,7 +13966,7 @@ void QgisApp::showLayerProperties( QgsMapLayer *mapLayer )
       break;
     }
 
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::PluginLayer:
     {
       QgsPluginLayer *pl = qobject_cast<QgsPluginLayer *>( mapLayer );
       if ( !pl )
@@ -13956,28 +14018,33 @@ void QgisApp::namProxyAuthenticationRequired( const QNetworkProxy &proxy, QAuthe
 
   for ( ;; )
   {
-    bool ok = QgsCredentials::instance()->get(
-                QStringLiteral( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
-                username, password,
-                tr( "Proxy authentication required" ) );
+    bool ok;
+
+    {
+      ok = QgsCredentials::instance()->get(
+             QStringLiteral( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
+             username, password,
+             tr( "Proxy authentication required" ) );
+    }
     if ( !ok )
       return;
 
     if ( auth->user() != username || ( password != auth->password() && !password.isNull() ) )
-    {
-      QgsCredentials::instance()->put(
-        QStringLiteral( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
-        username, password
-      );
       break;
-    }
-    else
+
+    // credentials didn't change - stored ones probably wrong? clear password and retry
     {
-      // credentials didn't change - stored ones probably wrong? clear password and retry
       QgsCredentials::instance()->put(
         QStringLiteral( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
         username, QString() );
     }
+  }
+
+  {
+    QgsCredentials::instance()->put(
+      QStringLiteral( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
+      username, password
+    );
   }
 
   auth->setUser( username );
@@ -14268,7 +14335,7 @@ void QgisApp::transactionGroupCommitError( const QString &error )
 
 QgsFeature QgisApp::duplicateFeatures( QgsMapLayer *mlayer, const QgsFeature &feature )
 {
-  if ( mlayer->type() != QgsMapLayerType::VectorLayer )
+  if ( mlayer->type() != QgsMapLayer::VectorLayer )
     return QgsFeature();
 
   QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( mlayer );
@@ -14318,7 +14385,7 @@ QgsFeature QgisApp::duplicateFeatures( QgsMapLayer *mlayer, const QgsFeature &fe
 
 QgsFeature QgisApp::duplicateFeatureDigitized( QgsMapLayer *mlayer, const QgsFeature &feature )
 {
-  if ( mlayer->type() != QgsMapLayerType::VectorLayer )
+  if ( mlayer->type() != QgsMapLayer::VectorLayer )
     return QgsFeature();
 
   QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( mlayer );

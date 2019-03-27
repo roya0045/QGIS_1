@@ -49,12 +49,12 @@ class SERVER_EXPORT QgsServerException
     int responseCode() const { return mResponseCode; }
 
     /**
-     * Formats the exception for sending to client
+     * Format the exception for sending to client
      *
      * \param responseFormat QString to store the content type of the response format.
-     * \returns QByteArray The formatted response.
+     * \returns QByteArray the fermatted response.
      *
-     * The default implementation returns text/xml format.
+     * The defaolt implementation return text/xml format.
      */
     virtual QByteArray formatResponse( QString &responseFormat SIP_OUT ) const;
 

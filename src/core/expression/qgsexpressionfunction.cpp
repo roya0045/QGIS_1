@@ -4345,13 +4345,13 @@ static QVariant fcnGetLayerProperty( const QVariantList &values, const QgsExpres
   {
     switch ( layer->type() )
     {
-      case QgsMapLayerType::VectorLayer:
+      case QgsMapLayer::VectorLayer:
         return QCoreApplication::translate( "expressions", "Vector" );
-      case QgsMapLayerType::RasterLayer:
+      case QgsMapLayer::RasterLayer:
         return QCoreApplication::translate( "expressions", "Raster" );
-      case QgsMapLayerType::MeshLayer:
+      case QgsMapLayer::MeshLayer:
         return QCoreApplication::translate( "expressions", "Mesh" );
-      case QgsMapLayerType::PluginLayer:
+      case QgsMapLayer::PluginLayer:
         return QCoreApplication::translate( "expressions", "Plugin" );
     }
   }

@@ -27,7 +27,7 @@
 QgsDataSourceSelectDialog::QgsDataSourceSelectDialog(
   QgsBrowserModel *browserModel,
   bool setFilterByLayerType,
-  const QgsMapLayerType &layerType,
+  const QgsMapLayer::LayerType &layerType,
   QWidget *parent )
   : QDialog( parent )
 {
@@ -218,7 +218,7 @@ void QgsDataSourceSelectDialog::setCaseSensitive( bool caseSensitive )
   mBrowserProxyModel.setFilterCaseSensitivity( caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive );
 }
 
-void QgsDataSourceSelectDialog::setLayerTypeFilter( QgsMapLayerType layerType )
+void QgsDataSourceSelectDialog::setLayerTypeFilter( QgsMapLayer::LayerType layerType )
 {
   mBrowserProxyModel.setFilterByLayerType( true );
   mBrowserProxyModel.setLayerType( layerType );

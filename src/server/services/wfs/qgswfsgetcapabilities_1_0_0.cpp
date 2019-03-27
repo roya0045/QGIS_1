@@ -290,7 +290,7 @@ namespace QgsWfs
         {
           continue;
         }
-        if ( layer->type() != QgsMapLayerType::VectorLayer )
+        if ( layer->type() != QgsMapLayer::LayerType::VectorLayer )
         {
           continue;
         }

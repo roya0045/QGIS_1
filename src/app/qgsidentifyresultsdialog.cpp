@@ -469,19 +469,19 @@ void QgsIdentifyResultsDialog::addFeature( const QgsMapToolIdentify::IdentifyRes
 {
   switch ( result.mLayer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
       addFeature( qobject_cast<QgsVectorLayer *>( result.mLayer ), result.mFeature, result.mDerivedAttributes );
       break;
 
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
       addFeature( qobject_cast<QgsRasterLayer *>( result.mLayer ), result.mLabel, result.mAttributes, result.mDerivedAttributes, result.mFields, result.mFeature, result.mParams );
       break;
 
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::MeshLayer:
       addFeature( qobject_cast<QgsMeshLayer *>( result.mLayer ), result.mLabel, result.mAttributes, result.mDerivedAttributes );
       break;
 
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::PluginLayer:
       break;
   }
 }

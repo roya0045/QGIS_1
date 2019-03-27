@@ -175,7 +175,7 @@ QgsProjectProperties::QgsProjectProperties( QgsMapCanvas *mapCanvas, QWidget *pa
   QgsCoordinateTransformContext context = QgsProject::instance()->transformContext();
   mDatumTransformTableWidget->setTransformContext( context );
 
-  bool show = settings.value( QStringLiteral( "/projections/promptWhenMultipleTransformsExist" ), false, QgsSettings::App ).toBool();
+  bool show = settings.value( QStringLiteral( "/Projections/showDatumTransformDialog" ), false ).toBool();
   mShowDatumTransformDialogCheckBox->setChecked( show );
 
   QPolygonF mainCanvasPoly = mapCanvas->mapSettings().visiblePolygon();
@@ -740,7 +740,7 @@ QgsProjectProperties::QgsProjectProperties( QgsMapCanvas *mapCanvas, QWidget *pa
   for ( QMap<QString, QgsMapLayer *>::const_iterator it = mapLayers.constBegin(); it != mapLayers.constEnd(); ++it, i++ )
   {
     currentLayer = it.value();
-    if ( currentLayer->type() == QgsMapLayerType::VectorLayer )
+    if ( currentLayer->type() == QgsMapLayer::VectorLayer )
     {
 
       QTableWidgetItem *twi = new QTableWidgetItem( QString::number( j ) );
@@ -804,7 +804,7 @@ QgsProjectProperties::QgsProjectProperties( QgsMapCanvas *mapCanvas, QWidget *pa
   for ( QMap<QString, QgsMapLayer *>::const_iterator it = mapLayers.constBegin(); it != mapLayers.constEnd(); ++it, i++ )
   {
     currentLayer = it.value();
-    if ( currentLayer->type() == QgsMapLayerType::RasterLayer )
+    if ( currentLayer->type() == QgsMapLayer::RasterLayer )
     {
 
       QTableWidgetItem *twi = new QTableWidgetItem( QString::number( j ) );
@@ -866,7 +866,7 @@ QgsProjectProperties::QgsProjectProperties( QgsMapCanvas *mapCanvas, QWidget *pa
   QList<QgsVectorLayer *> vectorLayers;
   Q_FOREACH ( QgsMapLayer *mapLayer, mapLayers )
   {
-    if ( QgsMapLayerType::VectorLayer == mapLayer->type() )
+    if ( QgsMapLayer::VectorLayer == mapLayer->type() )
     {
       vectorLayers.append( qobject_cast<QgsVectorLayer *>( mapLayer ) );
     }
@@ -943,10 +943,6 @@ void QgsProjectProperties::apply()
 {
   mMapCanvas->enableMapTileRendering( mMapTileRenderingCheckBox->isChecked() );
 
-  // important - set the transform context first, as changing the project CRS may otherwise change this and
-  // cause loss of user changes
-  QgsCoordinateTransformContext transformContext = mDatumTransformTableWidget->transformContext();
-  QgsProject::instance()->setTransformContext( transformContext );
   if ( projectionSelector->hasValidSelection() )
   {
     QgsCoordinateReferenceSystem srs = projectionSelector->crs();
@@ -965,6 +961,9 @@ void QgsProjectProperties::apply()
     // mark selected projection for push to front
     projectionSelector->pushProjectionToFront();
   }
+
+  QgsCoordinateTransformContext transformContext = mDatumTransformTableWidget->transformContext();
+  QgsProject::instance()->setTransformContext( transformContext );
 
   mMetadataWidget->acceptMetadata();
 
@@ -2300,7 +2299,7 @@ void QgsProjectProperties::checkOWS( QgsLayerTreeGroup *treeGroup, QStringList &
           owsNames << l->name();
         else
           owsNames << shortName;
-        if ( l->type() == QgsMapLayerType::VectorLayer )
+        if ( l->type() == QgsMapLayer::VectorLayer )
         {
           QgsVectorLayer *vl = static_cast<QgsVectorLayer *>( l );
           if ( vl->dataProvider()->encoding() == QLatin1String( "System" ) )

@@ -46,7 +46,6 @@ class QgsGeometryValidationDock : public QgsDockWidget, public Ui_QgsGeometryVal
   private slots:
     void updateCurrentError();
     void onCurrentErrorChanged( const QModelIndex &current, const QModelIndex &previous );
-    void updateMapCanvasExtent();
     void onCurrentLayerChanged( QgsMapLayer *layer );
     void onLayerEditingStatusChanged();
     void onLayerDestroyed( QObject *layer );

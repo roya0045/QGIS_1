@@ -22,7 +22,6 @@ SET(QGIS_ANALYSIS_SRCS
   interpolation/Vector3D.cpp
 
   processing/qgsalgorithmaddincrementalfield.cpp
-  processing/qgsalgorithmaddxyfields.cpp
   processing/qgsalgorithmarraytranslatedfeatures.cpp
   processing/qgsalgorithmassignprojection.cpp
   processing/qgsalgorithmboundary.cpp

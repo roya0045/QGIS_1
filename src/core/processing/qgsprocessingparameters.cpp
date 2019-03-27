@@ -1126,12 +1126,6 @@ QgsPointXY QgsProcessingParameters::parameterAsPoint( const QgsProcessingParamet
   {
     return val.value<QgsPointXY>();
   }
-  if ( val.canConvert< QgsGeometry >() )
-  {
-    const QgsGeometry geom = val.value<QgsGeometry>();
-    if ( !geom.isNull() )
-      return geom.centroid().asPoint();
-  }
   if ( val.canConvert< QgsReferencedPointXY >() )
   {
     QgsReferencedPointXY rp = val.value<QgsReferencedPointXY>();
@@ -2135,10 +2129,6 @@ bool QgsProcessingParameterPoint::checkValueIsAcceptable( const QVariant &input,
   {
     return true;
   }
-  if ( input.canConvert< QgsGeometry >() )
-  {
-    return true;
-  }
 
   if ( input.type() == QVariant::String )
   {
@@ -2175,21 +2165,12 @@ QString QgsProcessingParameterPoint::valueAsPythonString( const QVariant &value,
     return QStringLiteral( "'%1,%2'" ).arg( qgsDoubleToString( r.x() ),
                                             qgsDoubleToString( r.y() ) );
   }
-  else if ( value.canConvert< QgsReferencedPointXY >() )
+  if ( value.canConvert< QgsReferencedPointXY >() )
   {
     QgsReferencedPointXY r = value.value<QgsReferencedPointXY>();
     return QStringLiteral( "'%1,%2 [%3]'" ).arg( qgsDoubleToString( r.x() ),
            qgsDoubleToString( r.y() ),
            r.crs().authid() );
-  }
-  else if ( value.canConvert< QgsGeometry >() )
-  {
-    const QgsGeometry g = value.value<QgsGeometry>();
-    if ( !g.isNull() )
-    {
-      const QString wkt = g.asWkt();
-      return QStringLiteral( "QgsGeometry.fromWkt('%1')" ).arg( wkt );
-    }
   }
 
   return QgsProcessingParameterDefinition::valueAsPythonString( value, context );

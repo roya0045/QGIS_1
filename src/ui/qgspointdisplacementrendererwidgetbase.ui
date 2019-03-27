@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>381</width>
-    <height>550</height>
+    <height>529</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -42,10 +42,20 @@
       <string>Labels</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="3" column="0">
-       <widget class="QLabel" name="mLabelDistanceLabel">
+      <item row="0" column="0">
+       <widget class="QLabel" name="mLabelAttributeLabel">
         <property name="text">
-         <string>Label distance factor</string>
+         <string>Label attribute</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="mLabelFieldComboBox"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Label font</string>
         </property>
        </widget>
       </item>
@@ -56,28 +66,7 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="2">
-       <widget class="QgsScaleWidget" name="mMinLabelScaleWidget">
-        <property name="focusPolicy">
-         <enum>Qt::StrongFocus</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="mLabelAttributeLabel">
-        <property name="text">
-         <string>Label attribute</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0" colspan="3">
-       <widget class="QCheckBox" name="mScaleDependentLabelsCheckBox">
-        <property name="text">
-         <string>Use scale dependent labeling</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="2">
+      <item row="2" column="1">
        <widget class="QgsColorButton" name="mLabelColorButton">
         <property name="minimumSize">
          <size>
@@ -96,24 +85,28 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label">
+      <item row="3" column="0" colspan="2">
+       <widget class="QCheckBox" name="mScaleDependentLabelsCheckBox">
         <property name="text">
-         <string>Label font</string>
+         <string>Use scale dependent labeling</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <widget class="QComboBox" name="mLabelFieldComboBox"/>
-      </item>
-      <item row="5" column="0">
+      <item row="4" column="0">
        <widget class="QLabel" name="mMaxScaleLabel">
         <property name="text">
          <string>Minimum map scale</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="2">
+      <item row="4" column="1">
+       <widget class="QgsScaleWidget" name="mMinLabelScaleWidget" native="true">
+        <property name="focusPolicy">
+         <enum>Qt::StrongFocus</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
        <widget class="QgsFontButton" name="mLabelFontButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -123,22 +116,6 @@
         </property>
         <property name="text">
          <string>Font</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="2">
-       <widget class="QgsDoubleSpinBox" name="mLabelDistanceFactorSpinBox">
-        <property name="minimum">
-         <double>-5.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>5.000000000000000</double>
-        </property>
-        <property name="singleStep">
-         <double>0.100000000000000</double>
-        </property>
-        <property name="value">
-         <double>0.500000000000000</double>
         </property>
        </widget>
       </item>
@@ -154,11 +131,11 @@
    </item>
    <item row="6" column="0">
     <widget class="QLabel" name="mDistanceToleranceLabel">
-     <property name="toolTip">
-      <string>Point distance tolerance</string>
-     </property>
      <property name="text">
       <string>Distance</string>
+     </property>
+     <property name="toolTip">
+      <string>Point distance tolerance</string>
      </property>
     </widget>
    </item>
@@ -308,30 +285,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QgsColorButton</class>
-   <extends>QToolButton</extends>
-   <header>qgscolorbutton.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>QgsDoubleSpinBox</class>
    <extends>QDoubleSpinBox</extends>
    <header>qgsdoublespinbox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>QgsFontButton</class>
-   <extends>QToolButton</extends>
-   <header>qgsfontbutton.h</header>
-  </customwidget>
-  <customwidget>
-   <class>QgsScaleWidget</class>
-   <extends>QWidget</extends>
-   <header>qgsscalewidget.h</header>
-  </customwidget>
-  <customwidget>
-   <class>QgsSymbolButton</class>
-   <extends>QToolButton</extends>
-   <header>qgssymbolbutton.h</header>
   </customwidget>
   <customwidget>
    <class>QgsCollapsibleGroupBoxBasic</class>
@@ -340,10 +296,31 @@
    <container>1</container>
   </customwidget>
   <customwidget>
+   <class>QgsSymbolButton</class>
+   <extends>QToolButton</extends>
+   <header>qgssymbolbutton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsColorButton</class>
+   <extends>QToolButton</extends>
+   <header>qgscolorbutton.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsFontButton</class>
+   <extends>QToolButton</extends>
+   <header>qgsfontbutton.h</header>
+  </customwidget>
+  <customwidget>
    <class>QgsUnitSelectionWidget</class>
    <extends>QWidget</extends>
    <header>qgsunitselectionwidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsScaleWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsscalewidget.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

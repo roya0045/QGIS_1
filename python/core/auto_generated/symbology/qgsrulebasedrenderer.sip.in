@@ -394,12 +394,12 @@ delete child rule
 
         QgsRuleBasedRenderer::Rule *takeChild( QgsRuleBasedRenderer::Rule *rule ) /TransferBack/;
 %Docstring
-take child rule out, set parent as ``None``
+take child rule out, set parent as null
 %End
 
         QgsRuleBasedRenderer::Rule *takeChildAt( int i ) /TransferBack/;
 %Docstring
-take child rule out, set parent as ``None``
+take child rule out, set parent as null
 %End
 
         QgsRuleBasedRenderer::Rule *findRuleByKey( const QString &key );

@@ -43,7 +43,7 @@ QgsLayerRestorer::QgsLayerRestorer( const QList<QgsMapLayer *> &layers )
 
     switch ( layer->type() )
     {
-      case QgsMapLayerType::VectorLayer:
+      case QgsMapLayer::VectorLayer:
       {
         QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer *>( layer );
 
@@ -55,7 +55,7 @@ QgsLayerRestorer::QgsLayerRestorer( const QList<QgsMapLayer *> &layers )
         }
         break;
       }
-      case QgsMapLayerType::RasterLayer:
+      case QgsMapLayer::LayerType::RasterLayer:
       {
         QgsRasterLayer *rLayer = qobject_cast<QgsRasterLayer *>( layer );
 
@@ -66,8 +66,8 @@ QgsLayerRestorer::QgsLayerRestorer( const QList<QgsMapLayer *> &layers )
         break;
       }
 
-      case QgsMapLayerType::MeshLayer:
-      case QgsMapLayerType::PluginLayer:
+      case QgsMapLayer::MeshLayer:
+      case QgsMapLayer::PluginLayer:
         break;
     }
 
@@ -95,7 +95,7 @@ QgsLayerRestorer::~QgsLayerRestorer()
 
     switch ( layer->type() )
     {
-      case QgsMapLayerType::VectorLayer:
+      case QgsMapLayer::LayerType::VectorLayer:
       {
         QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer *>( layer );
 
@@ -107,7 +107,7 @@ QgsLayerRestorer::~QgsLayerRestorer()
         }
         break;
       }
-      case QgsMapLayerType::RasterLayer:
+      case QgsMapLayer::LayerType::RasterLayer:
       {
         QgsRasterLayer *rLayer = qobject_cast<QgsRasterLayer *>( layer );
 
@@ -118,8 +118,8 @@ QgsLayerRestorer::~QgsLayerRestorer()
         break;
       }
 
-      case QgsMapLayerType::MeshLayer:
-      case QgsMapLayerType::PluginLayer:
+      case QgsMapLayer::MeshLayer:
+      case QgsMapLayer::PluginLayer:
         break;
     }
   }

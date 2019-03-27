@@ -42,7 +42,6 @@ class QgsAccessControl;
 class QgsDxfExport;
 class QgsLayerTreeModel;
 class QgsLayerTree;
-class QgsServerInterface;
 
 class QImage;
 class QPaintDevice;
@@ -92,10 +91,11 @@ namespace QgsWms
 
       /**
        * Returns the map as DXF data
+       * \param options extracted from the FORMAT_OPTIONS parameter
        * \returns the map as DXF data
        * \since QGIS 3.0
       */
-      QgsDxfExport getDxf();
+      QgsDxfExport getDxf( const QMap<QString, QString> &options );
 
       /**
        * Returns printed page as binary
@@ -197,10 +197,9 @@ namespace QgsWms
        * Configures map settings according to WMS parameters.
        * \param paintDevice The device that is used for painting (for dpi)
        * \param mapSettings Map settings to use for rendering
-       * \param mandatoryCrsParam does the CRS parameter has to be considered mandatory
        * may throw an exception
        */
-      void configureMapSettings( const QPaintDevice *paintDevice, QgsMapSettings &mapSettings, bool mandatoryCrsParam = true ) const;
+      void configureMapSettings( const QPaintDevice *paintDevice, QgsMapSettings &mapSettings ) const;
 
       QDomDocument featureInfoDocument( QList<QgsMapLayer *> &layers, const QgsMapSettings &mapSettings,
                                         const QImage *outputImage, const QString &version ) const;

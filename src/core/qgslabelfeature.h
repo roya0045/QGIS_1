@@ -409,7 +409,7 @@ class CORE_EXPORT QgsLabelFeature
     double mObstacleFactor;
     //! text of the label
     QString mLabelText;
-    //! extra information for curved labels (may be NULLPTR)
+    //! extra information for curved labels (may be null)
     pal::LabelInfo *mInfo = nullptr;
 
   private:

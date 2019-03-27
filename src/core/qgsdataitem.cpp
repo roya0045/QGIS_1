@@ -606,18 +606,18 @@ QgsLayerItem::QgsLayerItem( QgsDataItem *parent, const QString &name, const QStr
   mIconName = iconName( layerType );
 }
 
-QgsMapLayerType QgsLayerItem::mapLayerType() const
+QgsMapLayer::LayerType QgsLayerItem::mapLayerType() const
 {
   switch ( mLayerType )
   {
     case QgsLayerItem::Raster:
-      return QgsMapLayerType::RasterLayer;
+      return QgsMapLayer::RasterLayer;
 
     case QgsLayerItem::Mesh:
-      return QgsMapLayerType::MeshLayer;
+      return QgsMapLayer::MeshLayer;
 
     case QgsLayerItem::Plugin:
-      return QgsMapLayerType::PluginLayer;
+      return QgsMapLayer::PluginLayer;
 
     case QgsLayerItem::NoType:
     case QgsLayerItem::Vector:
@@ -627,17 +627,17 @@ QgsMapLayerType QgsLayerItem::mapLayerType() const
     case QgsLayerItem::TableLayer:
     case QgsLayerItem::Table:
     case QgsLayerItem::Database:
-      return QgsMapLayerType::VectorLayer;
+      return QgsMapLayer::VectorLayer;
   }
 
-  return QgsMapLayerType::VectorLayer; // no warnings
+  return QgsMapLayer::VectorLayer; // no warnings
 }
 
 QgsLayerItem::LayerType QgsLayerItem::typeFromMapLayer( QgsMapLayer *layer )
 {
   switch ( layer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
     {
       switch ( qobject_cast< QgsVectorLayer * >( layer )->geometryType() )
       {
@@ -660,11 +660,11 @@ QgsLayerItem::LayerType QgsLayerItem::typeFromMapLayer( QgsMapLayer *layer )
       return Vector; // no warnings
     }
 
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
       return Raster;
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::PluginLayer:
       return Plugin;
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::MeshLayer:
       return Mesh;
   }
   return Vector; // no warnings
@@ -727,16 +727,16 @@ QgsMimeDataUtils::Uri QgsLayerItem::mimeUri() const
 
   switch ( mapLayerType() )
   {
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
       u.layerType = QStringLiteral( "vector" );
       break;
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
       u.layerType = QStringLiteral( "raster" );
       break;
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::MeshLayer:
       u.layerType = QStringLiteral( "mesh" );
       break;
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::PluginLayer:
       u.layerType = QStringLiteral( "plugin" );
       break;
   }

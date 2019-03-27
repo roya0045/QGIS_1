@@ -18,11 +18,9 @@
 #ifndef QGISIFACE_H
 #define QGISIFACE_H
 
-#include "qgis_app.h"
 #include "qgisinterface.h"
 #include "qgsapppluginmanagerinterface.h"
-
-class QTimer;
+#include "qgis_app.h"
 
 class QgisApp;
 
@@ -56,7 +54,7 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
     QgsLayerTreeView *layerTreeView() override;
 
     void addCustomActionForLayerType( QAction *action, QString menu,
-                                      QgsMapLayerType type, bool allLayers ) override;
+                                      QgsMapLayer::LayerType type, bool allLayers ) override;
     void addCustomActionForLayer( QAction *action, QgsMapLayer *layer ) override;
     bool removeCustomActionForLayerType( QAction *action ) override;
 

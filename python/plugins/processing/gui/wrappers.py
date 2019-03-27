@@ -1133,7 +1133,7 @@ class FeatureSourceWidgetWrapper(WidgetWrapper):
                 filters = QgsMapLayerProxyModel.VectorLayer
 
             try:
-                if iface.activeLayer().type() == QgsMapLayerType.VectorLayer:
+                if iface.activeLayer().type() == QgsMapLayer.VectorLayer:
                     self.combo.setLayer(iface.activeLayer())
                     self.use_selection_checkbox.setEnabled(iface.activeLayer().selectedFeatureCount() > 0)
 
@@ -1184,7 +1184,7 @@ class FeatureSourceWidgetWrapper(WidgetWrapper):
             return widget
 
     def layerChanged(self, layer):
-        if layer is None or layer.type() != QgsMapLayerType.VectorLayer or layer.selectedFeatureCount() == 0:
+        if layer is None or layer.type() != QgsMapLayer.VectorLayer or layer.selectedFeatureCount() == 0:
             self.use_selection_checkbox.setChecked(False)
             self.use_selection_checkbox.setEnabled(False)
         else:
@@ -1470,7 +1470,7 @@ class VectorLayerWidgetWrapper(WidgetWrapper):
 
             self.combo.setExcludedProviders(['grass'])
             try:
-                if iface.activeLayer().type() == QgsMapLayerType.VectorLayer:
+                if iface.activeLayer().type() == QgsMapLayer.VectorLayer:
                     self.combo.setLayer(iface.activeLayer())
             except:
                 pass
@@ -1630,15 +1630,12 @@ class TableFieldWidgetWrapper(WidgetWrapper):
         if isinstance(layer, QgsProcessingFeatureSourceDefinition):
             layer, ok = layer.source.valueAsString(self.context.expressionContext())
         if isinstance(layer, str):
-            if not layer:  # empty string
-                layer = None
-            else:
-                layer = QgsProcessingUtils.mapLayerFromString(layer, self.context)
-                if not isinstance(layer, QgsVectorLayer) or not layer.isValid():
-                    self.dialog.messageBar().clearWidgets()
-                    self.dialog.messageBar().pushMessage("", self.tr("Could not load selected layer/table. Dependent field could not be populated"),
-                                                         level=Qgis.Warning, duration=5)
-                    return
+            layer = QgsProcessingUtils.mapLayerFromString(layer, self.context)
+            if not isinstance(layer, QgsVectorLayer) or not layer.isValid():
+                self.dialog.messageBar().clearWidgets()
+                self.dialog.messageBar().pushMessage("", self.tr("Could not load selected layer/table. Dependent field could not be populated"),
+                                                     level=Qgis.Warning, duration=5)
+                return
 
         self._layer = layer
 

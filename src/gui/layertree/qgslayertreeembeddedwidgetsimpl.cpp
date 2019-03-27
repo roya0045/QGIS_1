@@ -50,7 +50,7 @@ QgsLayerTreeOpacityWidget::QgsLayerTreeOpacityWidget( QgsMapLayer *layer )
   // init from layer
   switch ( mLayer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
     {
       QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( mLayer );
       mSlider->setValue( vl->opacity() * 1000.0 );
@@ -58,15 +58,15 @@ QgsLayerTreeOpacityWidget::QgsLayerTreeOpacityWidget( QgsMapLayer *layer )
       break;
     }
 
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
     {
       mSlider->setValue( 1000 - qobject_cast<QgsRasterLayer *>( mLayer )->renderer()->opacity() * 1000 );
       // TODO: there is no signal for raster layers
       break;
     }
 
-    case QgsMapLayerType::PluginLayer:
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::PluginLayer:
+    case QgsMapLayer::MeshLayer:
       break;
 
   }
@@ -93,19 +93,19 @@ void QgsLayerTreeOpacityWidget::updateOpacityFromSlider()
 
   switch ( mLayer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
     {
       qobject_cast<QgsVectorLayer *>( mLayer )->setOpacity( value / 1000.0 );
       break;
     }
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
     {
       qobject_cast<QgsRasterLayer *>( mLayer )->renderer()->setOpacity( 1 - value / 1000.0 );
       break;
     }
 
-    case QgsMapLayerType::PluginLayer:
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::PluginLayer:
+    case QgsMapLayer::MeshLayer:
       break;
   }
 
@@ -141,12 +141,12 @@ bool QgsLayerTreeOpacityWidget::Provider::supportsLayer( QgsMapLayer *layer )
 {
   switch ( layer->type() )
   {
-    case QgsMapLayerType::VectorLayer:
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::VectorLayer:
+    case QgsMapLayer::RasterLayer:
       return true;
 
-    case QgsMapLayerType::MeshLayer:
-    case QgsMapLayerType::PluginLayer:
+    case QgsMapLayer::MeshLayer:
+    case QgsMapLayer::PluginLayer:
       return false;
   }
   return false;

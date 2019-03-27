@@ -267,7 +267,7 @@ class CORE_EXPORT QgsLayerTreeNode : public QObject
     //! type of the node - determines which subclass is used
     NodeType mNodeType;
     bool mChecked;
-    //! pointer to the parent node - NULLPTR in case of root node
+    //! pointer to the parent node - null in case of root node
     QgsLayerTreeNode *mParent = nullptr;
     //! list of children - node is responsible for their deletion
     QList<QgsLayerTreeNode *> mChildren;

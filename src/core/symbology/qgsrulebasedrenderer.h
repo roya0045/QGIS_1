@@ -402,10 +402,10 @@ class CORE_EXPORT QgsRuleBasedRenderer : public QgsFeatureRenderer
         //! delete child rule
         void removeChildAt( int i );
 
-        //! take child rule out, set parent as NULLPTR
+        //! take child rule out, set parent as null
         QgsRuleBasedRenderer::Rule *takeChild( QgsRuleBasedRenderer::Rule *rule ) SIP_TRANSFERBACK;
 
-        //! take child rule out, set parent as NULLPTR
+        //! take child rule out, set parent as null
         QgsRuleBasedRenderer::Rule *takeChildAt( int i ) SIP_TRANSFERBACK;
 
         /**

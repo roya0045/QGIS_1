@@ -347,14 +347,11 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
     catch ( QgsServerException &ex )
     {
       responseDecorator.write( ex );
-      QString format;
-      QgsMessageLog::logMessage( ex.formatResponse( format ), QStringLiteral( "Server" ), Qgis::Info );
     }
     catch ( QgsException &ex )
     {
       // Internal server error
-      response.sendError( 500, QStringLiteral( "Internal Server Error" ) );
-      QgsMessageLog::logMessage( ex.what(), QStringLiteral( "Server" ), Qgis::Critical );
+      response.sendError( 500, ex.what() );
     }
   }
   // Terminate the response

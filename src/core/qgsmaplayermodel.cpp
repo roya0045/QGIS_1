@@ -354,17 +354,17 @@ QIcon QgsMapLayerModel::iconForLayer( QgsMapLayer *layer )
 {
   switch ( layer->type() )
   {
-    case QgsMapLayerType::RasterLayer:
+    case QgsMapLayer::RasterLayer:
     {
       return QgsLayerItem::iconRaster();
     }
 
-    case QgsMapLayerType::MeshLayer:
+    case QgsMapLayer::MeshLayer:
     {
       return QgsLayerItem::iconMesh();
     }
 
-    case QgsMapLayerType::VectorLayer:
+    case QgsMapLayer::VectorLayer:
     {
       QgsVectorLayer *vl = dynamic_cast<QgsVectorLayer *>( layer );
       if ( !vl )

@@ -45,20 +45,13 @@ class QgsFeatureFilterProvider;
 struct LayerRenderJob
 {
   QgsRenderContext context;
-
-  /**
-   * Pointer to destination image.
-   *
-   * May be NULLPTR if it is not necessary to draw to separate image (e.g. sequential rendering).
-   */
-  QImage *img;
-  //! TRUE when img has been initialized (filled with transparent pixels) and is safe to compose
+  QImage *img; // may be null if it is not necessary to draw to separate image (e.g. sequential rendering)
+  //! True when img has been initialized (filled with transparent pixels) and is safe to compose
   bool imageInitialized = false;
   QgsMapLayerRenderer *renderer; // must be deleted
   QPainter::CompositionMode blendMode;
   double opacity;
-  //! If TRUE, img already contains cached image from previous rendering
-  bool cached;
+  bool cached; // if true, img already contains cached image from previous rendering
   QgsWeakMapLayerPointer layer;
   int renderingTime; //!< Time it took to render the layer in ms (it is -1 if not rendered or still rendering)
   QStringList errors; //!< Rendering errors
@@ -75,7 +68,7 @@ struct LabelRenderJob
   QgsRenderContext context;
 
   /**
-   * May be NULLPTR if it is not necessary to draw to separate image (e.g. using composition modes which prevent "flattening" the layer).
+   * May be null if it is not necessary to draw to separate image (e.g. using composition modes which prevent "flattening" the layer).
    * Note that if complete is FALSE then img will be uninitialized and contain random data!.
    */
   QImage *img = nullptr;

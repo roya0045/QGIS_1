@@ -206,7 +206,7 @@ QString QgsGlobeLayerPropertiesFactory::title() const
 
 bool QgsGlobeLayerPropertiesFactory::supportsLayer( QgsMapLayer *layer ) const
 {
-  return layer->type() == QgsMapLayerType::VectorLayer;
+  return layer->type() == QgsMapLayer::VectorLayer;
 }
 
 void QgsGlobeLayerPropertiesFactory::readGlobeVectorLayerConfig( QgsMapLayer *mapLayer, const QDomElement &elem )

@@ -120,7 +120,6 @@ SET(QGIS_GUI_SRCS
   editorwidgets/qgsexternalresourcewidgetfactory.cpp
   editorwidgets/qgshiddenwidgetwrapper.cpp
   editorwidgets/qgshiddenwidgetfactory.cpp
-  editorwidgets/qgshtmlwidgetwrapper.cpp
   editorwidgets/qgskeyvaluewidgetfactory.cpp
   editorwidgets/qgskeyvaluewidgetwrapper.cpp
   editorwidgets/qgslistwidgetfactory.cpp
@@ -682,7 +681,6 @@ SET(QGIS_GUI_MOC_HDRS
   editorwidgets/qgsexternalresourceconfigdlg.h
   editorwidgets/qgsexternalresourcewidgetwrapper.h
   editorwidgets/qgshiddenwidgetwrapper.h
-  editorwidgets/qgshtmlwidgetwrapper.h
   editorwidgets/qgskeyvaluewidgetwrapper.h
   editorwidgets/qgslistwidgetwrapper.h
   editorwidgets/qgsmultiedittoolbutton.h

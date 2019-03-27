@@ -108,7 +108,7 @@ void QgsLabelingGui::setLayer( QgsMapLayer *mapLayer )
 {
   mPreviewFeature = QgsFeature();
 
-  if ( !mapLayer || mapLayer->type() != QgsMapLayerType::VectorLayer )
+  if ( !mapLayer || mapLayer->type() != QgsMapLayer::VectorLayer )
   {
     setEnabled( false );
     return;

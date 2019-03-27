@@ -110,12 +110,12 @@ QList<QgsMapToolIdentify::IdentifyResult> QgsIdentifyMenu::exec( const QList<Qgs
     QgsMapLayer *layer = it.key();
     switch ( layer->type() )
     {
-      case QgsMapLayerType::RasterLayer:
+      case QgsMapLayer::RasterLayer:
       {
         addRasterLayer( layer );
         break;
       }
-      case QgsMapLayerType::VectorLayer:
+      case QgsMapLayer::VectorLayer:
       {
         QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( layer );
         if ( !vl )
@@ -124,8 +124,8 @@ QList<QgsMapToolIdentify::IdentifyResult> QgsIdentifyMenu::exec( const QList<Qgs
         break;
       }
 
-      case QgsMapLayerType::PluginLayer:
-      case QgsMapLayerType::MeshLayer:
+      case QgsMapLayer::PluginLayer:
+      case QgsMapLayer::MeshLayer:
         break;
     }
   }

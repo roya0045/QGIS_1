@@ -35,9 +35,6 @@
 
  * QGIS application uses QgsCredentialDialog class for displaying a dialog to the user.
 
- * Caller can use the mutex to synchronize authentications to avoid requesting
- * credentials for the same resource several times.
-
  * Object deletes itself when it's not needed anymore. Children should use
  * signal destroyed() to be notified of the deletion
 */
@@ -87,21 +84,25 @@ class CORE_EXPORT QgsCredentials
      * Lock the instance against access from multiple threads. This does not really lock access to get/put methds,
      * it will just prevent other threads to lock the instance and continue the execution. When the class is used
      * from non-GUI threads, they should call lock() before the get/put calls to avoid race conditions.
-     * \since QGIS 2.4
+     *
+     * \deprecated since QGIS 3.4 - mutex locking is automatically handled
      */
-    void lock();
+    Q_DECL_DEPRECATED void lock() SIP_DEPRECATED;
 
     /**
      * Unlock the instance after being locked.
-     * \since QGIS 2.4
+     * \deprecated since QGIS 3.4 - mutex locking is automatically handled
      */
-    void unlock();
+    Q_DECL_DEPRECATED void unlock() SIP_DEPRECATED;
 
     /**
      * Returns pointer to mutex
-     * \since QGIS 2.4
+     * \deprecated since QGIS 3.4 - mutex locking is automatically handled
      */
-    QMutex *mutex() { return &mAuthMutex; }
+    Q_DECL_DEPRECATED QMutex *mutex() SIP_DEPRECATED
+    {
+      return &mMutex;
+    }
 
   protected:
 
@@ -132,11 +133,7 @@ class CORE_EXPORT QgsCredentials
     //! Pointer to the credential instance
     static QgsCredentials *sInstance;
 
-    //! Mutex to synchronize authentications
-    QMutex mAuthMutex;
-
-    //! Mutex to guard the cache
-    QMutex mCacheMutex;
+    QMutex mMutex;
 };
 
 

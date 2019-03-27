@@ -54,8 +54,7 @@ successful
 
     const QgsSQLStatement::Node *rootNode() const;
 %Docstring
-Returns the root node of the statement.
-The root node is ``None`` if parsing has failed.
+Returns root node of the statement. Root node is null is parsing has failed
 %End
 
     QString statement() const;

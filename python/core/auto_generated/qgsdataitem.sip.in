@@ -433,9 +433,9 @@ Item that represents a layer that can be opened with one of the providers
 
 
 
-    QgsMapLayerType mapLayerType() const;
+    QgsMapLayer::LayerType mapLayerType() const;
 %Docstring
-Returns :py:class:`QgsMapLayerType`
+Returns QgsMapLayer.LayerType
 %End
 
     static LayerType typeFromMapLayer( QgsMapLayer *layer );

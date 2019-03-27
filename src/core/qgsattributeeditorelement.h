@@ -63,8 +63,7 @@ class CORE_EXPORT QgsAttributeEditorElement SIP_ABSTRACT
       AeTypeField,     //!< A field
       AeTypeRelation,  //!< A relation
       AeTypeInvalid,   //!< Invalid
-      AeTypeQmlElement, //!< A QML element
-      AeTypeHtmlElement //!< A HTML element
+      AeTypeQmlElement //!< A QML element
     };
 
     /**
@@ -459,7 +458,9 @@ class CORE_EXPORT QgsAttributeEditorQmlElement : public QgsAttributeEditorElemen
     QString qmlCode() const;
 
     /**
-     * Sets the QML code that will be represented within this widget to \a qmlCode.
+     * The QML code that will be represented within this widget.
+     *
+     * @param qmlCode
      */
     void setQmlCode( const QString &qmlCode );
 
@@ -468,47 +469,5 @@ class CORE_EXPORT QgsAttributeEditorQmlElement : public QgsAttributeEditorElemen
     QString typeIdentifier() const override;
     QString mQmlCode;
 };
-
-
-/**
- * \ingroup core
- * An attribute editor widget that will represent arbitrary HTML code.
- *
- * \since QGIS 3.10
- */
-class CORE_EXPORT QgsAttributeEditorHtmlElement : public QgsAttributeEditorElement
-{
-  public:
-
-    /**
-     * Creates a new element which can display HTML
-     *
-     * \param name         The name of the widget
-     * \param parent       The parent (used as container)
-    */
-    QgsAttributeEditorHtmlElement( const QString &name, QgsAttributeEditorElement *parent )
-      : QgsAttributeEditorElement( AeTypeHtmlElement, name, parent )
-    {}
-
-    QgsAttributeEditorElement *clone( QgsAttributeEditorElement *parent ) const override SIP_FACTORY;
-
-    /**
-     * The QML code that will be represented within this widget.
-     *
-     * \since QGIS 3.4
-     */
-    QString htmlCode() const;
-
-    /**
-     * Sets the HTML code that will be represented within this widget to \a htmlCode.
-     */
-    void setHtmlCode( const QString &htmlCode );
-
-  private:
-    void saveConfiguration( QDomElement &elem ) const override;
-    QString typeIdentifier() const override;
-    QString mHtmlCode;
-};
-
 
 #endif // QGSATTRIBUTEEDITORELEMENT_H

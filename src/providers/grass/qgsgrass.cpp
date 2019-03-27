@@ -700,7 +700,7 @@ void QgsGrass::loadMapsetSearchPath()
 
 void QgsGrass::setMapsetSearchPathWatcher()
 {
-  QgsDebugMsg( "entered." );
+  QgsDebugMsg( "etered" );
   if ( mMapsetSearchPathWatcher )
   {
     delete mMapsetSearchPathWatcher;

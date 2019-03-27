@@ -42,7 +42,7 @@ class QgsSingleSymbol3DRendererWidget : public QWidget
     //! no transfer of ownership
     void setLayer( QgsVectorLayer *layer );
 
-    //! Returns the cloned symbol or NULLPTR.
+    //! cloned symbol or null
     QgsAbstract3DSymbol *symbol();
 
   signals:

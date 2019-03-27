@@ -109,10 +109,7 @@ def createSagaBatchJobFileFromSagaCommands(commands):
         else:
             pass
         for command in commands:
-            if isWindows():
-                fout.write('call saga_cmd ' + command + '\n')
-            else:
-                fout.write('saga_cmd ' + command + '\n')
+            fout.write('saga_cmd ' + command + '\n')
 
         fout.write('exit')
 

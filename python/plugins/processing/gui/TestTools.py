@@ -135,14 +135,7 @@ def splitAlgIdAndParameters(command):
     """
     exp = re.compile(r"""['"](.*?)['"]\s*,\s*(.*)""")
     m = exp.search(command[len('processing.run('):-1])
-    alg_id = m.group(1)
-    params = m.group(2)
-
-    # replace QgsCoordinateReferenceSystem('EPSG:4325') with just string value
-    exp = re.compile(r"""QgsCoordinateReferenceSystem\((['"].*?['"])\)""")
-    params = exp.sub('\\1', params)
-
-    return alg_id, ast.literal_eval(params)
+    return m.group(1), ast.literal_eval(m.group(2))
 
 
 def createTest(text):

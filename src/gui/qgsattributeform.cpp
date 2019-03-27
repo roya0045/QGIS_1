@@ -38,7 +38,6 @@
 #include "qgsvectorlayerjoinbuffer.h"
 #include "qgsvectorlayerutils.h"
 #include "qgsqmlwidgetwrapper.h"
-#include "qgshtmlwidgetwrapper.h"
 #include "qgsapplication.h"
 #include "qgsexpressioncontextutils.h"
 
@@ -1836,25 +1835,6 @@ QgsAttributeForm::WidgetInfo QgsAttributeForm::createWidgetFromDef( const QgsAtt
       mWidgets.append( qmlWrapper );
 
       newWidgetInfo.widget = qmlWrapper->widget();
-      newWidgetInfo.labelText = elementDef->name();
-      newWidgetInfo.labelOnTop = true;
-      newWidgetInfo.showLabel = widgetDef->showLabel();
-      break;
-    }
-
-    case QgsAttributeEditorElement::AeTypeHtmlElement:
-    {
-      const QgsAttributeEditorHtmlElement *elementDef = static_cast<const QgsAttributeEditorHtmlElement *>( widgetDef );
-
-      QgsHtmlWidgetWrapper *htmlWrapper = new QgsHtmlWidgetWrapper( mLayer, nullptr, this );
-      context.setAttributeFormMode( mMode );
-      htmlWrapper->setHtmlCode( elementDef->htmlCode() );
-      htmlWrapper->reinitWidget();
-      htmlWrapper->setConfig( mLayer->editFormConfig().widgetConfig( elementDef->name() ) );
-
-      mWidgets.append( htmlWrapper );
-
-      newWidgetInfo.widget = htmlWrapper->widget();
       newWidgetInfo.labelText = elementDef->name();
       newWidgetInfo.labelOnTop = true;
       newWidgetInfo.showLabel = widgetDef->showLabel();

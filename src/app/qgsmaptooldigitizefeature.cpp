@@ -138,31 +138,21 @@ void QgsMapToolDigitizeFeature::cadCanvasReleaseEvent( QgsMapMouseEvent *e )
       return;
     }
 
-    QgsPoint savePoint; //point in layer coordinates
-    bool isMatchPointZ = false;
+    QgsPointXY savePoint; //point in layer coordinates
     try
     {
       QgsPoint fetchPoint;
       int res;
       res = fetchLayerPoint( e->mapPointMatch(), fetchPoint );
-      if ( QgsWkbTypes::hasZ( fetchPoint.wkbType() ) )
-        isMatchPointZ = true;
-
       if ( res == 0 )
       {
-        if ( isMatchPointZ )
-          savePoint = fetchPoint;
-        else
-          savePoint = QgsPoint( fetchPoint.x(), fetchPoint.y() );
+        savePoint = QgsPointXY( fetchPoint.x(), fetchPoint.y() );
       }
       else
       {
-        QgsPointXY layerPoint = toLayerCoordinates( vlayer, e->mapPoint() );
-        if ( isMatchPointZ )
-          savePoint = QgsPoint( QgsWkbTypes::PointZ, layerPoint.x(), layerPoint.y(), fetchPoint.z() );
-        else
-          savePoint = QgsPoint( layerPoint.x(), layerPoint.y() );
+        savePoint = toLayerCoordinates( vlayer, e->mapPoint() );
       }
+      QgsDebugMsg( "savePoint = " + savePoint.toString() );
     }
     catch ( QgsCsException &cse )
     {
@@ -181,11 +171,11 @@ void QgsMapToolDigitizeFeature::cadCanvasReleaseEvent( QgsMapMouseEvent *e )
       QgsGeometry g;
       if ( layerWKBType == QgsWkbTypes::Point )
       {
-        g = QgsGeometry( qgis::make_unique<QgsPoint>( savePoint ) );
+        g = QgsGeometry::fromPointXY( savePoint );
       }
       else if ( !QgsWkbTypes::isMultiType( layerWKBType ) && QgsWkbTypes::hasZ( layerWKBType ) )
       {
-        g = QgsGeometry( qgis::make_unique<QgsPoint>( savePoint.x(), savePoint.y(), isMatchPointZ ? savePoint.z() : defaultZValue() ) );
+        g = QgsGeometry( new QgsPoint( QgsWkbTypes::PointZ, savePoint.x(), savePoint.y(), defaultZValue() ) );
       }
       else if ( QgsWkbTypes::isMultiType( layerWKBType ) && !QgsWkbTypes::hasZ( layerWKBType ) )
       {
@@ -194,13 +184,13 @@ void QgsMapToolDigitizeFeature::cadCanvasReleaseEvent( QgsMapMouseEvent *e )
       else if ( QgsWkbTypes::isMultiType( layerWKBType ) && QgsWkbTypes::hasZ( layerWKBType ) )
       {
         QgsMultiPoint *mp = new QgsMultiPoint();
-        mp->addGeometry( new QgsPoint( QgsWkbTypes::PointZ, savePoint.x(), savePoint.y(), isMatchPointZ ? savePoint.z() : defaultZValue() ) );
-        g.set( mp );
+        mp->addGeometry( new QgsPoint( QgsWkbTypes::PointZ, savePoint.x(), savePoint.y(), defaultZValue() ) );
+        g = QgsGeometry( mp );
       }
       else
       {
         // if layer supports more types (mCheckGeometryType is false)
-        g = QgsGeometry( qgis::make_unique<QgsPoint>( savePoint ) );
+        g = QgsGeometry::fromPointXY( savePoint );
       }
 
       if ( QgsWkbTypes::hasM( layerWKBType ) )

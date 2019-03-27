@@ -88,7 +88,7 @@ class FieldsCalculatorDialog(BASE, WIDGET):
 
         self.cmbInputLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
         try:
-            if iface.activeLayer().type() == QgsMapLayerType.VectorLayer:
+            if iface.activeLayer().type() == QgsMapLayer.VectorLayer:
                 self.cmbInputLayer.setLayer(iface.activeLayer())
         except:
             pass
