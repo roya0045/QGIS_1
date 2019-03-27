@@ -25,6 +25,7 @@
 #include "qgsrectangle.h"
 #include "qgsfeatureid.h"
 #include "qgsgeometry.h"
+#include "qgis.h"
 
 #include <QDomDocument>
 #include <QGraphicsView>

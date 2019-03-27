@@ -22,7 +22,7 @@
 #include <QSharedDataPointer>
 #include "qgsfield_p.h"
 #include "qgis_core.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 typedef QList<int> QgsAttributeList SIP_SKIP;
 

@@ -22,7 +22,6 @@
 #include "qgssettings.h"
 #include "qgswebview.h"
 #include "qgswebframe.h"
-#include "qgsapplication.h"
 
 // Qt includes
 #include <QPoint>

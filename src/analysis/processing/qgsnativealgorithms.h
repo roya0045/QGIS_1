@@ -19,7 +19,7 @@
 #define QGSNATIVEALGORITHMS_H
 
 #include "qgis_analysis.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsprocessingprovider.h"
 
 /**

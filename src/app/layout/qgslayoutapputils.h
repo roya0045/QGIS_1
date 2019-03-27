@@ -16,6 +16,8 @@
 #ifndef QGSLAYOUTAPPUTILS_H
 #define QGSLAYOUTAPPUTILS_H
 
+#include "qgis.h"
+
 /**
  * Utils for layout handling from app.
  */

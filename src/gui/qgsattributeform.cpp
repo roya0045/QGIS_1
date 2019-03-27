@@ -38,7 +38,6 @@
 #include "qgsvectorlayerjoinbuffer.h"
 #include "qgsvectorlayerutils.h"
 #include "qgsqmlwidgetwrapper.h"
-#include "qgsapplication.h"
 
 #include <QDir>
 #include <QTextStream>
@@ -479,7 +478,8 @@ void QgsAttributeForm::pushSelectedFeaturesMessage()
   if ( count > 0 )
   {
     mMessageBar->pushMessage( QString(),
-                              tr( "%n matching feature(s) selected", "matching features", count ),
+                              tr( "%1 matching %2 selected" ).arg( count )
+                              .arg( count == 1 ? tr( "feature" ) : tr( "features" ) ),
                               Qgis::Info,
                               messageTimeout() );
   }

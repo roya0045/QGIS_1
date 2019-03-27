@@ -39,7 +39,6 @@
 #include "qgisapp.h"
 #include "qgsmapcanvas.h"
 #include "qgsproject.h"
-#include "qgsapplication.h"
 
 QgsClipboard::QgsClipboard()
 {

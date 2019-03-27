@@ -19,7 +19,6 @@
 #include "qgsfileutils.h"
 #include "qgssettings.h"
 #include "qgsmessagebar.h"
-#include "qgsapplication.h"
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QLabel>

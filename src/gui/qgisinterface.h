@@ -55,7 +55,7 @@ class QgsBrowserModel;
 #include <QPair>
 #include <map>
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsmaplayer.h"
 #include "qgis_gui.h"
 

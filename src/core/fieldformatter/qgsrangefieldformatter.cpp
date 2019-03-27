@@ -21,7 +21,6 @@
 #include "qgssettings.h"
 #include "qgsfield.h"
 #include "qgsvectorlayer.h"
-#include "qgsapplication.h"
 
 
 QString QgsRangeFieldFormatter::id() const

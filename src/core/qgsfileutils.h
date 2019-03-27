@@ -18,8 +18,7 @@
 #ifndef QGSFILEUTILS_H
 #define QGSFILEUTILS_H
 
-#include "qgis_core.h"
-#include <QString>
+#include "qgis.h"
 
 /**
  * \ingroup core

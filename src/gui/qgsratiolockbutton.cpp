@@ -14,7 +14,6 @@
  ***************************************************************************/
 
 #include "qgsratiolockbutton.h"
-#include "qgis.h"
 
 #include <QApplication>
 #include <QMouseEvent>

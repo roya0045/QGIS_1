@@ -22,7 +22,6 @@
 #include "qgsnetworkaccessmanager.h"
 #include "qgswkbptr.h"
 #include "qgsogrutils.h"
-#include "qgsapplication.h"
 #include <QBuffer>
 #include <QList>
 #include <QNetworkRequest>
@@ -61,8 +60,6 @@ int QgsGml::getFeatures( const QString &uri, QgsWkbTypes::Type *wkbType, QgsRect
   mExtent.setMinimal();
 
   QNetworkRequest request( uri );
-  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsGml" ) );
-
   if ( !authcfg.isEmpty() )
   {
     if ( !QgsApplication::authManager()->updateNetworkRequest( request, authcfg ) )
@@ -1169,20 +1166,19 @@ void QgsGmlStreamingParser::setAttribute( const QString &name, const QString &va
 {
   //find index with attribute name
   QMap<QString, QPair<int, QgsField> >::const_iterator att_it = mThematicAttributes.constFind( name );
-  bool conversionOk = true;
   if ( att_it != mThematicAttributes.constEnd() )
   {
     QVariant var;
     switch ( att_it.value().second.type() )
     {
       case QVariant::Double:
-        var = QVariant( value.toDouble( &conversionOk ) );
+        var = QVariant( value.toDouble() );
         break;
       case QVariant::Int:
-        var = QVariant( value.toInt( &conversionOk ) );
+        var = QVariant( value.toInt() );
         break;
       case QVariant::LongLong:
-        var = QVariant( value.toLongLong( &conversionOk ) );
+        var = QVariant( value.toLongLong() );
         break;
       case QVariant::DateTime:
         var = QVariant( QDateTime::fromString( value, Qt::ISODate ) );
@@ -1190,10 +1186,6 @@ void QgsGmlStreamingParser::setAttribute( const QString &name, const QString &va
       default: //string type is default
         var = QVariant( value );
         break;
-    }
-    if ( ! conversionOk )  // Assume is NULL
-    {
-      var = QVariant();
     }
     Q_ASSERT( mCurrentFeature );
     mCurrentFeature->setAttribute( att_it.value().first, var );

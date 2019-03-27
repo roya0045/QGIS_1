@@ -16,7 +16,7 @@
  ***************************************************************************/
 
 #include <QSlider>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QVariant>
 #include "qgis_gui.h"
 

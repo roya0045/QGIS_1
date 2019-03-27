@@ -16,6 +16,7 @@
 #ifndef QGSCRASHHANDLER_H
 #define QGSCRASHHANDLER_H
 
+#include "qgis.h"
 #include "qgis_app.h"
 
 #ifdef WIN32

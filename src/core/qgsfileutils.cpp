@@ -13,7 +13,6 @@
  *                                                                         *
  ***************************************************************************/
 #include "qgsfileutils.h"
-#include "qgis.h"
 #include <QObject>
 #include <QRegularExpression>
 #include <QFileInfo>

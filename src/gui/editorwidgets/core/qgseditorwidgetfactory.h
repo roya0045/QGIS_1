@@ -18,6 +18,7 @@
 
 #include <QDomNode>
 #include "qgis_sip.h"
+#include "qgis.h"
 #include <QMap>
 #include <QString>
 #include <QVariant>

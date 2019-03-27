@@ -59,7 +59,7 @@ namespace QgsWmts
     // Build default url
     if ( href.isEmpty() )
     {
-      QUrl url = request.originalUrl();
+      QUrl url = request.url();
 
       QgsWmtsParameters params;
       params.load( QUrlQuery( url ) );

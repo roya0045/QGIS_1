@@ -23,7 +23,6 @@
 #include "qgsdoublespinbox.h"
 #include "qgsprocessingcontext.h"
 #include "qgsauthconfigselect.h"
-#include "qgsapplication.h"
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QCheckBox>

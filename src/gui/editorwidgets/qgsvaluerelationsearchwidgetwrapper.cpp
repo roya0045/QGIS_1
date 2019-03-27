@@ -21,7 +21,6 @@
 #include "qgsfilterlineedit.h"
 #include "qgsvaluerelationwidgetwrapper.h"
 #include "qgssettings.h"
-#include "qgsapplication.h"
 
 #include <QStringListModel>
 #include <QCompleter>

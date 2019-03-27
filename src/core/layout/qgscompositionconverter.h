@@ -20,6 +20,7 @@
 #include <QDomDocument>
 #include <QDomElement>
 
+#include "qgis.h"
 #include "qgis_sip.h"
 
 #define SIP_NO_FILE

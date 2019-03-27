@@ -19,10 +19,8 @@
 #define QGSDB2TABLEMODEL_H
 
 #include <QStandardItemModel>
-#include <QString>
-#include <QObject>
 #include "qgsdataitem.h"
-#include "qgswkbtypes.h"
+#include "qgis.h"
 
 //! Layer Property structure
 struct QgsDb2LayerProperty

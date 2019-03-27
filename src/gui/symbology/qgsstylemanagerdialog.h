@@ -297,7 +297,7 @@ class GUI_EXPORT QgsStyleManagerDialog : public QDialog, private Ui::QgsStyleMan
     QString currentItemName();
 
     //! add a new symbol to style
-    bool addSymbol( int symbolType = -1 );
+    bool addSymbol();
     //! add a new color ramp to style
     bool addColorRamp();
 
@@ -380,9 +380,6 @@ class GUI_EXPORT QgsStyleManagerDialog : public QDialog, private Ui::QgsStyleMan
 
     //! Menu for the "Add item" toolbutton when in colorramp mode
     QMenu *mMenuBtnAddItemColorRamp = nullptr;
-
-    //! Menu for the "Add item" toolbutton when in all symbols mode
-    QMenu *mMenuBtnAddItemAll = nullptr;
 
     QAction *mActionCopyToDefault = nullptr;
 

@@ -21,7 +21,7 @@
 
 #include "qgsobjectcustomproperties.h"
 #include "qgsreadwritecontext.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 class QDomElement;
 

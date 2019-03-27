@@ -17,7 +17,7 @@
 #ifndef QGSUSERINPUTWIDGET_H
 #define QGSUSERINPUTWIDGET_H
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgis_gui.h"
 #include "qgsfloatingwidget.h"
 

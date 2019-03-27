@@ -19,7 +19,7 @@
 #include <QWidgetAction>
 #include <QWidget>
 #include "qgis_gui.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 class QColor;
 class QSpinBox;

@@ -21,7 +21,7 @@
 #include <QItemDelegate>
 #include <QFile>
 #include "qgis_gui.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 class QMimeData;
 class QgsPanelWidget;

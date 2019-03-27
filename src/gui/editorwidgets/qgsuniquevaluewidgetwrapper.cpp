@@ -17,7 +17,6 @@
 
 #include "qgsvectorlayer.h"
 #include "qgsfilterlineedit.h"
-#include "qgsapplication.h"
 
 #include <QCompleter>
 #include <QSettings>

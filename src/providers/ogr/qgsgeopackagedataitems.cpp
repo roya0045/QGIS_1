@@ -30,7 +30,6 @@
 #include "qgsrasterlayer.h"
 #include "qgsogrprovider.h"
 #include "qgsogrdataitems.h"
-#include "qgsapplication.h"
 #ifdef HAVE_GUI
 #include "qgsnewnamedialog.h"
 #include "qgsnewgeopackagelayerdialog.h"

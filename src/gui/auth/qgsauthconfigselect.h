@@ -19,7 +19,7 @@
 
 #include <QWidget>
 #include <QLabel>
-#include "qgis_sip.h"
+#include "qgis.h"
 
 #include "ui_qgsauthconfigselect.h"
 #include "qgsauthconfig.h"

@@ -17,7 +17,7 @@
 #define QGSCHECKBOXSEARCHWIDGETWRAPPER_H
 
 #include "qgssearchwidgetwrapper.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 #include <QComboBox>
 #include <QListWidget>

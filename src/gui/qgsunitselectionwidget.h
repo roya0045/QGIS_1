@@ -19,7 +19,7 @@
 #define QGSUNITSELECTIONWIDGET_H
 
 #include <QWidget>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QDialog>
 #include "qgspanelwidget.h"
 #include "qgssymbol.h"

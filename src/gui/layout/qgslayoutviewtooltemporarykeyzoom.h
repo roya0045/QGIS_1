@@ -16,7 +16,7 @@
 #ifndef QGSLAYOUTVIEWTOOLTEMPORARYKEYZOOM_H
 #define QGSLAYOUTVIEWTOOLTEMPORARYKEYZOOM_H
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgis_gui.h"
 #include "qgslayoutviewtoolzoom.h"
 #include "qgslayoutviewrubberband.h"

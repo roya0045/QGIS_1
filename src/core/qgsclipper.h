@@ -20,7 +20,7 @@
 #define QGSCLIPPER_H
 
 #include "qgis_core.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgspointxy.h"
 #include "qgsrectangle.h"
 

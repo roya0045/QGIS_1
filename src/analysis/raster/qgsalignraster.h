@@ -22,7 +22,7 @@
 #include <QString>
 #include <gdal_version.h>
 #include "qgis_analysis.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsogrutils.h"
 
 class QgsRectangle;

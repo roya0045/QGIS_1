@@ -22,7 +22,6 @@
 #include "qgsgeometry.h"
 #include "qgspointxy.h"
 #include "qgis.h"
-#include "qgsapplication.h"
 
 #include <QMouseEvent>
 #include <QRect>

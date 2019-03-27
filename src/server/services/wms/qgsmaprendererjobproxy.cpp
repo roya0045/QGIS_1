@@ -20,7 +20,6 @@
 #include "qgsmessagelog.h"
 #include "qgsmaprendererparalleljob.h"
 #include "qgsmaprenderercustompainterjob.h"
-#include "qgsapplication.h"
 
 namespace QgsWms
 {
@@ -67,8 +66,6 @@ namespace QgsWms
       renderJob.waitForFinished();
       *image = renderJob.renderedImage();
       mPainter.reset( new QPainter( image ) );
-
-      mErrors = renderJob.errors();
     }
     else
     {
@@ -78,7 +75,6 @@ namespace QgsWms
       renderJob.setFeatureFilterProvider( mFeatureFilterProvider );
 #endif
       renderJob.renderSynchronously();
-      mErrors = renderJob.errors();
     }
   }
 
@@ -86,4 +82,5 @@ namespace QgsWms
   {
     return mPainter.release();
   }
+
 } // namespace qgsws

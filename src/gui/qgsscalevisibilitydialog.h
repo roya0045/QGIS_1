@@ -17,7 +17,7 @@
 #define QGSSCALEVISIBILITYDIALOG_H
 
 #include <QDialog>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QGroupBox>
 #include "qgis_gui.h"
 

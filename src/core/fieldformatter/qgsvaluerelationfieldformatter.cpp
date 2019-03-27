@@ -19,7 +19,6 @@
 #include "qgsproject.h"
 #include "qgsvectorlayer.h"
 #include "qgsexpressionnodeimpl.h"
-#include "qgsapplication.h"
 
 #include <QSettings>
 

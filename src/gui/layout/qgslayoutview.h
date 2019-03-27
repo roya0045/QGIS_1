@@ -17,7 +17,7 @@
 #ifndef QGSLAYOUTVIEW_H
 #define QGSLAYOUTVIEW_H
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsprevieweffect.h" // for QgsPreviewEffect::PreviewMode
 #include "qgis_gui.h"
 #include "qgslayoutitempage.h"

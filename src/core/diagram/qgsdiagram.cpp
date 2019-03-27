@@ -14,6 +14,9 @@
  ***************************************************************************/
 #include "qgsdiagram.h"
 #include "qgsdiagramrenderer.h"
+#include "qgsrendercontext.h"
+#include "qgsexpression.h"
+#include "qgssymbollayerutils.h"
 
 #include <QPainter>
 

@@ -153,10 +153,7 @@ class RasterizeAlgorithm(QgisAlgorithm):
     def tags(self):
         return self.tr('layer,raster,convert,file,map themes,tiles,render').split(',')
 
-    def prepareAlgorithm(self, parameters, context, feedback):
-        self.mapSettings = qgis.utils.iface.mapCanvas().mapSettings()
-        return True
-
+    # def processAlgorithm(self, progress):
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
 
@@ -197,11 +194,9 @@ class RasterizeAlgorithm(QgisAlgorithm):
             self.OUTPUT,
             context)
 
-        project = context.project()
-
         tile_set = TileSet(map_theme, layer, extent, tile_size, mupp,
                            output_layer, make_trans,
-                           self.mapSettings, project)
+                           qgis.utils.iface.mapCanvas().mapSettings())
         tile_set.render(feedback, make_trans)
 
         return {self.OUTPUT: output_layer}
@@ -214,7 +209,7 @@ class TileSet():
     """
 
     def __init__(self, map_theme, layer, extent, tile_size, mupp, output,
-                 make_trans, map_settings, project):
+                 make_trans, map_settings):
         """
         :param map_theme:
         :param extent:
@@ -265,14 +260,10 @@ class TileSet():
         self.settings.setFlag(QgsMapSettings.RenderMapTile, True)
         self.settings.setFlag(QgsMapSettings.UseAdvancedEffects, True)
 
-        r = project.readNumEntry('Gui', '/CanvasColorRedPart', 255)[0]
-        g = project.readNumEntry('Gui', '/CanvasColorGreenPart', 255)[0]
-        b = project.readNumEntry('Gui', '/CanvasColorBluePart', 255)[0]
         if make_trans:
-            self.bgColor = QColor(r, g, b, 0)
+            self.settings.setBackgroundColor(QColor(255, 255, 255, 0))
         else:
-            self.bgColor = QColor(r, g, b)
-        self.settings.setBackgroundColor(self.bgColor)
+            self.settings.setBackgroundColor(QColor(255, 255, 255))
 
         if QgsProject.instance().mapThemeCollection().hasMapTheme(map_theme):
             self.settings.setLayers(
@@ -309,9 +300,11 @@ class TileSet():
         """
 
         if make_trans:
-            self.image.fill(self.bgColor.rgba())
+            background_color = QColor(255, 255, 255, 0)
+            self.image.fill(background_color.rgba())
         else:
-            self.image.fill(self.bgColor.rgb())
+            background_color = QColor(255, 255, 255)
+            self.image.fill(background_color.rgb())
 
         painter = QPainter(self.image)
 

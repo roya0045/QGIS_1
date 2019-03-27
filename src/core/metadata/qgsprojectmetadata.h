@@ -18,11 +18,9 @@
 #ifndef QGSPROJECTMETADATA_H
 #define QGSPROJECTMETADATA_H
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgis_core.h"
 #include "qgsabstractmetadatabase.h"
-
-#include <QDateTime>
 
 /**
  * \ingroup core

@@ -18,6 +18,7 @@
 
 #include "qgis_core.h"
 #include "qgis_sip.h"
+#include "qgis.h"
 #include <QFutureWatcher>
 #include <QImage>
 #include <QPainter>
@@ -54,7 +55,6 @@ struct LayerRenderJob
   bool cached; // if true, img already contains cached image from previous rendering
   QgsWeakMapLayerPointer layer;
   int renderingTime; //!< Time it took to render the layer in ms (it is -1 if not rendered or still rendering)
-  QStringList errors; //!< Rendering errors
 };
 
 typedef QList<LayerRenderJob> LayerRenderJobs;

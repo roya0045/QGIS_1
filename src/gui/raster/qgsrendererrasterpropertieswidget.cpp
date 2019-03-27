@@ -31,7 +31,6 @@
 #include "qgscubicrasterresampler.h"
 #include "qgsmultibandcolorrenderer.h"
 #include "qgssinglebandgrayrenderer.h"
-#include "qgsapplication.h"
 
 
 #include "qgsmessagelog.h"

@@ -17,7 +17,7 @@
 #define QGSEDITORWIDGETWRAPPER_H
 
 #include <QObject>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QMap>
 #include <QVariant>
 

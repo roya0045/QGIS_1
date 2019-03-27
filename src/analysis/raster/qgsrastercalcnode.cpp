@@ -73,13 +73,11 @@ bool QgsRasterCalcNode::calculate( QMap<QString, QgsRasterBlock * > &rasterData,
     //convert input raster values to double, also convert input no data to result no data
 
     int outRow = 0;
-    bool isNoData = false;
     for ( int dataRow = startRow; dataRow < endRow ; ++dataRow, ++outRow )
     {
       for ( int dataCol = 0; dataCol < nCols; ++dataCol )
       {
-        const double value = ( *it )->valueAndNoData( dataRow, dataCol, isNoData );
-        data[ dataCol + nCols * outRow] = isNoData ? result.nodataValue() : value;
+        data[ dataCol + nCols * outRow] = ( *it )->isNoData( dataRow, dataCol ) ? result.nodataValue() : ( *it )->value( dataRow, dataCol );
       }
     }
     result.setData( nCols, nRows, data, result.nodataValue() );

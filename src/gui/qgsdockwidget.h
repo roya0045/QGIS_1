@@ -19,7 +19,7 @@
 
 #include <QDockWidget>
 #include "qgis_gui.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 /**
  * \ingroup gui

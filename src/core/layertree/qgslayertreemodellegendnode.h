@@ -24,7 +24,7 @@
 
 
 #include "qgis_core.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 #include "qgsrasterdataprovider.h" // for QgsImageFetcher dtor visibility
 

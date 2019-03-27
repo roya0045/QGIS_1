@@ -22,7 +22,6 @@
 #include "qgsvectorlayer.h"
 #include "qgsrasterlayer.h"
 #include "qgisapp.h"
-#include "qgsapplication.h"
 
 QgsLayerTreeViewIndicatorProvider::QgsLayerTreeViewIndicatorProvider( QgsLayerTreeView *view )
   : QObject( view )

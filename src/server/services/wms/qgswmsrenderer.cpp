@@ -572,15 +572,6 @@ namespace QgsWms
                                     QStringLiteral( "Output format '%1' is not supported in the GetPrint request" ).arg( formatString ) );
     }
 
-    if ( atlas )
-    {
-      handlePrintErrors( atlas->layout() );
-    }
-    else
-    {
-      handlePrintErrors( layout.get() );
-    }
-
     return tempOutputFile.readAll();
   }
 
@@ -2557,9 +2548,8 @@ namespace QgsWms
     }
 
     // init groups
-    const QString rootName { QgsServerProjectUtils::wmsRootName( *mProject ) };
     const QgsLayerTreeGroup *root = mProject->layerTreeRoot();
-    initLayerGroupsRecursive( root, rootName.isEmpty() ? mProject->title() : rootName );
+    initLayerGroupsRecursive( root, mProject->title() );
   }
 
   void QgsRenderer::initLayerGroupsRecursive( const QgsLayerTreeGroup *group, const QString &groupName )
@@ -2927,22 +2917,6 @@ namespace QgsWms
       QgsMapRendererJobProxy renderJob( mSettings.parallelRendering(), mSettings.maxThreads(), &filters );
       renderJob.render( mapSettings, &image );
       painter = renderJob.takePainter();
-
-      if ( !renderJob.errors().isEmpty() )
-      {
-        QString layerWMSName;
-        QString firstErrorLayerId = renderJob.errors().at( 0 ).layerID;
-        QgsMapLayer *errorLayer = mProject->mapLayer( firstErrorLayerId );
-        if ( errorLayer )
-        {
-          layerWMSName = layerNickname( *errorLayer );
-        }
-
-        //Log first error
-        QString errorMsg = QStringLiteral( "Map rendering error in layer '%1'" ).arg( firstErrorLayerId );
-        QgsMessageLog::logMessage( errorMsg, QStringLiteral( "Server" ), Qgis::Critical );
-        throw QgsServerException( QStringLiteral( "Map rendering error in layer '%1'" ).arg( layerWMSName ) );
-      }
     }
 
     return painter;
@@ -3265,29 +3239,4 @@ namespace QgsWms
     std::unique_ptr<QImage> tmpImage( createImage( 1, 1, false ) );
     return tmpImage->dotsPerMeterX() / 1000.0;
   }
-
-  void QgsRenderer::handlePrintErrors( const QgsLayout *layout ) const
-  {
-    if ( !layout )
-    {
-      return;
-    }
-    QList< QgsLayoutItemMap * > mapList;
-    layout->layoutItems( mapList );
-
-    QList< QgsLayoutItemMap * >::const_iterator mapIt = mapList.constBegin();
-    for ( ; mapIt != mapList.constEnd(); ++mapIt )
-    {
-      if ( !( *mapIt )->renderingErrors().isEmpty() )
-      {
-        //Log first error
-        QgsMapRendererJob::Error e = ( *mapIt )->renderingErrors().at( 0 );
-        QString errorMsg = QString( "Rendering error : '%1' in layer %2" ).arg( e.message ).arg( e.layerID );
-        QgsMessageLog::logMessage( errorMsg, "Server", Qgis::Critical );
-
-        throw QgsServerException( QStringLiteral( "Print error" ) );
-      }
-    }
-  }
-
 } // namespace QgsWms

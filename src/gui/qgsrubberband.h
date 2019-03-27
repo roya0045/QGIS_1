@@ -16,7 +16,7 @@
 #define QGSRUBBERBAND_H
 
 #include "qgsmapcanvasitem.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsgeometry.h"
 
 #include <QBrush>

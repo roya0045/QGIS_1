@@ -20,6 +20,7 @@
 
 #include "qgis_core.h"
 #include "qgis_sip.h"
+#include "qgis.h"
 #include "qgslayoutitemmapitem.h"
 #include "qgssymbol.h"
 #include <QString>

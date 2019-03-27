@@ -1626,7 +1626,6 @@ QgsWcsDownloadHandler::QgsWcsDownloadHandler( const QUrl &url, QgsWcsAuthorizati
   }
 
   QNetworkRequest request( url );
-  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWcsDownloadHandler" ) );
   if ( !mAuth.setAuthorization( request ) )
   {
     QgsMessageLog::logMessage( tr( "Network request update failed for authentication config" ),
@@ -1677,7 +1676,6 @@ void QgsWcsDownloadHandler::cacheReplyFinished()
 
       QgsDebugMsg( QStringLiteral( "redirected getmap: %1" ).arg( redirect.toString() ) );
       QNetworkRequest request( redirect.toUrl() );
-      QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWcsDownloadHandler" ) );
       if ( !mAuth.setAuthorization( request ) )
       {
         QgsMessageLog::logMessage( tr( "Network request update failed for authentication config" ),
@@ -1853,7 +1851,6 @@ void QgsWcsDownloadHandler::cacheReplyFinished()
     {
       // Resend request if AlwaysCache
       QNetworkRequest request = mCacheReply->request();
-      QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWcsDownloadHandler" ) );
       if ( request.attribute( QNetworkRequest::CacheLoadControlAttribute ).toInt() == QNetworkRequest::AlwaysCache )
       {
         QgsDebugMsg( QStringLiteral( "Resend request with PreferCache" ) );

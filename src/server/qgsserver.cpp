@@ -35,7 +35,6 @@
 #include "qgsfilterresponsedecorator.h"
 #include "qgsservice.h"
 #include "qgsserverparameters.h"
-#include "qgsapplication.h"
 
 #include <QDomDocument>
 #include <QNetworkDiskCache>

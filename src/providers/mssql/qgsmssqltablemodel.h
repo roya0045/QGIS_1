@@ -20,7 +20,7 @@
 
 #include <QStandardItemModel>
 
-#include "qgswkbtypes.h"
+#include "qgis.h"
 
 //! Layer Property structure
 struct QgsMssqlLayerProperty

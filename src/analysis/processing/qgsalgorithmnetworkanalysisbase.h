@@ -20,13 +20,12 @@
 
 #define SIP_NO_FILE
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsprocessingalgorithm.h"
 
 #include "qgsgraph.h"
 #include "qgsgraphbuilder.h"
 #include "qgsvectorlayerdirector.h"
-#include "qgsapplication.h"
 
 ///@cond PRIVATE
 

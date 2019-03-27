@@ -21,7 +21,7 @@
 #include "qgscolorramp.h"
 #include "ui_qgscolorbrewercolorrampwidgetbase.h"
 #include "qgis_gui.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 class QgsColorBrewerColorRamp;
 

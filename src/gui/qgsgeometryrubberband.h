@@ -19,7 +19,7 @@
 #define QGSGEOMETRYRUBBERBAND_H
 
 #include "qgsmapcanvasitem.h"
-#include "qgswkbtypes.h"
+#include "qgis.h"
 #include <QBrush>
 #include <QPen>
 #include "qgis_gui.h"

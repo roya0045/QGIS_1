@@ -9,7 +9,6 @@
 
 
 
-
 class QgsProjectMetadata : QgsAbstractMetadataBase
 {
 %Docstring

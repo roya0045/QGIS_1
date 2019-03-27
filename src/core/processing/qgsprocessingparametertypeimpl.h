@@ -49,16 +49,6 @@ class CORE_EXPORT QgsProcessingParameterTypeRasterLayer : public QgsProcessingPa
       return QCoreApplication::translate( "Processing", "Raster Layer" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterRasterLayer" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterRasterLayer" );
-    }
-
     QString id() const override
     {
       return QStringLiteral( "raster" );
@@ -98,16 +88,6 @@ class CORE_EXPORT QgsProcessingParameterTypeMeshLayer : public QgsProcessingPara
       return QCoreApplication::translate( "Processing", "Mesh Layer" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterMeshLayer" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterMeshLayer" );
-    }
-
     QString id() const override
     {
       return QStringLiteral( "mesh" );
@@ -144,16 +124,6 @@ class CORE_EXPORT QgsProcessingParameterTypeVectorLayer : public QgsProcessingPa
     QString name() const override
     {
       return QCoreApplication::translate( "Processing", "Vector Layer" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterVectorLayer" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterVectorLayer" );
     }
 
     QString id() const override
@@ -200,16 +170,6 @@ class CORE_EXPORT QgsProcessingParameterTypeMapLayer : public QgsProcessingParam
       return QStringLiteral( "maplayer" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterMapLayer" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterMapLayer" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QObject::tr( "str: layer ID" )
@@ -251,16 +211,6 @@ class CORE_EXPORT QgsProcessingParameterTypeBoolean : public QgsProcessingParame
       return QStringLiteral( "boolean" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterBoolean" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterBoolean" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QStringLiteral( "bool" )
@@ -299,16 +249,6 @@ class CORE_EXPORT QgsProcessingParameterTypeExpression : public QgsProcessingPar
       return QStringLiteral( "expression" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterExpression" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterExpression" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QStringLiteral( "str" )
@@ -343,16 +283,6 @@ class CORE_EXPORT QgsProcessingParameterTypeCrs : public QgsProcessingParameterT
     QString id() const override
     {
       return QStringLiteral( "crs" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterCrs" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterCrs" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -401,16 +331,6 @@ class CORE_EXPORT QgsProcessingParameterTypeRange : public QgsProcessingParamete
       return QStringLiteral( "range" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterRange" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterRange" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QObject::tr( "list[float]: list of 2 float values" )
@@ -447,16 +367,6 @@ class CORE_EXPORT QgsProcessingParameterTypePoint : public QgsProcessingParamete
     QString id() const override
     {
       return QStringLiteral( "point" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterPoint" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterPoint" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -497,16 +407,6 @@ class CORE_EXPORT QgsProcessingParameterTypeEnum : public QgsProcessingParameter
       return QStringLiteral( "enum" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterEnum" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterEnum" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QStringLiteral( "int" )
@@ -542,16 +442,6 @@ class CORE_EXPORT QgsProcessingParameterTypeExtent : public QgsProcessingParamet
     QString id() const override
     {
       return QStringLiteral( "extent" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterExtent" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterExtent" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -597,16 +487,6 @@ class CORE_EXPORT QgsProcessingParameterTypeMatrix : public QgsProcessingParamet
       return QStringLiteral( "matrix" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterMatrix" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterMatrix" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QObject::tr( "str: as comma delimited list of values" )
@@ -642,16 +522,6 @@ class CORE_EXPORT QgsProcessingParameterTypeFile : public QgsProcessingParameter
     QString id() const override
     {
       return QStringLiteral( "file" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterFile" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterFile" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -690,16 +560,6 @@ class CORE_EXPORT QgsProcessingParameterTypeField : public QgsProcessingParamete
       return QStringLiteral( "field" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterField" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterField" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QStringLiteral( "str" )
@@ -735,16 +595,6 @@ class CORE_EXPORT QgsProcessingParameterTypeVectorDestination : public QgsProces
     QString id() const override
     {
       return QStringLiteral( "vectorDestination" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterVectorDestination" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterVectorDestination" );
     }
 
     ParameterFlags flags() const override
@@ -792,16 +642,6 @@ class CORE_EXPORT QgsProcessingParameterTypeFileDestination : public QgsProcessi
       return QStringLiteral( "fileDestination" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterFileDestination" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterFileDestination" );
-    }
-
     ParameterFlags flags() const override
     {
       ParameterFlags flags = QgsProcessingParameterType::flags();
@@ -845,16 +685,6 @@ class CORE_EXPORT QgsProcessingParameterTypeFolderDestination : public QgsProces
     QString id() const override
     {
       return QStringLiteral( "folderDestination" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterFolderDestination" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterFolderDestination" );
     }
 
     ParameterFlags flags() const override
@@ -901,16 +731,6 @@ class CORE_EXPORT QgsProcessingParameterTypeRasterDestination : public QgsProces
       return QStringLiteral( "rasterDestination" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterRasterDestination" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterRasterDestination" );
-    }
-
     ParameterFlags flags() const override
     {
       ParameterFlags flags = QgsProcessingParameterType::flags();
@@ -955,16 +775,6 @@ class CORE_EXPORT QgsProcessingParameterTypeString : public QgsProcessingParamet
       return QStringLiteral( "string" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterString" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterString" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QStringLiteral( "str" )
@@ -1001,16 +811,6 @@ class CORE_EXPORT QgsProcessingParameterTypeAuthConfig : public QgsProcessingPar
       return QStringLiteral( "authcfg" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterAuthConfig" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterAuthConfig" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QStringLiteral( "str" );
@@ -1044,16 +844,6 @@ class CORE_EXPORT QgsProcessingParameterTypeMultipleLayers : public QgsProcessin
     QString id() const override
     {
       return QStringLiteral( "multilayer" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterMultipleLayers" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterMultipleLayers" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -1093,16 +883,6 @@ class CORE_EXPORT QgsProcessingParameterTypeFeatureSource : public QgsProcessing
     QString id() const override
     {
       return QStringLiteral( "source" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterFeatureSource" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterFeatureSource" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -1145,16 +925,6 @@ class CORE_EXPORT QgsProcessingParameterTypeNumber : public QgsProcessingParamet
       return QStringLiteral( "number" );
     }
 
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterNumber" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterNumber" );
-    }
-
     QStringList acceptedPythonTypes() const override
     {
       return QStringList() << QStringLiteral( "int" )
@@ -1190,16 +960,6 @@ class CORE_EXPORT QgsProcessingParameterTypeDistance : public QgsProcessingParam
     QString id() const override
     {
       return QStringLiteral( "distance" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterDistance" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterDistance" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -1238,16 +998,6 @@ class CORE_EXPORT QgsProcessingParameterTypeBand : public QgsProcessingParameter
     QString id() const override
     {
       return QStringLiteral( "band" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterBand" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterBand" );
     }
 
     QStringList acceptedPythonTypes() const override
@@ -1292,16 +1042,6 @@ class CORE_EXPORT QgsProcessingParameterTypeFeatureSink : public QgsProcessingPa
     QString id() const override
     {
       return QStringLiteral( "sink" );
-    }
-
-    QString pythonImportString() const override
-    {
-      return QStringLiteral( "from qgis.core import QgsProcessingParameterFeatureSink" );
-    }
-
-    QString className() const override
-    {
-      return QStringLiteral( "QgsProcessingParameterFeatureSink" );
     }
 
     QStringList acceptedPythonTypes() const override

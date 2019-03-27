@@ -18,7 +18,7 @@
 #define QGSAUTHTRUSTEDCASDIALOG_H
 
 #include <QDialog>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "ui_qgsauthtrustedcasdialog.h"
 
 #include <QSslCertificate>

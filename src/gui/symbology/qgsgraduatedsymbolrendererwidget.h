@@ -17,7 +17,7 @@
 #define QGSGRADUATEDSYMBOLRENDERERWIDGET_H
 
 #include "qgsgraduatedsymbolrenderer.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsrendererwidget.h"
 #include "qgsproxystyle.h"
 #include <QStandardItem>

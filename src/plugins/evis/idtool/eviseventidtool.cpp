@@ -38,7 +38,6 @@
 #include "qgsvectordataprovider.h"
 #include "qgsfeatureiterator.h"
 #include "qgsmapmouseevent.h"
-#include "qgsapplication.h"
 
 
 /**

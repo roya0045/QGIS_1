@@ -30,7 +30,7 @@
 #include <QPair>
 #include <QVector>
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsmaplayer.h"
 #include "qgsraster.h"
 #include "qgsrasterdataprovider.h"

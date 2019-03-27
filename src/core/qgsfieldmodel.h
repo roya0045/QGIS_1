@@ -23,7 +23,7 @@
 #include "qgsfields.h"
 #include "qgis_core.h"
 
-#include "qgis_sip.h"
+#include "qgis.h"
 
 class QgsVectorLayer;
 

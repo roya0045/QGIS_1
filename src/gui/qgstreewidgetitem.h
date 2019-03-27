@@ -20,7 +20,7 @@
 #define QGSTREEWIDGETITEM_H
 
 #include <QTreeWidgetItem>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QObject>
 #include "qgis_gui.h"
 

@@ -73,7 +73,7 @@ class QgsAfsFolderItem : public QgsDataCollectionItem
 {
     Q_OBJECT
   public:
-    QgsAfsFolderItem( QgsDataItem *parent, const QString &name, const QString &path, const QString &baseUrl, const QString &authcfg, const QgsStringMap &headers );
+    QgsAfsFolderItem( QgsDataItem *parent, const QString &name, const QString &path, const QString &baseUrl, const QString &authcfg );
     QVector<QgsDataItem *> createChildren() override;
     bool equal( const QgsDataItem *other ) override;
 
@@ -81,14 +81,13 @@ class QgsAfsFolderItem : public QgsDataCollectionItem
     QString mFolder;
     QString mBaseUrl;
     QString mAuthCfg;
-    QgsStringMap mHeaders;
 };
 
 class QgsAfsServiceItem : public QgsDataCollectionItem
 {
     Q_OBJECT
   public:
-    QgsAfsServiceItem( QgsDataItem *parent, const QString &name, const QString &path, const QString &baseUrl, const QString &authcfg, const QgsStringMap &headers );
+    QgsAfsServiceItem( QgsDataItem *parent, const QString &name, const QString &path, const QString &baseUrl, const QString &authcfg );
     QVector<QgsDataItem *> createChildren() override;
     bool equal( const QgsDataItem *other ) override;
 
@@ -96,7 +95,6 @@ class QgsAfsServiceItem : public QgsDataCollectionItem
     QString mFolder;
     QString mBaseUrl;
     QString mAuthCfg;
-    QgsStringMap mHeaders;
 };
 
 class QgsAfsParentLayerItem : public QgsDataItem
@@ -104,13 +102,12 @@ class QgsAfsParentLayerItem : public QgsDataItem
     Q_OBJECT
   public:
 
-    QgsAfsParentLayerItem( QgsDataItem *parent, const QString &name, const QString &path, const QString &authcfg, const QgsStringMap &headers );
+    QgsAfsParentLayerItem( QgsDataItem *parent, const QString &name, const QString &path, const QString &authcfg );
     bool equal( const QgsDataItem *other ) override;
 
   private:
 
     QString mAuthCfg;
-    QgsStringMap mHeaders;
 
 };
 
@@ -120,7 +117,7 @@ class QgsAfsLayerItem : public QgsLayerItem
 
   public:
 
-    QgsAfsLayerItem( QgsDataItem *parent, const QString &name, const QString &url, const QString &title, const QString &authid, const QString &authcfg, const QgsStringMap &headers );
+    QgsAfsLayerItem( QgsDataItem *parent, const QString &name, const QString &url, const QString &title, const QString &authid, const QString &authcfg );
 
 };
 

@@ -18,6 +18,7 @@
 #define QGSATTRIBUTETABLEFILTERMODEL_H
 
 #include <QSortFilterProxyModel>
+#include "qgis.h"
 #include <QModelIndex>
 
 #include "qgsattributetablemodel.h"

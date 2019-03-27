@@ -57,7 +57,6 @@ class GUI_EXPORT QgsNewHttpConnection : public QDialog, private Ui::QgsNewHttpCo
     {
       FlagShowTestConnection = 1 << 1, //!< Display the 'test connection' button
       FlagHideAuthenticationGroup = 1 << 2, //!< Hide the Authentication group
-      FlagShowHttpSettings = 1 << 3, //!< Display the 'http' group
     };
     Q_DECLARE_FLAGS( Flags, Flag )
 

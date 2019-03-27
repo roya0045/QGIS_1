@@ -193,8 +193,6 @@ void QgsValueRelationWidgetWrapper::setValue( const QVariant &value )
         if ( item )
         {
           item->setCheckState( checkList.contains( item->data( Qt::UserRole ).toString() ) ? Qt::Checked : Qt::Unchecked );
-          //re-set enabled state because it's lost after reloading items
-          item->setFlags( mEnabled ? item->flags() | Qt::ItemIsEnabled : item->flags() & ~Qt::ItemIsEnabled );
           lastChangedItem = item;
         }
       }
@@ -401,7 +399,10 @@ void QgsValueRelationWidgetWrapper::setEnabled( bool enabled )
         QTableWidgetItem *item = mTableWidget->item( j, i );
         if ( item )
         {
-          item->setFlags( enabled ? item->flags() | Qt::ItemIsEnabled : item->flags() & ~Qt::ItemIsEnabled );
+          if ( enabled )
+            item->setFlags( item->flags() | Qt::ItemIsEnabled );
+          else
+            item->setFlags( item->flags() & ~Qt::ItemIsEnabled );
         }
       }
     }

@@ -23,7 +23,6 @@
 #include "qgsrubberband.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsmapmouseevent.h"
-#include "qgsapplication.h"
 
 
 CoordinateCaptureMapTool::CoordinateCaptureMapTool( QgsMapCanvas *thepCanvas )

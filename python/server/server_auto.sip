@@ -22,7 +22,6 @@
 %Include auto_generated/qgsserviceregistry.sip
 %Include auto_generated/qgsfeaturefilterprovidergroup.sip
 %Include auto_generated/qgsfeaturefilter.sip
-%Include auto_generated/qgsstorebadlayerinfo.sip
 %If ( HAVE_SERVER_PYTHON_PLUGINS )
 %Include auto_generated/qgsserverfilter.sip
 %End

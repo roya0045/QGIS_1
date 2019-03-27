@@ -74,7 +74,6 @@ void QgsRasterAnalysisUtils::statisticsFromMiddlePointTest( QgsRasterInterface *
   int iterCols = 0;
   int iterRows = 0;
   QgsRectangle blockExtent;
-  bool isNoData = false;
   while ( iter.readNextRasterPart( rasterBand, iterCols, iterRows, block, iterLeft, iterTop, &blockExtent ) )
   {
     double cellCenterY = blockExtent.yMaximum() - 0.5 * cellSizeY;
@@ -84,8 +83,8 @@ void QgsRasterAnalysisUtils::statisticsFromMiddlePointTest( QgsRasterInterface *
       double cellCenterX = blockExtent.xMinimum() + 0.5 * cellSizeX;
       for ( int col = 0; col < iterCols; ++col )
       {
-        const double pixelValue = block->valueAndNoData( row, col, isNoData );
-        if ( validPixel( pixelValue ) && ( !skipNodata || !isNoData ) )
+        double pixelValue = block->value( row, col );
+        if ( validPixel( pixelValue ) && ( !skipNodata || !block->isNoData( row, col ) ) )
         {
           QgsPoint cellCenter( cellCenterX, cellCenterY );
           if ( polyEngine->contains( &cellCenter ) )
@@ -125,7 +124,6 @@ void QgsRasterAnalysisUtils::statisticsFromPreciseIntersection( QgsRasterInterfa
   int iterCols = 0;
   int iterRows = 0;
   QgsRectangle blockExtent;
-  bool isNoData = false;
   while ( iter.readNextRasterPart( rasterBand, iterCols, iterRows, block, iterLeft, iterTop, &blockExtent ) )
   {
     double currentY = blockExtent.yMaximum() - 0.5 * cellSizeY;
@@ -134,8 +132,8 @@ void QgsRasterAnalysisUtils::statisticsFromPreciseIntersection( QgsRasterInterfa
       double currentX = blockExtent.xMinimum() + 0.5 * cellSizeX;
       for ( int col = 0; col < iterCols; ++col )
       {
-        const double pixelValue = block->valueAndNoData( row, col, isNoData );
-        if ( validPixel( pixelValue ) && ( !skipNodata || !isNoData ) )
+        double pixelValue = block->value( row, col );
+        if ( validPixel( pixelValue ) && ( !skipNodata || !block->isNoData( row, col ) ) )
         {
           pixelRectGeometry = QgsGeometry::fromRect( QgsRectangle( currentX - hCellSizeX, currentY - hCellSizeY, currentX + hCellSizeX, currentY + hCellSizeY ) );
           // GEOS intersects tests on prepared geometry is MAGNITUDES faster than calculating the intersection itself,

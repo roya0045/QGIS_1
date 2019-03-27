@@ -23,7 +23,6 @@
 #include "qgsvectorlayer.h"
 #include "qgsfeedback.h"
 #include "qgsvectorlayerutils.h"
-#include "qgsapplication.h"
 
 #include <QTableWidget>
 #include <QAction>

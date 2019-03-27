@@ -37,9 +37,7 @@ from qgis.core import (Qgis,
                        QgsMapLayer,
                        QgsWkbTypes,
                        QgsMessageLog,
-                       QgsProviderRegistry,
-                       QgsExpressionContext,
-                       QgsExpressionContextScope)
+                       QgsProviderRegistry)
 
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.gui.RenderingStyles import RenderingStyles
@@ -69,7 +67,7 @@ def set_layer_name(layer, context_layer_details):
         layer.setName(context_layer_details.name)
 
 
-def handleAlgorithmResults(alg, context, feedback=None, showResults=True, parameters={}):
+def handleAlgorithmResults(alg, context, feedback=None, showResults=True):
     wrongLayers = []
     if feedback is None:
         feedback = QgsProcessingFeedback()
@@ -83,30 +81,15 @@ def handleAlgorithmResults(alg, context, feedback=None, showResults=True, parame
         if len(context.layersToLoadOnCompletion()) > 2:
             # only show progress feedback if we're loading a bunch of layers
             feedback.setProgress(100 * i / float(len(context.layersToLoadOnCompletion())))
+
         try:
             layer = QgsProcessingUtils.mapLayerFromString(l, context, typeHint=details.layerTypeHint)
             if layer is not None:
                 set_layer_name(layer, details)
 
-                '''If running a model, the execution will arrive here when an algorithm that is part of
-                that model is executed. We check if its output is a final otuput of the model, and
-                adapt the output name accordingly'''
-                outputName = details.outputName
-                expcontext = QgsExpressionContext()
-                scope = QgsExpressionContextScope()
-                expcontext.appendScope(scope)
-                for out in alg.outputDefinitions():
-                    outValue = parameters[out.name()]
-                    if hasattr(outValue, "sink"):
-                        outValue = outValue.sink.valueAsString(expcontext)[0]
-                    else:
-                        outValue = str(outValue)
-                    if outValue == l:
-                        outputName = out.name()
-                        break
-                style = None                
-                if outputName:
-                    style = RenderingStyles.getStyle(alg.id(), outputName)
+                style = None
+                if details.outputName:
+                    style = RenderingStyles.getStyle(alg.id(), details.outputName)
                 if style is None:
                     if layer.type() == QgsMapLayer.RasterLayer:
                         style = ProcessingConfig.getSetting(ProcessingConfig.RASTER_STYLE)

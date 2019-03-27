@@ -56,7 +56,7 @@ namespace QgsWms
         QStringLiteral( "_DC" )
       };
 
-      href = request.originalUrl();
+      href = request.url();
       QUrlQuery q( href );
 
       for ( auto param : q.queryItems() )

@@ -30,7 +30,6 @@
 class QgsCoordinateReferenceSystem;
 class QgsPrintLayout;
 class QgsFeature;
-class QgsLayout;
 class QgsMapLayer;
 class QgsMapSettings;
 class QgsPointXY;
@@ -284,8 +283,6 @@ namespace QgsWms
       QgsMapLayer *createExternalWMSLayer( const QString &externalLayerId ) const;
 
       void removeTemporaryLayers();
-
-      void handlePrintErrors( const QgsLayout *layout ) const;
 
     private:
 

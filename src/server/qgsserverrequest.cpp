@@ -27,7 +27,6 @@ QgsServerRequest::QgsServerRequest( const QString &url, Method method, const Hea
 
 QgsServerRequest::QgsServerRequest( const QUrl &url, Method method, const Headers &headers )
   : mUrl( url )
-  , mOriginalUrl( url )
   , mMethod( method )
   , mHeaders( headers )
 {
@@ -59,16 +58,6 @@ void QgsServerRequest::removeHeader( const QString &name )
 QUrl QgsServerRequest::url() const
 {
   return mUrl;
-}
-
-QUrl QgsServerRequest::originalUrl() const
-{
-  return mOriginalUrl;
-}
-
-void QgsServerRequest::setOriginalUrl( const QUrl &url )
-{
-  mOriginalUrl = url;
 }
 
 QgsServerRequest::Method QgsServerRequest::method() const

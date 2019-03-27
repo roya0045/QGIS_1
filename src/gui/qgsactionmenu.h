@@ -17,7 +17,7 @@
 #define QGSACTIONMENU_H
 
 #include <QMenu>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QSignalMapper>
 
 #include "qgsfeature.h"

@@ -18,7 +18,6 @@ email                : matthias@opengis.ch
 #include "qgsvectorlayer.h"
 #include "qgssinglegeometrycheck.h"
 #include "qgsfeatureid.h"
-#include "qgsapplication.h"
 
 #include <QIcon>
 

@@ -20,13 +20,12 @@
 #define QGSBUFFERSERVERRESPONSE_H
 
 #include "qgis_server.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsserverresponse.h"
 
 #include <QBuffer>
 #include <QByteArray>
 #include <QMap>
-#include <QString>
 
 /**
  * \ingroup server

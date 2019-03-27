@@ -21,7 +21,6 @@
 #include "qgsrulebased3drenderer.h"
 #include "qgsvectorlayer.h"
 #include "qgssymbol3dwidget.h"
-#include "qgsapplication.h"
 
 #include <QAction>
 #include <QClipboard>
