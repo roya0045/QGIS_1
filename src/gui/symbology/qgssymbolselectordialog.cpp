@@ -36,7 +36,6 @@
 #include "qgssvgcache.h"
 #include "qgsimagecache.h"
 #include "qgsproject.h"
-#include "qgsguiutils.h"
 
 #include <QColorDialog>
 #include <QPainter>
@@ -148,16 +147,11 @@ class SymbolLayerItem : public QStandardItem
 
     void updatePreview()
     {
-      if ( !mSize.isValid() )
-      {
-        const int size = QgsGuiUtils::scaleIconSize( 16 );
-        mSize = QSize( size, size );
-      }
       QIcon icon;
       if ( mIsLayer )
-        icon = QgsSymbolLayerUtils::symbolLayerPreviewIcon( mLayer, QgsUnitTypes::RenderMillimeters, mSize ); //todo: make unit a parameter
+        icon = QgsSymbolLayerUtils::symbolLayerPreviewIcon( mLayer, QgsUnitTypes::RenderMillimeters, QSize( 16, 16 ) ); //todo: make unit a parameter
       else
-        icon = QgsSymbolLayerUtils::symbolPreviewIcon( mSymbol, mSize );
+        icon = QgsSymbolLayerUtils::symbolPreviewIcon( mSymbol, QSize( 16, 16 ) );
       setIcon( icon );
 
       if ( parent() )
@@ -220,7 +214,6 @@ class SymbolLayerItem : public QStandardItem
     QgsSymbolLayer *mLayer = nullptr;
     QgsSymbol *mSymbol = nullptr;
     bool mIsLayer;
-    QSize mSize;
 };
 
 ///@endcond

@@ -134,23 +134,19 @@ void QgsExpressionSelectionDialog::mActionRemoveFromSelection_triggered()
 
 void QgsExpressionSelectionDialog::pushSelectedFeaturesMessage()
 {
-  if ( !mMessageBar )
-    return;
-
-  const int timeout = QgsSettings().value( QStringLiteral( "qgis/messageTimeout" ), 5 ).toInt();
-  const int count = mLayer->selectedFeatureCount();
+  int count = mLayer->selectedFeatureCount();
   if ( count > 0 )
   {
     mMessageBar->pushMessage( QString(),
                               tr( "%1 matching %2 selected" ).arg( count )
                               .arg( count == 1 ? tr( "feature" ) : tr( "features" ) ),
-                              Qgis::Info, timeout );
+                              Qgis::Info );
   }
   else
   {
     mMessageBar->pushMessage( QString(),
                               tr( "No matching features found" ),
-                              Qgis::Warning, timeout );
+                              Qgis::Warning );
   }
 }
 

@@ -14,8 +14,6 @@
  ***************************************************************************/
 
 #include "qgslegendsettings.h"
-#include "qgsexpressioncontext.h"
-#include "qgsexpression.h"
 
 #include <QPainter>
 
@@ -35,12 +33,6 @@ QgsLegendSettings::QgsLegendSettings()
   rstyle( QgsLegendStyle::Group ).rfont().setPointSizeF( 14.0 );
   rstyle( QgsLegendStyle::Subgroup ).rfont().setPointSizeF( 12.0 );
   rstyle( QgsLegendStyle::SymbolLabel ).rfont().setPointSizeF( 12.0 );
-}
-
-QStringList QgsLegendSettings::evaluateItemText( const QString &text, const QgsExpressionContext &context ) const
-{
-  const QString textToRender = QgsExpression::replaceExpressionText( text, &context );
-  return splitStringForWrapping( textToRender );
 }
 
 QStringList QgsLegendSettings::splitStringForWrapping( const QString &stringToSplt ) const

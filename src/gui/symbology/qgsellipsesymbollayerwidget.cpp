@@ -57,8 +57,10 @@ QgsEllipseSymbolLayerWidget::QgsEllipseSymbolLayerWidget( QgsVectorLayer *vl, QW
   btnChangeColorStroke->setShowNoColor( true );
   btnChangeColorStroke->setNoColorString( tr( "Transparent Stroke" ) );
 
-  mFillColorDDBtn->registerLinkedWidget( btnChangeColorFill );
-  mStrokeColorDDBtn->registerLinkedWidget( btnChangeColorStroke );
+  mFillColorDDBtn->setFlags( QgsPropertyOverrideButton::FlagDisableCheckedWidgetOnlyWhenProjectColorSet );
+  mFillColorDDBtn->registerEnabledWidget( btnChangeColorFill, false );
+  mStrokeColorDDBtn->setFlags( QgsPropertyOverrideButton::FlagDisableCheckedWidgetOnlyWhenProjectColorSet );
+  mStrokeColorDDBtn->registerEnabledWidget( btnChangeColorStroke, false );
 
   spinOffsetX->setClearValue( 0.0 );
   spinOffsetY->setClearValue( 0.0 );

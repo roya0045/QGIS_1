@@ -20,8 +20,7 @@
 #include <memory>
 
 //qgis includes...
-#include "qgis.h"
-#include "qgsmaplayermodel.h"
+#include <qgis.h>
 
 /**
  * \ingroup UnitTests
@@ -47,8 +46,6 @@ class TestQgis : public QObject
     void testQgsAsConst();
     void testQgsRound();
     void testQgsVariantEqual();
-    void testQgsEnumValueToKey();
-    void testQgsEnumKeyToValue();
 
   private:
     QString mReport;
@@ -391,18 +388,9 @@ void TestQgis::testQgsVariantEqual()
   // NULL identities
   QVERIFY( qgsVariantEqual( QVariant( QVariant::Int ), QVariant( QVariant::Int ) ) );
   QVERIFY( qgsVariantEqual( QVariant( QVariant::Double ), QVariant( QVariant::Double ) ) );
-}
 
-void TestQgis::testQgsEnumValueToKey()
-{
-  QCOMPARE( qgsEnumValueToKey<QgsMapLayerModel::ItemDataRole>( QgsMapLayerModel::LayerRole ), QStringLiteral( "LayerRole" ) );
-}
-void TestQgis::testQgsEnumKeyToValue()
-{
-  QCOMPARE( qgsEnumKeyToValue<QgsMapLayerModel::ItemDataRole>( QStringLiteral( "LayerRole" ), QgsMapLayerModel::LayerIdRole ), QgsMapLayerModel::LayerRole );
-  QCOMPARE( qgsEnumKeyToValue<QgsMapLayerModel::ItemDataRole>( QStringLiteral( "UnknownKey" ), QgsMapLayerModel::LayerIdRole ), QgsMapLayerModel::LayerIdRole );
-}
 
+}
 
 
 QGSTEST_MAIN( TestQgis )

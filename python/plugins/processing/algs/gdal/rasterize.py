@@ -127,6 +127,7 @@ class rasterize(GdalAlgorithm):
         init_param = QgsProcessingParameterNumber(self.INIT,
                                                   self.tr('Pre-initialize the output image with value'),
                                                   type=QgsProcessingParameterNumber.Double,
+                                                  defaultValue=0.0,
                                                   optional=True)
         init_param.setFlags(init_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(init_param)
@@ -180,8 +181,8 @@ class rasterize(GdalAlgorithm):
         arguments.append(self.parameterAsDouble(parameters, self.WIDTH, context))
         arguments.append(self.parameterAsDouble(parameters, self.HEIGHT, context))
 
-        if self.INIT in parameters and parameters[self.INIT] is not None:
-            initValue = self.parameterAsDouble(parameters, self.INIT, context)
+        initValue = self.parameterAsDouble(parameters, self.INIT, context)
+        if initValue:
             arguments.append('-init')
             arguments.append(initValue)
 

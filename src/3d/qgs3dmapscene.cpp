@@ -43,7 +43,6 @@
 #include "qgschunknode_p.h"
 #include "qgsmeshlayer.h"
 #include "qgsmeshlayer3drenderer.h"
-#include "qgsrulebased3drenderer.h"
 #include "qgsterrainentity_p.h"
 #include "qgsterraingenerator.h"
 #include "qgstessellatedpolygongeometry.h"
@@ -539,10 +538,6 @@ void Qgs3DMapScene::addLayerEntity( QgsMapLayer *layer )
     if ( layer->type() == QgsMapLayer::VectorLayer && renderer->type() == QLatin1String( "vector" ) )
     {
       static_cast<QgsVectorLayer3DRenderer *>( renderer )->setLayer( static_cast<QgsVectorLayer *>( layer ) );
-    }
-    else if ( layer->type() == QgsMapLayer::VectorLayer && renderer->type() == QLatin1String( "rulebased" ) )
-    {
-      static_cast<QgsRuleBased3DRenderer *>( renderer )->setLayer( static_cast<QgsVectorLayer *>( layer ) );
     }
     else if ( layer->type() == QgsMapLayer::MeshLayer && renderer->type() == QLatin1String( "mesh" ) )
     {

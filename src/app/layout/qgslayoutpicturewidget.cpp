@@ -61,8 +61,10 @@ QgsLayoutPictureWidget::QgsLayoutPictureWidget( QgsLayoutItemPicture *picture )
   mStrokeColorButton->setColorDialogTitle( tr( "Select Stroke Color" ) );
   mStrokeColorButton->setContext( QStringLiteral( "composer" ) );
 
-  mFillColorDDBtn->registerLinkedWidget( mFillColorButton );
-  mStrokeColorDDBtn->registerLinkedWidget( mStrokeColorButton );
+  mFillColorDDBtn->setFlags( QgsPropertyOverrideButton::FlagDisableCheckedWidgetOnlyWhenProjectColorSet );
+  mFillColorDDBtn->registerEnabledWidget( mFillColorButton, false );
+  mStrokeColorDDBtn->setFlags( QgsPropertyOverrideButton::FlagDisableCheckedWidgetOnlyWhenProjectColorSet );
+  mStrokeColorDDBtn->registerEnabledWidget( mStrokeColorButton, false );
 
   mNorthTypeComboBox->blockSignals( true );
   mNorthTypeComboBox->addItem( tr( "Grid north" ), QgsLayoutItemPicture::GridNorth );

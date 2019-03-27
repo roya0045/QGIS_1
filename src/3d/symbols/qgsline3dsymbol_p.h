@@ -27,19 +27,42 @@
 // version without notice, or even be removed.
 //
 
+#include <Qt3DCore/QEntity>
+#include <Qt3DExtras/QPhongMaterial>
+#include <Qt3DRender/QGeometryRenderer>
 
-#include "qgsfeature3dhandler_p.h"
-
+class Qgs3DMapSettings;
+class QgsTessellatedPolygonGeometry;
 class QgsLine3DSymbol;
 
-namespace Qgs3DSymbolImpl
-{
-  //! factory method for QgsLine3DSymbol
-  QgsFeature3DHandler *handlerForLine3DSymbol( QgsVectorLayer *layer, const QgsLine3DSymbol &symbol );
+class QgsVectorLayer;
+class QgsFeatureRequest;
 
-  //! convenience function to create a complete entity from QgsPolygon3DSymbol (will run getFeatures() on the layer)
-  Qt3DCore::QEntity *entityForLine3DSymbol( const Qgs3DMapSettings &map, QgsVectorLayer *layer, const QgsLine3DSymbol &symbol );
-}
+
+//! Entity that handles rendering of linestrings
+class QgsLine3DSymbolEntity : public Qt3DCore::QEntity
+{
+  public:
+    QgsLine3DSymbolEntity( const Qgs3DMapSettings &map, QgsVectorLayer *layer, const QgsLine3DSymbol &symbol, Qt3DCore::QNode *parent = nullptr );
+
+  private:
+    void addEntityForSelectedLines( const Qgs3DMapSettings &map, QgsVectorLayer *layer, const QgsLine3DSymbol &symbol );
+    void addEntityForNotSelectedLines( const Qgs3DMapSettings &map, QgsVectorLayer *layer, const QgsLine3DSymbol &symbol );
+
+    Qt3DExtras::QPhongMaterial *material( const QgsLine3DSymbol &symbol ) const;
+};
+
+class QgsLine3DSymbolEntityNode : public Qt3DCore::QEntity
+{
+  public:
+    QgsLine3DSymbolEntityNode( const Qgs3DMapSettings &map, QgsVectorLayer *layer, const QgsLine3DSymbol &symbol, const QgsFeatureRequest &req, Qt3DCore::QNode *parent = nullptr );
+
+  private:
+    Qt3DRender::QGeometryRenderer *renderer( const Qgs3DMapSettings &map, const QgsLine3DSymbol &symbol, const QgsVectorLayer *layer, const QgsFeatureRequest &req );
+    Qt3DRender::QGeometryRenderer *rendererSimple( const Qgs3DMapSettings &map, const QgsLine3DSymbol &symbol, const QgsVectorLayer *layer, const QgsFeatureRequest &request );
+
+    QgsTessellatedPolygonGeometry *mGeometry = nullptr;
+};
 
 /// @endcond
 

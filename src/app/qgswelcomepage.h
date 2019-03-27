@@ -17,7 +17,7 @@
 #define QGSWELCOMEDIALOG_H
 
 #include <QWidget>
-#include <QTextBrowser>
+#include <QLabel>
 
 #include "qgswelcomepageitemsmodel.h"
 
@@ -47,7 +47,7 @@ class QgsWelcomePage : public QWidget
 
   private:
     QgsWelcomePageItemsModel *mModel = nullptr;
-    QTextBrowser *mVersionInformation = nullptr;
+    QLabel *mVersionInformation = nullptr;
     QgsVersionInfo *mVersionInfo = nullptr;
     QListView *mRecentProjectsListView = nullptr;
 };

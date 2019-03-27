@@ -89,12 +89,9 @@ bool QgsSnappingUtils::isIndexPrepared( QgsVectorLayer *vl, const QgsRectangle &
   if ( mStrategy == IndexAlwaysFull && loc->hasIndex() )
     return true;
 
-  if ( mStrategy == IndexExtent && loc->hasIndex() && loc->extent()->intersects( areaOfInterest ) )
-    return true;
-
   QgsRectangle aoi( areaOfInterest );
   aoi.scale( 0.999 );
-  return mStrategy == IndexHybrid && loc->hasIndex() && ( !loc->extent() || loc->extent()->contains( aoi ) ); // the index - even if it exists - is not suitable
+  return ( mStrategy == IndexHybrid || mStrategy == IndexExtent ) && loc->hasIndex() && ( !loc->extent() || loc->extent()->contains( aoi ) ); // the index - even if it exists - is not suitable
 }
 
 static QgsPointLocator::Match _findClosestSegmentIntersection( const QgsPointXY &pt, const QgsPointLocator::MatchList &segments )
@@ -373,7 +370,7 @@ void QgsSnappingUtils::prepareIndex( const QList<LayerAndAreaOfInterest> &layers
 
       if ( mStrategy == IndexExtent )
       {
-        QgsRectangle rect( mMapSettings.visibleExtent() );
+        QgsRectangle rect( mMapSettings.extent() );
         loc->setExtent( &rect );
         loc->init();
       }
