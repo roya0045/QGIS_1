@@ -138,13 +138,7 @@ class Grass7AlgorithmProvider(QgsProcessingProvider):
         return QgsApplication.iconPath("/providerGrass.svg")
 
     def defaultVectorFileExtension(self, hasGeometry=True):
-        # By default,'gpkg', but if OGR has not been compiled with sqlite3, then
-        # we take "SHP"
-        if 'GPKG' in [o.driverName for o in
-                      QgsVectorFileWriter.ogrDriverList()]:
-            return 'gpkg'
-        else:
-            return 'shp' if hasGeometry else 'dbf'
+        return 'gpkg'
 
     def supportsNonFileBasedOutput(self):
         """

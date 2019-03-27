@@ -11,7 +11,6 @@
 
 
 
-
 class QgsNetworkRequestParameters
 {
 %Docstring
@@ -97,9 +96,6 @@ QgsNetworkRequestParameters.AttributeInitiatorRequestId attribute set.
 
 };
 
-
-
-
 class QgsNetworkAccessManager : QNetworkAccessManager
 {
 %Docstring
@@ -145,82 +141,44 @@ need to be handled on the main thread. See in-depth discussion below.
 
     QgsNetworkAccessManager( QObject *parent = 0 );
 
-
     void insertProxyFactory( QNetworkProxyFactory *factory /Transfer/ );
 %Docstring
-Inserts a ``factory`` into the proxy factories list.
-
-Ownership of ``factory`` is transferred to the manager.
-
-.. seealso:: :py:func:`removeProxyFactory`
-
-.. seealso:: :py:func:`proxyFactories`
+insert a factory into the proxy factories list
 %End
 
     void removeProxyFactory( QNetworkProxyFactory *factory /TransferBack/ );
 %Docstring
-Removes a ``factory`` from the proxy factories list.
-
-.. seealso:: :py:func:`insertProxyFactory`
-
-.. seealso:: :py:func:`proxyFactories`
+remove a factory from the proxy factories list
 %End
 
     const QList<QNetworkProxyFactory *> proxyFactories() const;
 %Docstring
-Returns a list of proxy factories used by the manager.
-
-.. seealso:: :py:func:`insertProxyFactory`
-
-.. seealso:: :py:func:`proxyFactories`
+retrieve proxy factory list
 %End
 
     const QNetworkProxy &fallbackProxy() const;
 %Docstring
-Returns the fallback proxy used by the manager.
-
-The fallback proxy is used for URLs which no other proxy factory returned proxies for.
-
-.. seealso:: :py:func:`proxyFactories`
-
-.. seealso:: :py:func:`setFallbackProxyAndExcludes`
+retrieve fall back proxy (for urls that no factory returned proxies for)
 %End
 
     QStringList excludeList() const;
 %Docstring
-Returns the proxy exclude list.
-
-This list consists of the beginning of URL strings which will not use the fallback proxy.
-
-.. seealso:: :py:func:`fallbackProxy`
-
-.. seealso:: :py:func:`setFallbackProxyAndExcludes`
+retrieve exclude list (urls shouldn't use the fallback proxy)
 %End
 
     void setFallbackProxyAndExcludes( const QNetworkProxy &proxy, const QStringList &excludes );
 %Docstring
-Sets the fallback ``proxy`` and URLs which shouldn't use it.
-
-The fallback proxy is used for URLs which no other proxy factory returned proxies for.
-The ``excludes`` list specifies the beginning of URL strings which will not use this fallback proxy.
-
-.. seealso:: :py:func:`fallbackProxy`
-
-.. seealso:: :py:func:`excludeList`
+Sets fallback proxy and URL that shouldn't use it.
 %End
 
     static QString cacheLoadControlName( QNetworkRequest::CacheLoadControl control );
 %Docstring
-Returns the name for QNetworkRequest.CacheLoadControl.
-
-.. seealso:: :py:func:`cacheLoadControlFromName`
+Gets name for QNetworkRequest.CacheLoadControl
 %End
 
     static QNetworkRequest::CacheLoadControl cacheLoadControlFromName( const QString &name );
 %Docstring
-Returns QNetworkRequest.CacheLoadControl from a ``name``.
-
-.. seealso:: :py:func:`cacheLoadControlName`
+Gets QNetworkRequest.CacheLoadControl from name
 %End
 
     void setupDefaultProxyAndCache( Qt::ConnectionType connectionType = Qt::BlockingQueuedConnection );
@@ -234,71 +192,7 @@ for the constructor of this class.
 
     bool useSystemProxy() const;
 %Docstring
-Returns whether the system proxy should be used.
-%End
-
-    static int timeout();
-%Docstring
-Returns the network timeout length, in milliseconds.
-
-.. seealso:: :py:func:`setTimeout`
-
-.. versionadded:: 3.6
-%End
-
-    static void setTimeout( int time );
-%Docstring
-Sets the maximum timeout ``time`` for network requests, in milliseconds.
-
-.. seealso:: :py:func:`timeout`
-
-.. versionadded:: 3.6
-%End
-
-    static QgsNetworkReplyContent blockingGet( QNetworkRequest &request, const QString &authCfg = QString(), bool forceRefresh = false, QgsFeedback *feedback = 0 );
-%Docstring
-Posts a GET request to obtain the contents of the target request and returns a new QgsNetworkReplyContent object for reading.
-The current thread will be blocked until the request is returned.
-
-This method is safe to call in either the main thread or a worker thread.
-
-If ``forceRefresh`` is false then previously cached replies may be used for the request. If
-it is set to true then a new query is always performed.
-
-If an ``authCfg`` has been specified, then that authentication configuration required will automatically be applied to
-``request``. There is no need to manually apply the authentication to the request prior to calling
-this method.
-
-The optional ``feedback`` argument can be used to abort ongoing requests.
-
-The contents of the reply will be returned after the request is completed or an error occurs.
-
-.. seealso:: :py:func:`blockingPost`
-
-.. versionadded:: 3.6
-%End
-
-    static QgsNetworkReplyContent blockingPost( QNetworkRequest &request, const QByteArray &data, const QString &authCfg = QString(), bool forceRefresh = false, QgsFeedback *feedback = 0 );
-%Docstring
-Posts a POST request to obtain the contents of the target ``request``, using the given ``data``, and returns a new
-QgsNetworkReplyContent object for reading. The current thread will be blocked until the request is returned.
-
-This method is safe to call in either the main thread or a worker thread.
-
-If ``forceRefresh`` is false then previously cached replies may be used for the request. If
-it is set to true then a new query is always performed.
-
-If an ``authCfg`` has been specified, then that authentication configuration required will automatically be applied to
-``request``. There is no need to manually apply the authentication to the request prior to calling
-this method.
-
-The optional ``feedback`` argument can be used to abort ongoing requests.
-
-The contents of the reply will be returned after the request is completed or an error occurs.
-
-.. seealso:: :py:func:`blockingGet`
-
-.. versionadded:: 3.6
+Returns whether the system proxy should be used
 %End
 
   signals:
@@ -373,61 +267,6 @@ created in any thread.
 .. versionadded:: 3.6
 %End
 
-    void requestRequiresAuth( int requestId, const QString &realm );
-%Docstring
-Emitted when a network request prompts an authentication request.
-
-The ``requestId`` argument reflects the unique ID identifying the original request which the authentication relates to.
-
-This signal is propagated to the main thread QgsNetworkAccessManager instance, so it is necessary
-only to connect to the main thread's signal in order to receive notifications about authentication requests
-from any thread.
-
-This signal is for debugging and logging purposes only, and cannot be used to respond to the
-requests. See QgsNetworkAuthenticationHandler for details on how to handle authentication requests.
-
-.. seealso:: :py:func:`requestAuthDetailsAdded`
-
-.. versionadded:: 3.6
-%End
-
-    void requestAuthDetailsAdded( int requestId, const QString &realm, const QString &user, const QString &password );
-%Docstring
-Emitted when network authentication details have been added to a request.
-
-The ``requestId`` argument reflects the unique ID identifying the original request which the authentication relates to.
-
-This signal is always sent from the main thread QgsNetworkAccessManager instance, so it is necessary
-only to connect to the main thread's signal in order to receive notifications about authentication requests
-from any thread.
-
-This signal is for debugging and logging purposes only, and should not be used to respond to the
-requests. See QgsNetworkAuthenticationHandler for details on how to handle authentication requests.
-
-.. seealso:: :py:func:`requestRequiresAuth`
-
-.. versionadded:: 3.6
-%End
-
-
-    void requestEncounteredSslErrors( int requestId, const QList<QSslError> &errors );
-%Docstring
-Emitted when a network request encounters SSL ``errors``.
-
-The ``requestId`` argument reflects the unique ID identifying the original request which the SSL error relates to.
-
-This signal is propagated to the main thread QgsNetworkAccessManager instance, so it is necessary
-only to connect to the main thread's signal in order to receive notifications about SSL errors
-from any thread.
-
-This signal is for debugging and logging purposes only, and cannot be used to respond to the errors.
-See QgsSslErrorHandler for details on how to handle SSL errors and potentially ignore them.
-
-.. versionadded:: 3.6
-%End
-
-
-
  void requestCreated( QNetworkReply * ) /Deprecated/;
 %Docstring
 
@@ -435,8 +274,6 @@ See QgsSslErrorHandler for details on how to handle SSL errors and potentially i
 %End
 
     void requestTimedOut( QNetworkReply * );
-
-
 
   protected:
     virtual QNetworkReply *createRequest( QNetworkAccessManager::Operation op, const QNetworkRequest &req, QIODevice *outgoingData = 0 );

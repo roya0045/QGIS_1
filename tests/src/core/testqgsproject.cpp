@@ -41,7 +41,6 @@ class TestQgsProject : public QObject
     void testProjectUnits();
     void variablesChanged();
     void testLayerFlags();
-    void testLocalFiles();
 };
 
 void TestQgsProject::init()
@@ -385,25 +384,6 @@ void TestQgsProject::testLayerFlags()
   QgsMapLayer *layer = prj.mapLayer( layer2id );
   QVERIFY( layer );
   QVERIFY( !layer->flags().testFlag( QgsMapLayer::Removable ) );
-}
-
-void TestQgsProject::testLocalFiles()
-{
-  QTemporaryFile f;
-  QVERIFY( f.open() );
-  f.close();
-  QgsProject prj;
-  QFileInfo info( f.fileName() );
-  prj.setFileName( f.fileName() );
-  prj.write();
-  QString shpPath = info.dir().path() + '/' + info.baseName() + ".shp";
-  QString layerPath = "file://" + shpPath;
-  QFile f2( shpPath );
-  QVERIFY( f2.open( QFile::ReadWrite ) );
-  f2.close();
-  QgsPathResolver resolver( f.fileName( ) );
-  QCOMPARE( resolver.writePath( layerPath ), QString( "./" + info.baseName() + ".shp" ) ) ;
-
 }
 
 

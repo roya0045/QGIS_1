@@ -17,6 +17,7 @@
 #define QGSLAYERTREEMAPCANVASBRIDGE_H
 
 #include <QObject>
+#include "qgis.h"
 #include <QStringList>
 
 #include "qgscoordinatereferencesystem.h"
@@ -57,22 +58,9 @@ class GUI_EXPORT QgsLayerTreeMapCanvasBridge : public QObject
 
     /**
      * Associates overview canvas with the bridge, so the overview will be updated whenever main canvas is updated
-     * \since QGIS 3.6
-     */
-    void setOverviewCanvas( QgsMapOverviewCanvas *overviewCanvas ) { mOverviewCanvas = overviewCanvas; }
-
-#ifdef SIP_RUN
-
-    /**
-     * Associates overview canvas with the bridge, so the overview will be updated whenever main canvas is updated
      * \since QGIS 3.0
-     * \deprecated use setOverviewCanvas instead
      */
-    void setOvervewCanvas( QgsMapOverviewCanvas *overviewCanvas ) SIP_DEPRECATED; // TODO QGIS 4.0 remove
-    % MethodCode
-    sipCpp->setOverviewCanvas( a0 );
-    % End
-#endif
+    void setOvervewCanvas( QgsMapOverviewCanvas *overviewCanvas ) { mOverviewCanvas = overviewCanvas; }
 
     /**
      * Returns associated overview canvas (may be null)
@@ -119,7 +107,7 @@ class GUI_EXPORT QgsLayerTreeMapCanvasBridge : public QObject
     bool mAutoSetupOnFirstLayer;
 
     bool mHasFirstLayer;
-    bool mHasLayersLoaded;
+    bool mLastLayerCount;
     bool mUpdatingProjectLayerOrder = false;
 
     QgsCoordinateReferenceSystem mFirstCRS;

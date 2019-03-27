@@ -21,6 +21,8 @@
 #include "qgsdatasourceuri.h"
 #include "qgsafsdataitems.h"
 #include "qgslogger.h"
+#include "geometry/qgsgeometry.h"
+#include "qgsnetworkaccessmanager.h"
 #include "qgsdataitemprovider.h"
 #include "qgsapplication.h"
 
@@ -28,6 +30,12 @@
 #include "qgsafssourceselect.h"
 #include "qgssourceselectprovider.h"
 #endif
+
+#include <QEventLoop>
+#include <QMessageBox>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+
 
 static const QString TEXT_PROVIDER_KEY = QStringLiteral( "arcgisfeatureserver" );
 static const QString TEXT_PROVIDER_DESCRIPTION = QStringLiteral( "ArcGIS Feature Server data provider" );
@@ -313,13 +321,6 @@ QgsFeatureRenderer *QgsAfsProvider::createRenderer( const QVariantMap & ) const
 QgsAbstractVectorLayerLabeling *QgsAfsProvider::createLabeling( const QVariantMap & ) const
 {
   return QgsArcGisRestUtils::parseEsriLabeling( mLabelingDataList );
-}
-
-bool QgsAfsProvider::renderInPreview( const QgsDataProvider::PreviewContext & )
-{
-  // these servers can be sloooooooow, and unpredictable. The previous preview job may have been fast to render,
-  // but the next may take minutes or worse to download...
-  return false;
 }
 
 #ifdef HAVE_GUI

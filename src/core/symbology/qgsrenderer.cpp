@@ -60,7 +60,7 @@ QgsFeatureRenderer::QgsFeatureRenderer( const QString &type )
   : mType( type )
   , mUsingSymbolLevels( false )
   , mCurrentVertexMarkerType( QgsVectorLayer::Cross )
-  , mCurrentVertexMarkerSize( 2 )
+  , mCurrentVertexMarkerSize( 3 )
   , mForceRaster( false )
   , mOrderByEnabled( false )
 {
@@ -337,7 +337,7 @@ QgsLegendSymbolList QgsFeatureRenderer::legendSymbolItems() const
   return QgsLegendSymbolList();
 }
 
-void QgsFeatureRenderer::setVertexMarkerAppearance( int type, double size )
+void QgsFeatureRenderer::setVertexMarkerAppearance( int type, int size )
 {
   mCurrentVertexMarkerType = type;
   mCurrentVertexMarkerSize = size;
@@ -350,10 +350,9 @@ bool QgsFeatureRenderer::willRenderFeature( const QgsFeature &feature, QgsRender
 
 void QgsFeatureRenderer::renderVertexMarker( QPointF pt, QgsRenderContext &context )
 {
-  int markerSize = context.convertToPainterUnits( mCurrentVertexMarkerSize, QgsUnitTypes::RenderMillimeters );
-  QgsSymbolLayerUtils::drawVertexMarker( pt.x(), pt.y(), *context.painter(),
-                                         static_cast< QgsSymbolLayerUtils::VertexMarkerType >( mCurrentVertexMarkerType ),
-                                         markerSize );
+  QgsVectorLayer::drawVertexMarker( pt.x(), pt.y(), *context.painter(),
+                                    static_cast< QgsVectorLayer::VertexMarkerType >( mCurrentVertexMarkerType ),
+                                    mCurrentVertexMarkerSize );
 }
 
 void QgsFeatureRenderer::renderVertexMarkerPolyline( QPolygonF &pts, QgsRenderContext &context )

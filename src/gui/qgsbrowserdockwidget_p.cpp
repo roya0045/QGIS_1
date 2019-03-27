@@ -189,35 +189,26 @@ void QgsBrowserLayerProperties::setItem( QgsDataItem *item )
   // we need to create a temporary layer to get metadata
   // we could use a provider but the metadata is not as complete and "pretty"  and this is easier
   QgsDebugMsg( QStringLiteral( "creating temporary layer using path %1" ).arg( layerItem->path() ) );
-  switch ( type )
+  if ( type == QgsMapLayer::RasterLayer )
   {
-    case QgsMapLayer::RasterLayer:
-    {
-      QgsDebugMsg( QStringLiteral( "creating raster layer" ) );
-      // should copy code from addLayer() to split uri ?
-      mLayer = qgis::make_unique< QgsRasterLayer >( layerItem->uri(), layerItem->name(), layerItem->providerKey() );
-      break;
-    }
-
-    case QgsMapLayer::MeshLayer:
-    {
-      QgsDebugMsg( QStringLiteral( "creating mesh layer" ) );
-      mLayer = qgis::make_unique < QgsMeshLayer >( layerItem->uri(), layerItem->name(), layerItem->providerKey() );
-      break;
-    }
-
-    case QgsMapLayer::VectorLayer:
-    {
-      QgsDebugMsg( QStringLiteral( "creating vector layer" ) );
-      mLayer = qgis::make_unique < QgsVectorLayer>( layerItem->uri(), layerItem->name(), layerItem->providerKey() );
-      break;
-    }
-
-    case QgsMapLayer::PluginLayer:
-    {
-      // TODO: support display of properties for plugin layers
-      return;
-    }
+    QgsDebugMsg( QStringLiteral( "creating raster layer" ) );
+    // should copy code from addLayer() to split uri ?
+    mLayer = qgis::make_unique< QgsRasterLayer >( layerItem->uri(), layerItem->name(), layerItem->providerKey() );
+  }
+  else if ( type == QgsMapLayer::MeshLayer )
+  {
+    QgsDebugMsg( QStringLiteral( "creating mesh layer" ) );
+    mLayer = qgis::make_unique < QgsMeshLayer >( layerItem->uri(), layerItem->name(), layerItem->providerKey() );
+  }
+  else if ( type == QgsMapLayer::VectorLayer )
+  {
+    QgsDebugMsg( QStringLiteral( "creating vector layer" ) );
+    mLayer = qgis::make_unique < QgsVectorLayer>( layerItem->uri(), layerItem->name(), layerItem->providerKey() );
+  }
+  else if ( type == QgsMapLayer::PluginLayer )
+  {
+    // TODO: support display of properties for plugin layers
+    return;
   }
 
   mAttributeTable->setModel( nullptr );

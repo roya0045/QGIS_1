@@ -27,7 +27,6 @@ class QgsMapLayer;
 class QgsMapCanvas;
 class QgsMeshLayer;
 class QgsRendererMeshPropertiesWidget;
-class QgsMeshLayer3DRendererWidget;
 
 /**
  * Property sheet for a mesh map layer.
@@ -64,11 +63,8 @@ class APP_EXPORT QgsMeshLayerProperties : public QgsOptionsDialogBase, private U
     //! Pointer to the mesh styling widget
     QgsRendererMeshPropertiesWidget *mRendererMeshPropertiesWidget = nullptr;
 
-    //! Pointer to the mesh layer that this property dilog changes the behavior of.
+    //! \brief Pointer to the mesh layer that this property dilog changes the behavior of.
     QgsMeshLayer *mMeshLayer = nullptr;
-
-    //! Pointer to mesh 3d styling widget
-    QgsMeshLayer3DRendererWidget *mVector3DWidget = nullptr;
 
     friend class TestQgsMeshLayerPropertiesDialog;
 };

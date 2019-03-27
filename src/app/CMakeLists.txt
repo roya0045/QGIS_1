@@ -8,7 +8,6 @@ SET(QGIS_APP_SRCS
   qgisappstylesheet.cpp
   qgsabout.cpp
   qgsalignrasterdialog.cpp
-  qgsappauthrequesthandler.cpp
   qgsappbrowserproviders.cpp
   qgsapplayertreeviewmenuprovider.cpp
   qgsappwindowmanager.cpp
@@ -17,7 +16,6 @@ SET(QGIS_APP_SRCS
   qgsappscreenshots.cpp
   qgsjoindialog.cpp
   qgsannotationwidget.cpp
-  qgsappsslerrorhandler.cpp
   qgsattributeactiondialog.cpp
   qgsattributeactionpropertiesdialog.cpp
   qgsattributetypedialog.cpp
@@ -769,11 +767,11 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/src/native
 )
 INCLUDE_DIRECTORIES(SYSTEM
-  ${PROJ_INCLUDE_DIR}
-  ${GDAL_INCLUDE_DIR}
   ${SPATIALITE_INCLUDE_DIR}
   ${SQLITE3_INCLUDE_DIR}
+  ${PROJ_INCLUDE_DIR}
   ${GEOS_INCLUDE_DIR}
+  ${GDAL_INCLUDE_DIR}
   ${QWTPOLAR_INCLUDE_DIR}
   ${QCA_INCLUDE_DIR}
   ${QTKEYCHAIN_INCLUDE_DIR}

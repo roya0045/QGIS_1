@@ -73,7 +73,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
         self.setWindowTitle(
             self.tr(u"{0} - {1} [{2}]").format(self.windowTitle(), self.connectionName, self.dbType))
 
-        self.defaultLayerName = self.tr('QueryLayer')
+        self.defaultLayerName = 'QueryLayer'
 
         if self.allowMultiColumnPk:
             self.uniqueColumnCheck.setText(self.tr("Column(s) with unique values"))
@@ -96,6 +96,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
         self.populateQueryHistory()
         self.btnQueryHistory.toggled.connect(self.showHideQueryHistory)
 
+        self.btnCancel.setText(self.tr("Cancel (ESC)"))
         self.btnCancel.setEnabled(False)
         self.btnCancel.clicked.connect(self.executeSqlCanceled)
         self.btnCancel.setShortcut(QKeySequence.Cancel)
@@ -276,6 +277,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
 
     def loadPreset(self, name):
         query = QgsProject.instance().readEntry('DBManager', 'savedQueries/' + self.getQueryHash(name) + '/query')[0]
+        name = QgsProject.instance().readEntry('DBManager', 'savedQueries/' + self.getQueryHash(name) + '/name')[0]
         self.editSql.setText(query)
 
     def loadAsLayerToggled(self, checked):
@@ -332,6 +334,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
         with OverrideCursor(Qt.WaitCursor):
             if self.modelAsync.task.status() == QgsTask.Complete:
                 model = self.modelAsync.model
+                cols = []
                 quotedCols = []
 
                 self.viewResult.setModel(model)
@@ -348,6 +351,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
                 DlgDbError.showError(self.modelAsync.error, self)
                 self.uniqueModel.clear()
                 self.geomCombo.clear()
+                pass
 
     def executeSql(self):
 
@@ -448,6 +452,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
                 query = query.strip()[:-1]
 
             # get all the columns
+            cols = []
             quotedCols = []
             connector = self.db.connector
             if self.aliasSubQuery:
@@ -541,6 +546,10 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
                 items[0].setCheckState(Qt.Checked)
             else:
                 self.uniqueCombo.setEditText(defaultUniqueCol)
+        try:
+            pass
+        except:
+            pass
 
     def copySelectedResults(self):
         if len(self.viewResult.selectedIndexes()) <= 0:
@@ -566,7 +575,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
             dictionary = getSqlDictionary()
 
         wordlist = []
-        for value in dictionary.values():
+        for _, value in dictionary.items():
             wordlist += value  # concat lists
         wordlist = list(set(wordlist))  # remove duplicates
 
@@ -585,7 +594,7 @@ class DlgSqlWindow(QWidget, Ui_Dialog):
             self.editSql.setText(dlg.query)
 
     def createView(self):
-        name, ok = QInputDialog.getText(None, self.tr("View Name"), self.tr("View name"))
+        name, ok = QInputDialog.getText(None, "View name", "View name")
         if ok:
             try:
                 self.db.connector.createSpatialView(name, self._getSqlQuery())

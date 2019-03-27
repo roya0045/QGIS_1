@@ -53,7 +53,7 @@ QgsWfsConnection::QgsWfsConnection( const QString &connName )
                    settings.value( key + "/" + QgsWFSConstants::SETTINGS_PAGING_ENABLED, true ).toBool() ? QStringLiteral( "true" ) : QStringLiteral( "false" ) );
   }
 
-  QgsDebugMsgLevel( QStringLiteral( "WFS full uri: '%1'." ).arg( QString( mUri.uri() ) ), 4 );
+  QgsDebugMsg( QStringLiteral( "WFS full uri: '%1'." ).arg( QString( mUri.uri() ) ) );
 }
 
 QStringList QgsWfsConnection::connectionList()

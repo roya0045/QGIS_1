@@ -27,14 +27,9 @@ __revision__ = '$Format:%H$'
 
 
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
 
 
 class ContextAction:
-
-    def __init__(self):
-        self.name = None
-        self.is_separator = False
 
     def setData(self, itemData, toolbox):
         self.itemData = itemData
@@ -44,12 +39,3 @@ class ContextAction:
         if context == '':
             context = self.__class__.__name__
         return QCoreApplication.translate(context, string)
-
-    def icon(self):
-        return QIcon()
-
-    def isEnabled(self):
-        return True
-
-    def execute(self):
-        pass

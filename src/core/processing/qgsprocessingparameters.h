@@ -364,25 +364,15 @@ class CORE_EXPORT QgsProcessingParameterDefinition
     /**
      * Returns a string version of the parameter input \a value, which is suitable for use as an input
      * parameter value when running an algorithm directly from a Python command.
+     * The returned value must be correctly escaped - e.g. string values must be wrapped in ' 's.
      */
     virtual QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const;
 
     /**
      * Returns the parameter definition encoded in a string which can be used within a
-     * Processing script.
+     * Python processing script.
      */
     virtual QString asScriptCode() const;
-
-    /**
-     * Returns the parameter definition as a Python command which can be used within a
-     * Python Processing script.
-     *
-     * The \a outputType argument specifies the desired output format for the Python string,
-     * i.e. the intended end use of the generated Python code.
-     *
-     * \since QGIS 3.6
-     */
-    virtual QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const;
 
     /**
      * Saves this parameter to a QVariantMap. Subclasses should ensure that they call the base class
@@ -1201,7 +1191,6 @@ class CORE_EXPORT QgsProcessingParameterFile : public QgsProcessingParameterDefi
     QString type() const override { return typeName(); }
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString asScriptCode() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the parameter behavior (e.g. File or Folder).
@@ -1267,7 +1256,6 @@ class CORE_EXPORT QgsProcessingParameterMatrix : public QgsProcessingParameterDe
     QString type() const override { return typeName(); }
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns a list of column headers (if set).
@@ -1353,7 +1341,6 @@ class CORE_EXPORT QgsProcessingParameterMultipleLayers : public QgsProcessingPar
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QString asScriptCode() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the layer type for layers acceptable by the parameter.
@@ -1445,7 +1432,6 @@ class CORE_EXPORT QgsProcessingParameterNumber : public QgsProcessingParameterDe
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QString toolTip() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the minimum value acceptable by the parameter.
@@ -1540,7 +1526,6 @@ class CORE_EXPORT QgsProcessingParameterDistance : public QgsProcessingParameter
 
     QString type() const override;
     QStringList dependsOnOtherParameters() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the name of the parent parameter, or an empty string if this is not set.
@@ -1606,7 +1591,6 @@ class CORE_EXPORT QgsProcessingParameterRange : public QgsProcessingParameterDef
     QString type() const override { return typeName(); }
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the acceptable data type for the range.
@@ -1692,7 +1676,6 @@ class CORE_EXPORT QgsProcessingParameterEnum : public QgsProcessingParameterDefi
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QString asScriptCode() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the list of acceptable options for the parameter.
@@ -1758,7 +1741,6 @@ class CORE_EXPORT QgsProcessingParameterString : public QgsProcessingParameterDe
     QString type() const override { return typeName(); }
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QString asScriptCode() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns true if the parameter allows multiline strings.
@@ -1850,7 +1832,6 @@ class CORE_EXPORT QgsProcessingParameterExpression : public QgsProcessingParamet
     QString type() const override { return typeName(); }
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QStringList dependsOnOtherParameters() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the name of the parent layer parameter, or an empty string if this is not set.
@@ -1940,7 +1921,6 @@ class CORE_EXPORT QgsProcessingParameterVectorLayer : public QgsProcessingParame
     QString type() const override { return typeName(); }
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     QVariantMap toVariantMap() const override;
     bool fromVariantMap( const QVariantMap &map ) override;
@@ -2022,7 +2002,6 @@ class CORE_EXPORT QgsProcessingParameterField : public QgsProcessingParameterDef
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QString asScriptCode() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
     QStringList dependsOnOtherParameters() const override;
 
     /**
@@ -2104,7 +2083,6 @@ class CORE_EXPORT QgsProcessingParameterFeatureSource : public QgsProcessingPara
     bool checkValueIsAcceptable( const QVariant &input, QgsProcessingContext *context = nullptr ) const override;
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QString asScriptCode() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     QVariantMap toVariantMap() const override;
     bool fromVariantMap( const QVariantMap &map ) override;
@@ -2139,7 +2117,6 @@ class CORE_EXPORT QgsProcessingDestinationParameter : public QgsProcessingParame
     bool isDestination() const override { return true; }
     QVariantMap toVariantMap() const override;
     bool fromVariantMap( const QVariantMap &map ) override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns a new QgsProcessingOutputDefinition corresponding to the definition of the destination
@@ -2251,7 +2228,6 @@ class CORE_EXPORT QgsProcessingParameterFeatureSink : public QgsProcessingDestin
     QString asScriptCode() const override;
     QgsProcessingOutputDefinition *toOutputDefinition() const override SIP_FACTORY;
     QString defaultFileExtension() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns a list of the vector format file extensions supported by this parameter.
@@ -2327,7 +2303,6 @@ class CORE_EXPORT QgsProcessingParameterVectorDestination : public QgsProcessing
     QString asScriptCode() const override;
     QgsProcessingOutputDefinition *toOutputDefinition() const override SIP_FACTORY;
     QString defaultFileExtension() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns a list of the vector format file extensions supported by this parameter.
@@ -2447,7 +2422,6 @@ class CORE_EXPORT QgsProcessingParameterFileDestination : public QgsProcessingDe
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QgsProcessingOutputDefinition *toOutputDefinition() const override SIP_FACTORY;
     QString defaultFileExtension() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the file filter string for file destinations compatible with this parameter.
@@ -2539,7 +2513,6 @@ class CORE_EXPORT QgsProcessingParameterBand : public QgsProcessingParameterDefi
     QString valueAsPythonString( const QVariant &value, QgsProcessingContext &context ) const override;
     QString asScriptCode() const override;
     QStringList dependsOnOtherParameters() const override;
-    QString asPythonString( QgsProcessing::PythonOutputType outputType = QgsProcessing::PythonQgsProcessingAlgorithmSubclass ) const override;
 
     /**
      * Returns the name of the parent layer parameter, or an empty string if this is not set.

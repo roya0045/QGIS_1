@@ -45,7 +45,6 @@ class QgsVectorLayer;
 class QgsRasterLayer;
 class QgsHighlight;
 class QgsMapCanvas;
-class QgsMeshLayer;
 class QgsDockWidget;
 class QgsMapLayerAction;
 class QgsEditorWidgetSetup;
@@ -124,21 +123,18 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
 
   public:
 
-    /**
-     * Constructor -
-     * takes its own copy of the QgsAttributeAction so
-     * that it is independent of whoever created it.
-     */
+    //! Constructor - takes it own copy of the QgsAttributeAction so
+    // that it is independent of whoever created it.
     QgsIdentifyResultsDialog( QgsMapCanvas *canvas, QWidget *parent = nullptr, Qt::WindowFlags f = nullptr );
 
     ~QgsIdentifyResultsDialog() override;
 
-    //! Adds feature from vector layer
+    //! Add add feature from vector layer
     void addFeature( QgsVectorLayer *layer,
                      const QgsFeature &f,
                      const QMap< QString, QString > &derivedAttributes );
 
-    //! Adds feature from raster layer
+    //! Add add feature from other layer
     void addFeature( QgsRasterLayer *layer,
                      const QString &label,
                      const QMap< QString, QString > &attributes,
@@ -147,16 +143,7 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
                      const QgsFeature &feature = QgsFeature(),
                      const QMap<QString, QVariant> &params = ( QMap<QString, QVariant>() ) );
 
-    /**
-     * Adds results from mesh layer
-     * \since QGIS 3.6
-     */
-    void addFeature( QgsMeshLayer *layer,
-                     const QString &label,
-                     const QMap< QString, QString > &attributes,
-                     const QMap< QString, QString > &derivedAttributes );
-
-    //! Adds feature from identify results
+    //! Add feature from identify results
     void addFeature( const QgsMapToolIdentify::IdentifyResult &result );
 
     //! Map tool was deactivated
@@ -274,7 +261,6 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     QgsMapLayer *layer( QTreeWidgetItem *item );
     QgsVectorLayer *vectorLayer( QTreeWidgetItem *item );
     QgsRasterLayer *rasterLayer( QTreeWidgetItem *item );
-    QgsMeshLayer *meshLayer( QTreeWidgetItem *item );
     QTreeWidgetItem *featureItem( QTreeWidgetItem *item );
     QTreeWidgetItem *layerItem( QTreeWidgetItem *item );
     QTreeWidgetItem *layerItem( QObject *layer );

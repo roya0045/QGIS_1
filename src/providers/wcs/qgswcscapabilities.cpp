@@ -794,24 +794,7 @@ bool QgsWcsCapabilities::parseDescribeCoverageDom10( QByteArray const &xml, QgsW
   QDomElement supportedCRSsElement = firstChild( coverageOfferingElement, QStringLiteral( "supportedCRSs" ) );
 
   // requestResponseCRSs and requestCRSs + responseCRSs are alternatives
-  // we try to parse one or the other
-  QStringList crsList;
-  crsList = domElementsTexts( coverageOfferingElement, QStringLiteral( "supportedCRSs.requestResponseCRSs" ) );
-  if ( crsList.isEmpty() )
-  {
-    crsList = domElementsTexts( coverageOfferingElement, QStringLiteral( "supportedCRSs.requestCRSs" ) );
-    crsList << domElementsTexts( coverageOfferingElement, QStringLiteral( "supportedCRSs.responseCRSs" ) );
-  }
-
-  // exclude invalid CRSs from the lists
-  for ( const QString &crsid : qgis::as_const( crsList ) )
-  {
-    if ( QgsCoordinateReferenceSystem::fromOgcWmsCrs( crsid ).isValid() )
-    {
-      coverage->supportedCrs << crsid;
-    }
-  }
-
+  coverage->supportedCrs = domElementsTexts( coverageOfferingElement, QStringLiteral( "supportedCRSs.requestResponseCRSs" ) );
   // TODO: requestCRSs, responseCRSs - must be then implemented also in provider
   //QgsDebugMsg( "supportedCrs = " + coverage->supportedCrs.join( "," ) );
 
@@ -834,11 +817,7 @@ bool QgsWcsCapabilities::parseDescribeCoverageDom10( QByteArray const &xml, QgsW
   // If supportedCRSs.nativeCRSs is not defined we try to get it from RectifiedGrid
   if ( coverage->nativeCrs.isEmpty() )
   {
-    QString crs = gridElement.attribute( QStringLiteral( "srsName" ) );
-    if ( QgsCoordinateReferenceSystem::fromOgcWmsCrs( crs ).isValid() )
-    {
-      coverage->nativeCrs = crs;
-    }
+    coverage->nativeCrs = gridElement.attribute( QStringLiteral( "srsName" ) );
   }
 
   if ( !gridElement.isNull() )

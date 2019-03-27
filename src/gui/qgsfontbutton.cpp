@@ -237,8 +237,7 @@ void QgsFontButton::mouseMoveEvent( QMouseEvent *e )
       drag->setMimeData( QgsFontUtils::toMimeData( mFont ) );
       break;
   }
-  const int iconSize = QgsGuiUtils::scaleIconSize( 50 );
-  drag->setPixmap( createDragIcon( QSize( iconSize, iconSize ) ) );
+  drag->setPixmap( createDragIcon() );
   drag->exec( Qt::CopyAction );
   setDown( false );
 }
@@ -380,8 +379,7 @@ void QgsFontButton::wheelEvent( QWheelEvent *event )
 QPixmap QgsFontButton::createColorIcon( const QColor &color ) const
 {
   //create an icon pixmap
-  const int iconSize = QgsGuiUtils::scaleIconSize( 16 );
-  QPixmap pixmap( iconSize, iconSize );
+  QPixmap pixmap( 16, 16 );
   pixmap.fill( Qt::transparent );
 
   QPainter p;
@@ -392,7 +390,7 @@ QPixmap QgsFontButton::createColorIcon( const QColor &color ) const
 
   //draw border
   p.setPen( QColor( 197, 197, 197 ) );
-  p.drawRect( 0, 0, iconSize - 1, iconSize - 1 );
+  p.drawRect( 0, 0, 15, 15 );
   p.end();
   return pixmap;
 }
@@ -598,17 +596,16 @@ void QgsFontButton::prepareMenu()
   //action, even if it's disabled, to give hint to the user that pasting colors is possible
   QgsTextFormat tempFormat;
   QFont tempFont;
-  const int iconSize = QgsGuiUtils::scaleIconSize( 16 );
   if ( mMode == ModeTextRenderer && formatFromMimeData( QApplication::clipboard()->mimeData(), tempFormat ) )
   {
     tempFormat.setSizeUnit( QgsUnitTypes::RenderPixels );
     tempFormat.setSize( 14 );
-    pasteFormatAction->setIcon( createDragIcon( QSize( iconSize, iconSize ), &tempFormat ) );
+    pasteFormatAction->setIcon( createDragIcon( QSize( 16, 16 ), &tempFormat ) );
   }
   else if ( mMode == ModeQFont && fontFromMimeData( QApplication::clipboard()->mimeData(), tempFont ) )
   {
     tempFont.setPointSize( 8 );
-    pasteFormatAction->setIcon( createDragIcon( QSize( iconSize, iconSize ), nullptr, &tempFont ) );
+    pasteFormatAction->setIcon( createDragIcon( QSize( 16, 16 ), nullptr, &tempFont ) );
   }
   else
   {

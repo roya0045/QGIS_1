@@ -15,7 +15,6 @@
 
 #include "qgssnapindicator.h"
 
-#include "qgsguiutils.h"
 #include "qgsmapcanvas.h"
 #include "qgssettings.h"
 #include "qgsvectorlayer.h"
@@ -45,8 +44,7 @@ void QgsSnapIndicator::setMatch( const QgsPointLocator::Match &match )
     if ( !mSnappingMarker )
     {
       mSnappingMarker.reset( new QgsVertexMarker( mCanvas ) );
-      mSnappingMarker->setIconSize( QgsGuiUtils::scaleIconSize( 10 ) );
-      mSnappingMarker->setPenWidth( QgsGuiUtils::scaleIconSize( 3 ) );
+      mSnappingMarker->setPenWidth( 3 );
     }
 
     QgsSettings s;

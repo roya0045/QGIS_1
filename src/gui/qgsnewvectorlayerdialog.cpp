@@ -170,10 +170,10 @@ QgsWkbTypes::Type QgsNewVectorLayerDialog::selectedType() const
   wkbType = static_cast<QgsWkbTypes::Type>
             ( mGeometryTypeBox->currentData( Qt::UserRole ).toInt() );
 
-  if ( mGeometryWithZRadioButton->isChecked() )
+  if ( mGeometryWithZCheckBox->isChecked() )
     wkbType = QgsWkbTypes::addZ( wkbType );
 
-  if ( mGeometryWithMRadioButton->isChecked() )
+  if ( mGeometryWithMCheckBox->isChecked() )
     wkbType = QgsWkbTypes::addM( wkbType );
 
   return wkbType;
@@ -261,16 +261,6 @@ void QgsNewVectorLayerDialog::checkOk()
 // this is static
 QString QgsNewVectorLayerDialog::runAndCreateLayer( QWidget *parent, QString *pEnc, const QgsCoordinateReferenceSystem &crs, const QString &initialPath )
 {
-  QString error;
-  QString res = execAndCreateLayer( error, parent, initialPath, pEnc, crs );
-  if ( res.isEmpty() && error.isEmpty() )
-    res = QString( "" ); // maintain gross earlier API compatibility
-  return res;
-}
-
-QString QgsNewVectorLayerDialog::execAndCreateLayer( QString &errorMessage, QWidget *parent, const QString &initialPath, QString *encoding, const QgsCoordinateReferenceSystem &crs )
-{
-  errorMessage.clear();
   QgsNewVectorLayerDialog geomDialog( parent );
   geomDialog.setCrs( crs );
   if ( !initialPath.isEmpty() )
@@ -311,35 +301,33 @@ QString QgsNewVectorLayerDialog::execAndCreateLayer( QString &errorMessage, QWid
     QgsDebugMsg( QStringLiteral( "ogr provider loaded" ) );
 
     typedef bool ( *createEmptyDataSourceProc )( const QString &, const QString &, const QString &, QgsWkbTypes::Type,
-        const QList< QPair<QString, QString> > &, const QgsCoordinateReferenceSystem &, QString & );
+        const QList< QPair<QString, QString> > &, const QgsCoordinateReferenceSystem & );
     createEmptyDataSourceProc createEmptyDataSource = ( createEmptyDataSourceProc ) cast_to_fptr( myLib->resolve( "createEmptyDataSource" ) );
     if ( createEmptyDataSource )
     {
       if ( geometrytype != QgsWkbTypes::Unknown )
       {
         QgsCoordinateReferenceSystem srs = geomDialog.crs();
-        if ( !createEmptyDataSource( fileName, fileformat, enc, geometrytype, attributes, srs, errorMessage ) )
+        if ( !createEmptyDataSource( fileName, fileformat, enc, geometrytype, attributes, srs ) )
         {
           return QString();
         }
       }
       else
       {
-        errorMessage = QObject::tr( "Geometry type not recognised" );
-        QgsDebugMsg( errorMessage );
+        QgsDebugMsg( QStringLiteral( "geometry type not recognised" ) );
         return QString();
       }
     }
     else
     {
-      errorMessage = QObject::tr( "Resolving newEmptyDataSource(...) failed" );
-      QgsDebugMsg( errorMessage );
+      QgsDebugMsg( QStringLiteral( "Resolving newEmptyDataSource(...) failed" ) );
       return QString();
     }
   }
 
-  if ( encoding )
-    *encoding = enc;
+  if ( pEnc )
+    *pEnc = enc;
 
   return fileName;
 }

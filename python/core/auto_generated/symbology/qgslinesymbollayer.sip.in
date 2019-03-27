@@ -223,8 +223,6 @@ Create a new MarkerLineSymbolLayerV2 from SLD
 
     virtual double width() const;
 
-    virtual double width( const QgsRenderContext &context ) const;
-
 
     virtual double estimateMaxBleed( const QgsRenderContext &context ) const;
 

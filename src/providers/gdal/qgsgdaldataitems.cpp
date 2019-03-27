@@ -48,6 +48,14 @@ QgsGdalLayerItem::QgsGdalLayerItem( QgsDataItem *parent,
   }
   else
     setState( Populated );
+
+  GDALAllRegister();
+  gdal::dataset_unique_ptr hDS( GDALOpen( mPath.toUtf8().constData(), GA_Update ) );
+
+  if ( hDS )
+  {
+    mCapabilities |= SetCrs;
+  }
 }
 
 

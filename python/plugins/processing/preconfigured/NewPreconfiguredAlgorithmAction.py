@@ -36,7 +36,6 @@ from processing.preconfigured.PreconfiguredAlgorithm import PreconfiguredAlgorit
 class NewPreconfiguredAlgorithmAction(ContextAction):
 
     def __init__(self):
-        super().__init__()
         self.name = QCoreApplication.translate('NewPreconfiguredAlgorithmAction', 'Create Preconfigured Algorithm…')
 
     def isEnabled(self):

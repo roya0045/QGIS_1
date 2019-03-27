@@ -22,13 +22,6 @@ class QgsSymbolLayerUtils
 %End
   public:
 
-    enum VertexMarkerType
-    {
-      SemiTransparentCircle,
-      Cross,
-      NoMarker
-    };
-
     static QString encodeColor( const QColor &color );
     static QColor decodeColor( const QString &str );
 
@@ -246,13 +239,6 @@ Returns a pixmap preview for a color ramp.
 %End
 
     static void drawStippledBackground( QPainter *painter, QRect rect );
-
-    static void drawVertexMarker( double x, double y, QPainter &p, QgsSymbolLayerUtils::VertexMarkerType type, int markerSize );
-%Docstring
-Draws a vertex symbol at (painter) coordinates x, y. (Useful to assist vertex editing.)
-
-.. versionadded:: 3.4.5
-%End
 
     static double estimateMaxSymbolBleed( QgsSymbol *symbol, const QgsRenderContext &context );
 %Docstring

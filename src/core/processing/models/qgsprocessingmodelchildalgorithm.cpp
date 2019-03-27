@@ -162,57 +162,39 @@ bool QgsProcessingModelChildAlgorithm::loadVariant( const QVariant &child )
   return true;
 }
 
-QStringList QgsProcessingModelChildAlgorithm::asPythonCode( const QgsProcessing::PythonOutputType outputType, const QgsStringMap &extraParameters, int currentIndent, int indentSize ) const
+QString QgsProcessingModelChildAlgorithm::asPythonCode() const
 {
   QStringList lines;
-  const QString baseIndent = QString( ' ' ).repeated( currentIndent );
-  const QString lineIndent = QString( ' ' ).repeated( indentSize );
 
   if ( !algorithm() )
-    return QStringList();
+    return QString();
 
   QStringList paramParts;
-  for ( auto paramIt = mParams.constBegin(); paramIt != mParams.constEnd(); ++paramIt )
+  QMap< QString, QgsProcessingModelChildParameterSources >::const_iterator paramIt = mParams.constBegin();
+  for ( ; paramIt != mParams.constEnd(); ++paramIt )
   {
     QStringList sourceParts;
-    const QgsProcessingParameterDefinition *def = algorithm() ? algorithm()->parameterDefinition( paramIt.key() ) : nullptr;
-    const auto parts = paramIt.value();
-    for ( const QgsProcessingModelChildParameterSource &source : parts )
+    Q_FOREACH ( const QgsProcessingModelChildParameterSource &source, paramIt.value() )
     {
-      QString part = source.asPythonCode( outputType, def );
+      QString part = source.asPythonCode();
       if ( !part.isEmpty() )
-        sourceParts << part;
+        sourceParts << QStringLiteral( "'%1':%2" ).arg( paramIt.key(), part );
     }
     if ( sourceParts.count() == 1 )
-      paramParts << QStringLiteral( "'%1': %2" ).arg( paramIt.key(), sourceParts.at( 0 ) );
+      paramParts << sourceParts.at( 0 );
     else
-      paramParts << QStringLiteral( "'%1': [%2]" ).arg( paramIt.key(), sourceParts.join( ',' ) );
+      paramParts << QStringLiteral( "[%1]" ).arg( paramParts.join( ',' ) );
   }
 
-  lines << baseIndent + QStringLiteral( "alg_params = {" );
-  lines.reserve( lines.size() + paramParts.size() );
-  for ( const QString &p : qgis::as_const( paramParts ) )
-  {
-    lines << baseIndent + lineIndent + p + ',';
-  }
-  for ( auto it = extraParameters.constBegin(); it != extraParameters.constEnd(); ++it )
-  {
-    lines << baseIndent + lineIndent + QStringLiteral( "%1: %2," ).arg( QgsProcessingUtils::stringToPythonLiteral( it.key() ), it.value() );
-  }
-  if ( lines.constLast().endsWith( ',' ) )
-  {
-    lines[ lines.count() - 1 ].truncate( lines.constLast().length() - 1 );
-  }
-  lines << baseIndent + QStringLiteral( "}" );
+  lines << QStringLiteral( "outputs['%1']=processing.run('%2', {%3}, context=context, feedback=feedback)" ).arg( mId, mAlgorithmId, paramParts.join( ',' ) );
 
-  lines << baseIndent + QStringLiteral( "outputs['%1'] = processing.run('%2', alg_params, context=context, feedback=feedback, is_child_algorithm=True)" ).arg( mId, mAlgorithmId );
-
-  for ( auto outputIt = mModelOutputs.constBegin(); outputIt != mModelOutputs.constEnd(); ++outputIt )
+  QMap< QString, QgsProcessingModelOutput >::const_iterator outputIt = mModelOutputs.constBegin();
+  for ( ; outputIt != mModelOutputs.constEnd(); ++outputIt )
   {
-    lines << baseIndent + QStringLiteral( "results['%1:%2'] = outputs['%1']['%3']" ).arg( mId, outputIt.key(), outputIt.value().childOutputName() );
+    lines << QStringLiteral( "results['%1']=outputs['%2']['%3']" ).arg( outputIt.key(), mId, outputIt.value().childOutputName() );
   }
 
-  return lines;
+  return lines.join( '\n' );
 }
 
 QVariantMap QgsProcessingModelChildAlgorithm::configuration() const

@@ -32,15 +32,12 @@
 #include "qgssettings.h"
 #include "qgsexception.h"
 #include "qgsfeedback.h"
-#include "qgssqliteutils.h"
 
 #include <algorithm>
 #include <QDir>
 #include <QProgressDialog>
 #include <QTimer>
 #include <QStyle>
-
-#include <sqlite3.h>
 
 QgsWFSFeatureHitsAsyncRequest::QgsWFSFeatureHitsAsyncRequest( QgsWFSDataSourceURI &uri )
   : QgsWfsRequest( uri )
@@ -989,15 +986,7 @@ QgsFeatureRequest QgsWFSFeatureIterator::buildRequestCache( int genCounter )
   QgsFeatureRequest requestCache;
   if ( mRequest.filterType() == QgsFeatureRequest::FilterFid ||
        mRequest.filterType() == QgsFeatureRequest::FilterFids )
-  {
-    QgsFeatureIds qgisIds;
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
-      qgisIds.insert( mRequest.filterFid() );
-    else
-      qgisIds = mRequest.filterFids();
-
-    requestCache.setFilterFids( mShared->dbIdsFromQgisIds( qgisIds ) );
-  }
+    requestCache = mRequest;
   else
   {
     if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression )
@@ -1257,19 +1246,6 @@ bool QgsWFSFeatureIterator::fetchFeature( QgsFeature &f )
 
     copyFeature( cachedFeature, f );
     geometryToDestinationCrs( f, mTransform );
-
-    // Retrieve the user-visible id from the Spatialite cache database Id
-    if ( mShared->mCacheIdDb.get() )
-    {
-      auto sql = QgsSqlite3Mprintf( "SELECT qgisId FROM id_cache WHERE dbId = %lld", cachedFeature.id() );
-      int resultCode;
-      auto stmt = mShared->mCacheIdDb.prepare( sql, resultCode );
-      if ( stmt.step() == SQLITE_ROW )
-      {
-        f.setId( stmt.columnAsInt64( 0 ) );
-      }
-    }
-
     return true;
   }
 

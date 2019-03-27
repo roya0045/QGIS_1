@@ -15,7 +15,6 @@ email                : sherman at mrcc.com
  *                                                                         *
  ***************************************************************************/
 
-#include <cmath>
 
 #include <QtGlobal>
 #include <QApplication>
@@ -70,6 +69,7 @@ email                : sherman at mrcc.com
 #include "qgscoordinatetransformcontext.h"
 #include "qgssvgcache.h"
 #include "qgsimagecache.h"
+#include <cmath>
 
 /**
  * \ingroup gui
@@ -1010,7 +1010,7 @@ void QgsMapCanvas::zoomToSelected( QgsVectorLayer *layer )
     QgsFeatureIterator fit = layer->getFeatures( req );
     QgsFeature f;
     QgsPointXY closestPoint;
-    double closestSquaredDistance = pow( extentRect.width(), 2.0 ) + pow( extentRect.height(), 2.0 );
+    double closestSquaredDistance = extentRect.width() + extentRect.height();
     bool pointFound = false;
     while ( fit.nextFeature( f ) )
     {

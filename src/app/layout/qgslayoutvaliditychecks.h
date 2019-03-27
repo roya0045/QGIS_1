@@ -44,18 +44,3 @@ class APP_EXPORT QgsLayoutOverviewValidityCheck : public QgsAbstractValidityChec
   private:
     QList<QgsValidityCheckResult> mResults;
 };
-
-class APP_EXPORT QgsLayoutPictureSourceValidityCheck : public QgsAbstractValidityCheck
-{
-  public:
-
-    QgsLayoutPictureSourceValidityCheck *create() const override;
-    QString id() const override;
-    int checkType() const override;
-    bool prepareCheck( const QgsValidityCheckContext *context, QgsFeedback *feedback ) override;
-    QList< QgsValidityCheckResult > runCheck( const QgsValidityCheckContext *context, QgsFeedback *feedback ) override;
-
-  private:
-    QList<QgsValidityCheckResult> mResults;
-};
-

@@ -61,11 +61,12 @@ void QgsPointDisplacementRenderer::drawGroup( QPointF centerPoint, QgsRenderCont
   //calculate max diagonal size from all symbols in group
   double diagonal = 0;
 
-  for ( const GroupedFeature &feature : group )
+  Q_FOREACH ( const GroupedFeature &feature, group )
   {
     if ( QgsMarkerSymbol *symbol = feature.symbol() )
     {
-      diagonal = std::max( diagonal, M_SQRT2 * symbol->size( context ) );
+      diagonal = std::max( diagonal, context.convertToPainterUnits( M_SQRT2 * symbol->size(),
+                           symbol->sizeUnit(), symbol->sizeMapUnitScale() ) );
     }
   }
 
@@ -273,7 +274,8 @@ void QgsPointDisplacementRenderer::calculateSymbolAndLabelPositions( QgsSymbolRe
     }
     case ConcentricRings:
     {
-      double centerDiagonal = mCenterSymbol->size( symbolContext.renderContext() ) * M_SQRT2;
+      double centerDiagonal = symbolContext.renderContext().convertToPainterUnits( M_SQRT2 * mCenterSymbol->size(),
+                              mCenterSymbol->sizeUnit(), mCenterSymbol->sizeMapUnitScale() );
 
       int pointsRemaining = nPosition;
       int ringNumber = 1;
@@ -305,7 +307,8 @@ void QgsPointDisplacementRenderer::calculateSymbolAndLabelPositions( QgsSymbolRe
     }
     case Grid:
     {
-      double centerDiagonal = mCenterSymbol->size( symbolContext.renderContext() ) * M_SQRT2;
+      double centerDiagonal = symbolContext.renderContext().convertToPainterUnits( M_SQRT2 * mCenterSymbol->size(),
+                              mCenterSymbol->sizeUnit(), mCenterSymbol->sizeMapUnitScale() );
       int pointsRemaining = nPosition;
       gridSize = std::ceil( std::sqrt( pointsRemaining ) );
       if ( pointsRemaining - std::pow( gridSize - 1, 2 ) < gridSize )

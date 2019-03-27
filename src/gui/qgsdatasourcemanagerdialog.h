@@ -33,7 +33,6 @@ class QgsRasterLayer;
 class QgsMapCanvas;
 class QgsAbstractDataSourceWidget;
 class QgsBrowserModel;
-class QgsMessageBar;
 
 /**
  * \ingroup gui
@@ -66,9 +65,6 @@ class GUI_EXPORT QgsDataSourceManagerDialog : public QgsOptionsDialogBase, priva
      *        or "ogr" (vector layers) or "raster" (raster layers)
      */
     void openPage( const QString &pageName );
-
-    //! Returns the dialog's message bar
-    QgsMessageBar *messageBar() const;
 
   public slots:
 
@@ -143,7 +139,7 @@ class GUI_EXPORT QgsDataSourceManagerDialog : public QgsOptionsDialogBase, priva
     QStringList mPageNames;
     // Map canvas
     QgsMapCanvas *mMapCanvas = nullptr;
-    QgsMessageBar *mMessageBar = nullptr;
+
 
 };
 

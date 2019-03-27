@@ -346,13 +346,9 @@ Sets the source file ``path`` for the model, if available.
 .. seealso:: :py:func:`sourceFilePath`
 %End
 
-    QStringList asPythonCode( QgsProcessing::PythonOutputType outputType, int indentSize ) const;
+    QString asPythonCode() const;
 %Docstring
-Attempts to convert the model to executable Python code, and returns the generated lines of code.
-
-The ``outputType`` argument dictates the desired script type.
-
-The ``indentSize`` arguments specifies the size of indented lines.
+Attempts to convert the model to executable Python code.
 %End
 
     QList< QgsProcessingModelChildParameterSource > availableSourcesForChild( const QString &childId, const QStringList &parameterTypes = QStringList(),

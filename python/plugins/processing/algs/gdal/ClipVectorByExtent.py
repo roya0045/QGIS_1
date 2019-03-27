@@ -87,7 +87,6 @@ class ClipVectorByExtent(GdalAlgorithm):
         extent = self.parameterAsExtent(parameters, self.EXTENT, context, source.sourceCrs())
         options = self.parameterAsString(parameters, self.OPTIONS, context)
         outFile = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        self.setOutputValue(self.OUTPUT, outFile)
 
         output, outputFormat = GdalUtils.ogrConnectionStringAndFormat(outFile, context)
 

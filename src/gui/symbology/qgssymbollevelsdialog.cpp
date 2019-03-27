@@ -19,7 +19,6 @@
 #include "qgssymbollayer.h"
 #include "qgssymbol.h"
 #include "qgssettings.h"
-#include "qgsguiutils.h"
 
 #include <QTableWidgetItem>
 #include <QItemDelegate>
@@ -52,7 +51,6 @@ QgsSymbolLevelsWidget::QgsSymbolLevelsWidget( QgsFeatureRenderer *renderer, bool
     }
   }
 
-  const int iconSize = QgsGuiUtils::scaleIconSize( 16 );
   int maxLayers = 0;
   tableLevels->setRowCount( mList.count() );
   for ( int i = 0; i < mList.count(); i++ )
@@ -60,7 +58,7 @@ QgsSymbolLevelsWidget::QgsSymbolLevelsWidget( QgsFeatureRenderer *renderer, bool
     QgsSymbol *sym = mList.at( i ).symbol();
 
     // set icons for the rows
-    QIcon icon = QgsSymbolLayerUtils::symbolPreviewIcon( sym, QSize( iconSize, iconSize ) );
+    QIcon icon = QgsSymbolLayerUtils::symbolPreviewIcon( sym, QSize( 16, 16 ) );
     tableLevels->setVerticalHeaderItem( i, new QTableWidgetItem( icon, QString() ) );
 
     // find out max. number of layers per symbol
@@ -91,7 +89,6 @@ QgsSymbolLevelsWidget::QgsSymbolLevelsWidget( QgsFeatureRenderer *renderer, bool
 
 void QgsSymbolLevelsWidget::populateTable()
 {
-  const int iconSize = QgsGuiUtils::scaleIconSize( 16 );
   for ( int row = 0; row < mList.count(); row++ )
   {
     QgsSymbol *sym = mList.at( row ).symbol();
@@ -110,7 +107,7 @@ void QgsSymbolLevelsWidget::populateTable()
       else
       {
         QgsSymbolLayer *sl = sym->symbolLayer( layer );
-        QIcon icon = QgsSymbolLayerUtils::symbolLayerPreviewIcon( sl, QgsUnitTypes::RenderMillimeters, QSize( iconSize, iconSize ) );
+        QIcon icon = QgsSymbolLayerUtils::symbolLayerPreviewIcon( sl, QgsUnitTypes::RenderMillimeters, QSize( 16, 16 ) );
         item = new QTableWidgetItem( icon, QString::number( sl->renderingPass() ) );
       }
       tableLevels->setItem( row, layer + 1, item );

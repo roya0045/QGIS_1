@@ -18,7 +18,6 @@
 #include "qgssymbollayerutils.h"
 #include "qgssettings.h"
 #include "qgslogger.h"
-#include "qgsguiutils.h"
 
 #include <QResizeEvent>
 #include <QStyleOptionFrameV3>
@@ -30,8 +29,6 @@
 #include <QToolButton>
 #include <QMenu>
 #include <QDrag>
-#include <QRectF>
-#include <QLineF>
 
 #include <cmath>
 
@@ -56,19 +53,18 @@ int QgsColorWidget::componentValue() const
 QPixmap QgsColorWidget::createDragIcon( const QColor &color )
 {
   //craft a pixmap for the drag icon
-  const int iconSize = QgsGuiUtils::scaleIconSize( 50 );
-  QPixmap pixmap( iconSize, iconSize );
+  QPixmap pixmap( 50, 50 );
   pixmap.fill( Qt::transparent );
   QPainter painter;
   painter.begin( &pixmap );
   //start with a light gray background
-  painter.fillRect( QRect( 0, 0, iconSize, iconSize ), QBrush( QColor( 200, 200, 200 ) ) );
+  painter.fillRect( QRect( 0, 0, 50, 50 ), QBrush( QColor( 200, 200, 200 ) ) );
   //draw rect with white border, filled with current color
   QColor pixmapColor = color;
   pixmapColor.setAlpha( 255 );
   painter.setBrush( QBrush( pixmapColor ) );
   painter.setPen( QPen( Qt::white ) );
-  painter.drawRect( QRect( 1, 1, iconSize - 2, iconSize - 2 ) );
+  painter.drawRect( QRect( 1, 1, 47, 47 ) );
   painter.end();
   return pixmap;
 }
@@ -1019,18 +1015,14 @@ void QgsColorRampWidget::paintEvent( QPaintEvent *event )
     QColor color = QColor( mCurrentColor );
     color.setAlpha( 255 );
     QPen pen;
-    // we need to set pen width to 1,
-    // since on retina displays
-    // pen.setWidth(0) <=> pen.width = 0.5
-    // see https://issues.qgis.org/issues/15984
-    pen.setWidth( 1 );
+    pen.setWidth( 0 );
     painter.setPen( pen );
     painter.setBrush( Qt::NoBrush );
 
     //draw background ramp
     for ( int c = 0; c <= maxValue; ++c )
     {
-      int colorVal = static_cast<int>( componentRange() * static_cast<double>( c ) / maxValue );
+      int colorVal = componentRange() * static_cast<double>( c ) / maxValue;
       //vertical sliders are reversed
       if ( mOrientation == QgsColorRampWidget::Vertical )
       {
@@ -1046,12 +1038,12 @@ void QgsColorRampWidget::paintEvent( QPaintEvent *event )
       if ( mOrientation == QgsColorRampWidget::Horizontal )
       {
         //horizontal
-        painter.drawLine( QLineF( c + mMargin, mMargin, c + mMargin, height() - mMargin - 1 ) );
+        painter.drawLine( c + mMargin, mMargin, c + mMargin, height() - mMargin - 1 );
       }
       else
       {
         //vertical
-        painter.drawLine( QLineF( mMargin, c + mMargin, width() - mMargin - 1, c + mMargin ) );
+        painter.drawLine( mMargin, c + mMargin, width() - mMargin - 1, c + mMargin );
       }
     }
   }
@@ -1062,7 +1054,7 @@ void QgsColorRampWidget::paintEvent( QPaintEvent *event )
     QBrush checkBrush = QBrush( transparentBackground() );
     painter.setBrush( checkBrush );
     painter.setPen( Qt::NoPen );
-    painter.drawRect( QRectF( mMargin, mMargin, width() - 2 * mMargin - 1, height() - 2 * mMargin - 1 ) );
+    painter.drawRect( mMargin, mMargin, width() - 2 * mMargin - 1, height() - 2 * mMargin - 1 );
     QLinearGradient colorGrad;
     if ( mOrientation == QgsColorRampWidget::Horizontal )
     {
@@ -1082,7 +1074,7 @@ void QgsColorRampWidget::paintEvent( QPaintEvent *event )
     colorGrad.setColorAt( 1, opaque );
     QBrush colorBrush = QBrush( colorGrad );
     painter.setBrush( colorBrush );
-    painter.drawRect( QRectF( mMargin, mMargin, width() - 2 * mMargin - 1, height() - 2 * mMargin - 1 ) );
+    painter.drawRect( mMargin, mMargin, width() - 2 * mMargin - 1, height() - 2 * mMargin - 1 );
   }
 
   if ( mOrientation == QgsColorRampWidget::Horizontal )
@@ -1101,12 +1093,12 @@ void QgsColorRampWidget::paintEvent( QPaintEvent *event )
   else
   {
     //draw cross lines for vertical ramps
-    double ypos = mMargin + ( height() - 2 * mMargin - 1 ) - ( height() - 2 * mMargin - 1 ) * static_cast<double>( componentValue() ) / componentRange();
+    int ypos = mMargin + ( height() - 2 * mMargin - 1 ) - ( height() - 2 * mMargin - 1 ) * static_cast<double>( componentValue() ) / componentRange();
     painter.setBrush( Qt::white );
     painter.setPen( Qt::NoPen );
-    painter.drawRect( QRectF( mMargin, ypos - 1, width() - 2 * mMargin - 1, 3 ) );
+    painter.drawRect( mMargin, ypos - 1, width() - 2 * mMargin - 1, 3 );
     painter.setPen( Qt::black );
-    painter.drawLine( QLineF( mMargin, ypos, width() - mMargin - 1, ypos ) );
+    painter.drawLine( mMargin, ypos, width() - mMargin - 1, ypos );
   }
 }
 
