@@ -19,7 +19,6 @@
 #include "qgsdistancearea.h"
 #include "qgsfeaturerequest.h"
 #include "qgsattributeeditorcontext.h"
-#include "qgsapplication.h"
 
 #include <QWindow>
 

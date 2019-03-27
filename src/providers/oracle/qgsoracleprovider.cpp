@@ -1337,22 +1337,19 @@ bool QgsOracleProvider::addFeatures( QgsFeatureList &flist, QgsFeatureSink::Flag
         }
         else if ( mPrimaryKeyType == PktInt || mPrimaryKeyType == PktFidMap )
         {
-          if ( ins.lastInsertId().isValid() )
+          getfid.addBindValue( QVariant( ins.lastInsertId() ) );
+          if ( !getfid.exec() || !getfid.next() )
+            throw OracleException( tr( "Could not retrieve feature id %1" ).arg( features->id() ), getfid );
+
+          int col = 0;
+          Q_FOREACH ( int idx, mPrimaryKeyAttrs )
           {
-            getfid.addBindValue( QVariant( ins.lastInsertId() ) );
-            if ( !getfid.exec() || !getfid.next() )
-              throw OracleException( tr( "Could not retrieve feature id %1" ).arg( features->id() ), getfid );
+            QgsField fld = field( idx );
 
-            int col = 0;
-            Q_FOREACH ( int idx, mPrimaryKeyAttrs )
-            {
-              QgsField fld = field( idx );
-
-              QVariant v = getfid.value( col++ );
-              if ( v.type() != fld.type() )
-                v = QgsVectorDataProvider::convertValue( fld.type(), v.toString() );
-              features->setAttribute( idx, v );
-            }
+            QVariant v = getfid.value( col++ );
+            if ( v.type() != fld.type() )
+              v = QgsVectorDataProvider::convertValue( fld.type(), v.toString() );
+            features->setAttribute( idx, v );
           }
         }
       }

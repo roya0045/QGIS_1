@@ -22,6 +22,7 @@
 
 #include "qgis_core.h"
 #include "qgsmaplayer.h"
+#include "qgsrendercontext.h"
 #include "qgsmeshdataprovider.h"
 #include "qgsmeshrenderersettings.h"
 
@@ -29,7 +30,6 @@ class QgsMapLayerRenderer;
 struct QgsMeshLayerRendererCache;
 class QgsSymbol;
 class QgsTriangularMesh;
-class QgsRenderContext;
 struct QgsMesh;
 
 /**
@@ -232,7 +232,6 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
   private:
     void fillNativeMesh();
     void assignDefaultStyleToDatasetGroup( int groupIndex );
-    void setDefaultRendererSettings();
 
   private slots:
     void onDatasetGroupsAdded( int count );

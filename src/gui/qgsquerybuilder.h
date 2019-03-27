@@ -15,7 +15,7 @@
 #ifndef QGSQUERYBUILDER_H
 #define QGSQUERYBUILDER_H
 #include <map>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <vector>
 #include <QStandardItemModel>
 #include <QSortFilterProxyModel>

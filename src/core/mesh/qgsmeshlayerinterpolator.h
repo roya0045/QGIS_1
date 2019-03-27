@@ -20,27 +20,19 @@
 
 class QgsMeshLayer;
 class QgsSymbol;
-class QgsCoordinateReferenceSystem;
-class QgsCoordinateTransformContext;
-class QgsMeshDatasetIndex;
 
-#include "qgis.h"
-#include "qgis_sip.h"
+#define SIP_NO_FILE
 
 #include <QSize>
+
+#include "qgis.h"
+
 #include "qgsmaplayerrenderer.h"
+#include "qgsrendercontext.h"
 #include "qgstriangularmesh.h"
 #include "qgsrasterinterface.h"
 #include "qgssinglebandpseudocolorrenderer.h"
 #include "qgsrastershader.h"
-
-class QgsRenderContext;
-
-#ifdef SIP_RUN
-% ModuleHeaderCode
-#include "qgsmeshlayerinterpolator.h"
-% End
-#endif
 
 ///@cond PRIVATE
 
@@ -51,7 +43,7 @@ class QgsRenderContext;
  * \note not available in Python bindings
  * \since QGIS 3.2
  */
-class QgsMeshLayerInterpolator : public QgsRasterInterface SIP_SKIP
+class QgsMeshLayerInterpolator : public QgsRasterInterface
 {
   public:
     //! Ctor
@@ -78,36 +70,5 @@ class QgsMeshLayerInterpolator : public QgsRasterInterface SIP_SKIP
 };
 
 ///@endcond
-
-namespace QgsMeshUtils
-{
-
-  /**
-   * Exports mesh layer's dataset values as raster block
-   *
-   * The function always fetches native mesh and dataset data
-   * from data provider and calculates triangular mesh
-   *
-   * \param layer mesh layer
-   * \param datasetIndex index from layer defining group and dataset (time) to export
-   * \param destinationCrs destination/map CRS. Used to create triangular mesh from native mesh
-   * \param transformContext Transform context to transform layer CRS to destination CRS
-   * \param mapUnitsPerPixel map units per pixel for block
-   * \param extent extent of block in destination CRS
-   * \param feedback optional raster feedback object for cancelation/preview
-   * \returns raster block with Float::64 values. nullptr on error
-   *
-   * \since QGIS 3.6
-   */
-  CORE_EXPORT QgsRasterBlock *exportRasterBlock(
-    const QgsMeshLayer &layer,
-    const QgsMeshDatasetIndex &datasetIndex,
-    const QgsCoordinateReferenceSystem &destinationCrs,
-    const QgsCoordinateTransformContext &transformContext,
-    double mapUnitsPerPixel,
-    const QgsRectangle &extent,
-    QgsRasterBlockFeedback *feedback = nullptr
-  ) SIP_FACTORY;
-};
 
 #endif // QGSMESHLAYERINTERPOLATOR_H

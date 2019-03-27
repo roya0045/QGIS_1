@@ -18,6 +18,7 @@
 #ifndef QGSRANGE_H
 #define QGSRANGE_H
 
+#include "qgis.h"
 #include "qgis_sip.h"
 #include "qgis_core.h"
 

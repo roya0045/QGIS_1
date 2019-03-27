@@ -18,7 +18,6 @@
 #include "qgsfilterlineedit.h"
 #include "qgsapplication.h"
 #include "qgsanimatedicon.h"
-#include "qgis.h"
 
 #include <QAction>
 #include <QToolButton>

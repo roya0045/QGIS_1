@@ -18,7 +18,7 @@
 #define QGSPGTABLEMODEL_H
 #include <QStandardItemModel>
 
-#include "qgswkbtypes.h"
+#include "qgis.h"
 #include "qgspostgresconn.h"
 
 class QIcon;

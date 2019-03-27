@@ -78,19 +78,8 @@ bool QgsGeometryCollection::operator==( const QgsAbstractGeometry &other ) const
 
   for ( int i = 0; i < mGeometries.count(); ++i )
   {
-    QgsAbstractGeometry *g1 = mGeometries.at( i );
-    QgsAbstractGeometry *g2 = otherCollection->mGeometries.at( i );
-
-    // Quick check if the geometries are exactly the same
-    if ( g1 != g2 )
-    {
-      if ( !g1 || !g2 )
-        return false;
-
-      // Slower check, compare the contents of the geometries
-      if ( *g1 != *g2 )
-        return false;
-    }
+    if ( mGeometries.at( i ) != otherCollection->mGeometries.at( i ) )
+      return false;
   }
 
   return true;

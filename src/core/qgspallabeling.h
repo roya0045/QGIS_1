@@ -23,6 +23,7 @@
 
 #include "qgis_core.h"
 #include "qgis_sip.h"
+#include "qgis.h"
 #include <QString>
 #include <QFont>
 #include <QFontDatabase>
@@ -792,7 +793,6 @@ class CORE_EXPORT QgsPalLayerSettings
     /**
      * Returns a reference to the label's property collection, used for data defined overrides.
      * \see setDataDefinedProperties()
-     * \see Property
      * \note not available in Python bindings
      * \since QGIS 3.0
      */
@@ -802,7 +802,6 @@ class CORE_EXPORT QgsPalLayerSettings
      * Sets the label's property collection, used for data defined overrides.
      * \param collection property collection. Existing properties will be replaced.
      * \see dataDefinedProperties()
-     * \see Property
      * \since QGIS 3.0
      */
     void setDataDefinedProperties( const QgsPropertyCollection &collection ) { mDataDefinedProperties = collection; }

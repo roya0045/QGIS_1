@@ -20,7 +20,7 @@
 #include <QString>
 #include <QObject>
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgis_core.h"
 
 class QgsFieldFormatter;

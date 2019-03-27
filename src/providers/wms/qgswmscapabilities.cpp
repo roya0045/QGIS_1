@@ -1948,7 +1948,6 @@ bool QgsWmsCapabilitiesDownload::downloadCapabilities()
   mError.clear();
 
   QNetworkRequest request( url );
-  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWmsCapabilitiesDownload" ) );
   if ( !mAuth.setAuthorization( request ) )
   {
     mError = tr( "Download of capabilities failed: network request update failed for authentication config" );
@@ -2017,7 +2016,6 @@ void QgsWmsCapabilitiesDownload::capabilitiesReplyFinished()
         else
         {
           QNetworkRequest request( toUrl );
-          QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWmsCapabilitiesDownload" ) );
           if ( !mAuth.setAuthorization( request ) )
           {
             mHttpCapabilitiesResponse.clear();

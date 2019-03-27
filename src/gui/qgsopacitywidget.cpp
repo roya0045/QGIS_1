@@ -15,7 +15,6 @@
 
 #include "qgsopacitywidget.h"
 #include "qgsdoublespinbox.h"
-#include "qgis.h"
 #include <QHBoxLayout>
 #include <QSlider>
 

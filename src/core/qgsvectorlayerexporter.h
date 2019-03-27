@@ -19,7 +19,7 @@
 #define QGSVECTORLAYEREXPORTER_H
 
 #include "qgis_core.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsfeature.h"
 #include "qgsfeaturesink.h"
 #include "qgstaskmanager.h"

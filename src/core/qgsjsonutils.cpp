@@ -25,7 +25,6 @@
 #include "qgslogger.h"
 #include "qgsfieldformatterregistry.h"
 #include "qgsfieldformatter.h"
-#include "qgsapplication.h"
 
 #include <QJsonDocument>
 #include <QJsonArray>

@@ -19,7 +19,7 @@ email                : hugo dot mercier at oslandia dot com
 
 #include "qgis_core.h"
 #include "qgsfields.h"
-#include "qgswkbtypes.h"
+#include "qgis.h"
 
 /**
  * \ingroup core

@@ -734,8 +734,6 @@ Returns the stroke width map unit scale.
 
     virtual QSet<QString> usedAttributes( const QgsRenderContext &context ) const;
 
-    virtual bool hasDataDefinedProperties() const;
-
 
   protected:
 
@@ -1565,8 +1563,6 @@ Returns the map unit scale for the pattern's line offset.
 
     virtual QSet<QString> usedAttributes( const QgsRenderContext &context ) const;
 
-    virtual bool hasDataDefinedProperties() const;
-
 
   protected:
 
@@ -1731,8 +1727,6 @@ Returns the units for the vertical displacement between rows in the pattern.
 
     virtual QSet<QString> usedAttributes( const QgsRenderContext &context ) const;
 
-    virtual bool hasDataDefinedProperties() const;
-
     virtual void setColor( const QColor &c );
 
     virtual QColor color() const;
@@ -1803,8 +1797,6 @@ class QgsCentroidFillSymbolLayer : QgsFillSymbolLayer
 
 
     virtual QSet<QString> usedAttributes( const QgsRenderContext &context ) const;
-
-    virtual bool hasDataDefinedProperties() const;
 
 
     void setPointOnSurface( bool pointOnSurface );

@@ -18,10 +18,9 @@
 #define QGSMAPTOPIXELGEOMETRYSIMPLIFIER_H
 
 #include "qgis_core.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsgeometrysimplifier.h"
 #include <QPolygonF>
-#include <memory>
 
 class QgsAbstractGeometry;
 class QgsWkbPtr;

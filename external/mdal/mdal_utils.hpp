@@ -6,10 +6,6 @@
 #ifndef MDAL_UTILS_HPP
 #define MDAL_UTILS_HPP
 
-// Macro for exporting symbols
-// for unit tests (on windows)
-#define MDAL_TEST_EXPORT MDAL_EXPORT
-
 #include <string>
 #include <vector>
 #include <stddef.h>
@@ -63,38 +59,44 @@ namespace MDAL
   bool toBool( const std::string &str );
   bool isNumber( const std::string &str );
 
-  /**
-   * Splits by deliminer and skips empty parts.
-   * Faster than version with std::string
-   */
-  MDAL_TEST_EXPORT std::vector<std::string> split( const std::string &str, const char delimiter );
-
-  //! Splits by deliminer and skips empty parts
-  MDAL_TEST_EXPORT std::vector<std::string> split( const std::string &str, const std::string &delimiter );
-
+  enum SplitBehaviour
+  {
+    SkipEmptyParts,
+    KeepEmptyParts
+  };
+  std::vector<std::string> split( const std::string &str, const std::string &delimiter, SplitBehaviour behaviour );
   std::string join( const std::vector<std::string> parts, const std::string &delimiter );
 
-  //! Right trim
-  std::string rtrim(
+  // http://www.cplusplus.com/faq/sequences/strings/trim/
+  inline std::string rtrim(
     const std::string &s,
-    const std::string &delimiters = " \f\n\r\t\v" );
+    const std::string &delimiters = " \f\n\r\t\v" )
+  {
+    return s.substr( 0, s.find_last_not_of( delimiters ) + 1 );
+  }
 
-  //! Left trim
-  std::string ltrim(
+  // http://www.cplusplus.com/faq/sequences/strings/trim/
+  inline std::string ltrim(
     const std::string &s,
-    const std::string &delimiters = " \f\n\r\t\v" );
+    const std::string &delimiters = " \f\n\r\t\v" )
+  {
+    return s.substr( s.find_first_not_of( delimiters ) );
+  }
 
-  //! Right and left trim
-  std::string trim(
+  // http://www.cplusplus.com/faq/sequences/strings/trim/
+  inline std::string trim(
     const std::string &s,
-    const std::string &delimiters = " \f\n\r\t\v" );
+    const std::string &delimiters = " \f\n\r\t\v" )
+  {
+    return ltrim( rtrim( s, delimiters ), delimiters );
+  }
 
   // extent
   BBox computeExtent( const Vertices &vertices );
 
   // time
   //! Returns a delimiter to get time in hours
-  MDAL_TEST_EXPORT double parseTimeUnits( const std::string &units );
+  double parseTimeUnits( const std::string &units );
 
   // statistics
   void combineStatistics( Statistics &main, const Statistics &other );

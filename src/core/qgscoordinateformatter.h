@@ -19,7 +19,7 @@
 #define QGSCOORDINATEFORMATTER_H
 
 #include <QString>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgspointxy.h"
 
 /**

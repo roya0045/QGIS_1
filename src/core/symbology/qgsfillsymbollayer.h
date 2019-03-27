@@ -677,7 +677,6 @@ class CORE_EXPORT QgsImageFillSymbolLayer: public QgsFillSymbolLayer
     QColor dxfColor( QgsSymbolRenderContext &context ) const override;
     Qt::PenStyle dxfPenStyle() const override;
     QSet<QString> usedAttributes( const QgsRenderContext &context ) const override;
-    bool hasDataDefinedProperties() const override;
 
   protected:
     QBrush mBrush;
@@ -1407,7 +1406,6 @@ class CORE_EXPORT QgsLinePatternFillSymbolLayer: public QgsImageFillSymbolLayer
     bool setSubSymbol( QgsSymbol *symbol SIP_TRANSFER ) override;
     QgsSymbol *subSymbol() override;
     QSet<QString> usedAttributes( const QgsRenderContext &context ) const override;
-    bool hasDataDefinedProperties() const override;
 
   protected:
 
@@ -1562,7 +1560,6 @@ class CORE_EXPORT QgsPointPatternFillSymbolLayer: public QgsImageFillSymbolLayer
     QgsMapUnitScale mapUnitScale() const override;
 
     QSet<QString> usedAttributes( const QgsRenderContext &context ) const override;
-    bool hasDataDefinedProperties() const override;
     void setColor( const QColor &c ) override;
     QColor color() const override;
 
@@ -1635,7 +1632,6 @@ class CORE_EXPORT QgsCentroidFillSymbolLayer : public QgsFillSymbolLayer
     QgsMapUnitScale mapUnitScale() const override;
 
     QSet<QString> usedAttributes( const QgsRenderContext &context ) const override;
-    bool hasDataDefinedProperties() const override;
 
     void setPointOnSurface( bool pointOnSurface ) { mPointOnSurface = pointOnSurface; }
     bool pointOnSurface() const { return mPointOnSurface; }

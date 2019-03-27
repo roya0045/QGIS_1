@@ -57,11 +57,6 @@ void QgsRasterIterator::startRasterRead( int bandNumber, int nCols, int nRows, c
   mRasterPartInfos.insert( bandNumber, pInfo );
 }
 
-bool QgsRasterIterator::next( int bandNumber, int &columns, int &rows, int &topLeftColumn, int &topLeftRow, QgsRectangle &blockExtent )
-{
-  return readNextRasterPartInternal( bandNumber, columns, rows, nullptr, topLeftColumn, topLeftRow, &blockExtent );
-}
-
 bool QgsRasterIterator::readNextRasterPart( int bandNumber,
     int &nCols, int &nRows,
     QgsRasterBlock **block,
@@ -77,14 +72,8 @@ bool QgsRasterIterator::readNextRasterPart( int bandNumber,
 
 bool QgsRasterIterator::readNextRasterPart( int bandNumber, int &nCols, int &nRows, std::unique_ptr<QgsRasterBlock> &block, int &topLeftCol, int &topLeftRow, QgsRectangle *blockExtent )
 {
-  return readNextRasterPartInternal( bandNumber, nCols, nRows, &block, topLeftCol, topLeftRow, blockExtent );
-}
-
-bool QgsRasterIterator::readNextRasterPartInternal( int bandNumber, int &nCols, int &nRows, std::unique_ptr<QgsRasterBlock> *block, int &topLeftCol, int &topLeftRow, QgsRectangle *blockExtent )
-{
   QgsDebugMsgLevel( QStringLiteral( "Entered" ), 4 );
-  if ( block )
-    block->reset();
+  block.reset();
   //get partinfo
   QMap<int, RasterPartInfo>::iterator partIt = mRasterPartInfos.find( bandNumber );
   if ( partIt == mRasterPartInfos.end() )
@@ -126,8 +115,7 @@ bool QgsRasterIterator::readNextRasterPartInternal( int bandNumber, int &nCols, 
   if ( blockExtent )
     *blockExtent = blockRect;
 
-  if ( block )
-    block->reset( mInput->block( bandNumber, blockRect, nCols, nRows, mFeedback ) );
+  block.reset( mInput->block( bandNumber, blockRect, nCols, nRows, mFeedback ) );
   topLeftCol = pInfo.currentCol;
   topLeftRow = pInfo.currentRow;
 

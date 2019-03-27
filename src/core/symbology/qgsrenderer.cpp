@@ -35,7 +35,6 @@
 #include "qgswkbptr.h"
 #include "qgspoint.h"
 #include "qgsproperty.h"
-#include "qgsapplication.h"
 
 #include <QDomElement>
 #include <QDomDocument>

@@ -16,6 +16,7 @@
 #define QGSFIELDCONDITIONALFORMATWIDGET_H
 
 #include <QWidget>
+#include "qgis.h"
 #include <QStandardItemModel>
 #include <QStandardItem>
 
@@ -36,6 +37,7 @@ class GUI_EXPORT QgsFieldConditionalFormatWidget : public QWidget, private Ui::Q
 
     /**
      * Constructor for QgsFieldConditionalFormatWidget.
+     * \param parent parent widget
      */
     explicit QgsFieldConditionalFormatWidget( QWidget *parent SIP_TRANSFERTHIS = nullptr );
 

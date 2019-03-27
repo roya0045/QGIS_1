@@ -51,8 +51,6 @@
 #include "sqlite3.h"
 #include "qgstransaction.h"
 #include "qgsthreadingutils.h"
-#include "qgsapplication.h"
-#include "qgis.h"
 
 const QString QgsExpressionFunction::helpText() const
 {
@@ -889,22 +887,6 @@ static QVariant fcnAggregateStringConcat( const QVariantList &values, const QgsE
 static QVariant fcnAggregateArray( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
   return fcnAggregateGeneric( QgsAggregateCalculator::ArrayAggregate, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
-}
-
-static QVariant fcnMapScale( const QVariantList &, const QgsExpressionContext *context, QgsExpression *, const QgsExpressionNodeFunction * )
-{
-  if ( !context )
-    return QVariant();
-
-  QVariant scale = context->variable( QStringLiteral( "map_scale" ) );
-  bool ok = false;
-  if ( !scale.isValid() || scale.isNull() )
-    return QVariant();
-
-  const double v = scale.toDouble( &ok );
-  if ( ok )
-    return v;
-  return QVariant();
 }
 
 static QVariant fcnClamp( const QVariantList &values, const QgsExpressionContext *, QgsExpression *parent, const QgsExpressionNodeFunction * )
@@ -4895,10 +4877,7 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
         << new QgsStaticExpressionFunction( QStringLiteral( "color_part" ), 2, fncColorPart, QStringLiteral( "Color" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "darker" ), 2, fncDarker, QStringLiteral( "Color" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "lighter" ), 2, fncLighter, QStringLiteral( "Color" ) )
-        << new QgsStaticExpressionFunction( QStringLiteral( "set_color_part" ), 3, fncSetColorPart, QStringLiteral( "Color" ) )
-
-        // deprecated stuff - hidden from users
-        << new QgsStaticExpressionFunction( QStringLiteral( "$scale" ), QgsExpressionFunction::ParameterList(), fcnMapScale, QStringLiteral( "deprecated" ) );
+        << new QgsStaticExpressionFunction( QStringLiteral( "set_color_part" ), 3, fncSetColorPart, QStringLiteral( "Color" ) );
 
     QgsStaticExpressionFunction *geomFunc = new QgsStaticExpressionFunction( QStringLiteral( "$geometry" ), 0, fcnGeometry, QStringLiteral( "GeometryGroup" ), QString(), true );
     geomFunc->setIsStatic( false );

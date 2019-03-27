@@ -23,7 +23,6 @@
 #include "qgsgeometryutils.h"
 #include "qgsmapsettings.h"
 #include "qgssurface.h"
-#include "qgsmultisurface.h"
 #include "qgscurve.h"
 
 ///@cond PRIVATE
@@ -719,7 +718,7 @@ int QgsGeometrySnapper::polyLineSize( const QgsAbstractGeometry *geom, int iPart
 {
   int nVerts = geom->vertexCount( iPart, iRing );
 
-  if ( qgsgeometry_cast< const QgsSurface * >( geom ) || qgsgeometry_cast< const QgsMultiSurface * >( geom ) )
+  if ( qgsgeometry_cast< const QgsSurface * >( geom ) )
   {
     QgsPoint front = geom->vertexAt( QgsVertexId( iPart, iRing, 0 ) );
     QgsPoint back = geom->vertexAt( QgsVertexId( iPart, iRing, nVerts - 1 ) );

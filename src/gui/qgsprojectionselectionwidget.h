@@ -18,7 +18,7 @@
 #define QGSPROJECTIONSELECTIONWIDGET_H
 
 #include <QWidget>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QLineEdit>
 #include <QToolButton>
 #include <QComboBox>

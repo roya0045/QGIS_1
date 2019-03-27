@@ -17,7 +17,7 @@
 #define QGSMAPLAYERACTIONREGISTRY_H
 
 #include <QObject>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QList>
 #include <QMap>
 #include <QAction>

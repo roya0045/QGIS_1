@@ -16,7 +16,7 @@
 #define QGSDIAGRAMRENDERER_H
 
 #include "qgis_core.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QColor>
 #include <QFont>
 #include <QList>
@@ -308,7 +308,6 @@ class CORE_EXPORT QgsDiagramLayerSettings
     /**
      * Returns a reference to the diagram's property collection, used for data defined overrides.
      * \see setDataDefinedProperties()
-     * \see Property
      * \note not available in Python bindings
      * \since QGIS 3.0
      */
@@ -318,7 +317,6 @@ class CORE_EXPORT QgsDiagramLayerSettings
      * Sets the diagram's property collection, used for data defined overrides.
      * \param collection property collection. Existing properties will be replaced.
      * \see dataDefinedProperties()
-     * \see Property
      * \since QGIS 3.0
      */
     void setDataDefinedProperties( const QgsPropertyCollection &collection ) { mDataDefinedProperties = collection; }

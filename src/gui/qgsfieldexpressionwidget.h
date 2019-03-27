@@ -23,7 +23,7 @@
 #include <memory>
 
 #include "qgis_gui.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsdistancearea.h"
 #include "qgsexpressioncontextgenerator.h"
 #include "qgsexpressioncontext.h"

@@ -24,7 +24,7 @@
 #include <QItemDelegate>
 #include <QAbstractTableModel>
 #include <QSortFilterProxyModel>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "ui_qgslayoutattributeselectiondialogbase.h"
 #include "qgsexpressioncontextgenerator.h"
 

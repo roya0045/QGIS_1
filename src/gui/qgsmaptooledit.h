@@ -16,7 +16,7 @@
 #ifndef QGSMAPTOOLEDIT_H
 #define QGSMAPTOOLEDIT_H
 
-#include "qgswkbtypes.h"
+#include "qgis.h"
 #include "qgsmaptool.h"
 #include "qgis_gui.h"
 

@@ -15,7 +15,6 @@
  ***************************************************************************/
 #include "qgsogrdbtablemodel.h"
 #include "qgsdataitem.h"
-#include "qgsapplication.h"
 
 #include <QIcon>
 

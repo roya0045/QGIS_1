@@ -40,7 +40,6 @@ SET(QGIS_SERVER_SRCS
   qgsserviceregistry.cpp
   qgsfeaturefilterprovidergroup.cpp
   qgsfeaturefilter.cpp
-  qgsstorebadlayerinfo.cpp
 )
 
 SET (QGIS_SERVER_HDRS

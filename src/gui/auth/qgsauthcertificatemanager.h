@@ -18,7 +18,7 @@
 #define QGSAUTHCERTIFICATEMANAGER_H
 
 #include "ui_qgsauthcertificatemanager.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 #include <QWidget>
 #include <QDialog>

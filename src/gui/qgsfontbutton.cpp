@@ -25,7 +25,6 @@
 #include "qgsunittypes.h"
 #include "qgsmenuheader.h"
 #include "qgsfontutils.h"
-#include "qgsapplication.h"
 #include <QMenu>
 #include <QClipboard>
 #include <QDrag>

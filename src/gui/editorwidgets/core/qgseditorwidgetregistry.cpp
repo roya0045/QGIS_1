@@ -21,7 +21,6 @@
 #include "qgsvectorlayer.h"
 #include "qgseditorwidgetwrapper.h"
 #include "qgssearchwidgetwrapper.h"
-#include "qgsapplication.h"
 
 // Editors
 #include "qgsbinarywidgetfactory.h"

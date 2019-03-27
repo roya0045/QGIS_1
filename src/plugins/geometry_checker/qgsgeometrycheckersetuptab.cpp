@@ -31,7 +31,6 @@
 #include "qgsmapcanvas.h"
 #include "qgsvectorfilewriter.h"
 #include "qgsvectordataprovider.h"
-#include "qgsapplication.h"
 
 #include <QAction>
 #include <QEventLoop>

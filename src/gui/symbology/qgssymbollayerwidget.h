@@ -18,7 +18,7 @@
 #define QGSSYMBOLLAYERWIDGET_H
 
 #include "qgspropertyoverridebutton.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgssymbolwidgetcontext.h"
 #include "qgssymbollayer.h"
 #include <QWidget>

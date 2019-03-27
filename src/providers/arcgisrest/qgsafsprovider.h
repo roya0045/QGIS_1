@@ -82,7 +82,6 @@ class QgsAfsProvider : public QgsVectorDataProvider
     QgsLayerMetadata mLayerMetadata;
     QVariantMap mRendererDataMap;
     QVariantList mLabelingDataList;
-    QgsStringMap mRequestHeaders;
 };
 
 #endif // QGSAFSPROVIDER_H

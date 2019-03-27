@@ -32,7 +32,6 @@
 #include "qgsnetworkaccessmanager.h"
 #include "qgsmessageoutput.h"
 #include "qgsmessagelog.h"
-#include "qgsapplication.h"
 
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -130,7 +129,6 @@ bool QgsWcsCapabilities::sendRequest( QString const &url )
   QgsDebugMsg( "url = " + url );
   mError.clear();
   QNetworkRequest request( url );
-  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWcsCapabilities" ) );
   if ( !setAuthorization( request ) )
   {
     mError = tr( "Download of capabilities failed: network request update failed for authentication config" );
@@ -348,7 +346,6 @@ void QgsWcsCapabilities::capabilitiesReplyFinished()
       emit statusChanged( tr( "Capabilities request redirected." ) );
 
       QNetworkRequest request( redirect.toUrl() );
-      QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWcsCapabilities" ) );
       if ( !setAuthorization( request ) )
       {
         mCapabilitiesResponse.clear();
@@ -389,7 +386,6 @@ void QgsWcsCapabilities::capabilitiesReplyFinished()
   {
     // Resend request if AlwaysCache
     QNetworkRequest request = mCapabilitiesReply->request();
-    QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWcsCapabilities" ) );
     if ( request.attribute( QNetworkRequest::CacheLoadControlAttribute ).toInt() == QNetworkRequest::AlwaysCache )
     {
       QgsDebugMsg( QStringLiteral( "Resend request with PreferCache" ) );

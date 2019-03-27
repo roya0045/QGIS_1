@@ -17,7 +17,7 @@
 #define QGSEXPRESSIONBUILDER_H
 
 #include <QWidget>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "ui_qgsexpressionbuilder.h"
 #include "qgsdistancearea.h"
 #include "qgsexpressioncontext.h"

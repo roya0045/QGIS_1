@@ -22,8 +22,7 @@
 #include <QStringList>
 #include <QDomElement>
 
-// #include "qgis.h"
-#include "qgswkbtypes.h"
+#include "qgis.h"
 
 class QgsFeatureRenderer;
 class QgsReadWriteContext;

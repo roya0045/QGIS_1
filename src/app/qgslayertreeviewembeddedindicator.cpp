@@ -17,7 +17,6 @@
 #include "qgslayertree.h"
 #include "qgslayertreemodel.h"
 #include "qgslayertreeview.h"
-#include "qgsapplication.h"
 
 QgsLayerTreeViewEmbeddedIndicatorProvider::QgsLayerTreeViewEmbeddedIndicatorProvider( QgsLayerTreeView *view )
   : QObject( view )

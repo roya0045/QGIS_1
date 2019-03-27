@@ -22,7 +22,7 @@
 #include <QPointer>
 #include <QToolButton>
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgssettings.h"
 #include "qgis_gui.h"
 

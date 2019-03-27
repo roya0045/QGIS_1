@@ -29,12 +29,11 @@ class QgsMeshLayer;
 
 #include "qgsmaplayerrenderer.h"
 #include "qgsrasterinterface.h"
+#include "qgsrendercontext.h"
 #include "qgstriangularmesh.h"
 #include "qgsmeshlayer.h"
 #include "qgssymbol.h"
 #include "qgsmeshdataprovider.h"
-
-class QgsRenderContext;
 
 ///@cond PRIVATE
 

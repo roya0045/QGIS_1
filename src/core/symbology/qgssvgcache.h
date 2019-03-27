@@ -20,6 +20,7 @@
 
 #include "qgsabstractcontentcache.h"
 #include "qgis.h"
+#include "qgis_core.h"
 
 #include <QPicture>
 

@@ -193,11 +193,6 @@ void QgsSymbolLayer::prepareExpressions( const QgsSymbolRenderContext &context )
   }
 }
 
-bool QgsSymbolLayer::hasDataDefinedProperties() const
-{
-  return mDataDefinedProperties.hasActiveProperties();
-}
-
 const QgsPropertiesDefinition &QgsSymbolLayer::propertyDefinitions()
 {
   QgsSymbolLayer::initPropertyDefinitions();

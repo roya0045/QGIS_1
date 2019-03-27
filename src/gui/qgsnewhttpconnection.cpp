@@ -34,9 +34,6 @@ QgsNewHttpConnection::QgsNewHttpConnection( QWidget *parent, ConnectionTypes typ
 {
   setupUi( this );
 
-  if ( !( flags & FlagShowHttpSettings ) )
-    mHttpGroupBox->hide();
-
   QgsGui::enableAutoGeometryRestore( this );
 
   connect( buttonBox, &QDialogButtonBox::helpRequested, this, &QgsNewHttpConnection::showHelp );
@@ -91,7 +88,6 @@ QgsNewHttpConnection::QgsNewHttpConnection( QWidget *parent, ConnectionTypes typ
     QString credentialsKey = "qgis/" + mCredentialsBaseKey + '/' + connectionName;
     txtName->setText( connectionName );
     txtUrl->setText( settings.value( key + "/url" ).toString() );
-    mRefererLineEdit->setText( settings.value( key + "/referer" ).toString() );
 
     updateServiceSpecificSettings();
 
@@ -447,9 +443,6 @@ void QgsNewHttpConnection::accept()
   settings.setValue( credentialsKey + "/password", mAuthSettings->password() );
 
   settings.setValue( credentialsKey + "/authcfg", mAuthSettings->configId() );
-
-  if ( mHttpGroupBox->isVisible() )
-    settings.setValue( key + "/referer", mRefererLineEdit->text() );
 
   settings.setValue( mBaseKey + "/selected", txtName->text() );
 

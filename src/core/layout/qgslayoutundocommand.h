@@ -19,7 +19,7 @@
 #define QGSLAYOUTUNDOCOMMAND_H
 
 #include <QUndoCommand>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QDomDocument>
 
 #include "qgis_core.h"

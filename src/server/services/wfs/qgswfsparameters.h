@@ -83,7 +83,7 @@ namespace QgsWfs
 
       /**
        * Converts the parameter into a list of string.
-       * \param exp The expression to use for splitting, pass an empty string to avoid splitting
+       * \param exp The expression to use for splitting
        * \returns A list of strings
        * \throws QgsBadRequestException Invalid parameter exception
        */

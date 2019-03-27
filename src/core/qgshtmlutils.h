@@ -18,9 +18,7 @@
 #ifndef QGSHTMLUTILS_H
 #define QGSHTMLUTILS_H
 
-#include "qgis_core.h"
-#include "qgis_sip.h"
-#include <QString>
+#include "qgis.h"
 
 /**
  * \ingroup core

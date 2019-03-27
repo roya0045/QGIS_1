@@ -18,7 +18,7 @@
 #define QGSTASKMANAGERWIDGET_H
 
 #include "qgsfloatingwidget.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgstaskmanager.h"
 #include <QStyledItemDelegate>
 #include <QToolButton>

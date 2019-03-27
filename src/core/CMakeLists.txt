@@ -111,7 +111,6 @@ SET(QGIS_CORE_SRCS
   locator/qgslocatormodel.cpp
   locator/qgslocatormodelbridge.cpp
 
-  processing/qgsprocessing.cpp
   processing/qgsprocessingalgorithm.cpp
   processing/qgsprocessingalgrunnertask.cpp
   processing/qgsprocessingcontext.cpp
@@ -258,7 +257,6 @@ SET(QGIS_CORE_SRCS
   qgsnetworkcontentfetcher.cpp
   qgsnetworkcontentfetcherregistry.cpp
   qgsnetworkcontentfetchertask.cpp
-  qgsnetworkreply.cpp
   qgsnetworkreplyparser.cpp
   qgsobjectcustomproperties.cpp
   qgsofflineediting.cpp
@@ -474,14 +472,13 @@ SET(QGIS_CORE_SRCS
 
   mesh/qgsmeshdataprovider.cpp
   mesh/qgsmeshlayer.cpp
-  mesh/qgsmeshlayerinterpolator.cpp
   mesh/qgsmeshlayerrenderer.cpp
   mesh/qgsmeshlayerutils.cpp
   mesh/qgsmeshmemorydataprovider.cpp
-  mesh/qgsmeshrenderersettings.cpp
-  mesh/qgsmeshspatialindex.cpp
-  mesh/qgsmeshvectorrenderer.cpp
   mesh/qgstriangularmesh.cpp
+  mesh/qgsmeshlayerinterpolator.cpp
+  mesh/qgsmeshvectorrenderer.cpp
+  mesh/qgsmeshrenderersettings.cpp
 
   geometry/qgsabstractgeometry.cpp
   geometry/qgsbox3d.cpp
@@ -916,7 +913,6 @@ SET(QGIS_CORE_HDRS
   qgsmargins.h
   qgsmimedatautils.h
   qgsmultirenderchecker.h
-  qgsnetworkreply.h
   qgsobjectcustomproperties.h
   qgsogcutils.h
   qgsoptional.h
@@ -1106,13 +1102,12 @@ SET(QGIS_CORE_HDRS
   raster/qgssinglebandpseudocolorrenderer.h
   raster/qgshillshaderenderer.h
 
-  mesh/qgsmeshlayerinterpolator.h
-  mesh/qgsmeshlayerrenderer.h
-  mesh/qgsmeshlayerutils.h
-  mesh/qgsmeshrenderersettings.h
-  mesh/qgsmeshspatialindex.h
-  mesh/qgsmeshvectorrenderer.h
   mesh/qgstriangularmesh.h
+  mesh/qgsmeshlayerrenderer.h
+  mesh/qgsmeshlayerinterpolator.h
+  mesh/qgsmeshlayerutils.h
+  mesh/qgsmeshvectorrenderer.h
+  mesh/qgsmeshrenderersettings.h
 
   scalebar/qgsdoubleboxscalebarrenderer.h
   scalebar/qgsnumericscalebarrenderer.h

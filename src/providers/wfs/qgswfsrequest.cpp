@@ -38,7 +38,7 @@ QgsWfsRequest::QgsWfsRequest( const QgsWFSDataSourceURI &uri )
   , mGotNonEmptyResponse( false )
 {
   QgsDebugMsgLevel( QStringLiteral( "theUri = " ) + uri.uri( ), 4 );
-  connect( QgsNetworkAccessManager::instance(), qgis::overload< QNetworkReply *>::of( &QgsNetworkAccessManager::requestTimedOut ), this, &QgsWfsRequest::requestTimedOut );
+  connect( QgsNetworkAccessManager::instance(), &QgsNetworkAccessManager::requestTimedOut, this, &QgsWfsRequest::requestTimedOut );
 }
 
 QgsWfsRequest::~QgsWfsRequest()
@@ -114,7 +114,6 @@ bool QgsWfsRequest::sendGET( const QUrl &url, bool synchronous, bool forceRefres
   QgsDebugMsgLevel( QStringLiteral( "Calling: %1" ).arg( modifiedUrl.toDisplayString( ) ), 4 );
 
   QNetworkRequest request( modifiedUrl );
-  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWfsRequest" ) );
   if ( !mUri.auth().setAuthorization( request ) )
   {
     mErrorCode = QgsWfsRequest::NetworkError;
@@ -253,7 +252,6 @@ bool QgsWfsRequest::sendPOST( const QUrl &url, const QString &contentTypeHeader,
   }
 
   QNetworkRequest request( url );
-  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWfsRequest" ) );
   if ( !mUri.auth().setAuthorization( request ) )
   {
     mErrorCode = QgsWfsRequest::NetworkError;
@@ -338,7 +336,6 @@ void QgsWfsRequest::replyFinished()
         else
         {
           QNetworkRequest request( toUrl );
-          QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsWfsRequest" ) );
           if ( !mUri.auth().setAuthorization( request ) )
           {
             mResponse.clear();

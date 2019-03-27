@@ -22,7 +22,7 @@
 
 #define SIP_NO_FILE
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsprocessingalgorithm.h"
 
 ///@cond PRIVATE

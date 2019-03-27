@@ -195,15 +195,6 @@ void QgsMapRendererParallelJob::renderLayersFinished()
 {
   Q_ASSERT( mStatus == RenderingLayers );
 
-  LayerRenderJobs::const_iterator it = mLayerJobs.constBegin();
-  for ( ; it != mLayerJobs.constEnd(); ++it )
-  {
-    if ( !it->errors.isEmpty() )
-    {
-      mErrors.append( Error( it->layer->id(), it->errors.join( ',' ) ) );
-    }
-  }
-
   // compose final image
   mFinalImage = composeImage( mSettings, mLayerJobs, mLabelJob );
 
@@ -278,8 +269,6 @@ void QgsMapRendererParallelJob::renderLayerStatic( LayerRenderJob &job )
   {
     QgsDebugMsg( QStringLiteral( "Caught unhandled unknown exception" ) );
   }
-
-  job.errors = job.renderer->errors();
   job.renderingTime += t.elapsed();
   QgsDebugMsgLevel( QStringLiteral( "job %1 end [%2 ms] (layer %3)" ).arg( reinterpret_cast< quint64 >( &job ), 0, 16 ).arg( job.renderingTime ).arg( job.layer ? job.layer->id() : QString() ), 2 );
 }

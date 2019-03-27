@@ -17,6 +17,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "qgis.h"
 #include "qgsservicemodule.h"
 #include "qgsserviceregistry.h"
 #include "qgsservice.h"

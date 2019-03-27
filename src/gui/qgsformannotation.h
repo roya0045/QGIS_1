@@ -19,7 +19,7 @@
 #define QGSFORMANNOTATION_H
 
 #include "qgsannotation.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsfeature.h"
 #include <QWidget>
 #include "qgis_gui.h"

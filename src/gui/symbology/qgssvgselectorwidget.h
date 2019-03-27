@@ -18,7 +18,7 @@
 #define QGSSVGSELECTORWIDGET_H
 
 #include "ui_widget_svgselector.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 #include "qgsguiutils.h"
 #include <QAbstractListModel>

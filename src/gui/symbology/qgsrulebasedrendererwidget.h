@@ -17,7 +17,7 @@
 #define QGSRULEBASEDRENDERERWIDGET_H
 
 #include "qgsrendererwidget.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 
 #include "qgsrulebasedrenderer.h"
 class QMenu;

@@ -17,7 +17,7 @@
 #define QGSCURVEEDITORWIDGET_H
 
 #include <QWidget>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QThread>
 #include <QMutex>
 #include <QPen>

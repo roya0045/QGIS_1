@@ -51,7 +51,6 @@ void QgsFileDownloader::startDownload()
   QgsNetworkAccessManager *nam = QgsNetworkAccessManager::instance();
 
   QNetworkRequest request( mUrl );
-  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsFileDownloader" ) );
   if ( !mAuthCfg.isEmpty() )
   {
     QgsApplication::authManager()->updateNetworkRequest( request, mAuthCfg );
@@ -75,7 +74,7 @@ void QgsFileDownloader::startDownload()
   connect( mReply, &QNetworkReply::readyRead, this, &QgsFileDownloader::onReadyRead );
   connect( mReply, &QNetworkReply::finished, this, &QgsFileDownloader::onFinished );
   connect( mReply, &QNetworkReply::downloadProgress, this, &QgsFileDownloader::onDownloadProgress );
-  connect( nam, qgis::overload< QNetworkReply *>::of( &QgsNetworkAccessManager::requestTimedOut ), this, &QgsFileDownloader::onRequestTimedOut, Qt::UniqueConnection );
+  connect( nam, &QgsNetworkAccessManager::requestTimedOut, this, &QgsFileDownloader::onRequestTimedOut, Qt::UniqueConnection );
 #ifndef QT_NO_SSL
   connect( nam, &QgsNetworkAccessManager::sslErrors, this, &QgsFileDownloader::onSslErrors, Qt::UniqueConnection );
 #endif
@@ -88,26 +87,22 @@ void QgsFileDownloader::cancelDownload()
   onFinished();
 }
 
-void QgsFileDownloader::onRequestTimedOut( QNetworkReply *reply )
+void QgsFileDownloader::onRequestTimedOut()
 {
-  if ( reply == mReply )
-    error( tr( "Network request %1 timed out" ).arg( mUrl.toString() ) );
+  error( tr( "Network request %1 timed out" ).arg( mUrl.toString() ) );
 }
 
 #ifndef QT_NO_SSL
 void QgsFileDownloader::onSslErrors( QNetworkReply *reply, const QList<QSslError> &errors )
 {
-  if ( reply == mReply )
+  Q_UNUSED( reply );
+  QStringList errorMessages;
+  errorMessages <<  QStringLiteral( "SSL Errors: " );
+  for ( auto end = errors.size(), i = 0; i != end; ++i )
   {
-    QStringList errorMessages;
-    errorMessages.reserve( errors.size() + 1 );
-    errorMessages <<  QStringLiteral( "SSL Errors: " );
-    for ( auto end = errors.size(), i = 0; i != end; ++i )
-    {
-      errorMessages << errors[i].errorString();
-    }
-    error( errorMessages );
+    errorMessages << errors[i].errorString();
   }
+  error( errorMessages );
 }
 #endif
 

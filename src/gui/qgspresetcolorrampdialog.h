@@ -17,7 +17,7 @@
 #define QGSPRESETCOLORRAMPDIALOG_H
 
 #include <QDialog>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgspanelwidget.h"
 #include "qgscolorramp.h"
 #include "ui_qgspresetcolorrampwidgetbase.h"

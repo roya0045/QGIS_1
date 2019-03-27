@@ -19,7 +19,7 @@
 #define QGSTRANSACTION_H
 
 #include <QSet>
-#include "qgis_sip.h"
+#include "qgis.h"
 #include <QString>
 #include <QObject>
 #include <QStack>

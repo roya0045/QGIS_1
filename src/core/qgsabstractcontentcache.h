@@ -22,9 +22,6 @@
 #include "qgis_sip.h"
 #include "qgslogger.h"
 #include "qgsmessagelog.h"
-#include "qgsapplication.h"
-#include "qgsnetworkaccessmanager.h"
-
 #include <QObject>
 #include <QMutex>
 #include <QCache>
@@ -323,7 +320,6 @@ class CORE_EXPORT QgsAbstractContentCache : public QgsAbstractContentCacheBase
       mPendingRemoteUrls.insert( path );
       //fire up task to fetch content in background
       QNetworkRequest request( url );
-      QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsAbstractContentCache<%1>" ).arg( mTypeString ) );
       request.setAttribute( QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache );
       request.setAttribute( QNetworkRequest::CacheSaveControlAttribute, true );
 

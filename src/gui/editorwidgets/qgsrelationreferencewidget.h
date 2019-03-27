@@ -17,7 +17,7 @@
 #define QGSRELATIONREFERENCEWIDGET_H
 
 #include "qgsattributeeditorcontext.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsfeature.h"
 
 #include <QComboBox>

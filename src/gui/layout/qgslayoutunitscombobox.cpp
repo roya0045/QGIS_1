@@ -15,7 +15,6 @@
 
 #include "qgslayoutunitscombobox.h"
 #include "qgslayoutmeasurementconverter.h"
-#include "qgis.h"
 
 QgsLayoutUnitsComboBox::QgsLayoutUnitsComboBox( QWidget *parent )
   : QComboBox( parent )

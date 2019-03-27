@@ -41,10 +41,9 @@ from qgis.core import (Qgis,
                        QgsProperty,
                        QgsProject,
                        QgsMessageLog,
-                       QgsMapLayer,
                        QgsProcessingOutputLayerDefinition)
 from qgis.gui import QgsEncodingFileDialog, QgsGui
-from qgis.utils import OverrideCursor, iface
+from qgis.utils import OverrideCursor
 
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.ProcessingLog import ProcessingLog
@@ -87,12 +86,6 @@ class FieldsCalculatorDialog(BASE, WIDGET):
         self.layer = None
 
         self.cmbInputLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
-        try:
-            if iface.activeLayer().type() == QgsMapLayer.VectorLayer:
-                self.cmbInputLayer.setLayer(iface.activeLayer())
-        except:
-            pass
-
         self.cmbInputLayer.layerChanged.connect(self.updateLayer)
         self.btnBrowse.clicked.connect(self.selectFile)
         self.mNewFieldGroupBox.toggled.connect(self.toggleExistingGroup)
@@ -256,8 +249,7 @@ class FieldsCalculatorDialog(BASE, WIDGET):
                     handleAlgorithmResults(self.alg,
                                            context,
                                            self.feedback,
-                                           not keepOpen,
-                                           parameters)
+                                           not keepOpen)
                 self._wasExecuted = self.executed or self._wasExecuted
                 if not keepOpen:
                     QDialog.reject(self)

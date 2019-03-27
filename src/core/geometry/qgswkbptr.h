@@ -17,7 +17,8 @@
 
 #include "qgis_core.h"
 #include "qgswkbtypes.h"
-#include "qgis_sip.h"
+#include "qgsapplication.h"
+#include "qgis.h"
 #include "qgsexception.h"
 #include "qpolygon.h"
 
@@ -148,7 +149,7 @@ class CORE_EXPORT QgsConstWkbPtr
       memcpy( &v, mP, sizeof( v ) );
       mP += sizeof( v );
       if ( mEndianSwap )
-        endian_swap( v );
+        QgsApplication::endian_swap( v );
     }
 
   public:
@@ -183,17 +184,6 @@ class CORE_EXPORT QgsConstWkbPtr
      * \note note available in Python bindings
      */
     inline int remaining() const { return mEnd - mP; } SIP_SKIP
-
-  private:
-    template<typename T> void endian_swap( T &value ) const SIP_SKIP
-    {
-      char *data = reinterpret_cast<char *>( &value );
-      std::size_t n = sizeof( value );
-      for ( std::size_t i = 0, m = n / 2; i < m; ++i )
-      {
-        std::swap( data[i], data[n - 1 - i] );
-      }
-    }
 };
 
 #endif // QGSWKBPTR_H

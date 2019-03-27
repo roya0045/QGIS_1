@@ -17,7 +17,7 @@ email                : marco.hugentobler at sourcepole dot com
 #define QGSMULTIPOLYGON_H
 
 #include "qgis_core.h"
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgsmultisurface.h"
 
 /**

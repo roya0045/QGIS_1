@@ -17,7 +17,6 @@
 
 #include "qgscolorschemeregistry.h"
 #include "qgscolorscheme.h"
-#include "qgis.h"
 #include <QObject>
 #include <memory>
 #include "qgstest.h"

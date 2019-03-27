@@ -16,7 +16,6 @@
 #include "qgslightswidget.h"
 
 #include "qgs3dmapsettings.h"
-#include "qgsapplication.h"
 
 #include <QMessageBox>
 

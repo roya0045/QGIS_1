@@ -82,7 +82,6 @@ void QgsReclassifyUtils::reclassify( const QVector<QgsReclassifyUtils::RasterCla
   destinationRaster->setEditable( true );
   std::unique_ptr< QgsRasterBlock > rasterBlock;
   bool reclassed = false;
-  bool isNoData = false;
   while ( iter.readNextRasterPart( band, iterCols, iterRows, rasterBlock, iterLeft, iterTop ) )
   {
     if ( feedback )
@@ -97,11 +96,11 @@ void QgsReclassifyUtils::reclassify( const QVector<QgsReclassifyUtils::RasterCla
         break;
       for ( int column = 0; column < iterCols; column++ )
       {
-        const double value = rasterBlock->valueAndNoData( row, column, isNoData );
-        if ( isNoData )
+        if ( rasterBlock->isNoData( row, column ) )
           reclassifiedBlock->setValue( row, column, destNoDataValue );
         else
         {
+          double value = rasterBlock->value( row, column );
           double newValue = reclassifyValue( classes, value, reclassed );
           if ( reclassed )
             reclassifiedBlock->setValue( row, column, newValue );

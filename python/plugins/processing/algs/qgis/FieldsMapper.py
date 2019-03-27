@@ -167,12 +167,6 @@ class FieldsMapper(QgisFeatureBasedAlgorithm):
         def id(self):
             return 'fields_mapping'
 
-        def pythonImportString(self):
-            return 'from processing.algs.qgis.FieldsMapper import FieldsMapper'
-
-        def className(self):
-            return 'FieldsMapper.ParameterFieldsMapping'
-
         def description(self):
             return QCoreApplication.translate('Processing', 'A mapping of field names to field type definitions and expressions. Used for the refactor fields algorithm.')
 

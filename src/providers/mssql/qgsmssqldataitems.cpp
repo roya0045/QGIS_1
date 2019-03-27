@@ -28,7 +28,6 @@
 #include "qgssettings.h"
 #include "qgsmessageoutput.h"
 #include "qgsmssqlconnection.h"
-#include "qgsapplication.h"
 
 #ifdef HAVE_GUI
 #include "qgsmssqlsourceselect.h"

@@ -18,7 +18,6 @@
 #include "qgslegendstyle.h"
 #include "qgsfontutils.h"
 #include "qgssettings.h"
-#include "qgis.h"
 
 #include <QFont>
 #include <QMap>

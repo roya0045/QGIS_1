@@ -17,7 +17,7 @@
 #define QGSGRADIENTCOLORRAMPDIALOG_H
 
 #include <QDialog>
-#include "qgis_sip.h"
+#include "qgis.h"
 
 #include "ui_qgsgradientcolorrampdialogbase.h"
 #include "qgshelp.h"

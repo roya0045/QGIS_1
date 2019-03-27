@@ -16,7 +16,7 @@
 #ifndef QGSLAYOUTAPPMENUPROVIDER_H
 #define QGSLAYOUTAPPMENUPROVIDER_H
 
-#include "qgis_sip.h"
+#include "qgis.h"
 #include "qgslayoutview.h"
 #include <QObject>
 
