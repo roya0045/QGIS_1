@@ -34,9 +34,8 @@ import traceback
 from qgis.core import QgsApplication, QgsSettings, Qgis
 from .ui_console_history_dlg import Ui_HistoryDialogPythonConsole
 
-_init_commands = ["import sys", "import os", "import re", "import math", "from qgis.core import *", "from qgis.gui import *", "from qgis.analysis import *", "import processing", "import qgis.utils",
-                  "from qgis.utils import iface", "from qgis.PyQt.QtCore import *", "from qgis.PyQt.QtGui import *", "from qgis.PyQt.QtWidgets import *",
-                  "from qgis.PyQt.QtNetwork import *", "from qgis.PyQt.QtXml import *"]
+_init_commands = ["from qgis.core import *", "from qgis.gui import *", "from qgis.analysis import *", "import processing", "import qgis.utils",
+                  "from qgis.utils import iface", "from qgis.PyQt.QtCore import *", "from qgis.PyQt.QtGui import *", "from qgis.PyQt.QtWidgets import *"]
 _historyFile = os.path.join(QgsApplication.qgisSettingsDirPath(), "console_history.txt")
 
 

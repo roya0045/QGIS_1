@@ -76,7 +76,7 @@ void QgsDecorationCopyright::projectRead()
     mTextFormat.readXml( elem, rwContext );
   }
 
-  // Migration for pre QGIS 3.2 settings
+  // Migratation for pre QGIS 3.2 settings
   QColor oldColor = QgsSymbolLayerUtils::decodeColor( QgsProject::instance()->readEntry( mNameConfig, QStringLiteral( "/Color" ) ) );
   if ( oldColor.isValid() )
   {

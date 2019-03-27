@@ -304,13 +304,9 @@ class CORE_EXPORT QgsProcessingModelAlgorithm : public QgsProcessingAlgorithm
     void setSourceFilePath( const QString &path );
 
     /**
-     * Attempts to convert the model to executable Python code, and returns the generated lines of code.
-     *
-     * The \a outputType argument dictates the desired script type.
-     *
-     * The \a indentSize arguments specifies the size of indented lines.
+     * Attempts to convert the model to executable Python code.
      */
-    QStringList asPythonCode( QgsProcessing::PythonOutputType outputType, int indentSize ) const;
+    QString asPythonCode() const;
 
     /**
      * Returns a list of possible sources which can be used for the parameters for a child

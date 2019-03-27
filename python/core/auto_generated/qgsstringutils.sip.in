@@ -175,7 +175,6 @@ Utility functions for working with strings.
       AllLowercase,
       ForceFirstLetterToCapital,
       TitleCase,
-      UpperCamelCase,
     };
 
     static QString capitalize( const QString &string, Capitalization capitalization );

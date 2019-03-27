@@ -102,6 +102,4 @@ class CORE_EXPORT QgsDefaultValue
     bool mApplyOnUpdate = false;
 };
 
-Q_DECLARE_METATYPE( QgsDefaultValue )
-
 #endif // QGSDEFAULTVALUE_H

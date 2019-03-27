@@ -107,7 +107,6 @@ class QgsUserProfileManager;
 class QgsUserProfileManagerWidgetFactory;
 class Qgs3DMapCanvasDockWidget;
 class QgsHandleBadLayersHandler;
-class QgsNetworkAccessManager;
 
 class QDomDocument;
 class QNetworkReply;
@@ -452,7 +451,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QAction *actionDeleteRing() { return mActionDeleteRing; }
     QAction *actionDeletePart() { return mActionDeletePart; }
     QAction *actionVertexTool() { return mActionVertexTool; }
-    QAction *actionVertexToolActiveLayer() { return mActionVertexToolActiveLayer; }
     QAction *actionSnappingOptions() { return mActionSnappingOptions; }
     QAction *actionOffsetCurve() { return mActionOffsetCurve; }
     QAction *actionPan() { return mActionPan; }
@@ -880,7 +878,11 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void setAppStyleSheet( const QString &stylesheet );
 
     //! request credentials for network manager
+    void namAuthenticationRequired( QNetworkReply *reply, QAuthenticator *auth );
     void namProxyAuthenticationRequired( const QNetworkProxy &proxy, QAuthenticator *auth );
+#ifndef QT_NO_SSL
+    void namSslErrors( QNetworkReply *reply, const QList<QSslError> &errors );
+#endif
     void namRequestTimedOut( const QgsNetworkRequestParameters &request );
 
     //! Schedule and erase of the authentication database upon confirmation
@@ -1244,8 +1246,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void removeVectorToolBarIcon( QAction *qAction );
     //! Add an icon to the Database toolbar
     int addDatabaseToolBarIcon( QAction *qAction );
-
-    void onVirtualLayerAdded( const QString &uri, const QString &layerName );
 
     /**
      * Add a widget to the database toolbar.
@@ -1979,9 +1979,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     //! Create the option dialog
     QgsOptions *createOptionsDialog( QWidget *parent = nullptr );
-
-    //! Returns the message bar of the datasource manager dialog if it is visible, the canvas's message bar otherwise.
-    QgsMessageBar *visibleMessageBar();
 
     QgisAppStyleSheet *mStyleSheetBuilder = nullptr;
 

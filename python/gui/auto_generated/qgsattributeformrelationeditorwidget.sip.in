@@ -29,7 +29,7 @@ Widget to show for child relations on an attribute form.
 Constructor
 %End
 
-    virtual void createSearchWidgetWrappers( const QgsAttributeEditorContext &context = QgsAttributeEditorContext() );
+    virtual void createSearchWidgetWrappers();
 
     virtual QString currentFilterExpression() const;
 

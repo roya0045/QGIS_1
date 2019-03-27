@@ -150,17 +150,7 @@ class CORE_EXPORT QgsProcessingUtils
     static QString normalizeLayerSource( const QString &source );
 
     /**
-     * Converts a variant to a Python literal.
-     *
-     * \see stringToPythonLiteral()
-     * \since QGSIS 3.6
-     */
-    static QString variantToPythonLiteral( const QVariant &value );
-
-    /**
      * Converts a string to a Python string literal. E.g. by replacing ' with \'.
-     *
-     * \see variantToPythonLiteral()
      */
     static QString stringToPythonLiteral( const QString &string );
 

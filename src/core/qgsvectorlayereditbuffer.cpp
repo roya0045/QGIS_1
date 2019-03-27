@@ -62,18 +62,16 @@ void QgsVectorLayerEditBuffer::updateFields( QgsFields &fields )
   {
     fields.remove( mDeletedAttributeIds.at( i ) );
   }
-
-  // rename fields
-  QgsFieldNameMap::const_iterator renameIt = mRenamedAttributes.constBegin();
-  for ( ; renameIt != mRenamedAttributes.constEnd(); ++renameIt )
-  {
-    fields.rename( renameIt.key(), renameIt.value() );
-  }
-
   // add new fields
   for ( int i = 0; i < mAddedAttributes.count(); ++i )
   {
     fields.append( mAddedAttributes.at( i ), QgsFields::OriginEdit, i );
+  }
+  // rename fields
+  QgsFieldNameMap::const_iterator renameIt = mRenamedAttributes.constBegin();
+  for ( ; renameIt != mRenamedAttributes.constEnd(); ++renameIt )
+  {
+    fields[ renameIt.key()].setName( renameIt.value() );
   }
 }
 
@@ -415,25 +413,6 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList &commitErrors )
     }
   }
 
-  // rename attributes
-  if ( !mRenamedAttributes.isEmpty() )
-  {
-    if ( ( cap & QgsVectorDataProvider::RenameAttributes ) && provider->renameAttributes( mRenamedAttributes ) )
-    {
-      commitErrors << tr( "SUCCESS: %n attribute(s) renamed.", "renamed attributes count", mRenamedAttributes.size() );
-
-      emit committedAttributesRenamed( L->id(), mRenamedAttributes );
-
-      mRenamedAttributes.clear();
-      attributesChanged = true;
-    }
-    else
-    {
-      commitErrors << tr( "ERROR: %n attribute(s) not renamed", "not renamed attributes count", mRenamedAttributes.size() );
-      success = false;
-    }
-  }
-
   //
   // add attributes
   //
@@ -459,6 +438,25 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList &commitErrors )
       }
       commitErrors << list;
 #endif
+      success = false;
+    }
+  }
+
+  // rename attributes
+  if ( !mRenamedAttributes.isEmpty() )
+  {
+    if ( ( cap & QgsVectorDataProvider::RenameAttributes ) && provider->renameAttributes( mRenamedAttributes ) )
+    {
+      commitErrors << tr( "SUCCESS: %n attribute(s) renamed.", "renamed attributes count", mRenamedAttributes.size() );
+
+      emit committedAttributesRenamed( L->id(), mRenamedAttributes );
+
+      mRenamedAttributes.clear();
+      attributesChanged = true;
+    }
+    else
+    {
+      commitErrors << tr( "ERROR: %n attribute(s) not renamed", "not renamed attributes count", mRenamedAttributes.size() );
       success = false;
     }
   }

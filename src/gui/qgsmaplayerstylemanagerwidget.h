@@ -55,7 +55,6 @@ class GUI_EXPORT QgsMapLayerStyleManagerWidget : public QgsMapLayerConfigWidget
     void styleRenamed( const QString &oldname, const QString &newname );
     void addStyle();
     void removeStyle();
-    void renameStyle( QStandardItem *item );
     void saveAsDefault();
     void loadDefault();
     void saveStyle();

@@ -423,38 +423,18 @@ QgsVectorLayerUndoCommandRenameAttribute::QgsVectorLayerUndoCommandRenameAttribu
   , mOldName( layer()->fields().at( fieldIndex ).name() )
   , mNewName( newName )
 {
-  const QgsFields &fields = layer()->fields();
-  QgsFields::FieldOrigin origin = fields.fieldOrigin( mFieldIndex );
-  mOriginIndex = fields.fieldOriginIndex( mFieldIndex );
-  mProviderField = ( origin == QgsFields::OriginProvider );
 }
 
 void QgsVectorLayerUndoCommandRenameAttribute::undo()
 {
-  if ( mProviderField )
-  {
-    mBuffer->mRenamedAttributes[ mFieldIndex ] = mOldName;
-  }
-  else
-  {
-    // newly added attribute
-    mBuffer->mAddedAttributes[mOriginIndex].setName( mOldName );
-  }
+  mBuffer->mRenamedAttributes[ mFieldIndex ] = mOldName;
   mBuffer->updateLayerFields();
   emit mBuffer->attributeRenamed( mFieldIndex, mOldName );
 }
 
 void QgsVectorLayerUndoCommandRenameAttribute::redo()
 {
-  if ( mProviderField )
-  {
-    mBuffer->mRenamedAttributes[ mFieldIndex ] = mNewName;
-  }
-  else
-  {
-    // newly added attribute
-    mBuffer->mAddedAttributes[mOriginIndex].setName( mNewName );
-  }
+  mBuffer->mRenamedAttributes[ mFieldIndex ] = mNewName;
   mBuffer->updateLayerFields();
   emit mBuffer->attributeRenamed( mFieldIndex, mNewName );
 }

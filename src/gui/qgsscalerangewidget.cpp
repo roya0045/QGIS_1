@@ -17,7 +17,6 @@
 #include "qgsapplication.h"
 #include "qgsproject.h"
 #include "qgsscalewidget.h"
-#include "qgsguiutils.h"
 
 QgsScaleRangeWidget::QgsScaleRangeWidget( QWidget *parent )
   : QWidget( parent )
@@ -37,11 +36,10 @@ QgsScaleRangeWidget::QgsScaleRangeWidget( QWidget *parent )
   maxLbl->setToolTip( tr( "Maximum scale, i.e. most \"zoomed in\". "
                           "This limit is inclusive, that means the layer will be displayed on this scale." ) );
 
-  const int iconSize = QgsGuiUtils::scaleIconSize( 24 );
   mMinimumScaleIconLabel = new QLabel( this );
-  mMinimumScaleIconLabel->setPixmap( QgsApplication::getThemeIcon( QStringLiteral( "/mActionZoomOut.svg" ) ).pixmap( QSize( iconSize, iconSize ) ) );
+  mMinimumScaleIconLabel->setPixmap( QgsApplication::getThemePixmap( QStringLiteral( "/mActionZoomOut.svg" ) ) );
   mMaximumScaleIconLabel = new QLabel( this );
-  mMaximumScaleIconLabel->setPixmap( QgsApplication::getThemeIcon( QStringLiteral( "/mActionZoomIn.svg" ) ).pixmap( QSize( iconSize, iconSize ) ) );
+  mMaximumScaleIconLabel->setPixmap( QgsApplication::getThemePixmap( QStringLiteral( "/mActionZoomIn.svg" ) ) );
 
   mMinimumScaleWidget = new QgsScaleWidget( this );
   mMaximumScaleWidget = new QgsScaleWidget( this );

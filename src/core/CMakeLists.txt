@@ -153,7 +153,6 @@ SET(QGIS_CORE_SRCS
   qgsattributeeditorelement.cpp
   qgsauxiliarystorage.cpp
   qgsbearingutils.cpp
-  qgsblockingnetworkrequest.cpp
   qgsbrowsermodel.cpp
   qgsbrowserproxymodel.cpp
   qgscachedfeatureiterator.cpp
@@ -603,7 +602,6 @@ SET(QGIS_CORE_MOC_HDRS
   qgsactionscoperegistry.h
   qgsanimatedicon.h
   qgsauxiliarystorage.h
-  qgsblockingnetworkrequest.h
   qgsbrowsermodel.h
   qgsbrowserproxymodel.h
   qgscoordinatereferencesystem.h
@@ -613,7 +611,6 @@ SET(QGIS_CORE_MOC_HDRS
   qgsdataprovider.h
   qgsdatasourceuri.h
   qgsdbfilterproxymodel.h
-  qgsdefaultvalue.h
   qgsfeature.h
   qgsfeedback.h
   qgsfield.h
@@ -865,6 +862,7 @@ SET(QGIS_CORE_HDRS
   qgsdatetimestatisticalsummary.h
   qgsdatumtransform.h
   qgsdbfilterproxymodel.h
+  qgsdefaultvalue.h
   qgsdiagramrenderer.h
   qgsdistancearea.h
   qgseditformconfig.h
@@ -1215,6 +1213,7 @@ ENDIF (QT_MOBILITY_LOCATION_FOUND OR Qt5Positioning_FOUND)
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
+  ${LIBZIP_INCLUDE_DIR}
   3d
   annotations
   auth
@@ -1247,11 +1246,11 @@ INCLUDE_DIRECTORIES(
 )
 
 INCLUDE_DIRECTORIES(SYSTEM
-  ${PROJ_INCLUDE_DIR}
-  ${GDAL_INCLUDE_DIR}
   ${LIBZIP_INCLUDE_DIRS}
   ${SPATIALINDEX_INCLUDE_DIR}
+  ${PROJ_INCLUDE_DIR}
   ${GEOS_INCLUDE_DIR}
+  ${GDAL_INCLUDE_DIR}
   ${EXPAT_INCLUDE_DIR}
   ${SQLITE3_INCLUDE_DIR}
   ${SPATIALITE_INCLUDE_DIR}

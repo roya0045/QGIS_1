@@ -40,17 +40,11 @@ Constructor: does not take ownership of the layer tree nor canvas
     QgsLayerTree *rootGroup() const;
     QgsMapCanvas *mapCanvas() const;
 
-    void setOverviewCanvas( QgsMapOverviewCanvas *overviewCanvas );
+    void setOvervewCanvas( QgsMapOverviewCanvas *overviewCanvas );
 %Docstring
 Associates overview canvas with the bridge, so the overview will be updated whenever main canvas is updated
 
-.. versionadded:: 3.6
-%End
-
-
-    void setOvervewCanvas( QgsMapOverviewCanvas *overviewCanvas ) /Deprecated/; // TODO QGIS 4.0 remove
-%MethodCode
-    sipCpp->setOverviewCanvas( a0 );
+.. versionadded:: 3.0
 %End
 
     QgsMapOverviewCanvas *overviewCanvas() const;

@@ -258,10 +258,9 @@ QList<QgsLabelFeature *> QgsVectorLayerLabelProvider::labelFeatures( QgsRenderCo
   return mLabels;
 }
 
-void QgsVectorLayerLabelProvider::registerFeature( const QgsFeature &feature, QgsRenderContext &context, const QgsGeometry &obstacleGeometry )
+void QgsVectorLayerLabelProvider::registerFeature( QgsFeature &feature, QgsRenderContext &context, const QgsGeometry &obstacleGeometry )
 {
   QgsLabelFeature *label = nullptr;
-
   mSettings.registerFeature( feature, context, &label, obstacleGeometry );
   if ( label )
     mLabels << label;

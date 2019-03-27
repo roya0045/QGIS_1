@@ -34,7 +34,6 @@ QgsProcessingGuiRegistry::QgsProcessingGuiRegistry()
   addParameterWidgetFactory( new QgsProcessingDistanceWidgetWrapper() );
   addParameterWidgetFactory( new QgsProcessingRangeWidgetWrapper() );
   addParameterWidgetFactory( new QgsProcessingAuthConfigWidgetWrapper() );
-  addParameterWidgetFactory( new QgsProcessingMatrixWidgetWrapper() );
 }
 
 QgsProcessingGuiRegistry::~QgsProcessingGuiRegistry()

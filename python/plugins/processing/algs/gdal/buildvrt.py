@@ -171,7 +171,6 @@ class buildvrt(GdalAlgorithm):
         arguments.append(list_file)
 
         out = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        self.setOutputValue(self.OUTPUT, out)
         arguments.append(out)
 
         return [self.commandName(), GdalUtils.escapeAndJoin(arguments)]

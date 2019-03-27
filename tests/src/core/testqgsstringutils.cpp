@@ -36,7 +36,6 @@ class TestQgsStringUtils : public QObject
     void insertLinks();
     void titleCase_data();
     void titleCase();
-    void camelCase();
     void ampersandEncode_data();
     void ampersandEncode();
     void wordWrap_data();
@@ -187,15 +186,6 @@ void TestQgsStringUtils::titleCase()
   QFETCH( QString, input );
   QFETCH( QString, expected );
   QCOMPARE( QgsStringUtils::capitalize( input, QgsStringUtils::TitleCase ), expected );
-}
-
-void TestQgsStringUtils::camelCase()
-{
-  QCOMPARE( QgsStringUtils::capitalize( QString(), QgsStringUtils::UpperCamelCase ), QString() );
-  QCOMPARE( QgsStringUtils::capitalize( QString( " abc def" ), QgsStringUtils::UpperCamelCase ), QString( "AbcDef" ) );
-  QCOMPARE( QgsStringUtils::capitalize( QString( "ABC DEF" ), QgsStringUtils::UpperCamelCase ), QString( "AbcDef" ) );
-  QCOMPARE( QgsStringUtils::capitalize( QString( "àbc def" ), QgsStringUtils::UpperCamelCase ), QString( "ÀbcDef" ) );
-  QCOMPARE( QgsStringUtils::capitalize( QString( "àbc dÉf" ), QgsStringUtils::UpperCamelCase ), QString( "ÀbcDéf" ) );
 }
 
 void TestQgsStringUtils::ampersandEncode_data()

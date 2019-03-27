@@ -24,7 +24,6 @@
 #include "qgsrendercontext.h"
 #include "qgssinglesymbolrenderer.h"
 #include "qgssymbollayer.h"
-#include "qgssymbollayerutils.h"
 #include "qgssymbol.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectorlayerdiagramprovider.h"
@@ -43,7 +42,7 @@
 QgsVectorLayerRenderer::QgsVectorLayerRenderer( QgsVectorLayer *layer, QgsRenderContext &context )
   : QgsMapLayerRenderer( layer->id() )
   , mContext( context )
-  , mInterruptionChecker( qgis::make_unique< QgsVectorLayerRendererInterruptionChecker >( context ) )
+  , mInterruptionChecker( context )
   , mLayer( layer )
   , mFields( layer->fields() )
   , mLabeling( false )
@@ -68,18 +67,18 @@ QgsVectorLayerRenderer::QgsVectorLayerRenderer( QgsVectorLayer *layer, QgsRender
   QString markerTypeString = settings.value( QStringLiteral( "qgis/digitizing/marker_style" ), "Cross" ).toString();
   if ( markerTypeString == QLatin1String( "Cross" ) )
   {
-    mVertexMarkerStyle = QgsSymbolLayerUtils::Cross;
+    mVertexMarkerStyle = QgsVectorLayer::Cross;
   }
   else if ( markerTypeString == QLatin1String( "SemiTransparentCircle" ) )
   {
-    mVertexMarkerStyle = QgsSymbolLayerUtils::SemiTransparentCircle;
+    mVertexMarkerStyle = QgsVectorLayer::SemiTransparentCircle;
   }
   else
   {
-    mVertexMarkerStyle = QgsSymbolLayerUtils::NoMarker;
+    mVertexMarkerStyle = QgsVectorLayer::NoMarker;
   }
 
-  mVertexMarkerSize = settings.value( QStringLiteral( "qgis/digitizing/marker_size_mm" ), 2.0 ).toDouble();
+  mVertexMarkerSize = settings.value( QStringLiteral( "qgis/digitizing/marker_size" ), 3 ).toInt();
 
   if ( !mRenderer )
     return;
@@ -107,10 +106,6 @@ QgsVectorLayerRenderer::~QgsVectorLayerRenderer()
   delete mSource;
 }
 
-QgsFeedback *QgsVectorLayerRenderer::feedback() const
-{
-  return mInterruptionChecker.get();
-}
 
 bool QgsVectorLayerRenderer::render()
 {
@@ -244,7 +239,7 @@ bool QgsVectorLayerRenderer::render()
   // slow fetchFeature() implementations, such as in the WFS provider, can
   // check it, instead of relying on just the mContext.renderingStopped() check
   // in drawRenderer()
-  fit.setInterruptionChecker( mInterruptionChecker.get() );
+  fit.setInterruptionChecker( &mInterruptionChecker );
 
   if ( ( mRenderer->capabilities() & QgsFeatureRenderer::SymbolLevels ) && mRenderer->usingSymbolLevels() )
     drawRendererLevels( fit );

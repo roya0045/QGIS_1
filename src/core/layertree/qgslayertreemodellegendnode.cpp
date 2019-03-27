@@ -130,14 +130,13 @@ QSizeF QgsLayerTreeModelLegendNode::drawSymbolText( const QgsLegendSettings &set
 
 // -------------------------------------------------------------------------
 
+
 QgsSymbolLegendNode::QgsSymbolLegendNode( QgsLayerTreeLayer *nodeLayer, const QgsLegendSymbolItem &item, QObject *parent )
   : QgsLayerTreeModelLegendNode( nodeLayer, parent )
   , mItem( item )
   , mSymbolUsesMapUnits( false )
+  , mIconSize( 16, 16 )
 {
-  const int iconSize = QgsLayerTreeModel::scaleIconSize( 16 );
-  mIconSize = QSize( iconSize, iconSize );
-
   updateLabel();
   connect( qobject_cast<QgsVectorLayer *>( nodeLayer->layer() ), &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsSymbolLegendNode::updateLabel );
   connect( nodeLayer, &QObject::destroyed, this, [ = ]() { mLayerNode = nullptr; } );
@@ -163,13 +162,11 @@ QSize QgsSymbolLegendNode::minimumIconSize() const
 
 QSize QgsSymbolLegendNode::minimumIconSize( QgsRenderContext *context ) const
 {
-  const int iconSize = QgsLayerTreeModel::scaleIconSize( 16 );
-  const int largeIconSize = QgsLayerTreeModel::scaleIconSize( 512 );
-  QSize minSz( iconSize, iconSize );
+  QSize minSz( 16, 16 );
   if ( mItem.symbol() && mItem.symbol()->type() == QgsSymbol::Marker )
   {
     minSz = QgsImageOperation::nonTransparentImageRect(
-              QgsSymbolLayerUtils::symbolPreviewPixmap( mItem.symbol(), QSize( largeIconSize, largeIconSize ), 0,
+              QgsSymbolLayerUtils::symbolPreviewPixmap( mItem.symbol(), QSize( 512, 512 ), 0,
                   context ).toImage(),
               minSz,
               true ).size();
@@ -177,7 +174,7 @@ QSize QgsSymbolLegendNode::minimumIconSize( QgsRenderContext *context ) const
   else if ( mItem.symbol() && mItem.symbol()->type() == QgsSymbol::Line )
   {
     minSz = QgsImageOperation::nonTransparentImageRect(
-              QgsSymbolLayerUtils::symbolPreviewPixmap( mItem.symbol(), QSize( minSz.width(), largeIconSize ), 0,
+              QgsSymbolLayerUtils::symbolPreviewPixmap( mItem.symbol(), QSize( minSz.width(), 512 ), 0,
                   context ).toImage(),
               minSz,
               true ).size();
@@ -421,7 +418,7 @@ QSizeF QgsSymbolLegendNode::drawSymbol( const QgsLegendSettings &settings, ItemC
   if ( QgsMarkerSymbol *markerSymbol = dynamic_cast<QgsMarkerSymbol *>( s ) )
   {
     // allow marker symbol to occupy bigger area if necessary
-    double size = markerSymbol->size( context ) / context.scaleFactor();
+    double size = context.convertToPainterUnits( markerSymbol->size(), markerSymbol->sizeUnit(), markerSymbol->sizeMapUnitScale() ) / context.scaleFactor();
     height = size;
     width = size;
     if ( width < settings.symbolSize().width() )
@@ -610,8 +607,8 @@ QVariant QgsRasterSymbolLegendNode::data( int role ) const
 {
   if ( role == Qt::DecorationRole )
   {
-    const int iconSize = QgsLayerTreeModel::scaleIconSize( 16 ); // TODO: configurable?
-    QPixmap pix( iconSize, iconSize );
+    QSize iconSize( 16, 16 ); // TODO: configurable?
+    QPixmap pix( iconSize );
     pix.fill( mColor );
     return QIcon( pix );
   }

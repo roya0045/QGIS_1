@@ -348,25 +348,7 @@ void QgsFieldCalculator::populateOutputFieldTypes()
   }
 
   mOutputFieldTypeComboBox->blockSignals( true );
-
-  // Standard subset of fields in case of virtual
-  const QList< QgsVectorDataProvider::NativeType > &typelist { mCreateVirtualFieldCheckbox->isChecked() ? ( QList< QgsVectorDataProvider::NativeType >()
-      << QgsVectorDataProvider::NativeType( tr( "Whole number (integer)" ), QStringLiteral( "integer" ), QVariant::Int, 0, 10 )
-      << QgsVectorDataProvider::NativeType( tr( "Decimal number (double)" ), QStringLiteral( "double precision" ), QVariant::Double, -1, -1, -1, -1 )
-      << QgsVectorDataProvider::NativeType( tr( "Text (string)" ), QStringLiteral( "string" ), QVariant::String )
-      // date time
-      << QgsVectorDataProvider::NativeType( tr( "Date" ), QStringLiteral( "date" ), QVariant::Date, -1, -1, -1, -1 )
-      << QgsVectorDataProvider::NativeType( tr( "Time" ), QStringLiteral( "time" ), QVariant::Time, -1, -1, -1, -1 )
-      << QgsVectorDataProvider::NativeType( tr( "Date & Time" ), QStringLiteral( "datetime" ), QVariant::DateTime, -1, -1, -1, -1 )
-      // string types
-      << QgsVectorDataProvider::NativeType( tr( "Text, unlimited length (text)" ), QStringLiteral( "text" ), QVariant::String, -1, -1, -1, -1 )
-      // boolean
-      << QgsVectorDataProvider::NativeType( tr( "Boolean" ), QStringLiteral( "bool" ), QVariant::Bool )
-      // blob
-      << QgsVectorDataProvider::NativeType( tr( "Binary object (BLOB)" ), QStringLiteral( "binary" ), QVariant::ByteArray ) ) :
-      provider->nativeTypes() };
-
-  mOutputFieldTypeComboBox->clear();
+  const QList< QgsVectorDataProvider::NativeType > &typelist = provider->nativeTypes();
   for ( int i = 0; i < typelist.size(); i++ )
   {
     mOutputFieldTypeComboBox->addItem( typelist[i].mTypeDesc );
@@ -435,7 +417,6 @@ void QgsFieldCalculator::mCreateVirtualFieldCheckbox_stateChanged( int state )
   {
     mEditModeAutoTurnOnLabel->setVisible( true );
   }
-  populateOutputFieldTypes();
   mInfoIcon->setVisible( mOnlyVirtualFieldsInfoLabel->isVisible() || mEditModeAutoTurnOnLabel->isVisible() );
 }
 

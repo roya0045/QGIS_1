@@ -38,7 +38,7 @@ Constructor for QgsAttributeFormEditorWidget.
 
     ~QgsAttributeFormEditorWidget();
 
-    virtual void createSearchWidgetWrappers( const QgsAttributeEditorContext &context = QgsAttributeEditorContext() );
+    virtual void createSearchWidgetWrappers();
 
 
     void initialize( const QVariant &initialValue, bool mixedValues = false );

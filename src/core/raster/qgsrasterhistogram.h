@@ -19,7 +19,6 @@
 #define QGSRASTERHISTOGRAM
 
 #include "qgis_core.h"
-#include "qgsrectangle.h"
 #include <QString>
 #include <QVector>
 
@@ -35,10 +34,18 @@ class CORE_EXPORT QgsRasterHistogram
   public:
     typedef QVector<int> HistogramVector;
 
-    /**
-     * Constructor for an invalid QgsRasterHistogram.
-     */
-    QgsRasterHistogram() = default;
+    QgsRasterHistogram()
+    {
+      bandNumber = 0;
+      binCount = 0;
+      nonNullCount = 0;
+      includeOutOfRange = false;
+      maximum = 0;
+      minimum = 0;
+      width = 0;
+      height = 0;
+      valid = false;
+    }
 
     //! Compares region, size etc. not histogram itself
     bool operator==( const QgsRasterHistogram &h ) const
@@ -54,38 +61,39 @@ class CORE_EXPORT QgsRasterHistogram
     }
 
     //! \brief The gdal band number (starts at 1)
-    int bandNumber = 0;
+    int bandNumber;
 
     //! \brief Number of bins (intervals,buckets) in histogram.
-    int binCount = 0;
+    int binCount;
 
     //! \brief The number of non NULL cells used to calculate histogram.
-    int nonNullCount = 0;
+    int nonNullCount;
 
     //! \brief Whether histogram includes out of range values (in first and last bin)
-    bool includeOutOfRange = false;
+    bool includeOutOfRange;
 
     /**
-     * Stores the histogram for a given layer
-     */
+     * \brief Store the histogram for a given layer
+      * \note not available via Python binding
+      */
     QgsRasterHistogram::HistogramVector histogramVector;
 
     //! \brief The maximum histogram value.
-    double maximum = 0;
+    double maximum;
 
     //! \brief The minimum histogram value.
-    double minimum = 0;
+    double minimum;
 
     //! \brief Number of columns used to calc histogram
-    int width = 0;
+    int width;
 
     //! \brief Number of rows used to calc histogram
-    int height = 0;
+    int height;
 
     //! \brief Extent used to calc histogram
     QgsRectangle extent;
 
     //! \brief Histogram is valid
-    bool valid = false;
+    bool valid;
 };
 #endif

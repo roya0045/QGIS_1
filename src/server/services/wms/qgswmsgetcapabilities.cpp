@@ -479,8 +479,6 @@ namespace QgsWms
     appendFormat( elem, QStringLiteral( "text/xml" ) );
     appendFormat( elem, QStringLiteral( "application/vnd.ogc.gml" ) );
     appendFormat( elem, QStringLiteral( "application/vnd.ogc.gml/3.1.1" ) );
-    appendFormat( elem, QStringLiteral( "application/json" ) );
-    appendFormat( elem, QStringLiteral( "application/geo+json" ) );
     elem.appendChild( dcpTypeElem.cloneNode().toElement() ); //this is the same as for 'GetCapabilities'
     requestElem.appendChild( elem );
 
@@ -1708,121 +1706,111 @@ namespace QgsWms
       treeNameElem.appendChild( treeNameText );
       layerElem.appendChild( treeNameElem );
 
-      switch ( currentLayer->type() )
+      if ( currentLayer->type() == QgsMapLayer::VectorLayer )
       {
-        case QgsMapLayer::VectorLayer:
+        QgsVectorLayer *vLayer = static_cast<QgsVectorLayer *>( currentLayer );
+        const QSet<QString> &excludedAttributes = vLayer->excludeAttributesWms();
+
+        int displayFieldIdx = -1;
+        QString displayField = QStringLiteral( "maptip" );
+        QgsExpression exp( vLayer->displayExpression() );
+        if ( exp.isField() )
         {
-          QgsVectorLayer *vLayer = static_cast<QgsVectorLayer *>( currentLayer );
-          const QSet<QString> &excludedAttributes = vLayer->excludeAttributesWms();
-
-          int displayFieldIdx = -1;
-          QString displayField = QStringLiteral( "maptip" );
-          QgsExpression exp( vLayer->displayExpression() );
-          if ( exp.isField() )
-          {
-            displayField = static_cast<const QgsExpressionNodeColumnRef *>( exp.rootNode() )->name();
-            displayFieldIdx = vLayer->fields().lookupField( displayField );
-          }
-
-          //attributes
-          QDomElement attributesElem = doc.createElement( QStringLiteral( "Attributes" ) );
-          const QgsFields layerFields = vLayer->fields();
-          for ( int idx = 0; idx < layerFields.count(); ++idx )
-          {
-            QgsField field = layerFields.at( idx );
-            if ( excludedAttributes.contains( field.name() ) )
-            {
-              continue;
-            }
-            // field alias in case of displayField
-            if ( idx == displayFieldIdx )
-            {
-              displayField = vLayer->attributeDisplayName( idx );
-            }
-            QDomElement attributeElem = doc.createElement( QStringLiteral( "Attribute" ) );
-            attributeElem.setAttribute( QStringLiteral( "name" ), field.name() );
-            attributeElem.setAttribute( QStringLiteral( "type" ), QVariant::typeToName( field.type() ) );
-            attributeElem.setAttribute( QStringLiteral( "typeName" ), field.typeName() );
-            QString alias = field.alias();
-            if ( !alias.isEmpty() )
-            {
-              attributeElem.setAttribute( QStringLiteral( "alias" ), alias );
-            }
-
-            //edit type to text
-            attributeElem.setAttribute( QStringLiteral( "editType" ), vLayer->editorWidgetSetup( idx ).type() );
-            attributeElem.setAttribute( QStringLiteral( "comment" ), field.comment() );
-            attributeElem.setAttribute( QStringLiteral( "length" ), field.length() );
-            attributeElem.setAttribute( QStringLiteral( "precision" ), field.precision() );
-            attributesElem.appendChild( attributeElem );
-          }
-
-          //displayfield
-          layerElem.setAttribute( QStringLiteral( "displayField" ), displayField );
-
-          //primary key
-          QgsAttributeList pkAttributes = vLayer->primaryKeyAttributes();
-          if ( pkAttributes.size() > 0 )
-          {
-            QDomElement pkElem = doc.createElement( QStringLiteral( "PrimaryKey" ) );
-            QgsAttributeList::const_iterator pkIt = pkAttributes.constBegin();
-            for ( ; pkIt != pkAttributes.constEnd(); ++pkIt )
-            {
-              QDomElement pkAttributeElem = doc.createElement( QStringLiteral( "PrimaryKeyAttribute" ) );
-              QDomText pkAttName = doc.createTextNode( layerFields.at( *pkIt ).name() );
-              pkAttributeElem.appendChild( pkAttName );
-              pkElem.appendChild( pkAttributeElem );
-            }
-            layerElem.appendChild( pkElem );
-          }
-
-          //geometry type
-          layerElem.setAttribute( QStringLiteral( "geometryType" ), QgsWkbTypes::displayString( vLayer->wkbType() ) );
-
-          layerElem.appendChild( attributesElem );
-          break;
+          displayField = static_cast<const QgsExpressionNodeColumnRef *>( exp.rootNode() )->name();
+          displayFieldIdx = vLayer->fields().lookupField( displayField );
         }
 
-        case QgsMapLayer::RasterLayer:
+        //attributes
+        QDomElement attributesElem = doc.createElement( QStringLiteral( "Attributes" ) );
+        const QgsFields layerFields = vLayer->fields();
+        for ( int idx = 0; idx < layerFields.count(); ++idx )
         {
-          const QgsDataProvider *provider = currentLayer->dataProvider();
-          if ( provider && provider->name() == "wms" )
+          QgsField field = layerFields.at( idx );
+          if ( excludedAttributes.contains( field.name() ) )
           {
-            //advertise as web map background layer
-            QVariant wmsBackgroundLayer = currentLayer->customProperty( QStringLiteral( "WMSBackgroundLayer" ), false );
-            QDomElement wmsBackgroundLayerElem = doc.createElement( "WMSBackgroundLayer" );
-            QDomText wmsBackgroundLayerText = doc.createTextNode( wmsBackgroundLayer.toBool() ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
-            wmsBackgroundLayerElem.appendChild( wmsBackgroundLayerText );
-            layerElem.appendChild( wmsBackgroundLayerElem );
-
-            //publish datasource
-            QVariant wmsPublishDataSourceUrl = currentLayer->customProperty( QStringLiteral( "WMSPublishDataSourceUrl" ), false );
-            if ( wmsPublishDataSourceUrl.toBool() )
-            {
-              QList< QVariant > resolutionList = provider->property( "resolutions" ).toList();
-              bool tiled = resolutionList.size() > 0;
-
-              QDomElement dataSourceElem = doc.createElement( tiled ? QStringLiteral( "WMTSDataSource" ) : QStringLiteral( "WMSDataSource" ) );
-              QDomText dataSourceUri = doc.createTextNode( provider->dataSourceUri() );
-              dataSourceElem.appendChild( dataSourceUri );
-              layerElem.appendChild( dataSourceElem );
-            }
+            continue;
+          }
+          // field alias in case of displayField
+          if ( idx == displayFieldIdx )
+          {
+            displayField = vLayer->attributeDisplayName( idx );
+          }
+          QDomElement attributeElem = doc.createElement( QStringLiteral( "Attribute" ) );
+          attributeElem.setAttribute( QStringLiteral( "name" ), field.name() );
+          attributeElem.setAttribute( QStringLiteral( "type" ), QVariant::typeToName( field.type() ) );
+          attributeElem.setAttribute( QStringLiteral( "typeName" ), field.typeName() );
+          QString alias = field.alias();
+          if ( !alias.isEmpty() )
+          {
+            attributeElem.setAttribute( QStringLiteral( "alias" ), alias );
           }
 
-          QVariant wmsPrintLayer = currentLayer->customProperty( QStringLiteral( "WMSPrintLayer" ) );
-          if ( wmsPrintLayer.isValid() )
-          {
-            QDomElement wmsPrintLayerElem = doc.createElement( "WMSPrintLayer" );
-            QDomText wmsPrintLayerText = doc.createTextNode( wmsPrintLayer.toString() );
-            wmsPrintLayerElem.appendChild( wmsPrintLayerText );
-            layerElem.appendChild( wmsPrintLayerElem );
-          }
-          break;
+          //edit type to text
+          attributeElem.setAttribute( QStringLiteral( "editType" ), vLayer->editorWidgetSetup( idx ).type() );
+          attributeElem.setAttribute( QStringLiteral( "comment" ), field.comment() );
+          attributeElem.setAttribute( QStringLiteral( "length" ), field.length() );
+          attributeElem.setAttribute( QStringLiteral( "precision" ), field.precision() );
+          attributesElem.appendChild( attributeElem );
         }
 
-        case QgsMapLayer::MeshLayer:
-        case QgsMapLayer::PluginLayer:
-          break;
+        //displayfield
+        layerElem.setAttribute( QStringLiteral( "displayField" ), displayField );
+
+        //primary key
+        QgsAttributeList pkAttributes = vLayer->primaryKeyAttributes();
+        if ( pkAttributes.size() > 0 )
+        {
+          QDomElement pkElem = doc.createElement( QStringLiteral( "PrimaryKey" ) );
+          QgsAttributeList::const_iterator pkIt = pkAttributes.constBegin();
+          for ( ; pkIt != pkAttributes.constEnd(); ++pkIt )
+          {
+            QDomElement pkAttributeElem = doc.createElement( QStringLiteral( "PrimaryKeyAttribute" ) );
+            QDomText pkAttName = doc.createTextNode( layerFields.at( *pkIt ).name() );
+            pkAttributeElem.appendChild( pkAttName );
+            pkElem.appendChild( pkAttributeElem );
+          }
+          layerElem.appendChild( pkElem );
+        }
+
+        //geometry type
+        layerElem.setAttribute( QStringLiteral( "geometryType" ), QgsWkbTypes::displayString( vLayer->wkbType() ) );
+
+        layerElem.appendChild( attributesElem );
+      }
+      else if ( currentLayer->type() == QgsMapLayer::RasterLayer )
+      {
+        const QgsDataProvider *provider = currentLayer->dataProvider();
+        if ( provider && provider->name() == "wms" )
+        {
+          //advertise as web map background layer
+          QVariant wmsBackgroundLayer = currentLayer->customProperty( QStringLiteral( "WMSBackgroundLayer" ), false );
+          QDomElement wmsBackgroundLayerElem = doc.createElement( "WMSBackgroundLayer" );
+          QDomText wmsBackgroundLayerText = doc.createTextNode( wmsBackgroundLayer.toBool() ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+          wmsBackgroundLayerElem.appendChild( wmsBackgroundLayerText );
+          layerElem.appendChild( wmsBackgroundLayerElem );
+
+          //publish datasource
+          QVariant wmsPublishDataSourceUrl = currentLayer->customProperty( QStringLiteral( "WMSPublishDataSourceUrl" ), false );
+          if ( wmsPublishDataSourceUrl.toBool() )
+          {
+            QList< QVariant > resolutionList = provider->property( "resolutions" ).toList();
+            bool tiled = resolutionList.size() > 0;
+
+            QDomElement dataSourceElem = doc.createElement( tiled ? QStringLiteral( "WMTSDataSource" ) : QStringLiteral( "WMSDataSource" ) );
+            QDomText dataSourceUri = doc.createTextNode( provider->dataSourceUri() );
+            dataSourceElem.appendChild( dataSourceUri );
+            layerElem.appendChild( dataSourceElem );
+          }
+        }
+
+        QVariant wmsPrintLayer = currentLayer->customProperty( QStringLiteral( "WMSPrintLayer" ) );
+        if ( wmsPrintLayer.isValid() )
+        {
+          QDomElement wmsPrintLayerElem = doc.createElement( "WMSPrintLayer" );
+          QDomText wmsPrintLayerText = doc.createTextNode( wmsPrintLayer.toString() );
+          wmsPrintLayerElem.appendChild( wmsPrintLayerText );
+          layerElem.appendChild( wmsPrintLayerElem );
+        }
       }
     }
 

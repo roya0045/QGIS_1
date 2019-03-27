@@ -15,7 +15,6 @@
  ***************************************************************************/
 #include "qgsfieldformatter.h"
 
-#include "qgsfield.h"
 #include "qgsfields.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectordataprovider.h"
@@ -50,8 +49,11 @@ Qt::AlignmentFlag QgsFieldFormatter::alignmentFlag( QgsVectorLayer *layer, int f
 {
   Q_UNUSED( config );
 
-  QgsField field = layer->fields().at( fieldIndex );
-  if ( field.isNumeric() || field.isDateOrTime() )
+  QVariant::Type fldType = layer->fields().at( fieldIndex ).type();
+  bool alignRight = ( fldType == QVariant::Int || fldType == QVariant::Double || fldType == QVariant::LongLong
+                      || fldType == QVariant::DateTime || fldType == QVariant::Date || fldType == QVariant::Time );
+
+  if ( alignRight )
     return Qt::AlignRight;
   else
     return Qt::AlignLeft;

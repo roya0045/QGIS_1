@@ -30,7 +30,6 @@
 #include "qgspanelwidget.h"
 #include "qgsmapcanvas.h"
 #include "qgssettings.h"
-#include "qgsguiutils.h"
 
 #include <QKeyEvent>
 #include <QMenu>
@@ -920,8 +919,7 @@ QVariant QgsRuleBasedRendererModel::data( const QModelIndex &index, int role ) c
   }
   else if ( role == Qt::DecorationRole && index.column() == 0 && rule->symbol() )
   {
-    const int iconSize = QgsGuiUtils::scaleIconSize( 16 );
-    return QgsSymbolLayerUtils::symbolPreviewIcon( rule->symbol(), QSize( iconSize, iconSize ) );
+    return QgsSymbolLayerUtils::symbolPreviewIcon( rule->symbol(), QSize( 16, 16 ) );
   }
   else if ( role == Qt::TextAlignmentRole )
   {

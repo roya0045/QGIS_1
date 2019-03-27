@@ -222,26 +222,17 @@ class GeoDB(object):
                 sslCertFile = expandedUri.param("sslcert")
                 if sslCertFile:
                     sslCertFile = sslCertFile.replace("'", "")
-                    try:
-                        os.remove(sslCertFile)
-                    except OSError:
-                        pass
+                    os.remove(sslCertFile)
 
                 sslKeyFile = expandedUri.param("sslkey")
                 if sslKeyFile:
                     sslKeyFile = sslKeyFile.replace("'", "")
-                    try:
-                        os.remove(sslKeyFile)
-                    except OSError:
-                        pass
+                    os.remove(sslKeyFile)
 
                 sslCAFile = expandedUri.param("sslrootcert")
                 if sslCAFile:
                     sslCAFile = sslCAFile.replace("'", "")
-                    try:
-                        os.remove(sslCAFile)
-                    except OSError:
-                        pass
+                    os.remove(sslCAFile)
 
         self.has_postgis = self.check_postgis()
 

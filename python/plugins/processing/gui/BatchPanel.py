@@ -36,15 +36,13 @@ from qgis.core import (Qgis,
                        QgsApplication,
                        QgsSettings,
                        QgsProcessingParameterDefinition)
-from qgis.gui import (QgsProcessingParameterWidgetContext,
-                      QgsProcessingContextGenerator)
+from qgis.gui import QgsProcessingParameterWidgetContext
 from qgis.utils import iface
 
 from processing.gui.wrappers import WidgetWrapperFactory, WidgetWrapper
 from processing.gui.BatchOutputSelectionPanel import BatchOutputSelectionPanel
 
 from processing.tools import dataobjects
-from processing.tools.dataobjects import createContext
 
 pluginPath = os.path.split(os.path.dirname(__file__))[0]
 
@@ -88,19 +86,6 @@ class BatchPanel(BASE, WIDGET):
         self.tblParameters.horizontalHeader().resizeSections(QHeaderView.ResizeToContents)
         self.tblParameters.horizontalHeader().setDefaultSectionSize(250)
         self.tblParameters.horizontalHeader().setMinimumSectionSize(150)
-
-        self.processing_context = createContext()
-
-        class ContextGenerator(QgsProcessingContextGenerator):
-
-            def __init__(self, context):
-                super().__init__()
-                self.processing_context = context
-
-            def processingContext(self):
-                return self.processing_context
-
-        self.context_generator = ContextGenerator(self.processing_context)
 
         self.initWidgets()
 
@@ -275,7 +260,6 @@ class BatchPanel(BASE, WIDGET):
                 widget_context.setMapCanvas(iface.mapCanvas())
             wrapper.setWidgetContext(widget_context)
             widget = wrapper.createWrappedWidget(context)
-            wrapper.registerProcessingContextGenerator(self.context_generator)
         else:
             widget = wrapper.widget
 

@@ -16,8 +16,6 @@
  ***************************************************************************/
 
 #include "qgsprocessingmodelchildparametersource.h"
-#include "qgsprocessingparameters.h"
-#include "qgsprocessingcontext.h"
 
 ///@cond NOT_STABLE
 
@@ -147,7 +145,7 @@ bool QgsProcessingModelChildParameterSource::loadVariant( const QVariantMap &map
   return true;
 }
 
-QString QgsProcessingModelChildParameterSource::asPythonCode( const QgsProcessing::PythonOutputType, const QgsProcessingParameterDefinition *definition ) const
+QString QgsProcessingModelChildParameterSource::asPythonCode() const
 {
   switch ( mSource )
   {
@@ -158,15 +156,7 @@ QString QgsProcessingModelChildParameterSource::asPythonCode( const QgsProcessin
       return QStringLiteral( "outputs['%1']['%2']" ).arg( mChildId, mOutputName );
 
     case StaticValue:
-      if ( definition )
-      {
-        QgsProcessingContext c;
-        return definition->valueAsPythonString( mStaticValue, c );
-      }
-      else
-      {
-        return QgsProcessingUtils::variantToPythonLiteral( mStaticValue );
-      }
+      return mStaticValue.toString();
 
     case Expression:
       return QStringLiteral( "QgsExpression('%1').evaluate()" ).arg( mExpression );

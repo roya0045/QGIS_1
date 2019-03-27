@@ -156,7 +156,7 @@ class QgsOgrConnPool : public QgsConnectionPool<QgsOgrConn *, QgsOgrConnPoolGrou
 
       if ( it.value()->unref() )
       {
-        it.value()->deleteLater();
+        delete it.value();
         mGroups.erase( it );
       }
       mMutex.unlock();

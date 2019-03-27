@@ -41,34 +41,25 @@ QgsLayerRestorer::QgsLayerRestorer( const QList<QgsMapLayer *> &layers )
     layer->exportSldStyle( sldDoc, errMsg );
     ( void )settings.mSldStyle.setContent( sldDoc.toString(), true ); // for namespace processing
 
-    switch ( layer->type() )
+    if ( layer->type() == QgsMapLayer::LayerType::VectorLayer )
     {
-      case QgsMapLayer::VectorLayer:
+      QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer *>( layer );
+
+      if ( vLayer )
       {
-        QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer *>( layer );
-
-        if ( vLayer )
-        {
-          settings.mOpacity = vLayer->opacity();
-          settings.mSelectedFeatureIds = vLayer->selectedFeatureIds();
-          settings.mFilter = vLayer->subsetString();
-        }
-        break;
+        settings.mOpacity = vLayer->opacity();
+        settings.mSelectedFeatureIds = vLayer->selectedFeatureIds();
+        settings.mFilter = vLayer->subsetString();
       }
-      case QgsMapLayer::LayerType::RasterLayer:
+    }
+    else if ( layer->type() == QgsMapLayer::LayerType::RasterLayer )
+    {
+      QgsRasterLayer *rLayer = qobject_cast<QgsRasterLayer *>( layer );
+
+      if ( rLayer )
       {
-        QgsRasterLayer *rLayer = qobject_cast<QgsRasterLayer *>( layer );
-
-        if ( rLayer )
-        {
-          settings.mOpacity = rLayer->renderer()->opacity();
-        }
-        break;
+        settings.mOpacity = rLayer->renderer()->opacity();
       }
-
-      case QgsMapLayer::MeshLayer:
-      case QgsMapLayer::PluginLayer:
-        break;
     }
 
     mLayerSettings[layer] = settings;
@@ -93,34 +84,25 @@ QgsLayerRestorer::~QgsLayerRestorer()
     }
     layer->removeCustomProperty( "readSLD" );
 
-    switch ( layer->type() )
+    if ( layer->type() == QgsMapLayer::LayerType::VectorLayer )
     {
-      case QgsMapLayer::LayerType::VectorLayer:
+      QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer *>( layer );
+
+      if ( vLayer )
       {
-        QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer *>( layer );
-
-        if ( vLayer )
-        {
-          vLayer->setOpacity( settings.mOpacity );
-          vLayer->selectByIds( settings.mSelectedFeatureIds );
-          vLayer->setSubsetString( settings.mFilter );
-        }
-        break;
+        vLayer->setOpacity( settings.mOpacity );
+        vLayer->selectByIds( settings.mSelectedFeatureIds );
+        vLayer->setSubsetString( settings.mFilter );
       }
-      case QgsMapLayer::LayerType::RasterLayer:
+    }
+    else if ( layer->type() == QgsMapLayer::LayerType::RasterLayer )
+    {
+      QgsRasterLayer *rLayer = qobject_cast<QgsRasterLayer *>( layer );
+
+      if ( rLayer )
       {
-        QgsRasterLayer *rLayer = qobject_cast<QgsRasterLayer *>( layer );
-
-        if ( rLayer )
-        {
-          rLayer->renderer()->setOpacity( settings.mOpacity );
-        }
-        break;
+        rLayer->renderer()->setOpacity( settings.mOpacity );
       }
-
-      case QgsMapLayer::MeshLayer:
-      case QgsMapLayer::PluginLayer:
-        break;
     }
   }
 }

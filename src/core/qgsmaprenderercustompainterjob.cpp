@@ -347,37 +347,28 @@ void QgsMapRendererJob::drawLabeling( const QgsMapSettings &settings, QgsRenderC
 
 bool QgsMapRendererJob::needTemporaryImage( QgsMapLayer *ml )
 {
-  switch ( ml->type() )
+  if ( ml->type() == QgsMapLayer::VectorLayer )
   {
-    case QgsMapLayer::VectorLayer:
+    QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( ml );
+    if ( vl->renderer() && vl->renderer()->forceRasterRender() )
     {
-      QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( ml );
-      if ( vl->renderer() && vl->renderer()->forceRasterRender() )
-      {
-        //raster rendering is forced for this layer
-        return true;
-      }
-      if ( mSettings.testFlag( QgsMapSettings::UseAdvancedEffects ) &&
-           ( ( vl->blendMode() != QPainter::CompositionMode_SourceOver )
-             || ( vl->featureBlendMode() != QPainter::CompositionMode_SourceOver )
-             || ( !qgsDoubleNear( vl->opacity(), 1.0 ) ) ) )
-      {
-        //layer properties require rasterization
-        return true;
-      }
-      break;
+      //raster rendering is forced for this layer
+      return true;
     }
-    case QgsMapLayer::RasterLayer:
+    if ( mSettings.testFlag( QgsMapSettings::UseAdvancedEffects ) &&
+         ( ( vl->blendMode() != QPainter::CompositionMode_SourceOver )
+           || ( vl->featureBlendMode() != QPainter::CompositionMode_SourceOver )
+           || ( !qgsDoubleNear( vl->opacity(), 1.0 ) ) ) )
     {
-      // preview of intermediate raster rendering results requires a temporary output image
-      if ( mSettings.testFlag( QgsMapSettings::RenderPartialOutput ) )
-        return true;
-      break;
+      //layer properties require rasterization
+      return true;
     }
-
-    case QgsMapLayer::MeshLayer:
-    case QgsMapLayer::PluginLayer:
-      break;
+  }
+  else if ( ml->type() == QgsMapLayer::RasterLayer )
+  {
+    // preview of intermediate raster rendering results requires a temporary output image
+    if ( mSettings.testFlag( QgsMapSettings::RenderPartialOutput ) )
+      return true;
   }
 
   return false;
