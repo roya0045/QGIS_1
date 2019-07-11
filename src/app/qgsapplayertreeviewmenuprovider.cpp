@@ -40,6 +40,8 @@
 #include "qgssinglesymbolrenderer.h"
 #include "qgsmaplayerstylecategoriesmodel.h"
 #include "qgsxmlutils.h"
+#include "qgsvectorlayersavestyledialog.h"
+#include "qgsvectorlayerloadstyledialog.h"
 
 
 
@@ -837,4 +839,224 @@ bool QgsAppLayerTreeViewMenuProvider::removeActionEnabled()
       return false;
   }
   return true;
+}
+
+
+void QgsAppLayerTreeViewMenuProvider::loadStyle()
+{
+  QgsSettings settings;  // where we keep last used filter in persistent state
+  {
+
+  QString errorMsg;
+  QStringList ids, names, descriptions;
+
+  //get the list of styles in the db
+  int sectionLimit = mLayer->listStylesInDatabase( ids, names, descriptions, errorMsg );
+  QgsVectorLayerLoadStyleDialog dlg( mLayer );
+  dlg.initializeLists( ids, names, descriptions, sectionLimit );
+
+  if ( dlg.exec() )
+  {
+    mOldStyle = mLayer->styleManager()->style( mLayer->styleManager()->currentStyle() );
+    QgsMapLayer::StyleCategories categories = dlg.styleCategories();
+    StyleType type = dlg.currentStyleType();
+    switch ( type )
+    {
+      case QML:
+      case SLD:
+      {
+        QString message;
+        bool defaultLoadedFlag = false;
+        QString filePath = dlg.filePath();
+        if ( type == SLD )
+          message = vlayer->loadSldStyle( filePath, defaultLoadedFlag );
+        else
+          message = vlayer->loadNamedStyle( filePath, defaultLoadedFlag, true, categories );
+        //reset if the default style was loaded OK only
+        if ( defaultLoadedFlag )
+        {
+          syncToLayer();
+        }
+        else
+        {
+          //let the user know what went wrong
+          QMessageBox::warning( this, tr( "Load Style" ), message );
+        }
+        break;
+      }
+      case DB:
+      {
+        QString selectedStyleId = dlg.selectedStyleId();
+
+        QString qmlStyle = mLayer->getStyleFromDatabase( selectedStyleId, errorMsg );
+        if ( !errorMsg.isNull() )
+        {
+          QMessageBox::warning( this, tr( "Load Styles from Database" ), errorMsg );
+          return;
+        }
+
+        QDomDocument myDocument( QStringLiteral( "qgis" ) );
+        myDocument.setContent( qmlStyle );
+
+        if ( mLayer->importNamedStyle( myDocument, errorMsg, categories ) )
+        {
+          syncToLayer();
+        }
+        else
+        {
+          QMessageBox::warning( this, tr( "Load Styles from Database" ),
+                                tr( "The retrieved style is not a valid named style. Error message: %1" )
+                                .arg( errorMsg ) );
+        }
+        break;
+      }
+    }
+    activateWindow(); // set focus back to properties dialog
+    }
+  }
+  else if ( rlayer )
+  {
+    QString lastUsedDir = settings.value( QStringLiteral( "style/lastStyleDir" ), QDir::homePath() ).toString();
+
+    QString fileName = QFileDialog::getOpenFileName(
+                         this,
+                         tr( "Load layer properties from style file" ),
+                         lastUsedDir,
+                         tr( "QGIS Layer Style File" ) + " (*.qml)" );
+    if ( fileName.isEmpty() )
+      return;
+
+    // ensure the user never omits the extension from the file name
+    if ( !fileName.endsWith( QLatin1String( ".qml" ), Qt::CaseInsensitive ) )
+      fileName += QLatin1String( ".qml" );
+
+    mOldStyle = rlayer->styleManager()->style( rlayer->styleManager()->currentStyle() );
+
+    bool defaultLoadedFlag = false;
+    QString message = rlayer->loadNamedStyle( fileName, defaultLoadedFlag );
+    if ( defaultLoadedFlag )
+    {
+      settings.setValue( QStringLiteral( "style/lastStyleDir" ), QFileInfo( fileName ).absolutePath() );
+      syncToLayer();
+    }
+    else
+    {
+      QMessageBox::information( this, tr( "Save Style" ), message );
+    }
+  }
+}
+
+void QgsAppLayerTreeViewMenuProvider::saveStyle()
+{
+  if( QgsLayerTree::isLayer( node ) )
+    {
+      QgsMapLayer *layer = QgsLayerTree::toLayer( node )->layer();
+      QgsRasterLayer *rlayer = qobject_cast<QgsRasterLayer *>( layer );
+      QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer );
+  QgsSettings settings;
+  if( vlayer )
+  {
+  QgsVectorLayerSaveStyleDialog dlg( mLayer );
+  if ( dlg.exec() )
+  {
+    apply();
+
+    bool defaultLoadedFlag = false;
+
+    StyleType type = dlg.currentStyleType();
+    switch ( type )
+    {
+      case QML:
+      case SLD:
+      {
+        QString message;
+        QString filePath = dlg.outputFilePath();
+        if ( type == QML )
+          message = vlayer->saveNamedStyle( filePath, defaultLoadedFlag, dlg.styleCategories() );
+        else
+          message = vlayer->saveSldStyle( filePath, defaultLoadedFlag );
+
+        //reset if the default style was loaded OK only
+        if ( defaultLoadedFlag )
+        {
+          syncToLayer();
+        }
+        else
+        {
+          //let the user know what went wrong
+          QMessageBox::information( this, tr( "Save Style" ), message );
+        }
+
+        break;
+      }
+      case DB:
+      {
+        QString infoWindowTitle = QObject::tr( "Save style to DB (%1)" ).arg( mLayer->providerType() );
+        QString msgError;
+
+        QgsVectorLayerSaveStyleDialog::SaveToDbSettings dbSettings = dlg.saveToDbSettings();
+
+        mLayer->saveStyleToDatabase( dbSettings.name, dbSettings.description, dbSettings.isDefault, dbSettings.uiFileContent, msgError );
+
+        if ( !msgError.isNull() )
+        {
+          QgisApp::instance()->messageBar()->pushMessage( infoWindowTitle, msgError, Qgis::Warning, QgisApp::instance()->messageTimeout() );
+        }
+        else
+        {
+          QgisApp::instance()->messageBar()->pushMessage( infoWindowTitle, tr( "Style saved" ), Qgis::Info, QgisApp::instance()->messageTimeout() );
+        }
+        break;
+      }
+    }
+  }
+  }
+  else if( rlayer )
+  {
+
+    QString lastUsedDir = settings.value( QStringLiteral( "style/lastStyleDir" ), QDir::homePath() ).toString();
+
+    QString outputFileName = QFileDialog::getSaveFileName(
+                               this,
+                               tr( "Save layer properties as style file" ),
+                               lastUsedDir,
+                               tr( "QGIS Layer Style File" ) + " (*.qml)" + ";;" + tr( "Styled Layer Descriptor" ) + " (*.sld)" );
+    if ( outputFileName.isEmpty() )
+      return;
+
+    // set style type depending on extension
+    StyleType type = StyleType::QML;
+    if ( outputFileName.endsWith( QLatin1String( ".sld" ), Qt::CaseInsensitive ) )
+      type = StyleType::SLD;
+    else
+      // ensure the user never omits the extension from the file name
+      outputFileName = QgsFileUtils::ensureFileNameHasExtension( outputFileName, QStringList() << QStringLiteral( "qml" ) );
+
+    apply(); // make sure the style to save is uptodate
+
+    // then export style
+    bool defaultLoadedFlag = false;
+    QString message;
+    switch ( type )
+    {
+      case QML:
+      {
+        message = rlayer->saveNamedStyle( outputFileName, defaultLoadedFlag );
+        break;
+      }
+      case SLD:
+      {
+        message = rlayer->saveSldStyle( outputFileName, defaultLoadedFlag );
+        break;
+      }
+    }
+    if ( defaultLoadedFlag )
+    {
+      settings.setValue( QStringLiteral( "style/lastStyleDir" ), QFileInfo( outputFileName ).absolutePath() );
+      sync();
+    }
+    else
+      QMessageBox::information( this, tr( "Save Style" ), message );
+    }
+  }
 }
