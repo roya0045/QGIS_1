@@ -4921,7 +4921,8 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
     QgsExpressionFunction::ParameterList aggParams = QgsExpressionFunction::ParameterList()
         << QgsExpressionFunction::Parameter( QStringLiteral( "expression" ) )
         << QgsExpressionFunction::Parameter( QStringLiteral( "group_by" ), true )
-        << QgsExpressionFunction::Parameter( QStringLiteral( "filter" ), true );
+        << QgsExpressionFunction::Parameter( QStringLiteral( "filter" ), true )
+        << QgsExpressionFunction::Parameter( QStringLiteral( "symbol_id" ), true, QVariant(), true ),;
 
     QgsExpressionFunction::ParameterList aggParamsConcat = aggParams;
     aggParamsConcat <<  QgsExpressionFunction::Parameter( QStringLiteral( "concatenator" ), true )
@@ -4990,6 +4991,7 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "filter" ), true, QVariant(), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "concatenator" ), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "order_by" ), true, QVariant(), true ),
+                                            << QgsExpressionFunction::Parameter( QStringLiteral( "symbol_id" ), true, QVariant(), true ),
                                             fcnAggregate,
                                             QStringLiteral( "Aggregates" ),
                                             QString(),
@@ -5057,6 +5059,7 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "expression" ), false, QVariant(), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "concatenator" ), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "order_by" ), true, QVariant(), true ),
+                                            << QgsExpressionFunction::Parameter( QStringLiteral( "symbol_id" ), true, QVariant(), true ),
                                             fcnAggregateRelation, QStringLiteral( "Aggregates" ), QString(), false, QSet<QString>() << QgsFeatureRequest::ALL_ATTRIBUTES, true )
 
         << new QgsStaticExpressionFunction( QStringLiteral( "count" ), aggParams, fcnAggregateCount, QStringLiteral( "Aggregates" ), QString(), false, QSet<QString>(), true )
