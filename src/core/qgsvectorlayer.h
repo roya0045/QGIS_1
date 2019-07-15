@@ -1042,7 +1042,6 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * The method will return the feature counter task. You will need to
      * connect to the symbolFeatureCountMapChanged() signal to be
      * notified when the freshly updated feature counts are ready.
-     *
      * \note If the count features for symbols has been already done a
      *       NULLPTR is returned. If you need to wait for the results,
      *       you can call waitForFinished() on the feature counter.
@@ -1932,7 +1931,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * \param parameters parameters controlling aggregate calculation
      * \param context expression context for expressions and filters
      * \param ok if specified, will be set to TRUE if aggregate calculation was successful
-     * \param fids list of fids to filter, otherwise will use all fids
+     * \param symbolId Id of the symbol to filter features, otherwise will use all features
      * \returns calculated aggregate value
      * \since QGIS 2.16
      */
@@ -1941,7 +1940,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
                         const QgsAggregateCalculator::AggregateParameters &parameters = QgsAggregateCalculator::AggregateParameters(),
                         QgsExpressionContext *context = nullptr,
                         bool *ok = nullptr,
-                        QgsFeatureIds *fids = nullptr ) const;
+                        QString *symbolId = nullptr ) const;
 
     //! Sets the blending mode used for rendering each feature
     void setFeatureBlendMode( QPainter::CompositionMode blendMode );
@@ -2118,7 +2117,6 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * \since QGIS 3.4
      */
     void setAllowCommit( bool allowCommit ) SIP_SKIP;
-
 
   public slots:
 
@@ -2448,6 +2446,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      */
     void symbolFeatureCountMapChanged();
 
+
   protected:
     //! Sets the extent
     void setExtent( const QgsRectangle &rect ) FINAL;
@@ -2455,7 +2454,6 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
   private slots:
     void invalidateSymbolCountedFlag();
     void onFeatureCounterCompleted();
-    void onFeatureCounterTerminated();
     void onJoinedFieldsChanged();
     void onFeatureDeleted( QgsFeatureId fid );
     void onRelationsLoaded();
@@ -2604,6 +2602,9 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
     // Feature counts for each renderer legend key
     QHash<QString, long> mSymbolFeatureCountMap;
 
+    // feature id for each renderer legend keyh
+    QHash<QString, QgsFeatureIds> mSymbolIdMap;
+
     //! True while an undo command is active
     bool mEditCommandActive = false;
 
@@ -2623,6 +2624,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
     bool mAllowCommit = true;
 
     friend class QgsVectorLayerFeatureSource;
+
 };
 
 
