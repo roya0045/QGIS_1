@@ -1932,7 +1932,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * \param parameters parameters controlling aggregate calculation
      * \param context expression context for expressions and filters
      * \param ok if specified, will be set to TRUE if aggregate calculation was successful
-     * \param fids list of fids to filter, otherwise will use all fids
+     * \param symbolId Id of the symbol to use, otherwise uses all features
      * \returns calculated aggregate value
      * \since QGIS 2.16
      */
@@ -1941,7 +1941,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
                         const QgsAggregateCalculator::AggregateParameters &parameters = QgsAggregateCalculator::AggregateParameters(),
                         QgsExpressionContext *context = nullptr,
                         bool *ok = nullptr,
-                        QgsFeatureIds *fids = nullptr ) const;
+                        QString *symbolId = nullptr ) const;
 
     //! Sets the blending mode used for rendering each feature
     void setFeatureBlendMode( QPainter::CompositionMode blendMode );
@@ -2454,8 +2454,6 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
 
   private slots:
     void invalidateSymbolCountedFlag();
-    void onFeatureCounterCompleted();
-    void onFeatureCounterTerminated();
     void onJoinedFieldsChanged();
     void onFeatureDeleted( QgsFeatureId fid );
     void onRelationsLoaded();

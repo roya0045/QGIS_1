@@ -693,7 +693,7 @@ long QgsVectorLayer::featureCount( const QString &legendKey ) const
   if ( !mSymbolFeatureCounted )
     return -1;
 
-  return mSymbolFeatureCountMap.value( legendKey );
+  return mFeatureCounter->.featureCount( legendKey );
 }
 
 
@@ -702,8 +702,6 @@ QgsVectorLayerFeatureCounter *QgsVectorLayer::countSymbolFeatures()
 {
   if ( mSymbolFeatureCounted || mFeatureCounter )
     return mFeatureCounter;
-
-  mSymbolFeatureCountMap.clear();
 
   if ( !mValid )
   {
@@ -724,8 +722,7 @@ QgsVectorLayerFeatureCounter *QgsVectorLayer::countSymbolFeatures()
   if ( !mFeatureCounter )
   {
     mFeatureCounter = new QgsVectorLayerFeatureCounter( this );
-    connect( mFeatureCounter, &QgsTask::taskCompleted, this, &QgsVectorLayer::onFeatureCounterCompleted );
-    connect( mFeatureCounter, &QgsTask::taskTerminated, this, &QgsVectorLayer::onFeatureCounterTerminated );
+    connect( mFeatureCounter, &QgsTask::taskTerminated, this, &QgsVectorLayer::onSymbolsCounted );
 
     QgsApplication::taskManager()->addTask( mFeatureCounter );
   }
@@ -3241,7 +3238,7 @@ void QgsVectorLayer::setRenderer( QgsFeatureRenderer *r )
     delete mRenderer;
     mRenderer = r;
     mSymbolFeatureCounted = false;
-    mSymbolFeatureCountMap.clear();
+    mFeatureCounter = null;
 
     emit rendererChanged();
     emit styleChanged();
@@ -3921,7 +3918,7 @@ QVariant QgsVectorLayer::maximumValue( int index ) const
 
 QVariant QgsVectorLayer::aggregate( QgsAggregateCalculator::Aggregate aggregate, const QString &fieldOrExpression,
                                     const QgsAggregateCalculator::AggregateParameters &parameters, QgsExpressionContext *context,
-                                    bool *ok, QgsFeatureIds *fids ) const
+                                    bool *ok, QString *symbolId ) const
 {
   if ( ok )
     *ok = false;
@@ -3930,6 +3927,15 @@ QVariant QgsVectorLayer::aggregate( QgsAggregateCalculator::Aggregate aggregate,
   {
     return QVariant();
   }
+  bool hasFids = false;
+  QgsFeatureIds ids;
+  if ( symbolId )
+  {
+    if ( ! *symbolId.isEmpty() )
+    ids = mFeatureCounter.featureIds( *symbolId );
+    hasFids = true;
+  }
+
 
   // test if we are calculating based on a field
   int attrIndex = mFields.lookupField( fieldOrExpression );
@@ -3941,9 +3947,10 @@ QVariant QgsVectorLayer::aggregate( QgsAggregateCalculator::Aggregate aggregate,
     if ( origin == QgsFields::OriginProvider )
     {
       bool providerOk = false;
-      QVariant val = mDataProvider->aggregate( aggregate, attrIndex, parameters, context, providerOk, fids );
+      QVariant val = mDataProvider->aggregate( aggregate, attrIndex, parameters, context, providerOk, &ids );
       if ( providerOk )
       {
+        qDebug() << "provider";
         // provider handled calculation
         if ( ok )
           *ok = true;
@@ -3954,8 +3961,10 @@ QVariant QgsVectorLayer::aggregate( QgsAggregateCalculator::Aggregate aggregate,
 
   // fallback to using aggregate calculator to determine aggregate
   QgsAggregateCalculator c( this );
-  if ( fids )
-    c.setFidsFilter( *fids );
+  if ( hasFids )
+  {
+    c.setFidsFilter( ids );
+  }
   c.setParameters( parameters );
   return c.calculate( aggregate, fieldOrExpression, context, ok );
 }
@@ -4445,17 +4454,6 @@ void QgsVectorLayer::invalidateSymbolCountedFlag()
   mSymbolFeatureCounted = false;
 }
 
-void QgsVectorLayer::onFeatureCounterCompleted()
-{
-  onSymbolsCounted();
-  mFeatureCounter = nullptr;
-}
-
-void QgsVectorLayer::onFeatureCounterTerminated()
-{
-  mFeatureCounter = nullptr;
-}
-
 void QgsVectorLayer::onJoinedFieldsChanged()
 {
   // some of the fields of joined layers have changed -> we need to update this layer's fields too
@@ -4481,7 +4479,6 @@ void QgsVectorLayer::onSymbolsCounted()
 {
   if ( mFeatureCounter )
   {
-    mSymbolFeatureCountMap = mFeatureCounter->symbolFeatureCountMap();
     mSymbolFeatureCounted = true;
     emit symbolFeatureCountMapChanged();
   }
