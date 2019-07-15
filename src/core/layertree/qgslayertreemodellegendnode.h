@@ -26,8 +26,6 @@
 #include "qgis_core.h"
 #include "qgis_sip.h"
 
-#include "qgsexpression.h"
-
 #include "qgsrasterdataprovider.h" // for QgsImageFetcher dtor visibility
 #include "qgsexpressioncontext.h"
 
@@ -391,7 +389,7 @@ class CORE_EXPORT QgsSymbolLegendNode : public QgsLayerTreeModelLegendNode
      * Create an expressionContextScope containing symbol related variables
      * \since QGIS 3.10
      */
-    QgsExpressionContextScope *createSymbolScope() const;
+    QgsExpressionContextScope *createSymbolScope() const SIP_FACTORY;
 
     /**
      * Sets all items belonging to the same layer as this node to the same check state.
