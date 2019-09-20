@@ -914,9 +914,11 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
       name = node->customProperty( QStringLiteral( "legend/title-label" ) ).toString();
     if ( name.isEmpty() )
       name = node->name();
-    if ( nodeLayer->customProperty( QStringLiteral( "showFeatureCount" ), 0 ).toInt() )
+    if ( nodeLayer->customProperty( QStringLiteral( "showFeatureCount" ), 0 ).toInt() && vlayer )
     {
-      if ( vlayer && vlayer->featureCount() >= 0 )
+      connect( vlayer, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsLegendModel::forceRefresh, Qt::UniqueConnection );
+      vlayer->countSymbolFeatures();
+      if ( vlayer->featureCount() >= 0 )
       {
         name += QStringLiteral( " [%1]" ).arg( vlayer->featureCount() );
         return name;
