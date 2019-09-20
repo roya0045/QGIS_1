@@ -2136,6 +2136,28 @@ been changed inside the edit buffer then the previous saved value may be returne
 .. seealso:: :py:func:`uniqueValues`
 %End
 
+    QVariant aggregate( QgsAggregateCalculator::Aggregate calculation,
+                        const QString &fieldOrExpression,
+                        const QgsAggregateCalculator::AggregateParameters &parameters,
+                        QgsExpressionContext *context,
+                        bool *ok,
+                        QString &symbolId ) const;
+%Docstring
+Calculates an aggregated value from the layer's features.
+Currently any filtering expression provided will override filters in the FeatureRequest.
+
+:param calculation: aggregate to calculate
+:param fieldOrExpression: source field or expression to use as basis for aggregated values.
+:param parameters: parameters controlling aggregate calculation
+:param context: expression context for expressions and filters
+:param ok: if specified, will be set to ``True`` if aggregate calculation was successful
+:param symbolId: Id of the symbol to use, otherwise uses all features
+
+:return: calculated aggregate value
+
+.. versionadded:: 3.12
+%End
+
     QVariant aggregate( QgsAggregateCalculator::Aggregate aggregate,
                         const QString &fieldOrExpression,
                         const QgsAggregateCalculator::AggregateParameters &parameters = QgsAggregateCalculator::AggregateParameters(),
@@ -2436,6 +2458,7 @@ Emitted when selection was changed
 Emitted when modifications has been done on layer
 %End
 
+
     void allowCommitChanged();
 %Docstring
 Emitted whenever the allowCommitChanged() property of this layer changes.
@@ -2713,6 +2736,7 @@ Emitted when the feature count for symbols on this layer has been recalculated.
 .. versionadded:: 3.0
 %End
 
+
   protected:
     virtual void setExtent( const QgsRectangle &rect ) ${SIP_FINAL};
 
@@ -2723,7 +2747,6 @@ Sets the extent
   private:
     QgsVectorLayer( const QgsVectorLayer &rhs );
 };
-
 
 
 

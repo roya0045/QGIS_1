@@ -540,10 +540,23 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
       parameters.filter = node->dump();
   }
 
-  //optional fifth node is concatenator
+  //optional fifth node is symbol Id
+  QString symbolId;
   if ( values.count() > 4 )
   {
     node = QgsExpressionUtils::getNode( values.at( 4 ), parent );
+    ENSURE_NO_EVAL_ERROR
+    QgsExpressionNodeLiteral *nl = dynamic_cast< QgsExpressionNodeLiteral * >( node );
+    if ( !nl || nl->value().isValid() )
+    {
+      symbolId = node->eval( parent, context ).toString();
+    }
+  }
+
+  //optional sixth node is concatenator
+  if ( values.count() > 5 )
+  {
+    node = QgsExpressionUtils::getNode( values.at( 5 ), parent );
     ENSURE_NO_EVAL_ERROR
     value = node->eval( parent, context );
     ENSURE_NO_EVAL_ERROR
@@ -552,9 +565,9 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
 
   //optional sixth node is order by
   QString orderBy;
-  if ( values.count() > 5 )
+  if ( values.count() > 6 )
   {
-    node = QgsExpressionUtils::getNode( values.at( 5 ), parent );
+    node = QgsExpressionUtils::getNode( values.at( 6 ), parent );
     ENSURE_NO_EVAL_ERROR
     QgsExpressionNodeLiteral *nl = dynamic_cast< QgsExpressionNodeLiteral * >( node );
     if ( !nl || nl->value().isValid() )
@@ -575,12 +588,12 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
          || subExp.referencedVariables().contains( QStringLiteral( "parent" ) )
          || subExp.referencedVariables().contains( QString() ) )
     {
-      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5%6:%7" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter,
-                 QString::number( context->feature().id() ), QString( qHash( context->feature() ) ), orderBy );
+      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5%6:%7:%8" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter,
+                 QString::number( context->feature().id() ), QString( qHash( context->feature() ) ), symbolId, orderBy );
     }
     else
     {
-      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter, orderBy );
+      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5:%6" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter, symbolId, orderBy );
     }
 
     if ( context && context->hasCachedValue( cacheKey ) )
@@ -590,7 +603,7 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
     QgsExpressionContextScope *subScope = new QgsExpressionContextScope();
     subScope->setVariable( QStringLiteral( "parent" ), context->feature() );
     subContext.appendScope( subScope );
-    result = vl->aggregate( aggregate, subExpression, parameters, &subContext, &ok );
+    result = vl->aggregate( aggregate, subExpression, parameters, &subContext, &ok, symbolId );
 
     context->setCachedValue( cacheKey, result );
   }
@@ -668,22 +681,35 @@ static QVariant fcnAggregateRelation( const QVariantList &values, const QgsExpre
   ENSURE_NO_EVAL_ERROR
   QString subExpression = node->dump();
 
-  //optional fourth node is concatenator
-  QgsAggregateCalculator::AggregateParameters parameters;
+  //optional fourth node is symbol Id
+  QString symbolId;
   if ( values.count() > 3 )
   {
     node = QgsExpressionUtils::getNode( values.at( 3 ), parent );
+    ENSURE_NO_EVAL_ERROR
+    QgsExpressionNodeLiteral *nl = dynamic_cast< QgsExpressionNodeLiteral * >( node );
+    if ( !nl || nl->value().isValid() )
+    {
+      symbolId = node->eval( parent, context ).toString();
+    }
+  }
+
+  //optional fifth node is concatenator
+  QgsAggregateCalculator::AggregateParameters parameters;
+  if ( values.count() > 4 )
+  {
+    node = QgsExpressionUtils::getNode( values.at( 4 ), parent );
     ENSURE_NO_EVAL_ERROR
     value = node->eval( parent, context );
     ENSURE_NO_EVAL_ERROR
     parameters.delimiter = value.toString();
   }
 
-  //optional fifth node is order by
+  //optional sixth node is order by
   QString orderBy;
-  if ( values.count() > 4 )
+  if ( values.count() > 5 )
   {
-    node = QgsExpressionUtils::getNode( values.at( 4 ), parent );
+    node = QgsExpressionUtils::getNode( values.at( 5 ), parent );
     ENSURE_NO_EVAL_ERROR
     QgsExpressionNodeLiteral *nl = dynamic_cast< QgsExpressionNodeLiteral * >( node );
     if ( !nl || nl->value().isValid() )
@@ -697,10 +723,11 @@ static QVariant fcnAggregateRelation( const QVariantList &values, const QgsExpre
   FEAT_FROM_CONTEXT( context, f )
   parameters.filter = relation.getRelatedFeaturesFilter( f );
 
-  QString cacheKey = QStringLiteral( "relagg:%1:%2:%3:%4:%5" ).arg( vl->id(),
+  QString cacheKey = QStringLiteral( "relagg:%1:%2:%3:%4:%5:%6" ).arg( vl->id(),
                      QString::number( static_cast< int >( aggregate ) ),
                      subExpression,
                      parameters.filter,
+                     symbolId,
                      orderBy );
   if ( context && context->hasCachedValue( cacheKey ) )
     return context->cachedValue( cacheKey );
@@ -710,7 +737,7 @@ static QVariant fcnAggregateRelation( const QVariantList &values, const QgsExpre
 
 
   QgsExpressionContext subContext( *context );
-  result = childLayer->aggregate( aggregate, subExpression, parameters, &subContext, &ok );
+  result = childLayer->aggregate( aggregate, subExpression, parameters, &subContext, &ok, symbolId );
 
   if ( !ok )
   {
@@ -768,6 +795,18 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
     if ( !nl || nl->value().isValid() )
       parameters.filter = node->dump();
   }
+  //optional fifth? node is symbol Id
+  QString symbolId;
+  if ( values.count() > 3 )
+  {
+    node = QgsExpressionUtils::getNode( values.at( 3 ), parent );
+    ENSURE_NO_EVAL_ERROR
+    QgsExpressionNodeLiteral *nl = dynamic_cast< QgsExpressionNodeLiteral * >( node );
+    if ( !nl || nl->value().isValid() )
+    {
+      symbolId = node->eval( parent, context ).toString();
+    }
+  }
 
   //optional order by node, if supported
   QString orderBy;
@@ -799,10 +838,11 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
       parameters.filter = groupByClause;
   }
 
-  QString cacheKey = QStringLiteral( "agg:%1:%2:%3:%4:%5" ).arg( vl->id(),
+  QString cacheKey = QStringLiteral( "agg:%1:%2:%3:%4:%5:%6" ).arg( vl->id(),
                      QString::number( static_cast< int >( aggregate ) ),
                      subExpression,
                      parameters.filter,
+                     symbolId,
                      orderBy );
   if ( context && context->hasCachedValue( cacheKey ) )
     return context->cachedValue( cacheKey );
@@ -811,7 +851,7 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
   bool ok = false;
 
   QgsExpressionContext subContext( *context );
-  result = vl->aggregate( aggregate, subExpression, parameters, &subContext, &ok );
+  result = vl->aggregate( aggregate, subExpression, parameters, &subContext, &ok, symbolId );
 
   if ( !ok )
   {
@@ -920,39 +960,39 @@ static QVariant fcnAggregateStringConcat( const QVariantList &values, const QgsE
 {
   QgsAggregateCalculator::AggregateParameters parameters;
 
-  //fourth node is concatenator
-  if ( values.count() > 3 )
+  //fifth node is concatenator
+  if ( values.count() > 4 )
   {
-    QgsExpressionNode *node = QgsExpressionUtils::getNode( values.at( 3 ), parent );
+    QgsExpressionNode *node = QgsExpressionUtils::getNode( values.at( 4 ), parent );
     ENSURE_NO_EVAL_ERROR
     QVariant value = node->eval( parent, context );
     ENSURE_NO_EVAL_ERROR
     parameters.delimiter = value.toString();
   }
 
-  return fcnAggregateGeneric( QgsAggregateCalculator::StringConcatenate, values, parameters, context, parent, 4 );
+  return fcnAggregateGeneric( QgsAggregateCalculator::StringConcatenate, values, parameters, context, parent, 5 );
 }
 
 static QVariant fcnAggregateStringConcatUnique( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
   QgsAggregateCalculator::AggregateParameters parameters;
 
-  //fourth node is concatenator
-  if ( values.count() > 3 )
+  //fifth node is concatenator
+  if ( values.count() > 4 )
   {
-    QgsExpressionNode *node = QgsExpressionUtils::getNode( values.at( 3 ), parent );
+    QgsExpressionNode *node = QgsExpressionUtils::getNode( values.at( 4 ), parent );
     ENSURE_NO_EVAL_ERROR
     QVariant value = node->eval( parent, context );
     ENSURE_NO_EVAL_ERROR
     parameters.delimiter = value.toString();
   }
 
-  return fcnAggregateGeneric( QgsAggregateCalculator::StringConcatenateUnique, values, parameters, context, parent, 4 );
+  return fcnAggregateGeneric( QgsAggregateCalculator::StringConcatenateUnique, values, parameters, context, parent, 5 );
 }
 
 static QVariant fcnAggregateArray( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::ArrayAggregate, values, QgsAggregateCalculator::AggregateParameters(), context, parent, 3 );
+  return fcnAggregateGeneric( QgsAggregateCalculator::ArrayAggregate, values, QgsAggregateCalculator::AggregateParameters(), context, parent, 4 );
 }
 
 static QVariant fcnMapScale( const QVariantList &, const QgsExpressionContext *context, QgsExpression *, const QgsExpressionNodeFunction * )
@@ -5008,7 +5048,8 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
     QgsExpressionFunction::ParameterList aggParams = QgsExpressionFunction::ParameterList()
         << QgsExpressionFunction::Parameter( QStringLiteral( "expression" ) )
         << QgsExpressionFunction::Parameter( QStringLiteral( "group_by" ), true )
-        << QgsExpressionFunction::Parameter( QStringLiteral( "filter" ), true );
+        << QgsExpressionFunction::Parameter( QStringLiteral( "filter" ), true )
+        << QgsExpressionFunction::Parameter( QStringLiteral( "symbol_id" ), true, QVariant(), true );
 
     QgsExpressionFunction::ParameterList aggParamsConcat = aggParams;
     aggParamsConcat <<  QgsExpressionFunction::Parameter( QStringLiteral( "concatenator" ), true )
@@ -5075,6 +5116,7 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "aggregate" ) )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "expression" ), false, QVariant(), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "filter" ), true, QVariant(), true )
+                                            << QgsExpressionFunction::Parameter( QStringLiteral( "symbol_id" ), true, QVariant(), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "concatenator" ), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "order_by" ), true, QVariant(), true ),
                                             fcnAggregate,
@@ -5142,6 +5184,7 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "relation" ) )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "aggregate" ) )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "expression" ), false, QVariant(), true )
+                                            << QgsExpressionFunction::Parameter( QStringLiteral( "symbol_id" ), true, QVariant(), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "concatenator" ), true )
                                             << QgsExpressionFunction::Parameter( QStringLiteral( "order_by" ), true, QVariant(), true ),
                                             fcnAggregateRelation, QStringLiteral( "Aggregates" ), QString(), false, QSet<QString>() << QgsFeatureRequest::ALL_ATTRIBUTES, true )
