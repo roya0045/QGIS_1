@@ -394,7 +394,7 @@ class TestQgsLayoutItemLegend(unittest.TestCase, LayoutItemTestCase):
         layer = QgsProject.instance().addMapLayer(point_layer)
         legendlayer = legend.model().rootGroup().addLayer(point_layer)
 
-        counterTask = point_layer.countSymbolFeatures()
+        counterTask = point_layer.countSymbolFeatures(True)
         counterTask.waitForFinished()
         point_layer.onSymbolsCounted()
         legend.model().refreshLayerLegend(legendlayer)
@@ -459,7 +459,7 @@ class TestQgsLayoutItemLegend(unittest.TestCase, LayoutItemTestCase):
 
         group = legend.model().rootGroup().addGroup("Group [% 1 + 5 %] [% @layout_name %]")
         layer_tree_layer = group.addLayer(point_layer)
-        counterTask = point_layer.countSymbolFeatures()
+        counterTask = point_layer.countSymbolFeatures(True)
         counterTask.waitForFinished()
         layer_tree_layer.setCustomProperty("legend/title-label", 'bbbb [% 1+2 %] xx [% @layout_name %] [% @layer_name %]')
         QgsMapLayerLegendUtils.setLegendNodeUserLabel(layer_tree_layer, 0, 'xxxx')
@@ -471,7 +471,7 @@ class TestQgsLayoutItemLegend(unittest.TestCase, LayoutItemTestCase):
         layout.addLayoutItem(legend)
         legend.setLinkedMap(map)
         legend.updateLegend()
-        count = point_layer.countSymbolFeatures()
+        count = point_layer.countSymbolFeatures(True)
         count.waitForFinished()
         point_layer.onSymbolsCounted()
         map.setExtent(QgsRectangle(-102.51, 41.16, -102.36, 41.30))

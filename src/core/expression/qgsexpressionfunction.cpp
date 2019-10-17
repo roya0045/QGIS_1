@@ -795,7 +795,7 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
     if ( !nl || nl->value().isValid() )
       parameters.filter = node->dump();
   }
-  //optional fifth? node is symbol Id
+  //optional fourth node is symbol Id
   QString symbolId;
   if ( values.count() > 3 )
   {

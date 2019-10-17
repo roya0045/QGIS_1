@@ -731,9 +731,9 @@ QgsFeatureIds QgsVectorLayer::symbolFeatureIds( const QString &legendKey ) const
   return mSymbolFeatureIdMap.value( legendKey, QgsFeatureIds() );
 }
 
-QgsVectorLayerFeatureCounter *QgsVectorLayer::countSymbolFeatures()
+QgsVectorLayerFeatureCounter *QgsVectorLayer::countSymbolFeatures( bool withFids )
 {
-  if ( mSymbolFeatureCounted || mFeatureCounter )
+  if ( ( mSymbolFeatureCounted || mFeatureCounter ) && !( withFids && mSymbolFeatureIdMap.isEmpty() ) )
     return mFeatureCounter;
 
   mSymbolFeatureCountMap.clear();
@@ -755,9 +755,9 @@ QgsVectorLayerFeatureCounter *QgsVectorLayer::countSymbolFeatures()
     return mFeatureCounter;
   }
 
-  if ( !mFeatureCounter )
+  if ( !mFeatureCounter || ( mFeatureCounter && ( withFids && mSymbolFeatureIdMap.isEmpty() ) ) )
   {
-    mFeatureCounter = new QgsVectorLayerFeatureCounter( this );
+    mFeatureCounter = new QgsVectorLayerFeatureCounter( this, QgsExpressionContext(), withFids );
     connect( mFeatureCounter, &QgsTask::taskCompleted, this, &QgsVectorLayer::onFeatureCounterCompleted, Qt::UniqueConnection );
     connect( mFeatureCounter, &QgsTask::taskTerminated, this, &QgsVectorLayer::onFeatureCounterTerminated, Qt::UniqueConnection );
     QgsApplication::taskManager()->addTask( mFeatureCounter );
@@ -4566,7 +4566,6 @@ void QgsVectorLayer::onRelationsLoaded()
 
 void QgsVectorLayer::onSymbolsCounted()
 {
-  qDebug() << " on feature counted";
   if ( mFeatureCounter )
   {
     mSymbolFeatureCounted = true;

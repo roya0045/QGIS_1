@@ -782,7 +782,6 @@ void QgsLayoutItemLegend::updateFilterByMap( bool redraw )
   // the actual update will take place before the redraw.
   // This is to avoid multiple calls to the filter
   mFilterAskedForUpdate = true;
-
   if ( redraw )
     update();
 }
@@ -898,7 +897,6 @@ QgsLegendModel::QgsLegendModel( QgsLayerTree *rootNode,  QgsLayoutItemLegend *la
 QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
 {
   // handle custom layer node labels
-
   QgsLayerTreeNode *node = index2node( index );
   QgsLayerTreeLayer *nodeLayer = QgsLayerTree::isLayer( node ) ? QgsLayerTree::toLayer( node ) : nullptr;
   if ( nodeLayer && ( role == Qt::DisplayRole || role == Qt::EditRole ) )
@@ -924,7 +922,6 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
         return name;
       }
     }
-
     bool evaluate = vlayer ? !nodeLayer->labelExpression().isEmpty() : false;
 
     if ( evaluate || name.contains( "[%" ) )
@@ -934,7 +931,7 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
       {
         connect( vlayer, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsLegendModel::forceRefresh, Qt::UniqueConnection );
         // counting is done here to ensure that a valid vector layer needs to be evaluated, count is used to validate previous count or update the count if invalidated
-        vlayer->countSymbolFeatures();
+        vlayer->countSymbolFeatures( true );
       }
 
       if ( mLayoutLegend )
@@ -952,7 +949,9 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
         }
       }
       else if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( legendnodes.first() ) )
+      {
         name = symnode->evaluateLabel( expressionContext );
+      }
     }
     return name;
   }
