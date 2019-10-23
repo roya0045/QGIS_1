@@ -593,3 +593,8 @@ void QgsExpressionContext::clearCachedValues() const
 {
   mCachedValues.clear();
 }
+
+void QgsExpressionContext::replaceCache( QMap< QString, QVariant > cache )
+{
+  mCachedValues = cache;
+}

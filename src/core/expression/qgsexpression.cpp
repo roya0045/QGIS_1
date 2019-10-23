@@ -385,7 +385,7 @@ bool QgsExpression::prepare( const QgsExpressionContext *context )
     d->mEvalErrorString = tr( "No root node! Parsing failed?" );
     return false;
   }
-
+  qDebug()<<"preparing";
   initGeomCalculator( context );
   d->mIsPrepared = true;
   return d->mRootNode->prepare( this, context );

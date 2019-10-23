@@ -88,6 +88,12 @@ class CORE_EXPORT QgsLegendModel : public QgsLayerTreeModel
      */
     QgsLayoutItemLegend *mLayoutLegend = nullptr;
 
+    /**
+     * Stored expression context, used to evaluate and cache expressions.
+     * \since QGIS 3.12
+     */
+    mutable QgsExpressionContext mExpressionContext;
+
 };
 
 

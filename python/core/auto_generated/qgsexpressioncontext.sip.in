@@ -785,6 +785,20 @@ Clears all cached values from the context.
 .. versionadded:: 2.16
 %End
 
+    QMap< QString, QVariant > cachedValues() const;
+%Docstring
+Returns the full cache of the context.
+
+.. versionadded:: 3.12
+%End
+
+    void replaceCache( QMap< QString, QVariant > cache );
+%Docstring
+Replaces the current cache with the provided cache.
+
+.. versionadded:: 3.12
+%End
+
     static const QString EXPR_FIELDS;
     static const QString EXPR_ORIGINAL_VALUE;
     static const QString EXPR_SYMBOL_COLOR;

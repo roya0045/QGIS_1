@@ -588,12 +588,12 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
          || subExp.referencedVariables().contains( QStringLiteral( "parent" ) )
          || subExp.referencedVariables().contains( QString() ) )
     {
-      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5%6:%7:%8" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter,
+      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5%6:%7:%8" ).arg( vl->id(), QString::number( aggregate ), subExp.evaluate( context ).toString(), parameters.filter,
                  QString::number( context->feature().id() ), QString( qHash( context->feature() ) ), symbolId, orderBy );
     }
     else
     {
-      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5:%6" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter, symbolId, orderBy );
+      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5:%6" ).arg( vl->id(), QString::number( aggregate ), QgsExpression( subExpression ).evaluate().toString(), parameters.filter, symbolId, orderBy );
     }
 
     if ( context && context->hasCachedValue( cacheKey ) )
@@ -725,7 +725,7 @@ static QVariant fcnAggregateRelation( const QVariantList &values, const QgsExpre
 
   QString cacheKey = QStringLiteral( "relagg:%1:%2:%3:%4:%5:%6" ).arg( vl->id(),
                      QString::number( static_cast< int >( aggregate ) ),
-                     subExpression,
+                     QgsExpression( subExpression ).evaluate( context ).toString(),
                      parameters.filter,
                      symbolId,
                      orderBy );
@@ -840,7 +840,7 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
 
   QString cacheKey = QStringLiteral( "agg:%1:%2:%3:%4:%5:%6" ).arg( vl->id(),
                      QString::number( static_cast< int >( aggregate ) ),
-                     subExpression,
+                     QgsExpression( subExpression ).evaluate( context ).toString(),
                      parameters.filter,
                      symbolId,
                      orderBy );

@@ -717,6 +717,18 @@ class CORE_EXPORT QgsExpressionContext
      */
     void clearCachedValues() const;
 
+    /**
+     * Returns the full cache of the context.
+     * \since QGIS 3.12
+     */
+    QMap< QString, QVariant > cachedValues() const { return mCachedValues; }
+
+    /**
+     * Replaces the current cache with the provided cache.
+     * \since QGIS3.12
+     */
+    void replaceCache( QMap< QString, QVariant > cache );
+
     //! Inbuilt variable name for fields storage
     static const QString EXPR_FIELDS;
     //! Inbuilt variable name for value original value variable

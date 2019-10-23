@@ -684,8 +684,16 @@ void QgsSymbolLegendNode::updateLabel()
   emit dataChanged();
 }
 
-QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context, const QString &label )
+QString QgsSymbolLegendNode::evaluateLabel( QgsExpressionContext *context, const QString &label )
 {
+  if ( !context )
+  {
+    if ( label.isEmpty() )
+      return mLabel;
+    else
+      return label;
+  }
+
   if ( !mLayerNode )
     return QString();
 
@@ -693,19 +701,18 @@ QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context,
 
   if ( vl )
   {
-    QgsExpressionContext contextCopy = QgsExpressionContext( context );
     QgsExpressionContextScope *symbolScope = createSymbolScope();
-    contextCopy.appendScope( symbolScope );
-    contextCopy.appendScope( vl->createExpressionContextScope() );
+    context->appendScope( symbolScope );
+    context->appendScope( vl->createExpressionContextScope() );
 
     if ( label.isEmpty() )
     {
       if ( ! mLayerNode->labelExpression().isEmpty() )
-        mLabel = QgsExpression::replaceExpressionText( "[%" + mLayerNode->labelExpression() + "%]", &contextCopy );
+        mLabel = QgsExpression::replaceExpressionText( "[%" + mLayerNode->labelExpression() + "%]", context );
       else if ( mLabel.contains( "[%" ) )
       {
         const QString symLabel = symbolLabel();
-        mLabel = QgsExpression::replaceExpressionText( symLabel, &contextCopy );
+        mLabel = QgsExpression::replaceExpressionText( symLabel, context );
       }
       return mLabel;
     }
@@ -713,9 +720,9 @@ QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context,
     {
       QString eLabel;
       if ( ! mLayerNode->labelExpression().isEmpty() )
-        eLabel = QgsExpression::replaceExpressionText( label + "[%" + mLayerNode->labelExpression() + "%]", &contextCopy );
+        eLabel = QgsExpression::replaceExpressionText( label + "[%" + mLayerNode->labelExpression() + "%]", context );
       else if ( label.contains( "[%" ) )
-        eLabel = QgsExpression::replaceExpressionText( label, &contextCopy );
+        eLabel = QgsExpression::replaceExpressionText( label, context );
       return eLabel;
     }
   }

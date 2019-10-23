@@ -38,7 +38,7 @@
 
 QgsLayoutItemLegend::QgsLayoutItemLegend( QgsLayout *layout )
   : QgsLayoutItem( layout )
-  , mLegendModel( new QgsLegendModel( layout->project()->layerTreeRoot(), this ) )
+  , mLegendModel( new QgsLegendModel( mLayout->project()->layerTreeRoot(), this ) )
 {
 #if 0 //no longer required?
   connect( &layout->atlasComposition(), &QgsAtlasComposition::renderEnded, this, &QgsLayoutItemLegend::onAtlasEnded );
@@ -701,7 +701,7 @@ void QgsLayoutItemLegend::setLinkedMap( QgsLayoutItemMap *map )
   {
     setupMapConnections( mMap, true );
   }
-
+  mLegendModel.reset( new QgsLegendModel( mLayout->project()->layerTreeRoot(), this ) );
   updateFilterByMap();
 
 }
@@ -852,10 +852,11 @@ QgsExpressionContext QgsLayoutItemLegend::createExpressionContext() const
   // the map specific variables. We don't want the rest of the map's context, because that
   // will contain duplicate global, project, layout, etc scopes.
   if ( mMap )
+  {
     context.appendScope( mMap->createExpressionContext().popScope() );
+  }
 
   QgsExpressionContextScope *scope = new QgsExpressionContextScope( tr( "Legend Settings" ) );
-
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "legend_title" ), title(), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "legend_column_count" ), columnCount(), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "legend_split_layers" ), splitLayer(), true ) );
@@ -884,6 +885,7 @@ QgsLegendModel::QgsLegendModel( QgsLayerTree *rootNode, QObject *parent, QgsLayo
 {
   setFlag( QgsLayerTreeModel::AllowLegendChangeState, false );
   setFlag( QgsLayerTreeModel::AllowNodeReorder, true );
+  mExpressionContext = QgsExpressionContext();
 }
 
 QgsLegendModel::QgsLegendModel( QgsLayerTree *rootNode,  QgsLayoutItemLegend *layout )
@@ -892,6 +894,7 @@ QgsLegendModel::QgsLegendModel( QgsLayerTree *rootNode,  QgsLayoutItemLegend *la
 {
   setFlag( QgsLayerTreeModel::AllowLegendChangeState, false );
   setFlag( QgsLayerTreeModel::AllowNodeReorder, true );
+  mExpressionContext = QgsExpressionContext();
 }
 
 QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
@@ -926,37 +929,37 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
 
     if ( evaluate || name.contains( "[%" ) )
     {
-      QgsExpressionContext expressionContext;
+      QgsExpressionContext contextCopy = QgsExpressionContext( mExpressionContext );
+      if ( mLayoutLegend )
+        contextCopy.appendScopes( mLayoutLegend->createExpressionContext().scopes() );
       if ( vlayer )
       {
         connect( vlayer, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsLegendModel::forceRefresh, Qt::UniqueConnection );
         // counting is done here to ensure that a valid vector layer needs to be evaluated, count is used to validate previous count or update the count if invalidated
         vlayer->countSymbolFeatures( true );
       }
-
-      if ( mLayoutLegend )
-        expressionContext = mLayoutLegend->createExpressionContext();
-      else
-        expressionContext = QgsExpressionContext();
-
+      qDebug()<<"eval feature";
       const QList<QgsLayerTreeModelLegendNode *> legendnodes = layerLegendNodes( nodeLayer, false );
       if ( legendnodes.count() > 1 ) // evaluate all existing legend nodes but leave the name for the legend evaluator
       {
         for ( QgsLayerTreeModelLegendNode *treenode : legendnodes )
         {
           if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( treenode ) )
-            symnode->evaluateLabel( expressionContext );
+            symnode->evaluateLabel( &contextCopy );
         }
       }
       else if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( legendnodes.first() ) )
       {
-        name = symnode->evaluateLabel( expressionContext );
+        name = symnode->evaluateLabel( &contextCopy );
       }
+      qDebug()<<"attributing";
+      mExpressionContext = QgsExpressionContext( contextCopy );
     }
     return name;
   }
   return QgsLayerTreeModel::data( index, role );
 }
+
 
 Qt::ItemFlags QgsLegendModel::flags( const QModelIndex &index ) const
 {
@@ -979,8 +982,10 @@ QList<QgsLayerTreeModelLegendNode *> QgsLegendModel::layerLegendNodes( QgsLayerT
   return lst;
 }
 
+
 void QgsLegendModel::forceRefresh()
 {
+  mExpressionContext.clearCachedValues();
   emit refreshLegend();
 }
 

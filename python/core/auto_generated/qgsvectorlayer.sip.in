@@ -1049,7 +1049,7 @@ The method will return the feature counter task. You will need to
 connect to the symbolFeatureCountMapChanged() signal to be
 notified when the freshly updated feature counts are ready.
 
-:param withFids: If TRUE will gather the Fids per symbol, otherwise only the count. Default FALSE.
+:param withFids: If ``True`` will gather the Fids per symbol, otherwise only the count. Default ``False``.
 
 .. note::
 
@@ -2565,6 +2565,7 @@ Sets the coordinate transform context to ``transformContext``
     virtual bool accept( QgsStyleEntityVisitorInterface *visitor ) const;
 
 
+
   signals:
 
     void selectionChanged( const QgsFeatureIds &selected, const QgsFeatureIds &deselected, bool clearAndSelect );
@@ -2580,7 +2581,6 @@ Emitted when selection was changed
 %Docstring
 Emitted when modifications has been done on layer
 %End
-
 
     void allowCommitChanged();
 %Docstring
@@ -2859,7 +2859,6 @@ Emitted when the feature count for symbols on this layer has been recalculated.
 .. versionadded:: 3.0
 %End
 
-
   protected:
     virtual void setExtent( const QgsRectangle &rect ) ${SIP_FINAL};
 
@@ -2870,6 +2869,7 @@ Sets the extent
   private:
     QgsVectorLayer( const QgsVectorLayer &rhs );
 };
+
 
 
 
