@@ -929,15 +929,19 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
 
     if ( evaluate || name.contains( "[%" ) )
     {
-      QgsExpressionContext contextCopy = QgsExpressionContext( mExpressionContext );
-      if ( mLayoutLegend )
-        contextCopy.appendScopes( mLayoutLegend->createExpressionContext().scopes() );
+      QgsExpressionContext contextCopy;// = QgsExpressionContext( mExpressionContext );
+      //if ( mLayoutLegend )
+      //  contextCopy.appendScopes( mLayoutLegend->createExpressionContext().scopes() );
       if ( vlayer )
       {
         connect( vlayer, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsLegendModel::forceRefresh, Qt::UniqueConnection );
         // counting is done here to ensure that a valid vector layer needs to be evaluated, count is used to validate previous count or update the count if invalidated
         vlayer->countSymbolFeatures( true );
       }
+      if ( mLayoutLegend )
+        contextCopy = mLayoutLegend->createExpressionContext();
+      else
+        contextCopy = QgsExpressionContext();
       qDebug()<<"eval feature";
       const QList<QgsLayerTreeModelLegendNode *> legendnodes = layerLegendNodes( nodeLayer, false );
       if ( legendnodes.count() > 1 ) // evaluate all existing legend nodes but leave the name for the legend evaluator
@@ -985,6 +989,7 @@ QList<QgsLayerTreeModelLegendNode *> QgsLegendModel::layerLegendNodes( QgsLayerT
 
 void QgsLegendModel::forceRefresh()
 {
+  qDebug()<<"refreshing";
   mExpressionContext.clearCachedValues();
   emit refreshLegend();
 }

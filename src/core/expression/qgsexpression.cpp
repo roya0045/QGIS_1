@@ -385,7 +385,6 @@ bool QgsExpression::prepare( const QgsExpressionContext *context )
     d->mEvalErrorString = tr( "No root node! Parsing failed?" );
     return false;
   }
-  qDebug()<<"preparing";
   initGeomCalculator( context );
   d->mIsPrepared = true;
   return d->mRootNode->prepare( this, context );
@@ -411,11 +410,11 @@ QVariant QgsExpression::evaluate( const QgsExpressionContext *context )
     d->mEvalErrorString = tr( "No root node! Parsing failed?" );
     return QVariant();
   }
-
   if ( ! d->mIsPrepared )
   {
     prepare( context );
   }
+
   return d->mRootNode->eval( this, context );
 }
 
