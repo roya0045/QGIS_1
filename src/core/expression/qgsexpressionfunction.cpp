@@ -595,7 +595,7 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
     {
       cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5:%6" ).arg( vl->id(), QString::number( aggregate ), QgsExpression( subExpression ).evaluate().toString(), parameters.filter, symbolId, orderBy );
     }
-
+    qDebug()<<cacheKey;
     if ( context && context->hasCachedValue( cacheKey ) )
       return context->cachedValue( cacheKey );
 
@@ -729,6 +729,7 @@ static QVariant fcnAggregateRelation( const QVariantList &values, const QgsExpre
                      parameters.filter,
                      symbolId,
                      orderBy );
+  qDebug()<<cacheKey;
   if ( context && context->hasCachedValue( cacheKey ) )
     return context->cachedValue( cacheKey );
 
@@ -844,6 +845,7 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
                      parameters.filter,
                      symbolId,
                      orderBy );
+  qDebug()<<cacheKey;
   if ( context && context->hasCachedValue( cacheKey ) )
     return context->cachedValue( cacheKey );
 
