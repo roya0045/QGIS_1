@@ -226,6 +226,7 @@ QgsSymbolLegendNode::QgsSymbolLegendNode( QgsLayerTreeLayer *nodeLayer, const Qg
 
   updateLabel();
   connect( qobject_cast<QgsVectorLayer *>( nodeLayer->layer() ), &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsSymbolLegendNode::updateLabel );
+  connect( qobject_cast<QgsVectorLayer *>( nodeLayer->layer() ), &QgsVectorLayer::rendererChanged, nodeLayer, &QgsLayerTreeLayer::updateSymbolExpressions );
   connect( nodeLayer, &QObject::destroyed, this, [ = ]() { mLayerNode = nullptr; } );
 
   if ( mItem.symbol() )
@@ -697,25 +698,31 @@ QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context,
     QgsExpressionContextScope *symbolScope = createSymbolScope();
     contextCopy.appendScope( symbolScope );
     contextCopy.appendScope( vl->createExpressionContextScope() );
-
+    QString nodeExpression = mLayerNode->labelExpression();
+    if ( nodeExpression.contains("filter:=") && nodeExpression.contains("@symbol_expression") )
+      nodeExpression = nodeExpression.replace("@symbol_expression", QgsExpression::replaceExpressionText( "[% @symbol_expression %]", &contextCopy ) );
     if ( label.isEmpty() )
     {
       if ( ! mLayerNode->labelExpression().isEmpty() )
-        mLabel = QgsExpression::replaceExpressionText( "[%" + mLayerNode->labelExpression() + "%]", &contextCopy );
+        mLabel = QgsExpression::replaceExpressionText( "[%" + nodeExpression + "%]", &contextCopy );
       else if ( mLabel.contains( "[%" ) )
       {
-        const QString symLabel = symbolLabel();
+        QString symLabel = symbolLabel();
+        if ( symLabel.contains("filter:=") && symLabel.contains("@symbol_expression") )
+          symLabel = symLabel.replace("@symbol_expression", QgsExpression::replaceExpressionText( "[% @symbol_expression %]", &contextCopy ) );
         mLabel = QgsExpression::replaceExpressionText( symLabel, &contextCopy );
       }
       return mLabel;
     }
     else
     {
-      QString eLabel;
+      QString eLabel = QString( label );
+      if ( label.contains("filter:=") && label.contains("@symbol_expression") )
+        eLabel = eLabel.replace("@symbol_expression", QgsExpression::replaceExpressionText( "[% @symbol_expression %]", &contextCopy ) );
       if ( ! mLayerNode->labelExpression().isEmpty() )
-        eLabel = QgsExpression::replaceExpressionText( label + "[%" + mLayerNode->labelExpression() + "%]", &contextCopy );
+        eLabel = QgsExpression::replaceExpressionText( eLabel + "[%" + nodeExpression + "%]", &contextCopy );
       else if ( label.contains( "[%" ) )
-        eLabel = QgsExpression::replaceExpressionText( label, &contextCopy );
+        eLabel = QgsExpression::replaceExpressionText( eLabel, &contextCopy );
       return eLabel;
     }
   }
@@ -732,6 +739,7 @@ QgsExpressionContextScope *QgsSymbolLegendNode::createSymbolScope() const
   if ( vl )
   {
     scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_count" ), QVariant::fromValue( vl->featureCount( mItem.ruleKey() ) ), true ) );
+    scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_expression" ), QVariant::fromValue( mLayerNode->symbolExpression( mItem.ruleKey() ) ), true ) );
   }
   return scope;
 }
