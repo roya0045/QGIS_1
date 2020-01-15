@@ -7,8 +7,7 @@ variables:
 trigger:
   branches:
     include:
-    - symbex_followup
-    - azure-pipelines
+    - azure-pipelines-symbex
 
 pr:
 - master
