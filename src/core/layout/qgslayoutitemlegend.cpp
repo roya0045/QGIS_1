@@ -922,6 +922,42 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
         return name;
       }
     }
+    const QList<QgsLayerTreeModelLegendNode *> legendnodes = layerLegendNodes( nodeLayer, false );
+    if ( legendnodes.count() == 1 && QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( legendnodes.first() )) // evaluate all existing legend nodes but leave the name for the legend evaluator
+      name = symnode->data( role );
+    }
+    return name;
+  }
+  return QgsLayerTreeModel::data( index, role );
+}
+
+QVariant QgsLegendModel::evaluateData( const QModelIndex &index, int role ) const
+{
+  // handle custom layer node labels
+
+  QgsLayerTreeNode *node = index2node( index );
+  QgsLayerTreeLayer *nodeLayer = QgsLayerTree::isLayer( node ) ? QgsLayerTree::toLayer( node ) : nullptr;
+  if ( nodeLayer && ( role == Qt::DisplayRole || role == Qt::EditRole ) )
+  {
+    QString name;
+    QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( nodeLayer->layer() );
+
+    //finding the first label that is stored
+    name = nodeLayer->customProperty( QStringLiteral( "legend/title-label" ) ).toString();
+    if ( name.isEmpty() )
+      name = nodeLayer->name();
+    if ( name.isEmpty() )
+      name = node->customProperty( QStringLiteral( "legend/title-label" ) ).toString();
+    if ( name.isEmpty() )
+      name = node->name();
+    if ( nodeLayer->customProperty( QStringLiteral( "showFeatureCount" ), 0 ).toInt() )
+    {
+      if ( vlayer && vlayer->featureCount() >= 0 )
+      {
+        name += QStringLiteral( " [%1]" ).arg( vlayer->featureCount() );
+        return name;
+      }
+    }
 
     bool evaluate = vlayer ? !nodeLayer->labelExpression().isEmpty() : false;
 
