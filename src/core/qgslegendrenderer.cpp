@@ -675,16 +675,18 @@ QgsLegendRenderer::LegendComponent QgsLegendRenderer::drawSymbolItemInternal( Qg
   return component;
 }
 
-QSizeF QgsLegendRenderer::drawLayerTitle( QgsLayerTreeLayer *nodeLayer, ColumnContext columnContext, QPainter *painter, double top )
+QSizeF QgsLegendRenderer::drawLayerTitle( QgsLayerTreeLayer *nodeLayer, ColumnContext columnContext, QPainter *painter, double top, QString &titleString )
 {
-  return drawLayerTitleInternal( nodeLayer, columnContext, nullptr, painter, top );
+  if ( titleString.isEmpty() )
+    titleString = mLegendModel->evaluateData( mLegendModel->node2index( nodeLayer ), Qt::DisplayRole ).toString()
+  return drawLayerTitleInternal( nodeLayer, columnContext, nullptr, painter, top, titleString );
 }
 
-QSizeF QgsLegendRenderer::drawLayerTitleInternal( QgsLayerTreeLayer *nodeLayer, ColumnContext columnContext, QgsRenderContext *context, QPainter *painter, const double top )
+QSizeF QgsLegendRenderer::drawLayerTitleInternal( QgsLayerTreeLayer *nodeLayer, ColumnContext columnContext, QgsRenderContext *context, QPainter *painter, const double top, QString &titleString )
 {
   QSizeF size( 0, 0 );
   QModelIndex idx = mLegendModel->node2index( nodeLayer );
-  QString titleString = mLegendModel->data( idx, Qt::DisplayRole ).toString();
+  QString titleString = title.isEmpty() ? mLegendModel->data( idx, Qt::DisplayRole ).toString() : title;
   //Let the user omit the layer title item by having an empty layer title string
   if ( titleString.isEmpty() )
     return size;
