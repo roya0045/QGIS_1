@@ -52,6 +52,12 @@ class CORE_EXPORT QgsLegendModel : public QgsLayerTreeModel
     QgsLegendModel( QgsLayerTree *rootNode,  QgsLayoutItemLegend *layout );
 
     QVariant data( const QModelIndex &index, int role ) const override;
+    
+    /**
+     * Similar to data but will evaluate expressions instead of returning the label.
+     * \since QGIS 3.14
+     */
+    QVariant evaluateData( const QModelIndex &index, int role );
 
     Qt::ItemFlags flags( const QModelIndex &index ) const override;
 
