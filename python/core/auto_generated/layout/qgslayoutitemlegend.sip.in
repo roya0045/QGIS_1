@@ -37,8 +37,36 @@ Alternative constructor.
     virtual QVariant data( const QModelIndex &index, int role ) const;
 
 
+    QVariant evaluateData( const QModelIndex &index, int role ) const;
+%Docstring
+Similar to data but will also evaluate expressions instead of returning the label.
+
+.. versionadded:: 3.14
+%End
+
     virtual Qt::ItemFlags flags( const QModelIndex &index ) const;
 
+
+    QList<QgsLayerTreeModelLegendNode *> layerLegendNodes( QgsLayerTreeLayer *nodeLayer, bool skipNodeEmbeddedInParent = false ) const;
+%Docstring
+Returns filtered list of active legend nodes attached to a particular layer node
+(by default it returns also legend node embedded in parent layer node (if any) unless skipNodeEmbeddedInParent is true)
+
+.. note::
+
+   Parameter skipNodeEmbeddedInParent added in QGIS 2.18
+
+.. seealso:: :py:func:`layerOriginalLegendNodes`
+
+.. versionadded:: 3.10
+%End
+
+    QString evaluateLayerExpressions( QgsLayerTreeLayer *nodeLayer ) const;
+%Docstring
+Evaluate the expression or symbol expressions of a given vector layer.
+
+.. versionadded:: 3.14
+%End
 
   signals:
 

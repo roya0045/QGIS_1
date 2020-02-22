@@ -321,6 +321,13 @@ displays.
 .. versionadded:: 3.6
 %End
 
+    QList<QgsLayerTreeLayer *> filteredLayers() const;
+%Docstring
+Returns a list of filtered layers in the legend.
+
+.. versionadded:: 3.14
+%End
+
   protected slots:
     void nodeWillAddChildren( QgsLayerTreeNode *node, int indexFrom, int indexTo );
     void nodeAddedChildren( QgsLayerTreeNode *node, int indexFrom, int indexTo );

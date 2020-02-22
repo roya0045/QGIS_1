@@ -179,6 +179,14 @@ void QgsLayoutItemLegend::draw( QgsLayoutItemRenderContext &context )
   if ( mLayout )
     mSettings.setDpi( mLayout->renderContext().dpi() );
 
+  //evaluate expressions once
+  const QList<QgsLayerTreeLayer *> layers = mLegendModel->filteredLayers();
+  for ( QgsLayerTreeLayer *nodeLayer : layers )
+  {
+    if ( !nodeLayer->labelExpression().isEmpty() || nodeLayer->name().contains( "[%" ) )
+      mLegendModel->evaluateLayerExpressions( nodeLayer );
+  }
+
   QgsLegendRenderer legendRenderer( mLegendModel.get(), mSettings );
   legendRenderer.setLegendSize( rect().size() );
 
@@ -898,12 +906,13 @@ QgsLegendModel::QgsLegendModel( QgsLayerTree *rootNode,  QgsLayoutItemLegend *la
 QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
 {
   // handle custom layer node labels
+  QString name;
 
   QgsLayerTreeNode *node = index2node( index );
   QgsLayerTreeLayer *nodeLayer = QgsLayerTree::isLayer( node ) ? QgsLayerTree::toLayer( node ) : nullptr;
   if ( nodeLayer && ( role == Qt::DisplayRole || role == Qt::EditRole ) )
   {
-    QString name;
+
     QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( nodeLayer->layer() );
 
     //finding the first label that is stored
@@ -922,39 +931,79 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
         return name;
       }
     }
-
-    bool evaluate = vlayer ? !nodeLayer->labelExpression().isEmpty() : false;
-
-    if ( evaluate || name.contains( "[%" ) )
-    {
-      QgsExpressionContext expressionContext;
-      if ( vlayer )
-      {
-        connect( vlayer, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsLegendModel::forceRefresh, Qt::UniqueConnection );
-        // counting is done here to ensure that a valid vector layer needs to be evaluated, count is used to validate previous count or update the count if invalidated
-        vlayer->countSymbolFeatures();
-      }
-
-      if ( mLayoutLegend )
-        expressionContext = mLayoutLegend->createExpressionContext();
-      else
-        expressionContext = QgsExpressionContext();
-
-      const QList<QgsLayerTreeModelLegendNode *> legendnodes = layerLegendNodes( nodeLayer, false );
-      if ( legendnodes.count() > 1 ) // evaluate all existing legend nodes but leave the name for the legend evaluator
-      {
-        for ( QgsLayerTreeModelLegendNode *treenode : legendnodes )
-        {
-          if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( treenode ) )
-            symnode->evaluateLabel( expressionContext );
-        }
-      }
-      else if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( legendnodes.first() ) )
-        name = symnode->evaluateLabel( expressionContext );
-    }
     return name;
   }
   return QgsLayerTreeModel::data( index, role );
+}
+
+QVariant QgsLegendModel::evaluateData( const QModelIndex &index, int role ) const
+{
+  // handle custom layer node labels
+
+  QgsLayerTreeNode *node = index2node( index );
+  QgsLayerTreeLayer *nodeLayer = QgsLayerTree::isLayer( node ) ? QgsLayerTree::toLayer( node ) : nullptr;
+  if ( nodeLayer && ( role == Qt::DisplayRole || role == Qt::EditRole ) )
+  {
+    QString name;
+    name = evaluateLayerExpressions( nodeLayer );
+    if ( !name.isEmpty() )
+      return name;
+  }
+  return QgsLayerTreeModel::data( index, role );
+}
+
+QString QgsLegendModel::evaluateLayerExpressions( QgsLayerTreeLayer *nodeLayer ) const
+{
+  QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( nodeLayer->layer() );
+
+  QString name;
+  if ( !vlayer )
+    return name;
+  //finding the first label that is stored
+  name = nodeLayer->customProperty( QStringLiteral( "legend/title-label" ) ).toString();
+  if ( name.isEmpty() )
+    name = nodeLayer->name();
+  if ( nodeLayer->customProperty( QStringLiteral( "showFeatureCount" ), 0 ).toInt() )
+  {
+    if ( vlayer && vlayer->featureCount() >= 0 )
+    {
+      name += QStringLiteral( " [%1]" ).arg( vlayer->featureCount() );
+      return name;
+    }
+  }
+
+  bool evaluate = vlayer ? !nodeLayer->labelExpression().isEmpty() : false;
+
+  if ( evaluate || name.contains( "[%" ) )
+  {
+    QgsExpressionContext expressionContext;
+    connect( vlayer, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsLegendModel::forceRefresh, Qt::UniqueConnection );
+    // counting is done here to ensure that a valid vector layer needs to be evaluated, count is used to validate previous count or update the count if invalidated
+
+    if ( mLayoutLegend )
+      expressionContext = mLayoutLegend->createExpressionContext();
+    else
+      expressionContext = QgsExpressionContext();
+
+    const QList<QgsLayerTreeModelLegendNode *> legendnodes = layerLegendNodes( nodeLayer, false );
+    if ( legendnodes.count() == 1 )
+    {
+      QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( legendnodes.first() );
+      if ( symnode->symbolLabel() == name || symnode->symbolLabel().isEmpty() )
+        name = symnode->evaluateLabel( expressionContext );
+      else
+        symnode->evaluateLabel( expressionContext );
+    }
+    else // evaluate all existing legend nodes but leave the name for the legend evaluator
+    {
+      for ( QgsLayerTreeModelLegendNode *treenode : legendnodes )
+      {
+        if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( treenode ) )
+          symnode->evaluateLabel( expressionContext );
+      }
+    }
+  }
+  return name;
 }
 
 Qt::ItemFlags QgsLegendModel::flags( const QModelIndex &index ) const

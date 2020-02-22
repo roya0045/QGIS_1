@@ -286,6 +286,12 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      */
     static int scaleIconSize( int standardSize );
 
+    /**
+     * Returns a list of filtered layers in the legend.
+     * \since QGIS 3.14
+     */
+    QList<QgsLayerTreeLayer *> filteredLayers() const;
+
   protected slots:
     void nodeWillAddChildren( QgsLayerTreeNode *node, int indexFrom, int indexTo );
     void nodeAddedChildren( QgsLayerTreeNode *node, int indexFrom, int indexTo );
