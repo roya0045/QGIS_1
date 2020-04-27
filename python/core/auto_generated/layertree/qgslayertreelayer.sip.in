@@ -156,6 +156,22 @@ Sets the symbol patch ``shape`` to use when rendering the legend node symbol.
 .. versionadded:: 3.14
 %End
 
+    QString symbolExpression( const QString &ruleKey );
+%Docstring
+Returns an expression representing the symbol associated with the ``ruleKey``
+
+.. versionadded:: 3.12
+%End
+
+  public slots:
+
+    void updateSymbolExpressions();
+%Docstring
+Updates the stored registry of rulekey and symbol expression.
+
+.. versionadded:: 3.12
+%End
+
   signals:
 
     void layerLoaded();

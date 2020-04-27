@@ -22,6 +22,7 @@
 #include "qgsmaplayerref.h"
 #include "qgsreadwritecontext.h"
 #include "qgslegendpatchshape.h"
+#include "qgsrulebasedrenderer.h"
 
 class QgsMapLayer;
 
@@ -159,6 +160,22 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
      */
     void setPatchShape( const QgsLegendPatchShape &shape );
 
+    /**
+     * Returns an expression representing the symbol associated with the \a ruleKey
+     *
+     * \since QGIS 3.12
+     */
+    QString symbolExpression( const QString &ruleKey );
+
+  public slots:
+
+    /**
+     * Updates the stored registry of rulekey and symbol expression.
+     *
+     * \since QGIS 3.12
+     */
+    void updateSymbolExpressions();
+
   signals:
 
     /**
@@ -200,6 +217,16 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
     void layerWillBeDeleted();
 
   private:
+
+    //! iterate over the rules during updateSymbolExpressions
+    void ruleIterator( QgsRuleBasedRenderer::Rule *baseRule, const QString prefix = QString() );
+
+    //! format the else condition
+    QString elseFormatter( QgsRuleBasedRenderer::Rule *baseRule );
+
+    QMap<QString, QString> mSymbolExpressions;
+    int mKeyIndexer;
+    bool mConvertRuleKeys;
 
 #ifdef SIP_RUN
 
