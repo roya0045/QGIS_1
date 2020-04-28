@@ -37,7 +37,7 @@
 #include "qgsrectangle.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsmapsettings.h"
-#include "qgsmbtilesreader.h"
+#include "qgsmbtiles.h"
 #include "qgsmessageoutput.h"
 #include "qgsmessagelog.h"
 #include "qgsnetworkaccessmanager.h"
@@ -821,10 +821,10 @@ QImage *QgsWmsProvider::draw( QgsRectangle const &viewExtent, int pixelWidth, in
     QList<TileImage> tileImages;  // in the correct resolution
     QList<QRectF> missing;  // rectangles (in map coords) of missing tiles for this view
 
-    std::unique_ptr<QgsMBTilesReader> mbtilesReader;
+    std::unique_ptr<QgsMbTiles> mbtilesReader;
     if ( mSettings.mIsMBTiles )
     {
-      mbtilesReader.reset( new QgsMBTilesReader( QUrl( mSettings.mBaseUrl ).path() ) );
+      mbtilesReader.reset( new QgsMbTiles( QUrl( mSettings.mBaseUrl ).path() ) );
       mbtilesReader->open();
     }
 
@@ -1082,8 +1082,10 @@ QUrl QgsWmsProvider::createRequestUrlWMS( const QgsRectangle &viewExtent, int pi
 void QgsWmsProvider::addWmstParameters( QUrlQuery &query )
 {
   QgsDateTimeRange range = temporalCapabilities()->requestedTemporalRange();
+
   QString format { QStringLiteral( "yyyy-MM-ddThh:mm:ssZ" ) };
   QgsDataSourceUri uri { dataSourceUri() };
+  bool dateOnly = false;
 
   if ( range.isInfinite() )
   {
@@ -1101,7 +1103,10 @@ void QgsWmsProvider::addWmstParameters( QUrlQuery &query )
   }
 
   if ( uri.param( QStringLiteral( "enableTime" ) ) == QLatin1String( "no" ) )
+  {
     format = "yyyy-MM-dd";
+    dateOnly = true;
+  }
 
   if ( range.begin().isValid() && range.end().isValid() )
   {
@@ -1117,14 +1122,14 @@ void QgsWmsProvider::addWmstParameters( QUrlQuery &query )
         break;
       case QgsRasterDataProviderTemporalCapabilities::FindClosestMatchToStartOfRange:
       {
-        QDateTime dateTimeStart = mSettings.findLeastClosestDateTime( range.begin() );
+        QDateTime dateTimeStart = mSettings.findLeastClosestDateTime( range.begin(), dateOnly );
         range = QgsDateTimeRange( dateTimeStart, dateTimeStart );
         break;
       }
 
       case QgsRasterDataProviderTemporalCapabilities::FindClosestMatchToEndOfRange:
       {
-        QDateTime dateTimeEnd = mSettings.findLeastClosestDateTime( range.end() );
+        QDateTime dateTimeEnd = mSettings.findLeastClosestDateTime( range.end(), dateOnly );
         range = QgsDateTimeRange( dateTimeEnd, dateTimeEnd );
         break;
       }
@@ -1460,7 +1465,7 @@ void QgsWmsProvider::setupXyzCapabilities( const QString &uri, const QgsRectangl
 bool QgsWmsProvider::setupMBTilesCapabilities( const QString &uri )
 {
   // if it is MBTiles source, let's prepare the reader to get some metadata
-  QgsMBTilesReader mbtilesReader( QUrl( mSettings.mBaseUrl ).path() );
+  QgsMbTiles mbtilesReader( QUrl( mSettings.mBaseUrl ).path() );
   if ( !mbtilesReader.open() )
     return false;
 
@@ -3531,6 +3536,12 @@ QVector<QgsWmsSupportedFormat> QgsWmsProvider::supportedFormats()
     formats << p1 << p2 << p3 << p4 << p5 << p6;
   }
 
+  if ( supportedFormats.contains( "webp" ) )
+  {
+    QgsWmsSupportedFormat p1 = { "image/webp", "WebP" };
+    formats << p1;
+  }
+
   if ( supportedFormats.contains( "jpg" ) )
   {
     QgsWmsSupportedFormat j1 = { "image/jpeg", "JPEG" };
@@ -4543,6 +4554,30 @@ QList<QgsDataItemProvider *> QgsWmsProviderMetadata::dataItemProviders() const
       << new QgsXyzTileDataItemProvider;
 
   return providers;
+}
+
+QVariantMap QgsWmsProviderMetadata::decodeUri( const QString &uri )
+{
+  const QUrlQuery query { uri };
+  const auto constItems { query.queryItems() };
+  QVariantMap decoded;
+  for ( const auto &item : constItems )
+  {
+    decoded[ item.first ] = item.second;
+  }
+  return decoded;
+}
+
+QString QgsWmsProviderMetadata::encodeUri( const QVariantMap &parts )
+{
+  QUrlQuery query;
+  QList<QPair<QString, QString> > items;
+  for ( auto it = parts.constBegin(); it != parts.constEnd(); ++it )
+  {
+    items.push_back( {it.key(), it.value().toString() } );
+  }
+  query.setQueryItems( items );
+  return query.toString();
 }
 
 #ifndef HAVE_STATIC_PROVIDERS

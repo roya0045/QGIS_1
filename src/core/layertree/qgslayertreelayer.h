@@ -176,6 +176,28 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
      */
     void updateSymbolExpressions();
 
+    /**
+     * Returns the user (overridden) size for the legend node.
+     *
+     * If either the width or height are non-zero, they will be used when rendering the legend node instead of the default
+     * symbol width or height from QgsLegendSettings.
+     *
+     * \see setPatchSize()
+     * \since QGIS 3.14
+     */
+    QSizeF patchSize() const { return mPatchSize; }
+
+    /**
+     * Sets the user (overridden) \a size for the legend node.
+     *
+     * If either the width or height are non-zero, they will be used when rendering the legend node instead of the default
+     * symbol width or height from QgsLegendSettings.
+     *
+     * \see patchSize()
+     * \since QGIS 3.14
+     */
+    void setPatchSize( QSizeF size ) { mPatchSize = size; }
+
   signals:
 
     /**
@@ -237,6 +259,7 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
 #endif
 
     QgsLegendPatchShape mPatchShape;
+    QSizeF mPatchSize;
 };
 
 

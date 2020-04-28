@@ -1746,7 +1746,6 @@ void TestQgsGeometry::circularString()
   QVERIFY( !segmentized->isMeasure() );
   QCOMPARE( segmentized->wkbType(), QgsWkbTypes::LineString );
 
-
   //to/from WKB
   QgsCircularString l15;
   l15.setPoints( QgsPointSequence() << QgsPoint( QgsWkbTypes::PointZM, 1, 2, 3, 4 )
@@ -5179,6 +5178,12 @@ void TestQgsGeometry::polygon()
   QVERIFY( p6c.interiorRing( 2 )->is3D() );
   QVERIFY( !p6c.interiorRing( 2 )->isMeasure() );
   QCOMPARE( p6c.interiorRing( 2 )->wkbType(), QgsWkbTypes::LineString25D );
+
+  // alternate constructor
+  QgsPolygon pc6( new QgsLineString( QVector<QgsPoint>() << QgsPoint( 0, 0 ) << QgsPoint( 0, 10 ) << QgsPoint( 10, 10 ) << QgsPoint( 10, 0 ) << QgsPoint( 0, 0 ) ),
+                  QList< QgsLineString *>() << new QgsLineString( QVector< QgsPoint >() << QgsPoint( 1, 1 ) << QgsPoint( 2, 1 ) << QgsPoint( 2, 2 ) << QgsPoint( 1, 2 ) << QgsPoint( 1, 1 ) )
+                  << new QgsLineString( QVector< QgsPoint >() << QgsPoint( 3, 1 ) << QgsPoint( 4, 1 ) << QgsPoint( 4, 2 ) << QgsPoint( 3, 2 ) << QgsPoint( 3, 1 ) ) );
+  QCOMPARE( pc6.asWkt(), QStringLiteral( "Polygon ((0 0, 0 10, 10 10, 10 0, 0 0),(1 1, 2 1, 2 2, 1 2, 1 1),(3 1, 4 1, 4 2, 3 2, 3 1))" ) );
 
   //set interior rings
   QgsPolygon p7;
@@ -13599,6 +13604,20 @@ void TestQgsGeometry::multiCurve()
   QCOMPARE( ls->pointN( 0 ), QgsPoint( QgsWkbTypes::PointZM, 27, 53, 21, 52 ) );
   QCOMPARE( ls->pointN( 1 ), QgsPoint( QgsWkbTypes::PointZM, 43, 43, 11, 5 ) );
   QCOMPARE( ls->pointN( 2 ), QgsPoint( QgsWkbTypes::PointZM, 27, 37, 6, 2 ) );
+
+  // segmentize
+  QgsMultiCurve multiCurve2;
+  QgsCompoundCurve compoundCurve2;
+  QgsCircularString circularString2;
+  circularString2.setPoints( QgsPointSequence() << QgsPoint( 1, 2 ) << QgsPoint( 11, 10 ) << QgsPoint( 21, 2 ) );
+  compoundCurve2.addCurve( circularString2.clone() );
+  multiCurve2.addGeometry( compoundCurve2.clone() );
+  QgsMultiLineString *segmentized2 = static_cast<QgsMultiLineString *>( multiCurve2.segmentize() );
+  QCOMPARE( segmentized2->vertexCount(), 156 );
+  QCOMPARE( segmentized2->partCount(), 1 );
+  QVERIFY( !segmentized2->is3D() );
+  QVERIFY( !segmentized2->isMeasure() );
+  QCOMPARE( segmentized2->wkbType(),  QgsWkbTypes::Type::MultiLineString );
 }
 
 void TestQgsGeometry::multiSurface()

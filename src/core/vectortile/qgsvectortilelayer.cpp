@@ -17,8 +17,10 @@
 
 #include "qgslogger.h"
 #include "qgsvectortilelayerrenderer.h"
-#include "qgsmbtilesreader.h"
+#include "qgsmbtiles.h"
+#include "qgsvectortilebasiclabeling.h"
 #include "qgsvectortilebasicrenderer.h"
+#include "qgsvectortilelabeling.h"
 #include "qgsvectortileloader.h"
 
 #include "qgsdatasourceuri.h"
@@ -59,10 +61,17 @@ bool QgsVectorTileLayer::loadDataSource()
   }
   else if ( mSourceType == QStringLiteral( "mbtiles" ) )
   {
-    QgsMBTilesReader reader( mSourcePath );
+    QgsMbTiles reader( mSourcePath );
     if ( !reader.open() )
     {
       QgsDebugMsg( QStringLiteral( "failed to open MBTiles file: " ) + mSourcePath );
+      return false;
+    }
+
+    QString format = reader.metadataValue( QStringLiteral( "format" ) );
+    if ( format != QStringLiteral( "pbf" ) )
+    {
+      QgsDebugMsg( QStringLiteral( "Cannot open MBTiles for vector tiles. Format = " ) + format );
       return false;
     }
 
@@ -148,6 +157,27 @@ bool QgsVectorTileLayer::readSymbology( const QDomNode &node, QString &errorMess
 
   r->readXml( elemRenderer, context );
   setRenderer( r );
+
+  setLabeling( nullptr );
+  QDomElement elemLabeling = elem.firstChildElement( QStringLiteral( "labeling" ) );
+  if ( !elemLabeling.isNull() )
+  {
+    QString labelingType = elemLabeling.attribute( QStringLiteral( "type" ) );
+    QgsVectorTileLabeling *labeling = nullptr;
+    if ( labelingType == QStringLiteral( "basic" ) )
+      labeling = new QgsVectorTileBasicLabeling;
+    else
+    {
+      errorMessage = tr( "Unknown labeling type: " ) + rendererType;
+    }
+
+    if ( labeling )
+    {
+      labeling->readXml( elemLabeling, context );
+      setLabeling( labeling );
+    }
+  }
+
   return true;
 }
 
@@ -165,6 +195,15 @@ bool QgsVectorTileLayer::writeSymbology( QDomNode &node, QDomDocument &doc, QStr
     mRenderer->writeXml( elemRenderer, context );
     elem.appendChild( elemRenderer );
   }
+
+  if ( mLabeling )
+  {
+    QDomElement elemLabeling = doc.createElement( QStringLiteral( "labeling" ) );
+    elemLabeling.setAttribute( QStringLiteral( "type" ), mLabeling->type() );
+    mLabeling->writeXml( elemLabeling, context );
+    elem.appendChild( elemLabeling );
+  }
+
   return true;
 }
 
@@ -190,4 +229,14 @@ void QgsVectorTileLayer::setRenderer( QgsVectorTileRenderer *r )
 QgsVectorTileRenderer *QgsVectorTileLayer::renderer() const
 {
   return mRenderer.get();
+}
+
+void QgsVectorTileLayer::setLabeling( QgsVectorTileLabeling *labeling )
+{
+  mLabeling.reset( labeling );
+}
+
+QgsVectorTileLabeling *QgsVectorTileLayer::labeling() const
+{
+  return mLabeling.get();
 }
