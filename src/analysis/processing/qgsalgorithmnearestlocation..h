@@ -61,10 +61,16 @@ class QgsNearestLocationAlgorithm : public QgsProcessingAlgorithm
 
     enum JoinMethod
     {
-      OneToMany = 0,
-      JoinToFirst = 1,
-      JoinToLargestOverlap = 2
+      Nearest = 0,
+      JoinToAll = 1
     };
+
+    enum OutputType
+    {
+      SinglePoint = 0,
+      LineToCenter = 1,
+      LineToClosest = 2
+    }
     long mJoinedCount = 0;
     std::unique_ptr< QgsProcessingFeatureSource > mBaseSource;
     std::unique_ptr< QgsProcessingFeatureSource > mJoinSource;
@@ -73,7 +79,8 @@ class QgsNearestLocationAlgorithm : public QgsProcessingAlgorithm
     std::unique_ptr< QgsFeatureSink > mJoinedFeatures;
     QgsFeatureIds mAddedIds;
     std::unique_ptr< QgsFeatureSink > mUnjoinedFeatures;
-    JoinMethod mJoinMethod = OneToMany;
+    JoinMethod mJoinMethod = Nearest;
+    OutputType mOutputType = SinglePoint;
     QList<int> mPredicates;
 
     static void sortPredicates( QList<int > &predicates );

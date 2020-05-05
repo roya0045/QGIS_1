@@ -42,15 +42,18 @@ void QgsNearestLocationAlgorithm::initAlgorithm( const QVariantMap & )
 
   QStringList joinMethods;
   joinMethods << QObject::tr( "Make a feature for each matching feature (one-to-many)" )
-              << QObject::tr( "Make a feature for the first matching feature only (one-to-one)" );
+              << QObject::tr( "Make a feature for the nearest matching feature only (one-to-one)" );
   addParameter( new QgsProcessingParameterEnum( QStringLiteral( "METHOD" ),
                 QObject::tr( "Join type" ),
-                joinMethods, false, static_cast< int >( OneToMany ) ) );
+                joinMethods, false, static_cast< int >( Nearest ) ) );
 
-  QStringList outputTypes;
-  outputTypes << QObject::tr( "Point" )
+  QStringList OutputType;
+  outputType << QObject::tr( "Point" )
              << QObject::tr( "Line to center" )
              << QObject::tr( "Line to closest point" );
+  addParameter( new QgsProcessingParameterEnum( QStringLiteral( "OUTPUTTYPE" ),
+                QObject::tr( "Output type" ),
+                outputType, false, static_cast< int >( Point ) ) );
 
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "NEIGHBORS" ),
                 QObject::tr( "Maximum nearest neighbors" ), QgsProcessingParameterNumber::Integer, 1, false, 1 ) );
@@ -58,9 +61,7 @@ void QgsNearestLocationAlgorithm::initAlgorithm( const QVariantMap & )
   addParameter( new QgsProcessingParameterDistance( QStringLiteral( "MAX_DISTANCE" ),
                 QObject::tr( "Maximum distance" ), QVariant(), QStringLiteral( "INPUT" ), true, 0 ) );
 
-  addParameter( new QgsProcessingParameterEnum( QStringLiteral( "OUTPUTTYPE" ),
-                QObject::tr( "Output type" ),
-                outputTypes, false, static_cast< int >( OneToMany ) ) );
+
 
   addParameter( new QgsProcessingParameterString( QStringLiteral( "PREFIX" ),
                 QObject::tr( "Joined field prefix" ), QVariant(), false, true ) );
@@ -119,11 +120,12 @@ QVariantMap QgsNearestLocationAlgorithm::processAlgorithm( const QVariantMap &pa
   if ( !mBaseSource )
     throw QgsProcessingException( invalidSourceError( parameters, QStringLiteral( "INPUT" ) ) );
 
-  mJoinSource.reset( parameterAsSource( parameters, QStringLiteral( "JOIN" ), context ) );
+  mJoinSource.reset( parameterAsSource( parameters, QStringLiteral( "TARGET" ), context ) );
   if ( !mJoinSource )
-    throw QgsProcessingException( invalidSourceError( parameters, QStringLiteral( "JOIN" ) ) );
+    throw QgsProcessingException( invalidSourceError( parameters, QStringLiteral( "TARGET" ) ) );
 
   mJoinMethod = static_cast< JoinMethod >( parameterAsEnum( parameters, QStringLiteral( "METHOD" ), context ) );
+  mOutputType = static_cast< OutputType >( parameterAsEnum( parameters, QStringLiteral( "OUTPUTTYPE" ), context ) );
 
   const QStringList joinedFieldNames = parameterAsFields( parameters, QStringLiteral( "JOIN_FIELDS" ), context );
 
@@ -169,13 +171,38 @@ QVariantMap QgsNearestLocationAlgorithm::processAlgorithm( const QVariantMap &pa
   if ( parameters.value( QStringLiteral( "OUTPUT" ) ).isValid() && !mJoinedFeatures )
     throw QgsProcessingException( invalidSinkError( parameters, QStringLiteral( "OUTPUT" ) ) );
 
-  mDiscardNonMatching = parameterAsBoolean( parameters, QStringLiteral( "DISCARD_NONMATCHING" ), context );
+  const double maxDistance = parameters.value( QStringLiteral( "MAX_DISTANCE" ) ).isValid() ? parameterAsDouble( parameters, QStringLiteral( "MAX_DISTANCE" ), context ) : std::numeric_limits< double >::quiet_NaN();
 
-  QString nonMatchingSinkId;
-  mUnjoinedFeatures.reset( parameterAsSink( parameters, QStringLiteral( "NON_MATCHING" ), context, nonMatchingSinkId, mBaseSource->fields(),
-                           mBaseSource->wkbType(), mBaseSource->sourceCrs(), QgsFeatureSink::RegeneratePrimaryKey ) );
-  if ( parameters.value( QStringLiteral( "NON_MATCHING" ) ).isValid() && !mUnjoinedFeatures )
-    throw QgsProcessingException( invalidSinkError( parameters, QStringLiteral( "NON_MATCHING" ) ) );
+
+  // make spatial index
+  QgsFeatureIterator f2 = input2->getFeatures( QgsFeatureRequest().setDestinationCrs( input->sourceCrs(), context.transformContext() ).setSubsetOfAttributes( fields2Fetch ) );
+  QHash< QgsFeatureId, QgsAttributes > input2AttributeCache;
+  double step = input2->featureCount() > 0 ? 50.0 / input2->featureCount() : 1;
+  int i = 0;
+  QgsSpatialIndex index( f2, [&]( const QgsFeature & f )->bool
+  {
+    i++;
+    if ( feedback->isCanceled() )
+      return false;
+
+    feedback->setProgress( i * step );
+
+    if ( !f.hasGeometry() )
+      return true;
+
+    // only keep selected attributes
+    QgsAttributes attributes;
+    for ( int j = 0; j < f.attributes().count(); ++j )
+    {
+      if ( ! fields2Indices.contains( j ) )
+        continue;
+      attributes << f.attribute( j );
+    }
+    input2AttributeCache.insert( f.id(), attributes );
+
+    return true;
+  }
+  , QgsSpatialIndex::FlagStoreFeatureGeometries );
 
   switch ( mJoinMethod )
   {
@@ -200,9 +227,6 @@ QVariantMap QgsNearestLocationAlgorithm::processAlgorithm( const QVariantMap &pa
       break;
     }
 
-    case JoinToLargestOverlap:
-      processAlgorithmByIteratingOverInputSource( context, feedback );
-      break;
   }
 
   QVariantMap outputs;
@@ -210,101 +234,13 @@ QVariantMap QgsNearestLocationAlgorithm::processAlgorithm( const QVariantMap &pa
   {
     outputs.insert( QStringLiteral( "OUTPUT" ), joinedSinkId );
   }
-  if ( mUnjoinedFeatures )
-  {
-    outputs.insert( QStringLiteral( "NON_MATCHING" ), nonMatchingSinkId );
-  }
+
 
   // need to release sinks to finalize writing
   mJoinedFeatures.reset();
-  mUnjoinedFeatures.reset();
 
   outputs.insert( QStringLiteral( "JOINED_COUNT" ), static_cast< long long >( mJoinedCount ) );
   return outputs;
-}
-
-bool QgsNearestLocationAlgorithm::featureFilter( const QgsFeature &feature, QgsGeometryEngine *engine, bool comparingToJoinedFeature ) const
-{
-  const QgsAbstractGeometry *geom = feature.geometry().constGet();
-  bool ok = false;
-  for ( const int predicate : mPredicates )
-  {
-    switch ( predicate )
-    {
-      case 0:
-        // intersects
-        if ( engine->intersects( geom ) )
-        {
-          ok = true;
-        }
-        break;
-      case 1:
-        // contains
-        if ( comparingToJoinedFeature )
-        {
-          if ( engine->contains( geom ) )
-          {
-            ok = true;
-          }
-        }
-        else
-        {
-          if ( engine->within( geom ) )
-          {
-            ok = true;
-          }
-        }
-        break;
-      case 2:
-        // equals
-        if ( engine->isEqual( geom ) )
-        {
-          ok = true;
-        }
-        break;
-      case 3:
-        // touches
-        if ( engine->touches( geom ) )
-        {
-          ok = true;
-        }
-        break;
-      case 4:
-        // overlaps
-        if ( engine->overlaps( geom ) )
-        {
-          ok = true;
-        }
-        break;
-      case 5:
-        // within
-        if ( comparingToJoinedFeature )
-        {
-          if ( engine->within( geom ) )
-          {
-            ok = true;
-          }
-        }
-        else
-        {
-          if ( engine->contains( geom ) )
-          {
-            ok = true;
-          }
-        }
-        break;
-      case 6:
-        // crosses
-        if ( engine->crosses( geom ) )
-        {
-          ok = true;
-        }
-        break;
-    }
-    if ( ok )
-      return ok;
-  }
-  return ok;
 }
 
 void QgsNearestLocationAlgorithm::processAlgorithmByIteratingOverJoinedSource( QgsProcessingContext &context, QgsProcessingFeedback *feedback )
@@ -329,38 +265,6 @@ void QgsNearestLocationAlgorithm::processAlgorithmByIteratingOverJoinedSource( Q
     feedback->setProgress( i * step );
   }
 
-  if ( !mDiscardNonMatching || mUnjoinedFeatures )
-  {
-    QgsFeatureIds unjoinedIds = mBaseSource->allFeatureIds();
-    unjoinedIds.subtract( mAddedIds );
-
-    QgsFeature f2;
-    QgsFeatureRequest remainings = QgsFeatureRequest().setFilterFids( unjoinedIds );
-    QgsFeatureIterator remainIter = mBaseSource->getFeatures( remainings );
-
-    QgsAttributes emptyAttributes;
-    emptyAttributes.reserve( mJoinedFieldIndices.count() );
-    for ( int i = 0; i < mJoinedFieldIndices.count(); ++i )
-      emptyAttributes << QVariant();
-
-    while ( remainIter.nextFeature( f2 ) )
-    {
-      if ( feedback->isCanceled() )
-        break;
-
-      if ( mJoinedFeatures && !mDiscardNonMatching )
-      {
-        QgsAttributes attributes = f2.attributes();
-        attributes.append( emptyAttributes );
-        QgsFeature outputFeature( f2 );
-        outputFeature.setAttributes( attributes );
-        mJoinedFeatures->addFeature( outputFeature, QgsFeatureSink::FastInsert );
-      }
-
-      if ( mUnjoinedFeatures )
-        mUnjoinedFeatures->addFeature( f2, QgsFeatureSink::FastInsert );
-    }
-  }
 }
 
 void QgsNearestLocationAlgorithm::processAlgorithmByIteratingOverInputSource( QgsProcessingContext &context, QgsProcessingFeedback *feedback )
@@ -383,32 +287,6 @@ void QgsNearestLocationAlgorithm::processAlgorithmByIteratingOverInputSource( Qg
     i++;
     feedback->setProgress( i * step );
   }
-}
-
-void QgsNearestLocationAlgorithm::sortPredicates( QList<int> &predicates )
-{
-  // Sort predicate list so that faster predicates are earlier in the list
-  // Some predicates in GEOS do not have prepared geometry implementations, and are slow to calculate. So if users
-  // are testing multiple predicates, make sure the optimised ones are always tested first just in case we can shortcut
-  // these slower ones
-
-  std::sort( predicates.begin(), predicates.end(), []( int a, int b ) -> bool
-  {
-    // return true if predicate a is faster than b
-
-    if ( a == 0 ) // intersects is fastest
-      return true;
-    else if ( b == 0 )
-      return false;
-
-    else if ( a == 5 ) // contains is fast for polygons
-      return true;
-    else if ( b == 5 )
-      return false;
-
-    // that's it, the rest don't have optimised prepared methods (as of GEOS 3.8)
-    return a < b;
-  } );
 }
 
 bool QgsNearestLocationAlgorithm::processFeatureFromJoinSource( QgsFeature &joinFeature, QgsProcessingFeedback *feedback )
@@ -543,34 +421,6 @@ bool QgsNearestLocationAlgorithm::processFeatureFromInputSource( QgsFeature &bas
           }
           break;
 
-        case JoinToLargestOverlap:
-        {
-          // calculate area of overlap
-          std::unique_ptr< QgsAbstractGeometry > intersection( engine->intersection( joinFeature.geometry().constGet() ) );
-          double overlap = 0;
-          switch ( QgsWkbTypes::geometryType( intersection->wkbType() ) )
-          {
-            case QgsWkbTypes::LineGeometry:
-              overlap = intersection->length();
-              break;
-
-            case QgsWkbTypes::PolygonGeometry:
-              overlap = intersection->area();
-              break;
-
-            case QgsWkbTypes::UnknownGeometry:
-            case QgsWkbTypes::PointGeometry:
-            case QgsWkbTypes::NullGeometry:
-              break;
-          }
-
-          if ( overlap > largestOverlap )
-          {
-            largestOverlap  = overlap;
-            bestMatch = joinFeature;
-          }
-          break;
-        }
       }
 
       ok = true;
@@ -580,61 +430,7 @@ bool QgsNearestLocationAlgorithm::processFeatureFromInputSource( QgsFeature &bas
     }
   }
 
-  switch ( mJoinMethod )
-  {
-    case OneToMany:
-    case JoinToFirst:
-      break;
-
-    case JoinToLargestOverlap:
-    {
-      if ( bestMatch.isValid() )
-      {
-        // grab attributes from feature with best match
-        if ( mJoinedFeatures )
-        {
-          QgsAttributes joinAttributes = baseFeature.attributes();
-          joinAttributes.reserve( joinAttributes.size() + mJoinedFieldIndices.size() );
-          for ( int ix : qgis::as_const( mJoinedFieldIndices ) )
-          {
-            joinAttributes.append( bestMatch.attribute( ix ) );
-          }
-
-          QgsFeature outputFeature( baseFeature );
-          outputFeature.setAttributes( joinAttributes );
-          mJoinedFeatures->addFeature( outputFeature, QgsFeatureSink::FastInsert );
-        }
-      }
-      else
-      {
-        ok = false; // shouldn't happen...
-      }
-      break;
-    }
-  }
-
-  if ( !ok )
-  {
-    // didn't find a match...
-    if ( mJoinedFeatures && !mDiscardNonMatching )
-    {
-      QgsAttributes emptyAttributes;
-      emptyAttributes.reserve( mJoinedFieldIndices.count() );
-      for ( int i = 0; i < mJoinedFieldIndices.count(); ++i )
-        emptyAttributes << QVariant();
-
-      QgsAttributes attributes = baseFeature.attributes();
-      attributes.append( emptyAttributes );
-      QgsFeature outputFeature( baseFeature );
-      outputFeature.setAttributes( attributes );
-      mJoinedFeatures->addFeature( outputFeature, QgsFeatureSink::FastInsert );
-    }
-
-    if ( mUnjoinedFeatures )
-      mUnjoinedFeatures->addFeature( baseFeature, QgsFeatureSink::FastInsert );
-  }
-  else
-    mJoinedCount++;
+  mJoinedCount++;
 
   return ok;
 }
