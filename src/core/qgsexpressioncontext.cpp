@@ -21,6 +21,7 @@
 const QString QgsExpressionContext::EXPR_FIELDS( QStringLiteral( "_fields_" ) );
 const QString QgsExpressionContext::EXPR_ORIGINAL_VALUE( QStringLiteral( "value" ) );
 const QString QgsExpressionContext::EXPR_SYMBOL_COLOR( QStringLiteral( "symbol_color" ) );
+const QString QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR( QStringLiteral( "symbol_rgba_color" ) );
 const QString QgsExpressionContext::EXPR_SYMBOL_ANGLE( QStringLiteral( "symbol_angle" ) );
 const QString QgsExpressionContext::EXPR_GEOMETRY_PART_COUNT( QStringLiteral( "geometry_part_count" ) );
 const QString QgsExpressionContext::EXPR_GEOMETRY_PART_NUM( QStringLiteral( "geometry_part_num" ) );

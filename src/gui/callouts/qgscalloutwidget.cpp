@@ -30,6 +30,7 @@ QgsExpressionContext QgsCalloutWidget::createExpressionContext() const
   QgsExpressionContext expContext( mContext.globalProjectAtlasMapLayerScopes( vectorLayer() ) );
   QgsExpressionContextScope *symbolScope = QgsExpressionContextUtils::updateSymbolScope( nullptr, new QgsExpressionContextScope() );
   symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_COLOR, QColor(), true ) );
+  symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR, QColor().rgba(), true ) );
   expContext << symbolScope;
 
   // additional scopes
@@ -42,7 +43,7 @@ QgsExpressionContext QgsCalloutWidget::createExpressionContext() const
   //TODO - show actual value
   expContext.setOriginalValueVariable( QVariant() );
 
-  expContext.setHighlightedVariables( QStringList() << QgsExpressionContext::EXPR_ORIGINAL_VALUE << QgsExpressionContext::EXPR_SYMBOL_COLOR );
+  expContext.setHighlightedVariables( QStringList() << QgsExpressionContext::EXPR_ORIGINAL_VALUE << QgsExpressionContext::EXPR_SYMBOL_COLOR << QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR );
 
   return expContext;
 }

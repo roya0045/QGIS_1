@@ -723,6 +723,8 @@ class CORE_EXPORT QgsExpressionContext
     static const QString EXPR_ORIGINAL_VALUE;
     //! Inbuilt variable name for symbol color variable
     static const QString EXPR_SYMBOL_COLOR;
+    //! Inbuilt variable name for symbol color variable
+    static const QString EXPR_SYMBOL_RGBA_COLOR;
     //! Inbuilt variable name for symbol angle variable
     static const QString EXPR_SYMBOL_ANGLE;
     //! Inbuilt variable name for geometry part count variable

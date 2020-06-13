@@ -258,6 +258,7 @@ QgsExpressionContext QgsLayerPropertiesWidget::createExpressionContext() const
     //cheat a bit - set the symbol color variable to match the symbol layer's color (when we should really be using the *symbols*
     //color, but that's not accessible here). 99% of the time these will be the same anyway
     symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_COLOR, mLayer->color(), true ) );
+    symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR, mLayer->color().rgba(), true ) );
   }
   expContext << symbolScope;
   expContext.lastScope()->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_GEOMETRY_PART_COUNT, 1, true ) );
@@ -283,6 +284,7 @@ QgsExpressionContext QgsLayerPropertiesWidget::createExpressionContext() const
                                       << QgsExpressionContext::EXPR_GEOMETRY_PART_COUNT << QgsExpressionContext::EXPR_GEOMETRY_PART_NUM
                                       << QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT << QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM
                                       << QgsExpressionContext::EXPR_CLUSTER_COLOR << QgsExpressionContext::EXPR_CLUSTER_SIZE
+                                      << QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR
                                       << QStringLiteral( "symbol_layer_count" ) << QStringLiteral( "symbol_layer_index" ) );
 
   return expContext;
