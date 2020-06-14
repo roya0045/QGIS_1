@@ -828,6 +828,7 @@ void QgsExpression::initVariableHelp()
   sVariableHelpTexts()->insert( QStringLiteral( "geometry_point_num" ), QCoreApplication::translate( "variable_help", "Current point number in the rendered geometry's part. It is only meaningful for line geometries and for symbol layers that set this variable." ) );
 
   sVariableHelpTexts()->insert( QStringLiteral( "symbol_color" ), QCoreApplication::translate( "symbol_color", "Color of symbol used to render the feature." ) );
+  sVariableHelpTexts()->insert( QStringLiteral( "symbol_rgba_color" ), QCoreApplication::translate( "symbol_rgba_color", "RGBA values of the symbol's color used to render the feature." ) );
   sVariableHelpTexts()->insert( QStringLiteral( "symbol_angle" ), QCoreApplication::translate( "symbol_angle", "Angle of symbol used to render the feature (valid for marker symbols only)." ) );
   sVariableHelpTexts()->insert( QStringLiteral( "symbol_layer_count" ), QCoreApplication::translate( "symbol_layer_count", "Total number of symbol layers in the symbol." ) );
   sVariableHelpTexts()->insert( QStringLiteral( "symbol_layer_index" ), QCoreApplication::translate( "symbol_layer_index", "Current symbol layer index." ) );
