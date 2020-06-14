@@ -51,8 +51,10 @@ QgsExpressionContext QgsLabelSettingsWidgetBase::createExpressionContext() const
 
   QgsExpressionContext expContext( mContext.globalProjectAtlasMapLayerScopes( mVectorLayer ) );
   QgsExpressionContextScope *symbolScope = QgsExpressionContextUtils::updateSymbolScope( nullptr, new QgsExpressionContextScope() );
-  symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_COLOR, QColor(), true ) );
-  symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR, QColor().rgba(), true ) );
+  QColor color = QColor();
+  QString colorstr = QString("#%1%2%3%4").arg(color.red(),color.green(),color.blue(),color.alpha());
+  symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_COLOR, color, true ) );
+  symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR, colorstr, true ) );
   expContext << symbolScope;
 
   // additional scopes

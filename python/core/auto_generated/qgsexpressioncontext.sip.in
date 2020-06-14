@@ -788,6 +788,7 @@ Clears all cached values from the context.
     static const QString EXPR_FIELDS;
     static const QString EXPR_ORIGINAL_VALUE;
     static const QString EXPR_SYMBOL_COLOR;
+    static const QString EXPR_SYMBOL_RGBA_COLOR;
     static const QString EXPR_SYMBOL_ANGLE;
     static const QString EXPR_GEOMETRY_PART_COUNT;
     static const QString EXPR_GEOMETRY_PART_NUM;

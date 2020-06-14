@@ -459,7 +459,8 @@ QgsExpressionContextScope *QgsExpressionContextUtils::updateSymbolScope( const Q
 {
   if ( !symbolScope )
     return nullptr;
-
+  QColor color = symbol ? symbol->color() : QColor();
+  QString colorstr = QString("#%1%2%3%4").arg(color.red(),color.green(),color.blue(),color.alpha());
   symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_COLOR, symbol ? symbol->color() : QColor(), true ) );
   symbolScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_SYMBOL_RGBA_COLOR, symbol ? symbol->color().rgba() : QColor().rgba(), true ) );
 
