@@ -2660,7 +2660,7 @@ class CORE_EXPORT QgsProcessingDestinationParameter : public QgsProcessingParame
      * output will not be created by default.
      */
     QgsProcessingDestinationParameter( const QString &name, const QString &description = QString(), const QVariant &defaultValue = QVariant(),
-                                       bool optional = false, bool createByDefault = true );
+                                       bool optional = false, bool createByDefault = true, const QString &displayName =QString() );
 
     bool isDestination() const override { return true; }
     QVariantMap toVariantMap() const override;
@@ -2730,6 +2730,20 @@ class CORE_EXPORT QgsProcessingDestinationParameter : public QgsProcessingParame
      * \see createByDefault()
      */
     void setCreateByDefault( bool createByDefault );
+    
+    /**
+     * Returns the string to be set as the layer name.
+     * If no diplayName was set returns the name parameter.
+     * \since QGIS 3.18
+     */
+     QString displayName() const;
+     
+    /**
+     * Returns the string to be set as the layer name.
+     * If no diplayName was set returns the name parameter.
+     * \since QGIS 3.18
+     */
+     QString setDisplayName( const QString &name ){ mDisplayName = name };
 
   protected:
 
@@ -2756,6 +2770,7 @@ class CORE_EXPORT QgsProcessingDestinationParameter : public QgsProcessingParame
 
     bool mSupportsNonFileBasedOutputs = true;
     bool mCreateByDefault = true;
+    QString mDisplayName;
 
     friend class QgsProcessingModelAlgorithm;
     friend class TestQgsProcessing;
