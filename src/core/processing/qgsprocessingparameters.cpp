@@ -5513,9 +5513,10 @@ QgsProcessingParameterFolderDestination *QgsProcessingParameterFolderDestination
   return new QgsProcessingParameterFolderDestination( name, description, definition.isEmpty() ? QVariant() : definition, isOptional );
 }
 
-QgsProcessingDestinationParameter::QgsProcessingDestinationParameter( const QString &name, const QString &description, const QVariant &defaultValue, bool optional, bool createByDefault )
+QgsProcessingDestinationParameter::QgsProcessingDestinationParameter( const QString &name, const QString &description, const QVariant &defaultValue, bool optional, bool createByDefault, const &QString &displayName )
   : QgsProcessingParameterDefinition( name, description, defaultValue, optional )
   , mCreateByDefault( createByDefault )
+  , mDisplayName( displayName )
 {
 
 }
@@ -5603,6 +5604,13 @@ bool QgsProcessingDestinationParameter::createByDefault() const
 void QgsProcessingDestinationParameter::setCreateByDefault( bool createByDefault )
 {
   mCreateByDefault = createByDefault;
+}
+
+QString QgsProcessingDestinationParameter::displayName() const
+{
+  if ( !mDisplayName.isEmpty() )
+    return mDisplayName;
+  return name();
 }
 
 QgsProcessingParameterVectorDestination::QgsProcessingParameterVectorDestination( const QString &name, const QString &description, QgsProcessing::SourceType type, const QVariant &defaultValue, bool optional, bool createByDefault )
