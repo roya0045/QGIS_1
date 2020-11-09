@@ -219,12 +219,12 @@ QVariantMap QgsProcessingModelAlgorithm::parametersForChildAlgorithm( const QgsP
         bool required = true;
         if ( destParam->flags() & QgsProcessingParameterDefinition::FlagOptional )
         {
-          required = childOutputIsRequired( child.childId(), destParam->name() );
+          required = childOutputIsRequired( child.childId(), destParam->nameAlias() );
         }
 
         // not optional, or required elsewhere in model
         if ( required )
-          childParams.insert( destParam->name(), destParam->generateTemporaryDestination() );
+          childParams.insert( destParam->nameAlias(), destParam->generateTemporaryDestination() );
       }
     }
   }
