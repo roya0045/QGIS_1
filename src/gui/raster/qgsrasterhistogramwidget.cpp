@@ -409,6 +409,7 @@ void QgsRasterHistogramWidget::refreshHistogram()
   // add a grid
   QwtPlotGrid *myGrid = new QwtPlotGrid();
   myGrid->attach( mpPlot );
+  myGrid->setPen( Qt::darkGray );
 
   // make colors list
   mHistoColors.clear();
@@ -436,8 +437,8 @@ void QgsRasterHistogramWidget::refreshHistogram()
     {
       if ( i == myGrayBand )
       {
-        mHistoColors << Qt::darkGray;
-        cboHistoBand->setItemData( i - 1, QColor( Qt::darkGray ), Qt::ForegroundRole );
+        mHistoColors << Qt::black;
+        cboHistoBand->setItemData( i - 1, QColor( Qt::black ), Qt::ForegroundRole );
       }
       else
       {
