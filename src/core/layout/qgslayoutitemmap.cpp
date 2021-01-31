@@ -124,6 +124,7 @@ void QgsLayoutItemMap::assignFreeId()
     mMapId = maxId + 1;
     mLayout->itemsModel()->updateItemDisplayName( this );
   }
+  QgsLayoutItem::setId( tr( "Map %1" ).arg( mMapId ) );
   updateToolTip();
 }
 

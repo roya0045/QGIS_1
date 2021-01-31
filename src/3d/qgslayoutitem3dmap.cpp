@@ -77,6 +77,7 @@ void QgsLayoutItem3DMap::assignFreeId()
     mMapId = maxId + 1;
     mLayout->itemsModel()->updateItemDisplayName( this );
   }
+  QgsLayoutItem::setId( tr( "3D Map %1" ).arg( mMapId ) );
   updateToolTip();
 }
 
