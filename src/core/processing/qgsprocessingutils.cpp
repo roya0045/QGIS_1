@@ -1766,8 +1766,9 @@ QgsProcessingFeatureSource::QgsProcessingFeatureSource( QgsFeatureSource *origin
                            : context.invalidGeometryCheck() )
   , mInvalidGeometryCallback( context.invalidGeometryCallback( originalSource ) )
   , mTransformErrorCallback( context.transformErrorCallback() )
-  , mInvalidGeometryCallbackSkip( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::SkipInvalid, originalSource ) )
-  , mInvalidGeometryCallbackAbort( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::AbortOnInvalid, originalSource ) )
+  , mInvalidGeometryCallbackSkip( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::GeometrySkipInvalid, originalSource ) )
+  , mInvalidGeometryCallbackAbort( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::GeometryAbortOnInvalid, originalSource ) )
+  , mInvalidGeometryCallbackFix( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::GeometryFixInvalidSkipOnFailure, originalSource ) )
   , mFeatureLimit( featureLimit )
   , mFilterExpression( filterExpression )
 {}
@@ -2003,6 +2004,11 @@ void QgsProcessingFeatureSource::setInvalidGeometryCheck( Qgis::InvalidGeometryC
 
     case Qgis::InvalidGeometryCheck::AbortOnInvalid:
       mInvalidGeometryCallback = mInvalidGeometryCallbackAbort;
+      break;
+
+    case QgsFeatureRequest::GeometryFixInvalidAbortOnFailure:
+    case QgsFeatureRequest::GeometryFixInvalidSkipOnFailure:
+      mInvalidGeometryCallback = mInvalidGeometryCallbackFix;
       break;
 
   }

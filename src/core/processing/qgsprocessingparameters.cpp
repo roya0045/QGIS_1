@@ -6271,6 +6271,14 @@ QString QgsProcessingParameterFeatureSource::valueAsPythonString( const QVariant
       case Qgis::InvalidGeometryCheck::AbortOnInvalid:
         geometryCheckString = QStringLiteral( "QgsFeatureRequest.GeometryAbortOnInvalid" );
         break;
+
+      case QgsFeatureRequest::GeometryFixInvalidSkipOnFailure:
+        geometryCheckString = QStringLiteral( "QgsFeatureRequest.GeometryFixInvalidSkipOnFailure" );
+        break;
+
+      case QgsFeatureRequest::GeometryFixInvalidAbortOnFailure:
+        geometryCheckString = QStringLiteral( "QgsFeatureRequest.GeometryFixInvalidAbortOnFailure" );
+        break;
     }
 
     QStringList flags;

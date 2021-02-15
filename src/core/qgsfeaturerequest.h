@@ -513,7 +513,23 @@ class CORE_EXPORT QgsFeatureRequest
     std::function< void( const QgsFeature & ) > invalidGeometryCallback() const SIP_SKIP { return mInvalidGeometryCallback; }
 
     /**
-     * Set the filter \a expression. {\see QgsExpression}
+     * Set the flag used to control the tolerace or change for the autofixing process.
+     * Is only needed if the GeometryCheck is set to GeometryFixInvalidSkipOnFailure or GeometryFixInvalidAbortOnFailure.
+     * \see autofixFlag()
+     * \since QGIS 3.18
+     */
+    QgsFeatureRequest &setAutofixFlag( AutoFixIntensity flag );
+
+    /**
+     * Returns the flag used to control the tolerace or change for the autofixing process.
+     * Is only needed if the GeometryCheck is set to GeometryFixInvalidSkipOnFailure or GeometryFixInvalidAbortOnFailure.
+     * \see setAutofixFlag()
+     * \since QGIS 3.18
+     */
+    AutoFixIntensity autofixFlag() const { return mAutofixFlag; }
+
+    /**
+     * Set the filter expression. {\see QgsExpression}
      * \param expression expression string
      *
      * Calling this method will automatically set filterType() to QgsFeatureRequest::FilterExpression.
@@ -1021,6 +1037,7 @@ class CORE_EXPORT QgsFeatureRequest
     QgsCoordinateReferenceSystem mCrs;
     QgsCoordinateTransformContext mTransformContext;
     int mTimeout = -1;
+    AutoFixIntensity mAutofixFlag = FixAtAllCosts;
     int mRequestMayBeNested = false;
     QgsFeedback *mFeedback = nullptr;
 };
