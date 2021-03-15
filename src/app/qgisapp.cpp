@@ -356,6 +356,7 @@ Q_GUI_EXPORT extern int qt_defaultDpiX();
 #include "qgstaskmanagerwidget.h"
 #include "qgssymbolselectordialog.h"
 #include "qgstextannotation.h"
+#include "qgsthememanager.h"
 #include "qgsundowidget.h"
 #include "qgsuserinputwidget.h"
 #include "qgsvectordataprovider.h"
@@ -1314,6 +1315,10 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, bool skipVersionCh
   activateDeactivateLayerRelatedActions( nullptr ); // after members were created
 
   connect( QgsGui::mapLayerActionRegistry(), &QgsMapLayerActionRegistry::changed, this, &QgisApp::refreshActionFeatureAction );
+
+  mThemeManager = new QgsThemeManagerWidget();
+  addDockWidget( Qt::LeftDockWidgetArea, mThemeManager );
+  mThemeManager->hide();
 
   // set application's caption
   QString caption = tr( "QGIS - %1 ('%2')" ).arg( Qgis::version(), Qgis::releaseName() );

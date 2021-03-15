@@ -739,6 +739,15 @@ void QgsLayerTreeProxyModel::setFilterText( const QString &filterText )
   invalidateFilter();
 }
 
+void QgsLayerTreeProxyModel::setApprovedIds( const QStringList &ids )
+{
+  if ( filterText == mFilterText )
+    return;
+
+  mDesiredIds = ids;
+  invalidateFilter();
+}
+
 bool QgsLayerTreeProxyModel::filterAcceptsRow( int sourceRow, const QModelIndex &sourceParent ) const
 {
   QgsLayerTreeNode *node = mLayerTreeModel->index2node( mLayerTreeModel->index( sourceRow, 0, sourceParent ) );
@@ -759,6 +768,8 @@ bool QgsLayerTreeProxyModel::nodeShown( QgsLayerTreeNode *node ) const
     QgsMapLayer *layer = QgsLayerTree::toLayer( node )->layer();
     if ( !layer )
       return true;
+    if ( !mDesiredIds.isEmpty() && !mDesiredIds.contains( layer->id() ) )
+      return false;
     if ( !mFilterText.isEmpty() && !layer->name().contains( mFilterText, Qt::CaseInsensitive ) )
       return false;
     if ( ! mShowPrivateLayers && layer->flags().testFlag( QgsMapLayer::LayerFlag::Private ) )

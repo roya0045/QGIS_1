@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>themeDock</class>
+ <widget class="QgsDockWidget" name="QgsDockWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>263</width>
+    <height>282</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Theme Manager</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <widget class="QWidget" name="">
+    <property name="geometry">
+     <rect>
+      <x>2</x>
+      <y>-2</y>
+      <width>258</width>
+      <height>249</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="spacing">
+      <number>3</number>
+     </property>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <property name="spacing">
+        <number>3</number>
+       </property>
+       <item>
+        <widget class="QToolButton" name="mThemePrev">
+         <property name="toolTip">
+          <string>Select previous theme</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../images/images.qrc">
+           <normaloff>:/images/themes/default/mActionAtlasPrev.svg</normaloff>:/images/themes/default/mActionAtlasPrev.svg</iconset>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="mThemeList">
+         <property name="toolTip">
+          <string>Select theme</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="mThemeNext">
+         <property name="toolTip">
+          <string>Select next theme</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../images/images.qrc">
+           <normaloff>:/images/themes/default/mActionAtlasNext.svg</normaloff>:/images/themes/default/mActionAtlasNext.svg</iconset>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QgsThemeViewer" name="themeView">
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="dragEnabled">
+        <bool>true</bool>
+       </property>
+       <property name="dragDropMode">
+        <enum>QAbstractItemView::DragDrop</enum>
+       </property>
+       <property name="defaultDropAction">
+        <enum>Qt::LinkAction</enum>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::ContiguousSelection</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QToolButton" name="mAddThemeLayer">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Add new layers</string>
+         </property>
+         <property name="autoFillBackground">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Add</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../images/images.qrc">
+           <normaloff>:/images/themes/default/mActionAdd.svg</normaloff>:/images/themes/default/mActionAdd.svg</iconset>
+         </property>
+         <property name="popupMode">
+          <enum>QToolButton::InstantPopup</enum>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonIconOnly</enum>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="mDeleteThemeLayer">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Delete selected layers</string>
+         </property>
+         <property name="autoFillBackground">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Delete</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../images/images.qrc">
+           <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
+         </property>
+         <property name="popupMode">
+          <enum>QToolButton::InstantPopup</enum>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonIconOnly</enum>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <action name="mActionThemePrev">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/images/themes/default/mActionAddSelected.svg</normaloff>:/images/themes/default/mActionAddSelected.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Previous</string>
+   </property>
+   <property name="toolTip">
+    <string>move to previous theme</string>
+   </property>
+  </action>
+  <action name="mActionThemeNext">
+   <property name="icon">
+    <iconset resource="../../images/images.qrc">
+     <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Next</string>
+   </property>
+   <property name="toolTip">
+    <string>Move to next theme</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+   <customwidget>
+   <class>QgsDockWidget</class>
+   <extends>QDockWidget</extends>
+   <header>qgsdockwidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsThemeViewer</class>
+   <extends>QTreeView</extends>
+   <header>qgsthememanager.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../../../images/images.qrc"/>
+  <include location="../../images/images.qrc"/>
+ </resources>
+ <connections/>
+</ui>

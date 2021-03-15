@@ -59,6 +59,13 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
      */
     void setFilterText( const QString &filterText = QString() );
 
+
+    /**
+     * Sets a predifined list of layer Ids to process.
+     * \since QGIS 3.20
+     */
+    void setApprovedIds( const QStringList &ids )
+
     /**
      * Returns if private layers are shown.
      */
@@ -79,6 +86,7 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
 
     QgsLayerTreeModel *mLayerTreeModel = nullptr;
     QString mFilterText;
+    QStringList mDesiredIds;
     bool mShowPrivateLayers = false;
 
 };
