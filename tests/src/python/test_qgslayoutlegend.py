@@ -9,6 +9,7 @@ __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '24/10/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
+
 import os
 from time import sleep
 
@@ -790,10 +791,10 @@ class TestQgsLayoutItemLegend(unittest.TestCase, LayoutItemTestCase):
         s.setLayers([point_layer])
         layout = QgsLayout(QgsProject.instance())
         layout.initializeDefaults()
-
         map = QgsLayoutItemMap(layout)
         map.attemptSetSceneRect(QRectF(20, 20, 80, 80))
         map.setFrameEnabled(True)
+
         map.setLayers([point_layer])
         layout.addLayoutItem(map)
         map.zoomToExtent(point_layer.extent())
@@ -814,6 +815,49 @@ class TestQgsLayoutItemLegend(unittest.TestCase, LayoutItemTestCase):
 
         checker = QgsLayoutChecker(
             'composer_legend_reference_point', layout)
+
+        checker.setControlPathPrefix("composer_legend")
+        result, message = checker.testLayout()
+        TestQgsLayoutItemLegend.report += checker.report()
+        self.assertTrue(result, message)
+
+        QgsProject.instance().clear()
+
+    def test_rotated_map_hit(self):
+        """Test filter by map handling of rotated map."""
+        point_path = os.path.join(TEST_DATA_DIR, 'points.shp')
+        point_layer = QgsVectorLayer(point_path, 'points', 'ogr')
+
+        QgsProject.instance().clear()
+        QgsProject.instance().addMapLayers([point_layer])
+
+        s = QgsMapSettings()
+        s.setLayers([point_layer])
+        layout = QgsLayout(QgsProject.instance())
+        layout.initializeDefaults()
+        layout.setUnits(QgsUnitTypes.LayoutMillimeters)
+
+        map = QgsLayoutItemMap(layout)
+        map.attemptSetSceneRect(QRectF(20, 20, 80, 80))
+        map.setFrameEnabled(True)
+        layout.addLayoutItem(map)
+        map.setExtent(point_layer.extent())
+        legendf = QgsLayoutItemLegend(layout)
+        legendf.setTitle("Filtered Legend")
+        legendf.attemptSetSceneRect(QRectF(120, 40, 80, 80))
+        legendf.setFrameEnabled(True)
+        legendf.setFrameStrokeWidth(QgsLayoutMeasurement(2))
+        legendf.setBackgroundColor(QColor(200, 200, 200))
+        legendf.setTitle('filtered')
+        legendf.setLegendFilterByMapEnabled(True)
+        layout.addLayoutItem(legendf)
+        legendf.setLinkedMap(map)
+        map.setScale(6918946)
+        map.setExtent(QgsRectangle(-109.517, 29.424, -102.961, 48.969))
+        map.setMapRotation(60)
+
+        checker = QgsLayoutChecker(
+            'composer_legend_rotated_map', layout)
         checker.setControlPathPrefix("composer_legend")
         result, message = checker.testLayout()
         TestQgsLayoutItemLegend.report += checker.report()
