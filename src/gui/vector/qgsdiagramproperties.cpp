@@ -145,7 +145,7 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer *layer, QWidget *pare
 
   mMaxValueSpinBox->setShowClearButton( false );
   mSizeSpinBox->setClearValue( 5 );
-    mLinearScaleFrame->setEnabled( true );
+
   mDiagramAttributesTreeWidget->setItemDelegateForColumn( ColumnAttributeExpression, new EditBlockerDelegate( this ) );
   mDiagramAttributesTreeWidget->setItemDelegateForColumn( ColumnColor, new QgsColorSwatchDelegate( this ) );
 
@@ -443,7 +443,7 @@ void QgsDiagramProperties::syncToLayer()
       for ( ; catIt != categoryAttributes.constEnd(); ++catIt, ++coIt, ++labIt )
       {
         if ( QString( *catIt ).isEmpty() && QString( *labIt ).isEmpty() )
-            continue;
+          continue;
         QTreeWidgetItem *newItem = new QTreeWidgetItem( mDiagramAttributesTreeWidget );
         newItem->setText( 0, *catIt );
         newItem->setData( 0, RoleAttributeExpression, *catIt );
@@ -476,8 +476,6 @@ void QgsDiagramProperties::syncToLayer()
         mSizeLegend.reset( lidr->dataDefinedSizeLegend() ? new QgsDataDefinedSizeLegend( *lidr->dataDefinedSizeLegend() ) : nullptr );
       }
     }
-    else
-      mDiagramSizeSpinBox->setEnabled( true );
 
     const QgsDiagramLayerSettings *dls = mLayer->diagramLayerSettings();
     if ( dls )
@@ -575,7 +573,6 @@ void QgsDiagramProperties::mDiagramTypeComboBox_currentIndexChanged( int index )
   else
   {
     mDiagramFrame->setEnabled( true );
-    mAttributeBasedScalingRadio->setEnabled( true );
     mDiagramType = mDiagramTypeComboBox->itemData( index ).toString();
 
     if ( DIAGRAM_NAME_TEXT == mDiagramType )
@@ -608,8 +605,6 @@ void QgsDiagramProperties::mDiagramTypeComboBox_currentIndexChanged( int index )
       mSizeLabel->setText( tr( "Bar length" ) );
       mFrameIncreaseSize->setVisible( false );
 
-      mFixedSizeRadio->setEnabled(true);
-      mDiagramSizeSpinBox->setEnabled(true);
     }
     else
     {

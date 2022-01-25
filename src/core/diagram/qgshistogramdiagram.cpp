@@ -27,6 +27,7 @@ QgsHistogramDiagram::QgsHistogramDiagram()
   mCategoryBrush.setStyle( Qt::SolidPattern );
   mPen.setStyle( Qt::SolidLine );
   mScaleFactor = 0;
+  mFixedMode = false;
 }
 
 QgsHistogramDiagram *QgsHistogramDiagram::clone() const
