@@ -9,7 +9,6 @@ __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '24/10/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-
 import os
 from time import sleep
 
@@ -827,7 +826,7 @@ class TestQgsLayoutItemLegend(unittest.TestCase, LayoutItemTestCase):
         """Test filter by map handling of rotated map."""
         point_path = os.path.join(TEST_DATA_DIR, 'points.shp')
         point_layer = QgsVectorLayer(point_path, 'points', 'ogr')
-        layouttemplate = os.path.join( os.path.join( TEST_DATA_DIR, "layouts") , 'map_filter_test_layout.qpt')
+        layouttemplate = os.path.join(os.path.join(TEST_DATA_DIR, "layouts"), 'map_filter_test_layout.qpt')
 
         QgsProject.instance().clear()
         QgsProject.instance().addMapLayers([point_layer])
