@@ -104,7 +104,7 @@ void QgsDwgImportDialog::updateUI()
 {
   bool dbAvailable = false;
   bool dbReadable = false;
-  bool dwgReadable = false;
+
 
   if ( !mDatabaseFileWidget->filePath().isEmpty() )
   {
@@ -118,6 +118,8 @@ void QgsDwgImportDialog::updateUI()
     const QFileInfo fi( mDrawingFileWidget->filePath() );
     dwgReadable = fi.exists() && fi.isReadable();
   }
+  else
+    dwgReadable = false;
   pdImportDrawing->setEnabled( mDatabaseFileWidget->filePath().contains( ".gpkg" ) && dwgReadable );
 }
 
