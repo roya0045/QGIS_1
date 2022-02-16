@@ -33,21 +33,19 @@ class QgsDwgImportDialog : public QDialog, private Ui::QgsDwgImportBase
 
   private slots:
     void buttonBox_accepted();
-    void pbBrowseDrawing_clicked();
     void pbImportDrawing_clicked();
-    void pbLoadDatabase_clicked();
-    void pbSelectAll_clicked();
-    void pbDeselectAll_clicked();
     void mDatabaseFileWidget_textChanged( const QString &filename );
-    void leLayerGroup_textChanged( const QString &text );
+    void mDrawingFileWidget_textChanged( const QString &filename );
     void showHelp();
+    void styleImportedLayers( const QList<QgsMapLayer *> &layers );
 
   private:
-    QgsVectorLayer *layer( QgsLayerTreeGroup *layerGroup, const QString &layer, const QString &table );
-    void createGroup( QgsLayerTreeGroup *group, const QString &name, const QStringList &layers, bool visible );
+    void styleLayer( QgsVectorLayer *layer );
     void updateUI();
     void expandInserts();
+    void propose_layers();
     void updateCheckState( Qt::CheckState state );
+    bool mImported = false;
 };
 
 #endif // QGSDWGIMPORTDIALOG_H
