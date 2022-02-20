@@ -156,7 +156,7 @@ void QgsDwgImportDialog::pbImportDrawing_clicked()
     bar->pushMessage( tr( "Drawing import failed (%1)" ).arg( error ), Qgis::MessageLevel::Critical );
   }
   if ( cbCadStyle->isChecked() )
-    connect( QgsProject::instance() , &QgsProject::layersAdded, this , &QgsDwgImportDialog::styleImportedLayers );
+    connect( QgsProject::instance() , &QgsProject::legendLayersAdded, this , &QgsDwgImportDialog::styleImportedLayers );
   propose_layers();
   mImported = true;
 }
@@ -174,6 +174,7 @@ void QgsDwgImportDialog::propose_layers()
 void QgsDwgImportDialog::styleImportedLayers( const QList<QgsMapLayer *> &layers )
 {
   QString style;
+  qDebug()<<QString("style imported");
   QgsVectorLayer *vLayer;
   for ( QgsMapLayer *mapLayer : layers )
   {
@@ -188,10 +189,11 @@ void QgsDwgImportDialog::styleLayer( QgsVectorLayer *layer )
 {
   if ( !layer )
     return;
+
   QgsSymbol *sym = nullptr;
   QString layerName = layer->name();
-
-    if ( layerName == QStringLiteral( "hatches" ) )
+  qDebug()<<layerName;
+    if ( layerName.contains( "hatches" ) )
     {
       QgsSimpleFillSymbolLayer *sfl = new QgsSimpleFillSymbolLayer();
       sfl->setDataDefinedProperty( QgsSymbolLayer::PropertyFillColor, QgsProperty::fromField( QStringLiteral( "color" ) ) );
@@ -201,7 +203,7 @@ void QgsDwgImportDialog::styleLayer( QgsVectorLayer *layer )
       layer->setRenderer( new QgsSingleSymbolRenderer( sym ) );
     }
 
-    else if ( layerName == QStringLiteral( "lines" ) )
+    else if ( layerName.contains( "lines" ) )
     {
       QgsSimpleLineSymbolLayer *sll = new QgsSimpleLineSymbolLayer();
       sll->setDataDefinedProperty( QgsSymbolLayer::PropertyStrokeColor, QgsProperty::fromField( QStringLiteral( "color" ) ) );
@@ -216,7 +218,7 @@ void QgsDwgImportDialog::styleLayer( QgsVectorLayer *layer )
       layer->setRenderer( new QgsSingleSymbolRenderer( sym ) );
     }
 
-    else if ( layerName == QStringLiteral( "polylines" ) )
+    else if ( layerName.contains( "polylines" ) )
     {
       sym = new QgsLineSymbol();
 
@@ -242,7 +244,7 @@ void QgsDwgImportDialog::styleLayer( QgsVectorLayer *layer )
       layer->setRenderer( new QgsSingleSymbolRenderer( sym ) );
     }
 
-    else if ( layerName == QStringLiteral( "texts" ) )
+    else if ( layerName.contains( "texts" ) )
     {
       layer->setRenderer( new QgsNullSymbolRenderer() );
 
@@ -326,13 +328,13 @@ void QgsDwgImportDialog::styleLayer( QgsVectorLayer *layer )
       layer->setLabelsEnabled( true );
     }
 
-    else if ( layerName == QStringLiteral( "points" ) )
+    else if ( layerName.contains( "points" ) )
     {
       // FIXME: use PDMODE?
       layer->setRenderer( new QgsNullSymbolRenderer() );
     }
 
-    else if ( layerName == QStringLiteral( "inserts" ) )
+    else if ( layerName.contains( "inserts" ) )
     {
       if ( !cbExpandInserts->isChecked() )
       {
@@ -350,7 +352,9 @@ void QgsDwgImportDialog::styleLayer( QgsVectorLayer *layer )
 void QgsDwgImportDialog::buttonBox_accepted()
 {
   if ( !mImported && mDatabaseFileWidget->filePath().contains( ".gpkg" ) && dwgReadable )
+  {
       pbImportDrawing_clicked();
+  }
 }
 
 void QgsDwgImportDialog::showHelp()
