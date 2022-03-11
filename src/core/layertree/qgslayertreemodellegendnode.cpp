@@ -326,7 +326,7 @@ QgsSymbolLegendNode::QgsSymbolLegendNode( QgsLayerTreeLayer *nodeLayer, const Qg
 Qt::ItemFlags QgsSymbolLegendNode::flags() const
 {
   if ( mItem.isCheckable() )
-    return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;
+    return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable;
   else
     return Qt::ItemIsEnabled;
 }
@@ -1003,9 +1003,9 @@ QgsRasterSymbolLegendNode::QgsRasterSymbolLegendNode( QgsLayerTreeLayer *nodeLay
 Qt::ItemFlags QgsRasterSymbolLegendNode::flags() const
 {
   if ( mCheckable )
-    return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;
+    return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable;
   else
-    return Qt::ItemIsEnabled;
+    return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
 QVariant QgsRasterSymbolLegendNode::data( int role ) const
