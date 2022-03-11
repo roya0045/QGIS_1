@@ -154,6 +154,7 @@ class QgsNetworkLoggerWidgetFactory;
 class QgsAppQueryLogger;
 class QgsMapToolCapture;
 class QgsElevationProfileWidget;
+class QgsThemeManagerWidget;
 
 #include <QMainWindow>
 #include <QToolBar>
@@ -2716,6 +2717,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QMetaObject::Connection mRenderProgressBarTimerConnection;
 
     QgsBrowserGuiModel *mBrowserModel = nullptr;
+
+    QgsThemeManagerWidget *mThemeManager = nullptr;
 
     void setupDuplicateFeaturesAction();
 
