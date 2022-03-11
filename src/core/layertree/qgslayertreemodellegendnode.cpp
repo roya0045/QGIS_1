@@ -312,8 +312,11 @@ QgsSymbolLegendNode::QgsSymbolLegendNode( QgsLayerTreeLayer *nodeLayer, const Qg
   }
 
   updateLabel();
+
   if ( QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( nodeLayer->layer() ) )
+  {
     connect( vl, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsSymbolLegendNode::updateLabel );
+  }
 
   connect( nodeLayer, &QObject::destroyed, this, [ = ]() { mLayerNode = nullptr; } );
 
@@ -860,25 +863,25 @@ QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context,
     QgsExpressionContextScope *symbolScope = createSymbolScope();
     contextCopy.appendScope( symbolScope );
     contextCopy.appendScope( vl->createExpressionContextScope() );
-
+    QString nodeExpression = mLayerNode->labelExpression();
     if ( label.isEmpty() )
     {
       if ( ! mLayerNode->labelExpression().isEmpty() )
-        mLabel = QgsExpression::replaceExpressionText( "[%" + mLayerNode->labelExpression() + "%]", &contextCopy );
+        mLabel = QgsExpression::replaceExpressionText( "[%" + nodeExpression + "%]", &contextCopy );
       else if ( mLabel.contains( "[%" ) )
       {
-        const QString symLabel = symbolLabel();
+        QString symLabel = symbolLabel();
         mLabel = QgsExpression::replaceExpressionText( symLabel, &contextCopy );
       }
       return mLabel;
     }
     else
     {
-      QString eLabel;
+      QString eLabel = QString( label );
       if ( ! mLayerNode->labelExpression().isEmpty() )
-        eLabel = QgsExpression::replaceExpressionText( label + "[%" + mLayerNode->labelExpression() + "%]", &contextCopy );
+        eLabel = QgsExpression::replaceExpressionText( eLabel + "[%" + nodeExpression + "%]", &contextCopy );
       else if ( label.contains( "[%" ) )
-        eLabel = QgsExpression::replaceExpressionText( label, &contextCopy );
+        eLabel = QgsExpression::replaceExpressionText( eLabel, &contextCopy );
       return eLabel;
     }
   }
@@ -895,6 +898,7 @@ QgsExpressionContextScope *QgsSymbolLegendNode::createSymbolScope() const
   if ( vl )
   {
     scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_count" ), QVariant::fromValue( vl->featureCount( mItem.ruleKey() ) ), true ) );
+    scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_expression" ), QVariant::fromValue( mLayerNode->symbolExpression( mItem.ruleKey() ) ), true ) );
   }
   return scope;
 }
