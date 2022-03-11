@@ -12,6 +12,7 @@ __copyright__ = 'Copyright 2017, The QGIS Project'
 
 from qgis.PyQt.QtCore import QRectF, QDir
 from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtXml import QDomDocument
 
 from qgis.core import (QgsPrintLayout,
                        QgsLayoutItemLegend,
@@ -38,7 +39,9 @@ from qgis.core import (QgsPrintLayout,
                        QgsCategorizedSymbolRenderer,
                        QgsRendererCategory,
                        QgsFillSymbol,
-                       QgsApplication)
+                       QgsUnitTypes,
+                       QgsApplication,
+                       QgsReadWriteContext)
 from qgis.testing import (start_app,
                           unittest
                           )
@@ -729,6 +732,32 @@ class TestQgsLayoutItemLegend(unittest.TestCase, LayoutItemTestCase):
         TestQgsLayoutItemLegend.report += checker.report()
         self.assertTrue(result, message)
 
+        QgsProject.instance().clear()
+
+    def test_rotated_map_hit(self):
+        """Test filter by map handling of rotated map."""
+        point_path = os.path.join(TEST_DATA_DIR, 'points.shp')
+        point_layer = QgsVectorLayer(point_path, 'points', 'ogr')
+        layouttemplate = os.path.join(os.path.join(TEST_DATA_DIR, "layouts"), 'map_filter_test_layout.qpt')
+
+        QgsProject.instance().clear()
+        QgsProject.instance().addMapLayers([point_layer])
+
+        s = QgsMapSettings()
+        s.setLayers([point_layer])
+        layout = QgsLayout(QgsProject.instance())
+        with open(layouttemplate) as f:
+            template_content = f.read()
+        doc = QDomDocument()
+        doc.setContent(template_content)
+        layout.loadFromTemplate(doc, QgsReadWriteContext(), True)
+
+        checker = QgsLayoutChecker(
+            'composer_legend_rotated_map', layout)
+        checker.setControlPathPrefix("composer_legend")
+        result, message = checker.testLayout()
+        TestQgsLayoutItemLegend.report += checker.report()
+        self.assertTrue(result, message)
         QgsProject.instance().clear()
 
 
