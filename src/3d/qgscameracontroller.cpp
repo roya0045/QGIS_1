@@ -308,6 +308,44 @@ double QgsCameraController::cameraCenterElevation()
   return res;
 }
 
+double QgsCameraController::sampleDepthBuffer( const QImage &buffer, int px, int py )
+{
+  double depth = 1;
+
+  // Sample the neighbouring pixels for the closest point to the camera
+  for ( int x = px - 3; x <= px + 3; ++x )
+  {
+    for ( int y = py - 3; y <= py + 3; ++y )
+    {
+      if ( buffer.valid( x, y ) )
+      {
+        depth = std::min( depth, Qgs3DUtils::decodeDepth( buffer.pixel( x, y ) ) );
+      }
+    }
+  }
+
+  if ( depth < 1 )
+    return depth;
+
+  // Returns the average of depth values that are not 1 (void area)
+  depth = 0;
+  int samplesCount = 0;
+  for ( int x = 0; x < mDepthBufferImage.width(); ++x )
+  {
+    for ( int y = 0; y < mDepthBufferImage.height(); ++y )
+    {
+      double d = Qgs3DUtils::decodeDepth( buffer.pixel( x, y ) );
+      if ( d < 1 )
+      {
+        depth += d;
+        samplesCount += 1;
+      }
+    }
+  }
+  depth /= samplesCount;
+  return depth;
+}
+
 void QgsCameraController::updateCameraFromPose()
 {
   // Some changes to be inserted
@@ -395,7 +433,7 @@ void QgsCameraController::onPositionChangedTerrainNavigation( Qt3DInput::QMouseE
 
     if ( !mRotationCenterCalculated )
     {
-      double depth = Qgs3DUtils::decodeDepth( mDepthBufferImage.pixelColor( mMiddleButtonClickPos.x(), mMiddleButtonClickPos.y() ) );
+      double depth = sampleDepthBuffer( mDepthBufferImage, mMiddleButtonClickPos.x(), mMiddleButtonClickPos.y() );
 
       mRotationCenter = Qgs3DUtils::screenPointToWorldPos( mMiddleButtonClickPos, depth, mViewport.size(), mCameraBeforeRotation.get() );
 
@@ -442,6 +480,7 @@ void QgsCameraController::onPositionChangedTerrainNavigation( Qt3DInput::QMouseE
     const float diffPitch = 0.2f * dy;
     const float diffYaw = - 0.2f * dx;
     rotateCamera( diffPitch, diffYaw );
+    updateCameraFromPose();
   }
   else if ( hasLeftButton && !hasShift && !hasCtrl )
   {
@@ -452,7 +491,10 @@ void QgsCameraController::onPositionChangedTerrainNavigation( Qt3DInput::QMouseE
 
     if ( !mDragPointCalculated )
     {
-      mDragDepth = Qgs3DUtils::decodeDepth( mDepthBufferImage.pixelColor( mDragButtonClickPos.x(), mDragButtonClickPos.y() ) );
+      double depth = sampleDepthBuffer( mDepthBufferImage, mDragButtonClickPos.x(), mDragButtonClickPos.y() );
+
+      mDragDepth = depth;
+
       mDragPoint = Qgs3DUtils::screenPointToWorldPos( mDragButtonClickPos, mDragDepth, mViewport.size(), mCameraBeforeDrag.get() );
       mDragPointCalculated = true;
     }
@@ -494,7 +536,8 @@ void QgsCameraController::onPositionChangedTerrainNavigation( Qt3DInput::QMouseE
 
     if ( !mDragPointCalculated )
     {
-      double depth = Qgs3DUtils::decodeDepth( mDepthBufferImage.pixelColor( mDragButtonClickPos.x(), mDragButtonClickPos.y() ) );
+      double depth = sampleDepthBuffer( mDepthBufferImage, mDragButtonClickPos.x(), mDragButtonClickPos.y() );
+
       mDragPoint = Qgs3DUtils::screenPointToWorldPos( mDragButtonClickPos, depth, mViewport.size(), mCameraBeforeDrag.get() );
       mDragPointCalculated = true;
     }
@@ -545,7 +588,6 @@ void QgsCameraController::onPositionChangedTerrainNavigation( Qt3DInput::QMouseE
   }
 
   mMousePos = QPoint( mouse->x(), mouse->y() );
-  updateCameraFromPose();
 }
 
 void QgsCameraController::zoom( float factor )
@@ -564,7 +606,8 @@ void QgsCameraController::handleTerrainNavigationWheelZoom()
 
   if ( !mZoomPointCalculated )
   {
-    double depth = Qgs3DUtils::decodeDepth( mDepthBufferImage.pixelColor( mMousePos.x(), mMousePos.y() ) );
+    double depth = sampleDepthBuffer( mDepthBufferImage, mMousePos.x(), mMousePos.y() );
+
     mZoomPoint = Qgs3DUtils::screenPointToWorldPos( mMousePos, depth, mViewport.size(), mCameraBeforeZoom.get() );
     mZoomPointCalculated = true;
   }
@@ -599,6 +642,8 @@ void QgsCameraController::handleTerrainNavigationWheelZoom()
     mCameraPose.setCenterPoint( newViewCenterWorld );
     updateCameraFromPose();
   }
+  mIsInZoomInState = false;
+  mCumulatedWheelY = 0;
 }
 
 void QgsCameraController::onWheel( Qt3DInput::QWheelEvent *wheel )

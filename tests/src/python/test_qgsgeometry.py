@@ -40,6 +40,7 @@ from qgis.core import (
     QgsProject,
     QgsVertexId,
     QgsAbstractGeometryTransformer,
+    QgsCircle,
     Qgis
 )
 from qgis.PyQt.QtCore import QDir, QPointF, QRectF
@@ -2336,6 +2337,29 @@ class TestQgsGeometry(unittest.TestCase):
         def multi_polygon1_geom(): return QgsGeometry.fromMultiPolygonXY(poly_points[:1]) # noqa: E704,E261
         def multi_polygon2_geom(): return QgsGeometry.fromMultiPolygonXY(poly_points[1:]) # noqa: E704,E261
 
+        def multi_surface_geom():
+            ms = QgsMultiSurface()
+            p = polygon1_geom()
+            ms.addGeometry(p.constGet().clone())
+            return QgsGeometry(ms)
+
+        def curve():
+            cs = QgsCircularString()
+            cs.setPoints([QgsPoint(31, 32), QgsPoint(34, 36), QgsPoint(37, 39)])
+            return cs.toCurveType()
+
+        circle = QgsCircle(QgsPoint(10, 10), 5)
+
+        def circle_polygon():
+            p = QgsPolygon()
+            p.setExteriorRing(circle.toCircularString())
+            return p
+
+        def circle_curvepolygon():
+            p = QgsCurvePolygon()
+            p.setExteriorRing(circle.toCircularString())
+            return p
+
         geoms = {}  # initial geometry
         parts = {}  # part to add
         expec = {}  # expected WKT result
@@ -2372,6 +2396,11 @@ class TestQgsGeometry(unittest.TestCase):
         geoms[T].get().addZValue(4.0)
         parts[T] = [QgsPoint(p[0], p[1], 3.0, wkbType=QgsWkbTypes.PointZ) for p in line_points[1]]
         expec[T] = "MultiLineStringZ ((0 0 4, 1 0 4, 1 1 4, 2 1 4, 2 0 4),(3 0 3, 3 1 3, 5 1 3, 5 0 3, 6 0 3))"
+
+        T = 'linestring_add_curve'
+        geoms[T] = polyline1_geom()
+        parts[T] = curve()
+        expec[T] = 'MultiLineString ({},{})'.format(polyline1_geom().asWkt()[len('LineString '):], curve().curveToLine().asWkt()[len('LineString '):])
 
         T = 'polygon_add_ring_1_point'
         geoms[T] = polygon1_geom()
@@ -2447,6 +2476,16 @@ class TestQgsGeometry(unittest.TestCase):
         parts[T] = poly_points[0][0]
         types[T] = QgsWkbTypes.PolygonGeometry
         expec[T] = 'MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)))'
+
+        T = 'multipolygon_add_curvepolygon'
+        geoms[T] = multi_polygon1_geom()
+        parts[T] = circle_curvepolygon()
+        expec[T] = 'MultiPolygon ({},{})'.format(polygon1_geom().asWkt()[len('Polygon '):], circle_polygon().asWkt()[len('Polygon '):])
+
+        T = 'multisurface_add_curvepolygon'
+        geoms[T] = multi_surface_geom()
+        parts[T] = circle_curvepolygon()
+        expec[T] = 'MultiSurface (Polygon ((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),CurvePolygon (CircularString (10 15, 15 10, 10 5, 5 10, 10 15)))'
 
         for t in parts.keys():
             with self.subTest(t=t):
@@ -4858,6 +4897,17 @@ class TestQgsGeometry(unittest.TestCase):
         point = QgsGeometry.fromWkt('Point(1 2)')
         # no meaning, just test no crash!
         self.assertEqual(point.interpolateAngle(5), 0)
+        self.assertEqual(point.interpolateAngle(0), 0)
+
+        collection_with_point = QgsGeometry.fromWkt('MultiPoint((0 -49))')
+        # no meaning, just test no crash!
+        self.assertEqual(collection_with_point.interpolateAngle(5), 0)
+        self.assertEqual(collection_with_point.interpolateAngle(0), 0)
+
+        collection_with_point = QgsGeometry.fromWkt('MultiPoint((0 -49), (10 10))')
+        # no meaning, just test no crash!
+        self.assertEqual(collection_with_point.interpolateAngle(5), 0)
+        self.assertEqual(collection_with_point.interpolateAngle(0), 0)
 
         # linestring
         linestring = QgsGeometry.fromWkt('LineString(0 0, 10 0, 20 10, 20 20, 10 20)')
@@ -6134,9 +6184,12 @@ class TestQgsGeometry(unittest.TestCase):
     def testCoerce(self):
         """Test coerce function"""
 
-        def coerce_to_wkt(wkt, type):
+        def coerce_to_wkt(wkt, type, defaultZ=None, defaultM=None):
             geom = QgsGeometry.fromWkt(wkt)
-            return [g.asWkt(2) for g in geom.coerceToType(type)]
+            if defaultZ is not None or defaultM is not None:
+                return [g.asWkt(2) for g in geom.coerceToType(type, defaultZ or 0, defaultM or 0)]
+            else:
+                return [g.asWkt(2) for g in geom.coerceToType(type)]
 
         self.assertEqual(coerce_to_wkt('Point (1 1)', QgsWkbTypes.Point), ['Point (1 1)'])
         self.assertEqual(coerce_to_wkt('LineString (1 1, 2 2, 3 3)', QgsWkbTypes.LineString),
@@ -6158,6 +6211,11 @@ class TestQgsGeometry(unittest.TestCase):
 
         # Adding Z back
         self.assertEqual(coerce_to_wkt('Point (1 1)', QgsWkbTypes.PointZ), ['PointZ (1 1 0)'])
+
+        # Adding Z/M with defaults
+        self.assertEqual(coerce_to_wkt('Point (1 1)', QgsWkbTypes.PointZ, defaultZ=222), ['PointZ (1 1 222)'])
+        self.assertEqual(coerce_to_wkt('Point (1 1)', QgsWkbTypes.PointM, defaultM=333), ['PointM (1 1 333)'])
+        self.assertEqual(coerce_to_wkt('Point (1 1)', QgsWkbTypes.PointZM, defaultZ=222, defaultM=333), ['PointZM (1 1 222 333)'])
 
         # Adding M back
         self.assertEqual(coerce_to_wkt('Point (1 1)', QgsWkbTypes.PointM), ['PointM (1 1 0)'])

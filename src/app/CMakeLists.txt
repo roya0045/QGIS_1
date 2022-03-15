@@ -130,6 +130,8 @@ set(QGIS_APP_SRCS
   pointcloud/qgspointcloudlayerproperties.cpp
   pointcloud/qgspointcloudlayerstylewidget.cpp
 
+  raster/qgsrasterelevationpropertieswidget.cpp
+
   vectortile/qgsvectortilelayerproperties.cpp
 
   vertextool/qgslockedfeature.cpp
@@ -157,29 +159,6 @@ set(QGIS_APP_SRCS
   qgsundowidget.cpp
   qgsmapthemes.cpp
   qgshandlebadlayers.cpp
-  qgsmaptooladdabstract.cpp
-  qgsmaptooladdcircularstring.cpp
-  qgsmaptoolcircularstringcurvepoint.cpp
-  qgsmaptoolcircularstringradius.cpp
-  qgsmaptooladdcircle.cpp
-  qgsmaptoolcircle2points.cpp
-  qgsmaptoolcircle3points.cpp
-  qgsmaptoolcircle3tangents.cpp
-  qgsmaptoolcircle2tangentspoint.cpp
-  qgsmaptoolcirclecenterpoint.cpp
-  qgsmaptooladdellipse.cpp
-  qgsmaptoolellipsefoci.cpp
-  qgsmaptoolellipseextent.cpp
-  qgsmaptoolellipsecenterpoint.cpp
-  qgsmaptoolellipsecenter2points.cpp
-  qgsmaptooladdrectangle.cpp
-  qgsmaptooladdregularpolygon.cpp
-  qgsmaptoolrectanglecenter.cpp
-  qgsmaptoolrectangleextent.cpp
-  qgsmaptoolrectangle3points.cpp
-  qgsmaptoolregularpolygon2points.cpp
-  qgsmaptoolregularpolygoncenterpoint.cpp
-  qgsmaptoolregularpolygoncentercorner.cpp
 
   browser/qgsinbuiltdataitemproviders.cpp
 
@@ -225,6 +204,30 @@ set(QGIS_APP_SRCS
   locator/qgslocatoroptionswidget.cpp
 
   maptools/qgsappmaptools.cpp
+  maptools/qgsmaptoolsdigitizingtechniquemanager.cpp
+
+  maptools/qgsmaptoolshapecircleabstract.cpp
+  maptools/qgsmaptoolshapecircularstringabstract.cpp
+  maptools/qgsmaptoolshapeellipseabstract.cpp
+  maptools/qgsmaptoolshaperectangleabstract.cpp
+  maptools/qgsmaptoolshaperegularpolygonabstract.cpp
+
+  maptools/qgsmaptoolshapecircle2points.cpp
+  maptools/qgsmaptoolshapecircle2tangentspoint.cpp
+  maptools/qgsmaptoolshapecircle3points.cpp
+  maptools/qgsmaptoolshapecircle3tangents.cpp
+  maptools/qgsmaptoolshapecirclecenterpoint.cpp
+  maptools/qgsmaptoolshapecircularstringradius.cpp
+  maptools/qgsmaptoolshapeellipsecenter2points.cpp
+  maptools/qgsmaptoolshapeellipsecenterpoint.cpp
+  maptools/qgsmaptoolshapeellipseextent.cpp
+  maptools/qgsmaptoolshapeellipsefoci.cpp
+  maptools/qgsmaptoolshaperectangle3points.cpp
+  maptools/qgsmaptoolshaperectanglecenter.cpp
+  maptools/qgsmaptoolshaperectangleextent.cpp
+  maptools/qgsmaptoolshaperegularpolygon2points.cpp
+  maptools/qgsmaptoolshaperegularpolygoncentercorner.cpp
+  maptools/qgsmaptoolshaperegularpolygoncenterpoint.cpp
 
   options/qgsadvancedoptions.cpp
   options/qgscodeeditoroptions.cpp
@@ -247,6 +250,7 @@ set(QGIS_APP_SRCS
   pluginmanager/qgspluginitemdelegate.cpp
 
   qgssettingstree.cpp
+  qgssettingsregistryapp.cpp
   qgsvariantdelegate.cpp
   qgscrashhandler.cpp
 
@@ -255,6 +259,8 @@ set(QGIS_APP_SRCS
   mesh/qgsmaptooleditmeshframe.cpp
   mesh/qgsmeshtransformcoordinatesdockwidget.cpp
   mesh/qgsmeshselectbyexpressiondialog.cpp
+
+  vector/qgsvectorelevationpropertieswidget.cpp
 )
 
 if (WITH_SPATIALITE)
@@ -431,7 +437,7 @@ if(HAVE_OPENCL)
     include_directories(SYSTEM ${OpenCL_INCLUDE_DIRS})
 endif()
 
-if (HAVE_PDAL)
+if (WITH_PDAL)
   include_directories(SYSTEM ${PDAL_INCLUDE_DIR})
   if(MSVC)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
@@ -618,7 +624,7 @@ if (POSTGRES_FOUND)
   target_link_libraries (qgis_app ${POSTGRES_LIBRARY})
 endif()
 
-if (HAVE_PDAL)
+if (WITH_PDAL)
   target_link_libraries(qgis_app ${PDAL_LIBRARIES})
 endif()
 

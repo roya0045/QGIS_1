@@ -178,7 +178,7 @@ void QgsCustomProjectionOptionsWidget::pbnRemove_clicked()
 
   // make sure the user really wants to delete these definitions
   if ( QMessageBox::No == QMessageBox::question( this, tr( "Delete Projections" ),
-       tr( "Are you sure you want to delete %n projections(s)?", "number of rows", selection.size() ),
+       tr( "Are you sure you want to delete %n projection(s)?", "number of rows", selection.size() ),
        QMessageBox::Yes | QMessageBox::No ) )
     return;
 
@@ -262,10 +262,12 @@ bool QgsCustomProjectionOptionsWidget::isValid()
   QgsCoordinateReferenceSystem crs;
   for ( const Definition &def : std::as_const( mDefinitions ) )
   {
-    if ( !def.wkt.isEmpty() )
+    if ( !def.wkt.trimmed().isEmpty() )
       crs.createFromWkt( def.wkt );
-    else
+    else if ( !def.proj.trimmed().isEmpty() )
       crs.createFromProj( def.proj );
+    else
+      continue;
 
     if ( !crs.isValid() )
     {

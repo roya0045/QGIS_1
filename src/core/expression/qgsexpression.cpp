@@ -100,6 +100,7 @@ QString QgsExpression::quotedValue( const QVariant &value, QVariant::Type type )
       return value.toBool() ? QStringLiteral( "TRUE" ) : QStringLiteral( "FALSE" );
 
     case QVariant::List:
+    case QVariant::StringList:
     {
       QStringList quotedValues;
       const QVariantList values = value.toList();
@@ -1108,7 +1109,12 @@ QString QgsExpression::formatPreviewString( const QVariant &value, const bool ht
   }
   else
   {
-    return value.toString();
+    QString str { value.toString() };
+    if ( str.length() > maximumPreviewLength - 3 )
+    {
+      str = tr( "%1…" ).arg( str.left( maximumPreviewLength - 2 ) );
+    }
+    return str;
   }
 }
 
@@ -1369,6 +1375,23 @@ int QgsExpression::expressionToLayerFieldIndex( const QString &expression, const
     return layer->fields().lookupField( fieldName );
   }
   return -1;
+}
+
+QString QgsExpression::quoteFieldExpression( const QString &expression, const QgsVectorLayer *layer )
+{
+  if ( !layer )
+    return expression;
+
+  const int fieldIndex = QgsExpression::expressionToLayerFieldIndex( expression, layer );
+  if ( !expression.contains( '\"' ) && fieldIndex != -1 )
+  {
+    // retrieve actual field name from layer, so that we correctly remove any unwanted leading/trailing whitespace
+    return QgsExpression::quotedColumnRef( layer->fields().at( fieldIndex ).name() );
+  }
+  else
+  {
+    return expression;
+  }
 }
 
 QList<const QgsExpressionNode *> QgsExpression::nodes() const
