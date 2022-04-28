@@ -162,6 +162,13 @@ Sets the symbol patch ``shape`` to use when rendering the legend node symbol.
 .. versionadded:: 3.14
 %End
 
+    QString symbolExpression( const QString &ruleKey );
+%Docstring
+Returns an expression representing the symbol associated with the ``ruleKey``
+
+.. versionadded:: 3.14
+%End
+
     QSizeF patchSize() const;
 %Docstring
 Returns the user (overridden) size for the legend node.

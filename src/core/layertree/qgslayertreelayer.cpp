@@ -19,6 +19,7 @@
 #include "qgsmaplayer.h"
 #include "qgsproject.h"
 #include "qgssymbollayerutils.h"
+#include "qgsvectorlayer.h"
 
 
 QgsLayerTreeLayer::QgsLayerTreeLayer( QgsMapLayer *layer )
@@ -233,4 +234,18 @@ void QgsLayerTreeLayer::setPatchShape( const QgsLegendPatchShape &shape )
 {
   mPatchShape = shape;
 }
+
+QString QgsLayerTreeLayer::symbolExpression( const QString &ruleKey )
+{
+  QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( mRef.get() );
+  if ( !layer )
+    return QString();
+  if ( layer->renderer() )
+  {
+    bool ok = false;
+    return ( layer->renderer()->legendKeyToExpression( ruleKey, layer, ok ) );
+  }
+  return QString( "TRUE" );
+}
+
 

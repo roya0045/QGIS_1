@@ -22,6 +22,7 @@
 #include "qgsmaplayerref.h"
 #include "qgsreadwritecontext.h"
 #include "qgslegendpatchshape.h"
+#include "qgsrulebasedrenderer.h"
 
 class QgsMapLayer;
 
@@ -166,6 +167,13 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
      * \since QGIS 3.14
      */
     void setPatchShape( const QgsLegendPatchShape &shape );
+
+    /**
+     * Returns an expression representing the symbol associated with the \a ruleKey
+     *
+     * \since QGIS 3.14
+     */
+    QString symbolExpression( const QString &ruleKey );
 
     /**
      * Returns the user (overridden) size for the legend node.
