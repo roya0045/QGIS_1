@@ -19,8 +19,6 @@
 #include "qgsmaplayer.h"
 #include "qgsproject.h"
 #include "qgssymbollayerutils.h"
-#include "qgsrulebasedrenderer.h"
-#include "qgsvectorlayer.h"
 
 
 QgsLayerTreeLayer::QgsLayerTreeLayer( QgsMapLayer *layer )
@@ -28,8 +26,6 @@ QgsLayerTreeLayer::QgsLayerTreeLayer( QgsMapLayer *layer )
   , mRef( layer )
   , mLayerName( layer->name() )
 {
-  mKeyIndexer = 0;
-  mConvertRuleKeys = false;
   attachToLayer();
 }
 
@@ -38,8 +34,6 @@ QgsLayerTreeLayer::QgsLayerTreeLayer( const QString &layerId, const QString &nam
   , mRef( layerId, name, source, provider )
   , mLayerName( name.isEmpty() ? QStringLiteral( "(?)" ) : name )
 {
-  mKeyIndexer = 0;
-  mConvertRuleKeys = false;
 }
 
 QgsLayerTreeLayer::QgsLayerTreeLayer( const QgsLayerTreeLayer &other )
@@ -50,8 +44,6 @@ QgsLayerTreeLayer::QgsLayerTreeLayer( const QgsLayerTreeLayer &other )
   , mPatchSize( other.mPatchSize )
   , mSplitBehavior( other.mSplitBehavior )
 {
-  mKeyIndexer = 0;
-  mConvertRuleKeys = false;
   attachToLayer();
 }
 
@@ -240,123 +232,5 @@ QgsLegendPatchShape QgsLayerTreeLayer::patchShape() const
 void QgsLayerTreeLayer::setPatchShape( const QgsLegendPatchShape &shape )
 {
   mPatchShape = shape;
-}
-
-QString QgsLayerTreeLayer::symbolExpression( const QString &ruleKey )
-{
-  if ( !qobject_cast<QgsVectorLayer *>( mRef.get() ) )
-    return QString();
-  if ( mSymbolExpressions.isEmpty() )
-  {
-    updateSymbolExpressions();
-    connect( mRef.layer, &QgsMapLayer::legendChanged, this, &QgsLayerTreeLayer::updateSymbolExpressions, Qt::UniqueConnection );
-  }
-
-  return mSymbolExpressions.value( ruleKey, QString() );
-}
-
-void QgsLayerTreeLayer::updateSymbolExpressions()
-{
-
-  if ( ! mRef )
-    return;
-
-  QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( mRef.get() );
-  if ( ! layer )
-    return;
-
-  mSymbolExpressions.clear();
-  QString renderType = layer->renderer()->type();
-  if ( renderType == QLatin1String( "nullSymbol" ) || renderType == QLatin1String( "vector" ) ) //vector should be 3drenderer
-    return;
-  else if ( renderType == QLatin1String( "singleSymbol" ) ) //no need to convert if only one symbol
-  {
-    mSymbolExpressions.insert( layer->renderer()->legendSymbolItems()[0].ruleKey(), "TRUE" );
-  }
-  else
-  {
-    QgsRuleBasedRenderer *renderer;
-    if ( renderType == QLatin1String( "RuleRenderer" ) )
-    {
-      renderer = dynamic_cast<QgsRuleBasedRenderer *>( layer->renderer() );
-      mConvertRuleKeys = false;
-    }
-    else
-    {
-      renderer = QgsRuleBasedRenderer::convertFromRenderer( layer->renderer() );
-      mConvertRuleKeys = true;
-      mKeyIndexer = 0;
-    }
-
-    QgsRuleBasedRenderer::Rule *root = renderer->rootRule();
-    QString rootExp = root->filterExpression();
-    if ( ! mConvertRuleKeys )
-      mSymbolExpressions.insert( root->ruleKey(), rootExp );
-    ruleIterator( root, rootExp );
-  }
-}
-
-void QgsLayerTreeLayer::ruleIterator( QgsRuleBasedRenderer::Rule *baseRule, const QString prefix )
-{
-  const QgsRuleBasedRenderer::RuleList childrens = baseRule->children();
-  if ( childrens.size() == 0 )
-    return;
-
-  QString filterexp;
-  QString rulestr;
-  QgsRuleBasedRenderer::Rule *childRule;
-  for ( QgsRuleBasedRenderer::RuleList::const_iterator it = childrens.constBegin(); it != childrens.constEnd(); ++it )
-  {
-    childRule = *it;
-
-    filterexp = childRule->filterExpression();
-    if ( filterexp.contains( "ELSE" ) )
-      filterexp = elseFormatter( baseRule );
-    else if ( filterexp.contains( " AND " ) || filterexp.contains( " OR " ) )
-      filterexp = " ( " + filterexp + " ) ";
-    if ( ! filterexp.isEmpty() && ! prefix.isEmpty() )
-      rulestr = prefix  + " AND " + filterexp;
-    else if ( filterexp.isEmpty() && prefix.isEmpty() )
-      rulestr = "";
-    else if ( filterexp.isEmpty() )
-      rulestr = prefix;
-    else
-      rulestr = filterexp;
-
-    if ( mConvertRuleKeys )
-    {
-      mSymbolExpressions.insert( QString::number( mKeyIndexer ), rulestr );
-      mKeyIndexer ++;
-    }
-    else
-      mSymbolExpressions.insert( childRule->ruleKey(), rulestr );
-
-    ruleIterator( childRule, rulestr );
-  }
-
-}
-
-QString QgsLayerTreeLayer::elseFormatter( QgsRuleBasedRenderer::Rule *baseRule )
-{
-  const QgsRuleBasedRenderer::RuleList childrens = baseRule->children();
-  QString filterexp;
-  QString rulestr;
-  QgsRuleBasedRenderer::Rule *childRule;
-  for ( QgsRuleBasedRenderer::RuleList::const_iterator it = childrens.constBegin(); it != childrens.constEnd(); ++it )
-  {
-    childRule = *it;
-
-    filterexp = childRule->filterExpression();
-    if ( filterexp.isEmpty() || filterexp.contains( "ELSE" ) )
-      continue;
-    else if ( filterexp.contains( " AND " ) || filterexp.contains( " OR " ) )
-      filterexp = " ( " + filterexp + " ) ";
-    if ( rulestr.isEmpty() )
-      rulestr = filterexp;
-    else
-      rulestr = rulestr + " OR " + filterexp;
-  }
-
-  return "NOT (" + rulestr + ")";
 }
 
