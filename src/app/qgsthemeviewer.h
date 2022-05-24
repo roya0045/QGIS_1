@@ -75,8 +75,6 @@ class QgsThemeModel : public QgsLayerTreeModel
 };
 
 
-
-
 class QgsThemeProxy :  public QgsLayerTreeProxyModel
 {
   Q_OBJECT
