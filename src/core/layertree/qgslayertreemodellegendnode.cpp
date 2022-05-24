@@ -58,7 +58,7 @@ QgsLayerTreeModel *QgsLayerTreeModelLegendNode::model() const
 
 Qt::ItemFlags QgsLayerTreeModelLegendNode::flags() const
 {
-  return Qt::ItemIsEnabled;
+  return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
 bool QgsLayerTreeModelLegendNode::setData( const QVariant &value, int role )
