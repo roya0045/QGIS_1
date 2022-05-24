@@ -32,7 +32,6 @@ class QgsMapLayer;
 class QgsMessageBar;
 class QgsLayerTreeFilterProxyModel;
 
-
 #include <QSortFilterProxyModel>
 
 /**
@@ -81,6 +80,7 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
     QString mFilterText;
     bool mShowPrivateLayers = false;
 
+
 };
 
 
@@ -120,7 +120,10 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
     explicit QgsLayerTreeView( QWidget *parent SIP_TRANSFERTHIS = nullptr );
     ~QgsLayerTreeView() override;
 
-    //! Overridden setModel() from base class. Only QgsLayerTreeModel is an acceptable model.
+    /**
+     * Overridden setModel() from base class.
+     * \param model Model used to populate the view. Only QgsLayerTreeModel models are accepted.
+     */
     void setModel( QAbstractItemModel *model ) override;
 
     //! Gets access to the model casted to QgsLayerTreeModel
@@ -257,6 +260,12 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
     QList<QgsMapLayer *> selectedLayersRecursive() const;
 
     /**
+     * Returns the list of selected index
+     * \since QGIS3.26
+     */
+    const QModelIndexList selectedTreeIndexes() const;
+
+    /**
      * Adds an indicator to the given layer tree node. Indicators are icons shown next to layer/group names
      * in the layer tree view. They can be used to show extra information with tree nodes and they allow
      * user interaction.
@@ -375,7 +384,7 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
     void onExpandedChanged( QgsLayerTreeNode *node, bool expanded );
     void onModelReset();
 
-  private slots:
+  protected slots:
     void onCustomPropertyChanged( QgsLayerTreeNode *node, const QString &key );
     //! Handles updating the viewport to avoid flicker
     void onHorizontalScroll( int value );

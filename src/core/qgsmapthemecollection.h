@@ -134,10 +134,10 @@ class CORE_EXPORT QgsMapThemeCollection : public QObject
         }
 
         //! Returns a list of records for all visible layer belonging to the theme.
-        QList<QgsMapThemeCollection::MapThemeLayerRecord> layerRecords() const { return mLayerRecords; }
+        QList<QgsMapThemeCollection::MapThemeLayerRecord> layerRecords() const { return mLayerRecords.values(); }
 
         //! Sets layer records for the theme.
-        void setLayerRecords( const QList<QgsMapThemeCollection::MapThemeLayerRecord> &records ) { mLayerRecords = records; }
+        void setLayerRecords( const QList<QgsMapThemeCollection::MapThemeLayerRecord> &records );
 
         //! Removes a record for \a layer if present.
         void removeLayerRecord( QgsMapLayer *layer );
@@ -208,9 +208,34 @@ class CORE_EXPORT QgsMapThemeCollection : public QObject
          */
         void setCheckedGroupNodes( const QSet<QString> &checkedGroupNodes ) { mCheckedGroupNodes = checkedGroupNodes; }
 
+
+        /**
+         * Returns wethers wethers the layer ID is present in the record.
+         * \since QGIS 3.26
+         */
+        bool hasLayer( QString layerid ) const { return mLayerRecords.contains( layerid ); }
+
+        /**
+         * Inserts or replace a Layer Record in the Them in the record.
+         * \since QGIS 3.26
+         */
+        void insert( QString layerid, QgsMapThemeCollection::MapThemeLayerRecord record ){ mLayerRecords.insert( layerid, record); }
+
+        /**
+         * Returns the numbers of records remove from the Theme record.
+         * \since QGIS 3.26
+         */
+        int erease( const QString layer ){ return mLayerRecords.remove( layer ); }
+
+        /**
+         * Returns the first MapThemeLayerRecord associated with the provided layer ID.
+         * \since QGIS 3.26
+         */
+        const QgsMapThemeCollection::MapThemeLayerRecord  getRecord( const QString layerId ) const { return mLayerRecords.value( layerId ); }
+
       private:
         //! Layer-specific records for the theme. Only visible layers are listed.
-        QList<MapThemeLayerRecord> mLayerRecords;
+        QMap<QString, MapThemeLayerRecord> mLayerRecords;
 
         //! Whether the information about expanded/collapsed state of groups, layers and legend items has been stored
         bool mHasExpandedStateInfo = false;
@@ -367,6 +392,8 @@ class CORE_EXPORT QgsMapThemeCollection : public QObject
      */
     QList< QgsMapLayer * > masterVisibleLayers() const;
 
+    static MapThemeLayerRecord createThemeLayerRecord( QgsLayerTreeLayer *nodeLayer, QgsLayerTreeModel *model );
+
   signals:
 
     /**
@@ -418,7 +445,6 @@ class CORE_EXPORT QgsMapThemeCollection : public QObject
     void reconnectToLayersStyleManager();
 
     static bool findRecordForLayer( QgsMapLayer *layer, const MapThemeRecord &rec, MapThemeLayerRecord &layerRec );
-    static MapThemeLayerRecord createThemeLayerRecord( QgsLayerTreeLayer *nodeLayer, QgsLayerTreeModel *model );
     static void createThemeFromCurrentState( QgsLayerTreeGroup *parent, QgsLayerTreeModel *model, MapThemeRecord &rec );
     static void applyThemeToLayer( QgsLayerTreeLayer *nodeLayer, QgsLayerTreeModel *model, const MapThemeRecord &rec );
     static void applyThemeToGroup( QgsLayerTreeGroup *parent, QgsLayerTreeModel *model, const MapThemeRecord &rec );

@@ -94,7 +94,7 @@ void QgsMapThemeCollection::createThemeFromCurrentState( QgsLayerTreeGroup *pare
     {
       QgsLayerTreeLayer *nodeLayer = QgsLayerTree::toLayer( node );
       if ( node->itemVisibilityChecked() != Qt::Unchecked && nodeLayer->layer() )
-        rec.mLayerRecords << createThemeLayerRecord( nodeLayer, model );
+        rec.mLayerRecords.insert( nodeLayer->layer()->id(), createThemeLayerRecord( nodeLayer, model ) );
     }
   }
 }
@@ -110,15 +110,10 @@ QgsMapThemeCollection::MapThemeRecord QgsMapThemeCollection::createThemeFromCurr
 
 bool QgsMapThemeCollection::findRecordForLayer( QgsMapLayer *layer, const QgsMapThemeCollection::MapThemeRecord &rec, QgsMapThemeCollection::MapThemeLayerRecord &layerRec )
 {
-  for ( const QgsMapThemeCollection::MapThemeLayerRecord &lr : std::as_const( rec.mLayerRecords ) )
-  {
-    if ( lr.layer() == layer )
-    {
-      layerRec = lr;
-      return true;
-    }
-  }
-  return false;
+  Q_UNUSED( layerRec );
+  if ( ! layer )
+      return false;
+  return rec.mLayerRecords.contains( layer->id() );
 }
 
 void QgsMapThemeCollection::applyThemeToLayer( QgsLayerTreeLayer *nodeLayer, QgsLayerTreeModel *model, const QgsMapThemeCollection::MapThemeRecord &rec )
@@ -331,13 +326,12 @@ QStringList QgsMapThemeCollection::mapThemeVisibleLayerIds( const QString &name 
 QList<QgsMapLayer *> QgsMapThemeCollection::mapThemeVisibleLayers( const QString &name ) const
 {
   QList<QgsMapLayer *> layers;
-  const QList<MapThemeLayerRecord> recs = mMapThemes.value( name ).mLayerRecords;
+  const QList<MapThemeLayerRecord> recs = mMapThemes.value( name ).mLayerRecords.values();
   const QList<QgsMapLayer *> layerOrder = masterLayerOrder();
   if ( layerOrder.isEmpty() )
   {
     // no master layer order - so we have to just use the stored theme layer order as a fallback
-    const QList<MapThemeLayerRecord> records { mMapThemes.value( name ).mLayerRecords };
-    for ( const MapThemeLayerRecord &layerRec : records )
+    for ( const MapThemeLayerRecord &layerRec : recs )
     {
       if ( layerRec.isVisible && layerRec.layer() )
         layers << layerRec.layer();
@@ -388,7 +382,7 @@ QMap<QString, QString> QgsMapThemeCollection::mapThemeStyleOverrides( const QStr
   if ( !mMapThemes.contains( presetName ) )
     return styleOverrides;
 
-  const QList<MapThemeLayerRecord> records {mMapThemes.value( presetName ).mLayerRecords};
+  const QList<MapThemeLayerRecord> records {mMapThemes.value( presetName ).mLayerRecords.values() };
   for ( const MapThemeLayerRecord &layerRec : records )
   {
     if ( !layerRec.layer() )
@@ -419,7 +413,7 @@ void QgsMapThemeCollection::reconnectToLayersStyleManager()
   QSet<QgsMapLayer *> layers;
   for ( const MapThemeRecord &rec : std::as_const( mMapThemes ) )
   {
-    for ( const MapThemeLayerRecord &layerRec : std::as_const( rec.mLayerRecords ) )
+    for ( const MapThemeLayerRecord &layerRec : rec.mLayerRecords.values() )
     {
       if ( auto *lLayer = layerRec.layer() )
         layers << lLayer;
@@ -583,7 +577,7 @@ void QgsMapThemeCollection::writeXml( QDomDocument &doc )
       visPresetElem.setAttribute( QStringLiteral( "has-expanded-info" ), QStringLiteral( "1" ) );
     if ( rec.hasCheckedStateInfo() )
       visPresetElem.setAttribute( QStringLiteral( "has-checked-group-info" ), QStringLiteral( "1" ) );
-    for ( const MapThemeLayerRecord &layerRec : std::as_const( rec.mLayerRecords ) )
+    for ( const MapThemeLayerRecord &layerRec : rec.mLayerRecords.values() )
     {
       if ( !layerRec.layer() )
         continue;
@@ -664,15 +658,11 @@ void QgsMapThemeCollection::registryLayersRemoved( const QStringList &layerIDs )
   MapThemeRecordMap::iterator it = mMapThemes.begin();
   for ( ; it != mMapThemes.end(); ++it )
   {
-    MapThemeRecord &rec = it.value();
-    for ( int i = 0; i < rec.mLayerRecords.count(); ++i )
+    MapThemeRecord &collection = it.value();
+    for ( const QString layer : layerIDs )
     {
-      MapThemeLayerRecord &layerRec = rec.mLayerRecords[i];
-      if ( layerRec.layer() && layerIDs.contains( layerRec.layer()->id() ) )
-      {
-        rec.mLayerRecords.removeAt( i-- );
+      if ( collection.erease( layer ) > 0 )
         changedThemes << it.key();
-      }
     }
   }
 
@@ -688,24 +678,23 @@ void QgsMapThemeCollection::layerStyleRenamed( const QString &oldName, const QSt
   QgsMapLayerStyleManager *styleMgr = qobject_cast<QgsMapLayerStyleManager *>( sender() );
   if ( !styleMgr )
     return;
-
+  QgsMapLayer * layer = styleMgr->layer();
+  if ( !layer )
+      return;
   QSet< QString > changedThemes;
 
   MapThemeRecordMap::iterator it = mMapThemes.begin();
   for ( ; it != mMapThemes.end(); ++it )
   {
     MapThemeRecord &rec = it.value();
-    for ( int i = 0; i < rec.mLayerRecords.count(); ++i )
+    const MapThemeLayerRecord &layerRec = rec.mLayerRecords.value( layer->id() );
+
+    if ( layerRec.currentStyle == oldName )
     {
-      MapThemeLayerRecord &layerRec = rec.mLayerRecords[i];
-      if ( layerRec.layer() == styleMgr->layer() )
-      {
-        if ( layerRec.currentStyle == oldName )
-        {
-          layerRec.currentStyle = newName;
-          changedThemes << it.key();
-        }
-      }
+      MapThemeLayerRecord  newRec= layerRec;
+      newRec.currentStyle = newName;
+      rec.insert( layer->id(), newRec );
+      changedThemes << it.key();
     }
   }
 
@@ -718,24 +707,33 @@ void QgsMapThemeCollection::layerStyleRenamed( const QString &oldName, const QSt
 
 void QgsMapThemeCollection::MapThemeRecord::removeLayerRecord( QgsMapLayer *layer )
 {
-  for ( int i = 0; i < mLayerRecords.length(); ++i )
-  {
-    if ( mLayerRecords.at( i ).layer() == layer )
-      mLayerRecords.removeAt( i );
-  }
+    if ( layer )
+        mLayerRecords.remove( layer->id() );
 }
 
 void QgsMapThemeCollection::MapThemeRecord::addLayerRecord( const QgsMapThemeCollection::MapThemeLayerRecord &record )
 {
-  mLayerRecords.append( record );
+  if ( record.layer() )
+    mLayerRecords.insert( record.layer()->id(), record );
 }
+
+void QgsMapThemeCollection::MapThemeRecord::setLayerRecords( const QList<QgsMapThemeCollection::MapThemeLayerRecord> &records )
+{
+  mLayerRecords.clear();
+  for ( const MapThemeLayerRecord &layerRec : records )
+  {
+    if ( QgsMapLayer *lLayer = layerRec.layer() )
+      mLayerRecords.insert( lLayer->id(), layerRec );
+  }
+}
+
 
 QHash<QgsMapLayer *, QgsMapThemeCollection::MapThemeLayerRecord> QgsMapThemeCollection::MapThemeRecord::validLayerRecords() const
 {
   QHash<QgsMapLayer *, MapThemeLayerRecord> validSet;
-  for ( const MapThemeLayerRecord &layerRec : mLayerRecords )
+  for ( const MapThemeLayerRecord &layerRec : mLayerRecords.values() )
   {
-    if ( auto *lLayer = layerRec.layer() )
+    if ( QgsMapLayer *lLayer = layerRec.layer() )
       validSet.insert( lLayer, layerRec );
   }
   return validSet;

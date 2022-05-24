@@ -56,7 +56,7 @@ QgsLayerTreeModel *QgsLayerTreeModelLegendNode::model() const
 
 Qt::ItemFlags QgsLayerTreeModelLegendNode::flags() const
 {
-  return Qt::ItemIsEnabled;
+  return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
 bool QgsLayerTreeModelLegendNode::setData( const QVariant &value, int role )
@@ -326,9 +326,9 @@ QgsSymbolLegendNode::QgsSymbolLegendNode( QgsLayerTreeLayer *nodeLayer, const Qg
 Qt::ItemFlags QgsSymbolLegendNode::flags() const
 {
   if ( mItem.isCheckable() )
-    return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;
+    return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable;
   else
-    return Qt::ItemIsEnabled;
+    return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
 
