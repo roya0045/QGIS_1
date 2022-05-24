@@ -94,7 +94,22 @@ void QgsThemeModel::forceRefresh()
   emit refreshTheme();
 }
 
+void QgsThemeModel::validateTheme( QString theme )
+{
+  for layer 
 
+}
+
+void QgsThemeModel::changeLayerStyle(QgsLayerTreeNode *node, QString theme )
+{
+  if ( !QgsLayerTree::isLayer( node ) )
+    return;
+    const QgsLayerTreeLayer *nodeLayer = QgsLayerTree::toLayer( node );
+  if ( !nodeLayer->layer() )
+    return;
+  const QgsMapLayerStyle lStyle = mTheme.getRecord( nodeLayer->layer()->id() ).currentStyle;
+
+}
 
 QgsThemeViewer::QgsThemeViewer( QWidget *parent )
   : QgsLayerTreeView( parent )
@@ -103,7 +118,7 @@ QgsThemeViewer::QgsThemeViewer( QWidget *parent )
 
 void QgsThemeViewer::setModel( QAbstractItemModel *model )
 {
-  QgsLayerTreeModel *treeModel = qobject_cast<QgsLayerTreeModel *>( model );
+  QgsThemeModel *treeModel = qobject_cast<QgsThemeModel *>( model );
   if ( !treeModel )
     return;
 
