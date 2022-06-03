@@ -209,6 +209,8 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer *vl, SymbolSet &usedSymbols,
 
 bool QgsMapHitTest::layerVisible( QgsMapLayer *layer ) const
 {
+  QString mapId = layer->id();
+
   if ( ! layer->dataProvider() )
     return false;
   if ( layer->hasScaleBasedVisibility() )
@@ -216,6 +218,9 @@ bool QgsMapHitTest::layerVisible( QgsMapLayer *layer ) const
     if ( mSettings.scale() >= layer->minimumScale() || mSettings.scale() <= layer->maximumScale() )
       return false;
   }
+  else if ( mMapContains.contains( mapId ) )
+    return mMapContains.value( mapId );
+
   QgsRectangle footprint = layer->extent();
   if ( mSettings.destinationCrs() != layer->crs() )
   {
@@ -230,7 +235,11 @@ bool QgsMapHitTest::layerVisible( QgsMapLayer *layer ) const
       return false;
     }
   }
+  bool withinExt = false;
   if ( mSettings.visibleExtent().intersects( footprint ) )
-    return true;
-  return false;
+  {
+    withinExt = true;
+  }
+  mMapContains.insert( mapId, withingExt );
+  return withinExt;
 }

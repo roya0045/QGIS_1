@@ -115,6 +115,9 @@ class CORE_EXPORT QgsMapHitTest
 
     //! Whether to use only expressions during the filtering
     bool mOnlyExpressions;
+
+    //! cached extent check results 
+    QMap<QString, bool> mMapContains;
 };
 
 #endif // QGSMAPHITTEST_H
