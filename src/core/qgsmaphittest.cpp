@@ -240,6 +240,6 @@ bool QgsMapHitTest::layerVisible( QgsMapLayer *layer ) const
   {
     withinExt = true;
   }
-  mMapContains.insert( mapId, withingExt );
+  mMapContains.insert( mapId, withinExt );
   return withinExt;
 }
