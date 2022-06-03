@@ -77,7 +77,7 @@ class CORE_EXPORT QgsMapHitTest
      * \param layer QgsMapLayer
      * \since QGIS 3.24
      */
-    bool layerVisible( QgsMapLayer *layer ) const;
+    bool layerVisible( QgsMapLayer *layer );
 
   private:
 
@@ -116,7 +116,7 @@ class CORE_EXPORT QgsMapHitTest
     //! Whether to use only expressions during the filtering
     bool mOnlyExpressions;
 
-    //! cached extent check results 
+    //! cached extent check results
     QMap<QString, bool> mMapContains;
 };
 

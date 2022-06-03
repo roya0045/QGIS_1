@@ -207,7 +207,7 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer *vl, SymbolSet &usedSymbols,
   }
 }
 
-bool QgsMapHitTest::layerVisible( QgsMapLayer *layer ) const
+bool QgsMapHitTest::layerVisible( QgsMapLayer *layer )
 {
   QString mapId = layer->id();
 
