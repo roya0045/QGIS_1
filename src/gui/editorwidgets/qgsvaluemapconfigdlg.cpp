@@ -30,7 +30,8 @@
 #include <QRegularExpression>
 
 QgsValueMapConfigDlg::QgsValueMapConfigDlg( QgsVectorLayer *vl, int fieldIdx, QWidget *parent )
-  : QgsEditorConfigWidget( vl, fieldIdx, parent )
+  : QgsEditorConfigWidget( vl, fieldIdx, parent ),
+  mField( vl->fields().at( fieldIdx ) )
 {
   setupUi( this );
 
@@ -53,6 +54,7 @@ QgsValueMapConfigDlg::QgsValueMapConfigDlg( QgsVectorLayer *vl, int fieldIdx, QW
 QVariantMap QgsValueMapConfigDlg::config()
 {
   QList<QVariant> valueList;
+  validateKeys();
 
   //store data to map
   for ( int i = 0; i < tableWidget->rowCount() - 1; i++ )
@@ -117,11 +119,13 @@ void QgsValueMapConfigDlg::setConfig( const QVariantMap &config )
   }
 
   updateMap( orderedList, false );
+  validateKeys();
 }
 
 void QgsValueMapConfigDlg::vCellChanged( int row, int column )
 {
   Q_UNUSED( column )
+  validateKey( tableWidget->item( row, 0 ) );
   if ( row == tableWidget->rowCount() - 1 )
   {
     tableWidget->insertRow( row + 1 );
@@ -242,6 +246,7 @@ void QgsValueMapConfigDlg::updateMap( const QList<QPair<QString, QVariant>> &lis
     }
     ++row;
   }
+  validateKeys();
 }
 
 QString QgsValueMapConfigDlg::checkValueLength( const QString &value )
@@ -323,6 +328,7 @@ void QgsValueMapConfigDlg::setRow( int row, const QString &value, const QString 
   }
   tableWidget->setItem( row, 0, valueCell );
   tableWidget->setItem( row, 1, descriptionCell );
+  validateKeys();
 }
 
 void QgsValueMapConfigDlg::copySelectionToClipboard()
@@ -413,4 +419,43 @@ void QgsValueMapConfigDlg::loadMapFromCSV( const QString &filePath )
   }
 
   updateMap( map, false );
+}
+
+bool QgsValueMapConfigDlg::validateKeys() const
+{
+  bool allValid = true;
+  if ( !tableWidget )
+      return false;
+  for ( int i = 0; i < tableWidget->rowCount() - 1; i++ )
+  {
+    QTableWidgetItem *ki = tableWidget->item( i, 0 );
+
+    if ( !ki )
+      continue;
+
+    if( !validateKey( ki ) )
+        allValid = false;
+  }
+  return allValid;
+}
+
+bool QgsValueMapConfigDlg::validateKey( QTableWidgetItem *key ) const
+{
+    if ( !key )
+        return false;
+    QVariant ks = QVariant( key->text() );
+    if ( ! mField.convertCompatible(  ks ) )
+    {
+      QMessageBox::information( nullptr,
+                          tr( "Map Value config" ),
+                          tr( "Provided key is incompatible" ),
+                          QMessageBox::Cancel );
+      key->setBackground( QBrush( Qt::red ) );
+      return false;
+    }
+    else if ( key->background() == QBrush( Qt::red ) )
+    {
+      key->setBackground( QBrush( QgsSettings().value( "gui/codeEdit/paperBaackgroundColor" ).value<QColor>() ) );
+    }
+    return true;
 }
