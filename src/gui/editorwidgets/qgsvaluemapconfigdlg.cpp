@@ -29,7 +29,8 @@
 #include <QRegularExpression>
 
 QgsValueMapConfigDlg::QgsValueMapConfigDlg( QgsVectorLayer *vl, int fieldIdx, QWidget *parent )
-  : QgsEditorConfigWidget( vl, fieldIdx, parent )
+  : QgsEditorConfigWidget( vl, fieldIdx, parent ),
+  mField( vl->fields().at( fieldIdx ) )
 {
   setupUi( this );
 
@@ -49,6 +50,8 @@ QgsValueMapConfigDlg::QgsValueMapConfigDlg( QgsVectorLayer *vl, int fieldIdx, QW
 QVariantMap QgsValueMapConfigDlg::config()
 {
   QList<QVariant> valueList;
+
+  validateKeys();
 
   //store data to map
   for ( int i = 0; i < tableWidget->rowCount() - 1; i++ )
@@ -110,6 +113,7 @@ void QgsValueMapConfigDlg::setConfig( const QVariantMap &config )
         setRow( row, mit.value().toString(), mit.key() );
     }
   }
+  validateKeys();
 }
 
 void QgsValueMapConfigDlg::vCellChanged( int row, int column )
@@ -183,6 +187,7 @@ void QgsValueMapConfigDlg::updateMap( const QList<QPair<QString, QVariant>> &lis
       setRow( row, pair.first, pair.second.toString() );
     ++row;
   }
+  validateKeys();
 }
 
 void QgsValueMapConfigDlg::populateComboBox( QComboBox *comboBox, const QVariantMap &config, bool skipNull )
@@ -212,6 +217,7 @@ void QgsValueMapConfigDlg::populateComboBox( QComboBox *comboBox, const QVariant
       comboBox->addItem( it.key(), it.value() );
     }
   }
+  validateKeys();
 }
 
 bool QgsValueMapConfigDlg::eventFilter( QObject *watched, QEvent *event )
@@ -251,6 +257,7 @@ void QgsValueMapConfigDlg::setRow( int row, const QString &value, const QString 
   }
   tableWidget->setItem( row, 0, valueCell );
   tableWidget->setItem( row, 1, descriptionCell );
+  validateKeys();
 }
 
 void QgsValueMapConfigDlg::copySelectionToClipboard()
@@ -344,4 +351,33 @@ void QgsValueMapConfigDlg::loadMapFromCSV( const QString &filePath )
   }
 
   updateMap( map, false );
+}
+
+bool QgsValueMapConfigDlg::validateKeys()
+{
+  QString *errorMessage;
+  bool allValid = true;
+  for ( int i = 0; i < tableWidget->rowCount() - 1; i++ )
+  {
+    QTableWidgetItem *ki = tableWidget->item( i, 0 );
+    QTableWidgetItem *vi = tableWidget->item( i, 1 );
+
+    if ( !ki )
+      continue;
+
+    QString ks = ki->text();
+    if ( ! mField.convertCompatible( ks, errorMessage ) )
+    {
+      QMessageBox::information( nullptr,
+                          tr( "Map/Value config" ),
+                          tr( "%1" ).arg( errorMessage ),
+                          QMessageBox::Cancel );
+      ki->setBackground( QBrush( Qt::red ) );
+      allValid = false;
+    }
+    else
+      ki->setBackground( vi->background() );
+
+  }
+  return allValid;
 }
