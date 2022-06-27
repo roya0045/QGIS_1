@@ -76,16 +76,6 @@ class GUI_EXPORT QgsValueMapConfigDlg : public QgsEditorConfigWidget, private Ui
 
     bool eventFilter( QObject *watched, QEvent *event ) override;
 
-
-    /**
-     * Validate that the provided keys are compliant with the associated field.
-     *
-     * Will return TRUE if all entries are valid.
-     *
-     * \since QGIS 3.27
-     */
-    bool validateKeys() const;
-
   private:
     void setRow( int row, const QString &value, const QString &description );
 
@@ -96,7 +86,6 @@ class GUI_EXPORT QgsValueMapConfigDlg : public QgsEditorConfigWidget, private Ui
     void removeSelectedButtonPushed();
     void loadFromLayerButtonPushed();
     void loadFromCSVButtonPushed();
-    QgsField mField;
 };
 
 #endif // QGSVALUEMAPCONFIGDLG_H
