@@ -241,17 +241,24 @@ class CORE_EXPORT QgsExpressionUtils
     static qlonglong getIntValue( const QVariant &value, QgsExpression *parent )
     {
       bool ok;
-      const qlonglong x = value.toLongLong( &ok );
-      if ( ok )
+      if ( value.userType() == QVariant::String )
       {
-        return x;
+        const float floatValue = value.toFloat( &ok );
+        if ( ok )
+        {
+          return qRound64( floatValue );
+        }
       }
       else
       {
-        if ( parent )
-          parent->setEvalErrorString( QObject::tr( "Cannot convert '%1' to int" ).arg( value.toString() ) );
-        return 0;
+        const qlonglong x = value.toLongLong( &ok );
+        if ( ok )
+        {
+          return x;
+        }
       }
+      parent->setEvalErrorString( QObject::tr( "Cannot convert '%1' to int" ).arg( value.toString() ) );
+      return 0;
     }
 
     static int getNativeIntValue( const QVariant &value, QgsExpression *parent )
