@@ -1195,7 +1195,10 @@ bool QgsLayoutItem::isRefreshing() const
 QgsExpressionContext QgsLayoutItem::createExpressionContext() const
 {
   QgsExpressionContext context = QgsLayoutObject::createExpressionContext();
-  context.appendScope( QgsExpressionContextUtils::layoutItemScope( this ) );
+  QgsExpressionContextScope *scope = QgsExpressionContextUtils::layoutItemScope( this );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "layout_item_x" ), mItemPosition.x(), true ) );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "layout_item_y" ), mItemPosition.y(), true ) );
+  context.appendScope( scope );
   return context;
 }
 
