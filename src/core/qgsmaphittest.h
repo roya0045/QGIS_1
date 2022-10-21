@@ -25,6 +25,7 @@
 class QgsRenderContext;
 class QgsSymbol;
 class QgsVectorLayer;
+class QgsMapLayer;
 class QgsExpression;
 
 /**
@@ -71,6 +72,13 @@ class CORE_EXPORT QgsMapHitTest
      */
     bool legendKeyVisible( const QString &ruleKey, QgsVectorLayer *layer ) const;
 
+    /**
+     * Tests whether a map layer is visible.
+     * \param layer QgsMapLayer
+     * \since QGIS 3.28
+     */
+    bool layerVisible( QgsMapLayer *layer );
+
   private:
 
     //! \note not available in Python bindings
@@ -107,6 +115,9 @@ class CORE_EXPORT QgsMapHitTest
 
     //! Whether to use only expressions during the filtering
     bool mOnlyExpressions;
+
+    //! cached extent check results
+    QMap<QString, bool> mMapContains;
 };
 
 #endif // QGSMAPHITTEST_H

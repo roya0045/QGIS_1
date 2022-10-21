@@ -203,3 +203,39 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer *vl, SymbolSet &usedSymbols,
   r->stopRender( context );
 }
 
+bool QgsMapHitTest::layerVisible( QgsMapLayer *layer )
+{
+  QString mapId = layer->id();
+
+  if ( ! layer->dataProvider() )
+    return false;
+  if ( layer->hasScaleBasedVisibility() )
+  {
+    if ( mSettings.scale() < layer->minimumScale() || mSettings.scale() > layer->maximumScale() )
+      return false;
+  }
+  else if ( mMapContains.contains( mapId ) )
+    return mMapContains.value( mapId );
+
+  QgsRectangle footprint = layer->extent();
+  if ( mSettings.destinationCrs() != layer->crs() )
+  {
+    try
+    {
+      QgsCoordinateTransform ct = QgsCoordinateTransform( layer->crs(), mSettings.destinationCrs(), mSettings.transformContext() );
+      footprint = ct.transformBoundingBox( footprint );
+    }
+    catch ( QgsCsException & )
+    {
+      QgsMessageLog::logMessage( QObject::tr( "Could not transform map CRS to layer CRS" ) );
+      return false;
+    }
+  }
+  bool withinExt = false;
+  if ( mSettings.visibleExtent().intersects( footprint ) )
+  {
+    withinExt = true;
+  }
+  mMapContains.insert( mapId, withinExt );
+  return withinExt;
+}

@@ -1238,6 +1238,11 @@ QList<QgsLayerTreeModelLegendNode *> QgsLayerTreeModel::filterLegendNodes( const
                 if ( mLegendFilterHitTest->legendKeyVisible( ruleKey, vl ) )
                   filtered << node;
               }
+              else if ( QgsMapLayer *ml = node->layerNode()->layer() )
+              {
+                if ( mLegendFilterHitTest->layerVisible( ml ) )
+                  filtered << node;
+              }
               else
               {
                 filtered << node;
