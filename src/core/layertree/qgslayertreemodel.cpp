@@ -1342,6 +1342,11 @@ QList<QgsLayerTreeModelLegendNode *> QgsLayerTreeModel::filterLegendNodes( const
                   filtered << node;
                 }
               }
+              else if ( QgsMapLayer *ml = node->layerNode()->layer() )
+              {
+                if ( mLegendFilterHitTest->layerVisible( ml ) )
+                  filtered << node;
+              }
               else
               {
                 filtered << node;

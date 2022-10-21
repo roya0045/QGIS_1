@@ -1223,12 +1223,14 @@ class TestQgsLayoutItemLegend(QgisTestCase, LayoutItemTestCase):
 
         s = QgsMapSettings()
         s.setLayers([point_layer])
+
         layout = QgsLayout(QgsProject.instance())
         layout.initializeDefaults()
 
         map = QgsLayoutItemMap(layout)
         map.attemptSetSceneRect(QRectF(20, 20, 80, 80))
         map.setFrameEnabled(True)
+
         map.setLayers([point_layer])
         layout.addLayoutItem(map)
         map.zoomToExtent(point_layer.extent())
@@ -1264,6 +1266,7 @@ class TestQgsLayoutItemLegend(QgisTestCase, LayoutItemTestCase):
         self.assertTrue(
             self.render_layout_check("composer_legend_reference_point_newsize", layout)
         )
+
 
         QgsProject.instance().clear()
 
@@ -1916,5 +1919,110 @@ class TestQgsLayoutItemLegend(QgisTestCase, LayoutItemTestCase):
         QgsProject.instance().removeMapLayers([line_layer.id()])
 
 
-if __name__ == "__main__":
+    def test_raster_extent_filtering(self):
+        """Test test legend resizes to match map content"""
+        raster_path = os.path.join(TEST_DATA_DIR, 'rbg256x256.png')
+        raster_layer = QgsRasterLayer(raster_path, 'testraster')
+        QgsProject.instance().addMapLayers([raster_layer])
+
+        s = QgsMapSettings()
+        s.setLayers([raster_layer])
+
+        layout = QgsLayout(QgsProject.instance())
+        layout.initializeDefaults()
+
+        map = QgsLayoutItemMap(layout)
+        map.attemptSetSceneRect(QRectF(20, 20, 80, 80))
+        map.setFrameEnabled(True)
+
+        map.setLayers([raster_layer])
+        layout.addLayoutItem(map)
+        map.setExtent(raster_layer.extent())
+
+        legend = QgsLayoutItemLegend(layout)
+        legend.setTitle("Unfiltered Legend")
+        legend.attemptSetSceneRect(QRectF(120, 20, 80, 40))
+        legend.setFrameEnabled(True)
+        legend.setFrameStrokeWidth(QgsLayoutMeasurement(2))
+        legend.setBackgroundColor(QColor(200, 200, 200))
+        legend.setTitle('')
+        legend.setLegendFilterByMapEnabled(False)
+        layout.addLayoutItem(legend)
+        legend.setLinkedMap(map)
+
+        legendf = QgsLayoutItemLegend(layout)
+        legendf.setTitle("Filtered Legend")
+        legendf.attemptSetSceneRect(QRectF(120, 40, 80, 80))
+        legendf.setFrameEnabled(True)
+        legendf.setFrameStrokeWidth(QgsLayoutMeasurement(2))
+        legendf.setBackgroundColor(QColor(200, 200, 200))
+        legendf.setTitle('')
+        legendf.setLegendFilterByMapEnabled(True)
+        layout.addLayoutItem(legendf)
+        legendf.setLinkedMap(map)
+
+        map.setExtent(QgsRectangle(-102.51, 41.16, -102.36, 41.30))
+
+        checker = QgsLayoutChecker(
+            'composer_legend_raster_filter', layout)
+        checker.setControlPathPrefix("composer_legend")
+        result, message = checker.testLayout()
+        TestQgsLayoutItemLegend.report += checker.report()
+        self.assertTrue(result, message)
+
+        QgsProject.instance().clear()
+        QgsProject.instance().removeMapLayers([raster_layer.id()])
+
+    def test_reprojected_raster_extent_filtering(self):
+        """Test test legend resizes to match map content"""
+        raster_path = os.path.join(TEST_DATA_DIR, 'rbg256x256.png')
+        raster_layer = QgsRasterLayer(raster_path, 'testraster')
+        QgsProject.instance().addMapLayers([raster_layer])
+
+        s = QgsMapSettings()
+        s.setLayers([raster_layer])
+        layout = QgsLayout(QgsProject.instance())
+        layout.initializeDefaults()
+
+        map = QgsLayoutItemMap(layout)
+        map.attemptSetSceneRect(QRectF(20, 20, 80, 80))
+        map.setFrameEnabled(True)
+        map.setLayers([raster_layer])
+        layout.addLayoutItem(map)
+        map.setExtent(raster_layer.extent())
+        map.setCrs(QgsCoordinateReferenceSystem('epsg:3111'))
+
+        legend = QgsLayoutItemLegend(layout)
+        legend.setTitle("Unfiltered Legend")
+        legend.attemptSetSceneRect(QRectF(120, 20, 80, 40))
+        legend.setFrameEnabled(True)
+        legend.setFrameStrokeWidth(QgsLayoutMeasurement(2))
+        legend.setBackgroundColor(QColor(200, 200, 200))
+        legend.setTitle('')
+        legend.setLegendFilterByMapEnabled(False)
+        layout.addLayoutItem(legend)
+        legend.setLinkedMap(map)
+
+        legendf = QgsLayoutItemLegend(layout)
+        legendf.setTitle("Filtered Legend")
+        legendf.attemptSetSceneRect(QRectF(120, 40, 80, 80))
+        legendf.setFrameEnabled(True)
+        legendf.setFrameStrokeWidth(QgsLayoutMeasurement(2))
+        legendf.setBackgroundColor(QColor(200, 200, 200))
+        legendf.setTitle('')
+        legendf.setLegendFilterByMapEnabled(True)
+        layout.addLayoutItem(legendf)
+        legendf.setLinkedMap(map)
+
+        checker = QgsLayoutChecker(
+            'composer_legend_raster_filter_reproj', layout)
+        checker.setControlPathPrefix("composer_legend")
+        result, message = checker.testLayout()
+        TestQgsLayoutItemLegend.report += checker.report()
+        self.assertTrue(result, message)
+
+        QgsProject.instance().removeMapLayers([raster_layer.id()])
+
+
+if __name__ == '__main__':
     unittest.main()
