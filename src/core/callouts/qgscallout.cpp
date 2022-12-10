@@ -429,7 +429,8 @@ QgsGeometry QgsCallout::calloutLineToPart( const QgsGeometry &labelGeometry, con
   AnchorPoint anchor = anchorPoint();
   const QgsAbstractGeometry *evaluatedPartAnchor = partGeometry;
   std::unique_ptr< QgsAbstractGeometry > tempPartAnchor;
-
+  // or check in there
+  // look in the callout context or try to get the point some other way
   if ( dataDefinedProperties().isActive( QgsCallout::DestinationX ) && dataDefinedProperties().isActive( QgsCallout::DestinationY ) )
   {
     bool ok = false;
@@ -482,7 +483,7 @@ QgsGeometry QgsCallout::calloutLineToPart( const QgsGeometry &labelGeometry, con
       // ideally avoid this unwanted clone in future. For now we need it because poleOfInaccessibility/pointOnSurface are
       // only available to QgsGeometry objects
       const QgsGeometry evaluatedPartAnchorGeom( evaluatedPartAnchor->clone() );
-      switch ( anchor )
+      switch ( anchor ) // check here?
       {
         case QgsCallout::PoleOfInaccessibility:
           line = labelGeos.shortestLine( evaluatedPartAnchorGeom.poleOfInaccessibility( std::max( evaluatedPartAnchor->boundingBox().width(), evaluatedPartAnchor->boundingBox().height() ) / 20.0 ) ); // really rough (but quick) pole of inaccessibility
@@ -652,6 +653,7 @@ void QgsSimpleLineCallout::setLineSymbol( QgsLineSymbol *symbol )
 
 void QgsSimpleLineCallout::draw( QgsRenderContext &context, const QRectF &rect, const double angle, const QgsGeometry &anchor, QgsCalloutContext &calloutContext )
 {
+  // or check here, but that's for the label not featrure..
   LabelAnchorPoint labelAnchor = labelAnchorPoint();
   if ( dataDefinedProperties().isActive( QgsCallout::LabelAnchorPointPosition ) )
   {
