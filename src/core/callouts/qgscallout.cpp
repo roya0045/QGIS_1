@@ -469,8 +469,13 @@ QgsGeometry QgsCallout::calloutLineToPart( const QgsGeometry &labelGeometry, con
   switch ( QgsWkbTypes::geometryType( evaluatedPartAnchor->wkbType() ) )
   {
     case QgsWkbTypes::PointGeometry:
+    {
+    line = labelGeos.shortestLine( evaluatedPartAnchor );
+    break;
+    }
     case QgsWkbTypes::LineGeometry:
     {
+      // change the anchor depending on settings
       line = labelGeos.shortestLine( evaluatedPartAnchor );
       break;
     }
