@@ -231,6 +231,10 @@ QString QgsCallout::encodeAnchorPoint( AnchorPoint anchor )
       return QStringLiteral( "point_on_surface" );
     case Centroid:
       return QStringLiteral( "centroid" );
+    case Nearest:
+      return QStringLiteral( "nearest" );
+    case LineLabelSettings:
+      return QStringLiteral( "line_label_settings" );
   }
   return QString();
 }
@@ -466,50 +470,36 @@ QgsGeometry QgsCallout::calloutLineToPart( const QgsGeometry &labelGeometry, con
   QgsGeometry line;
   const QgsGeos labelGeos( labelGeometry.constGet() );
 
-  switch ( QgsWkbTypes::geometryType( evaluatedPartAnchor->wkbType() ) )
+  switch ( QgsWkbTypes::geometryType( evaluatedPartAnchor->wkbType() ) ) 
   {
-    case QgsWkbTypes::PointGeometry:
-    {
-    line = labelGeos.shortestLine( evaluatedPartAnchor );
-    break;
-    }
-    case QgsWkbTypes::LineGeometry:
-    {
-      // change the anchor depending on settings
-      line = labelGeos.shortestLine( evaluatedPartAnchor );
-      break;
-    }
-
     case QgsWkbTypes::PolygonGeometry:
-    {
       if ( labelGeos.intersects( evaluatedPartAnchor ) )
         return QgsGeometry();
-
-      // ideally avoid this unwanted clone in future. For now we need it because poleOfInaccessibility/pointOnSurface are
-      // only available to QgsGeometry objects
-      const QgsGeometry evaluatedPartAnchorGeom( evaluatedPartAnchor->clone() );
-      switch ( anchor ) // check here?
-      {
-        case QgsCallout::PoleOfInaccessibility:
-          line = labelGeos.shortestLine( evaluatedPartAnchorGeom.poleOfInaccessibility( std::max( evaluatedPartAnchor->boundingBox().width(), evaluatedPartAnchor->boundingBox().height() ) / 20.0 ) ); // really rough (but quick) pole of inaccessibility
-          break;
-        case QgsCallout::PointOnSurface:
-          line = labelGeos.shortestLine( evaluatedPartAnchorGeom.pointOnSurface() );
-          break;
-        case QgsCallout::PointOnExterior:
-          line = labelGeos.shortestLine( evaluatedPartAnchor );
-          break;
-        case QgsCallout::Centroid:
-          line = labelGeos.shortestLine( evaluatedPartAnchorGeom.centroid() );
-          break;
-      }
-      break;
-    }
-
     case QgsWkbTypes::NullGeometry:
     case QgsWkbTypes::UnknownGeometry:
       return QgsGeometry(); // shouldn't even get here..
   }
+  QgsGeometry destination;
+  switch ( anchor )
+  {
+    case QgsCallout::PointOnExterior:
+    case QgsCallout::Nearest:
+      return labelGeos.shortestLine( evaluatedPartAnchor );
+    case QgsCallout::LineLabelSettings:
+      destination = find how to get settings....
+      break;
+    case QgsCallout::PoleOfInaccessibility:
+      destination = evaluatedPartAnchorGeom.poleOfInaccessibility( std::max( evaluatedPartAnchor->boundingBox().width(), evaluatedPartAnchor->boundingBox().height() ) / 20.0 ); // really rough (but quick) pole of inaccessibility
+      break;
+    case QgsCallout::PointOnSurface:
+      destination = QgsGeometry( evaluatedPartAnchor->clone() ).pointOnSurface();
+      break;
+    case QgsCallout::Centroid:
+      destination = QgsGeometry( evaluatedPartAnchor->clone() ).centroid();
+      break;
+  }
+
+  line = labelGeos.shortestLine( destination );
   return line;
 }
 

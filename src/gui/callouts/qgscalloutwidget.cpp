@@ -161,7 +161,11 @@ QgsSimpleLineCalloutWidget::QgsSimpleLineCalloutWidget( QgsVectorLayer *vl, QWid
   mAnchorPointComboBox->addItem( tr( "Point on Exterior" ), static_cast< int >( QgsCallout::PointOnExterior ) );
   mAnchorPointComboBox->addItem( tr( "Point on Surface" ), static_cast< int >( QgsCallout::PointOnSurface ) );
   mAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::Centroid ) );
+  mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+  mAnchorPointComboBox->addItem( tr( "Label Line Anchor" ), static_cast< int >( QgsCallout::LineLabelSettings ) );
   connect( mAnchorPointComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsSimpleLineCalloutWidget::mAnchorPointComboBox_currentIndexChanged );
+  mAnchorPointComboBox->setEnabled( true );
+  mAnchorPointComboBox->setVisible( true );
 
   mLabelAnchorPointComboBox->addItem( tr( "Closest Point" ), static_cast< int >( QgsCallout::LabelPointOnExterior ) );
   mLabelAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::LabelCentroid ) );
@@ -235,8 +239,25 @@ void QgsSimpleLineCalloutWidget::setGeometryType( QgsWkbTypes::GeometryType type
   const bool isPolygon = type == QgsWkbTypes::PolygonGeometry;
   mAnchorPointLbl->setEnabled( isPolygon );
   mAnchorPointLbl->setVisible( isPolygon );
-  mAnchorPointComboBox->setEnabled( isPolygon );
-  mAnchorPointComboBox->setVisible( isPolygon );
+  mAnchorPointComboBox->clear();
+  switch ( type )
+  {
+    case QgsWkbTypes::PolygonGeometry:
+      mAnchorPointComboBox->addItem( tr( "Pole of Inaccessibility" ), static_cast< int >( QgsCallout::PoleOfInaccessibility ) );
+      mAnchorPointComboBox->addItem( tr( "Point on Exterior" ), static_cast< int >( QgsCallout::PointOnExterior ) );
+      mAnchorPointComboBox->addItem( tr( "Point on Surface" ), static_cast< int >( QgsCallout::PointOnSurface ) );
+      mAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::Centroid ) );
+      break;
+    
+    case QgsWkbTypes::LineGeometry:
+      mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+      mAnchorPointComboBox->addItem( tr( "Label Line Anchor" ), static_cast< int >( QgsCallout::LineLabelSettings ) );
+      break;
+
+    case QgsWkbTypes::PointGeometry:
+      mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+      break;
+  }
   mAnchorPointDDBtn->setEnabled( isPolygon );
   mAnchorPointDDBtn->setVisible( isPolygon );
 }
@@ -373,7 +394,11 @@ QgsCurvedLineCalloutWidget::QgsCurvedLineCalloutWidget( QgsVectorLayer *vl, QWid
   mAnchorPointComboBox->addItem( tr( "Point on Exterior" ), static_cast< int >( QgsCallout::PointOnExterior ) );
   mAnchorPointComboBox->addItem( tr( "Point on Surface" ), static_cast< int >( QgsCallout::PointOnSurface ) );
   mAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::Centroid ) );
+  mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+  mAnchorPointComboBox->addItem( tr( "Label Line Anchor" ), static_cast< int >( QgsCallout::LineLabelSettings ) );
   connect( mAnchorPointComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsCurvedLineCalloutWidget::mAnchorPointComboBox_currentIndexChanged );
+  mAnchorPointComboBox->setEnabled( true );
+  mAnchorPointComboBox->setVisible( true );
 
   mLabelAnchorPointComboBox->addItem( tr( "Closest Point" ), static_cast< int >( QgsCallout::LabelPointOnExterior ) );
   mLabelAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::LabelCentroid ) );
@@ -462,8 +487,24 @@ void QgsCurvedLineCalloutWidget::setGeometryType( QgsWkbTypes::GeometryType type
   const bool isPolygon = type == QgsWkbTypes::PolygonGeometry;
   mAnchorPointLbl->setEnabled( isPolygon );
   mAnchorPointLbl->setVisible( isPolygon );
-  mAnchorPointComboBox->setEnabled( isPolygon );
-  mAnchorPointComboBox->setVisible( isPolygon );
+  switch ( type )
+  {
+    case QgsWkbTypes::PolygonGeometry:
+      mAnchorPointComboBox->addItem( tr( "Pole of Inaccessibility" ), static_cast< int >( QgsCallout::PoleOfInaccessibility ) );
+      mAnchorPointComboBox->addItem( tr( "Point on Exterior" ), static_cast< int >( QgsCallout::PointOnExterior ) );
+      mAnchorPointComboBox->addItem( tr( "Point on Surface" ), static_cast< int >( QgsCallout::PointOnSurface ) );
+      mAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::Centroid ) );
+      break;
+    
+    case QgsWkbTypes::LineGeometry:
+      mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+      mAnchorPointComboBox->addItem( tr( "Label Line Anchor" ), static_cast< int >( QgsCallout::LineLabelSettings ) );
+      break;
+
+    case QgsWkbTypes::PointGeometry:
+      mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+      break;
+  }
   mAnchorPointDDBtn->setEnabled( isPolygon );
   mAnchorPointDDBtn->setVisible( isPolygon );
 }
@@ -582,7 +623,11 @@ QgsBalloonCalloutWidget::QgsBalloonCalloutWidget( QgsVectorLayer *vl, QWidget *p
   mAnchorPointComboBox->addItem( tr( "Point on Exterior" ), static_cast< int >( QgsCallout::PointOnExterior ) );
   mAnchorPointComboBox->addItem( tr( "Point on Surface" ), static_cast< int >( QgsCallout::PointOnSurface ) );
   mAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::Centroid ) );
+  mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+  mAnchorPointComboBox->addItem( tr( "Label Line Anchor" ), static_cast< int >( QgsCallout::LineLabelSettings ) );
   connect( mAnchorPointComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsBalloonCalloutWidget::mAnchorPointComboBox_currentIndexChanged );
+  mAnchorPointComboBox->setEnabled( true );
+  mAnchorPointComboBox->setVisible( true );
 
   connect( mCalloutFillStyleButton, &QgsSymbolButton::changed, this, &QgsBalloonCalloutWidget::fillSymbolChanged );
 
@@ -702,8 +747,24 @@ void QgsBalloonCalloutWidget::setGeometryType( QgsWkbTypes::GeometryType type )
   const bool isPolygon = type == QgsWkbTypes::PolygonGeometry;
   mAnchorPointLbl->setEnabled( isPolygon );
   mAnchorPointLbl->setVisible( isPolygon );
-  mAnchorPointComboBox->setEnabled( isPolygon );
-  mAnchorPointComboBox->setVisible( isPolygon );
+  switch ( type )
+  {
+    case QgsWkbTypes::PolygonGeometry:
+      mAnchorPointComboBox->addItem( tr( "Pole of Inaccessibility" ), static_cast< int >( QgsCallout::PoleOfInaccessibility ) );
+      mAnchorPointComboBox->addItem( tr( "Point on Exterior" ), static_cast< int >( QgsCallout::PointOnExterior ) );
+      mAnchorPointComboBox->addItem( tr( "Point on Surface" ), static_cast< int >( QgsCallout::PointOnSurface ) );
+      mAnchorPointComboBox->addItem( tr( "Centroid" ), static_cast< int >( QgsCallout::Centroid ) );
+      break;
+    
+    case QgsWkbTypes::LineGeometry:
+      mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+      mAnchorPointComboBox->addItem( tr( "Label Line Anchor" ), static_cast< int >( QgsCallout::LineLabelSettings ) );
+      break;
+
+    case QgsWkbTypes::PointGeometry:
+      mAnchorPointComboBox->addItem( tr( "Nearest" ), static_cast< int >( QgsCallout::Nearest) );
+      break;
+  }
   mAnchorPointDDBtn->setEnabled( isPolygon );
   mAnchorPointDDBtn->setVisible( isPolygon );
 }

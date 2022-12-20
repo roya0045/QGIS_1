@@ -114,6 +114,8 @@ class CORE_EXPORT QgsCallout
       PointOnExterior, //!< A point on the surface's outline closest to the label is used as anchor for polygon geometries
       PointOnSurface, //!< A point guaranteed to be on the surface is used as anchor for polygon geometries
       Centroid, //!< The surface's centroid is used as anchor for polygon geometries
+      Nearest, //!< Default option with points and lines
+      LineLabelSettings, //!< Reuse the parameter set in the line label placement settings
     };
 
     /**
