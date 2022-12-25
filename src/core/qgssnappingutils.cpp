@@ -43,7 +43,8 @@ QgsPointLocator *QgsSnappingUtils::locatorForLayer( QgsVectorLayer *vl, const Qg
   {
     QgsPointLocator *vlpl;
     // check layer type, add a refresh on move or compare to extent
-    if  ( vl. isWeb )
+    QUrl url( vl->publicSource() );
+    if  ( url.isValid() && !url.isLocalFile() )
     {
       vlpl = new QgsPointLocator( vl, destinationCrs(), mMapSettings.transformContext(), extent );
       mWebLayers.append( vl->publicSource() );
