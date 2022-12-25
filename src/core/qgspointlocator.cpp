@@ -1206,66 +1206,70 @@ void QgsPointLocator::onFeatureAdded( QgsFeatureId fid )
   QgsFeature f;
   if ( mLayer->getFeatures( mContext ? QgsFeatureRequest( fid ) : QgsFeatureRequest( fid ).setNoAttributes() ).nextFeature( f ) )
   {
-    if ( !f.hasGeometry() )
-      return;
+    _insertFeature( f );
+  }
+}
 
-    if ( mContext )
+void QgsPointLocator::_insertFeature( QgsFeature f )
+{
+  if ( !f.hasGeometry() || mGeoms.conains( f.id() ) )
+     return;
+  if ( mContext )
+  {
+    std::unique_ptr< QgsFeatureRenderer > renderer( mLayer->renderer() ? mLayer->renderer()->clone() : nullptr );
+    QgsRenderContext *ctx = nullptr;
+
+    mContext->expressionContext() << QgsExpressionContextUtils::layerScope( mLayer );
+    ctx = mContext.get();
+    if ( renderer && ctx )
     {
-      std::unique_ptr< QgsFeatureRenderer > renderer( mLayer->renderer() ? mLayer->renderer()->clone() : nullptr );
-      QgsRenderContext *ctx = nullptr;
+      bool pass = false;
+      renderer->startRender( *ctx, mLayer->fields() );
 
-      mContext->expressionContext() << QgsExpressionContextUtils::layerScope( mLayer );
-      ctx = mContext.get();
-      if ( renderer && ctx )
+      ctx->expressionContext().setFeature( f );
+      if ( !renderer->willRenderFeature( f, *ctx ) )
       {
-        bool pass = false;
-        renderer->startRender( *ctx, mLayer->fields() );
-
-        ctx->expressionContext().setFeature( f );
-        if ( !renderer->willRenderFeature( f, *ctx ) )
-        {
-          pass = true;
-        }
-
-        renderer->stopRender( *ctx );
-        if ( pass )
-          return;
+        pass = true;
       }
-    }
 
-    if ( mTransform.isValid() )
-    {
-      try
-      {
-        QgsGeometry transformedGeom = f.geometry();
-        transformedGeom.transform( mTransform );
-        f.setGeometry( transformedGeom );
-      }
-      catch ( const QgsException &e )
-      {
-        Q_UNUSED( e )
-        // See https://github.com/qgis/QGIS/issues/20749
-        QgsDebugMsg( QStringLiteral( "could not transform geometry to map, skipping the snap for it (%1)" ).arg( e.what() ) );
+      renderer->stopRender( *ctx );
+      if ( pass )
         return;
-      }
     }
+  }
 
-    const QgsRectangle bbox = f.geometry().boundingBox();
-    if ( bbox.isFinite() )
+  if ( mTransform.isValid() )
+  {
+    try
     {
-      const SpatialIndex::Region r( rect2region( bbox ) );
-      mRTree->insertData( 0, nullptr, r, f.id() );
+      QgsGeometry transformedGeom = f.geometry();
+      transformedGeom.transform( mTransform );
+      f.setGeometry( transformedGeom );
+    }
+    catch ( const QgsException &e )
+    {
+      Q_UNUSED( e )
+      // See https://github.com/qgis/QGIS/issues/20749
+      QgsDebugMsg( QStringLiteral( "could not transform geometry to map, skipping the snap for it (%1)" ).arg( e.what() ) );
+      return;
+    }
+  }
 
-      auto it = mGeoms.find( f.id() );
-      if ( it != mGeoms.end() )
-      {
-        delete *it;
-        *it = new QgsGeometry( f.geometry() );
-      }
-      else
-      {
-        mGeoms[fid] = new QgsGeometry( f.geometry() );
-      }
+  const QgsRectangle bbox = f.geometry().boundingBox();
+  if ( bbox.isFinite() )
+  {
+    const SpatialIndex::Region r( rect2region( bbox ) );
+    mRTree->insertData( 0, nullptr, r, f.id() );
+
+    auto it = mGeoms.find( f.id() );
+    if ( it != mGeoms.end() )
+    {
+      delete *it;
+      *it = new QgsGeometry( f.geometry() );
+    }
+    else
+    {
+      mGeoms[fid] = new QgsGeometry( f.geometry() );
     }
   }
 }
@@ -1297,6 +1301,56 @@ void QgsPointLocator::onFeatureDeleted( QgsFeatureId fid )
     mGeoms.erase( it );
   }
 
+}
+
+void QgsPointLocator::extentChanged( Const QgsRectange* extent )
+{
+  setExtent( extent );
+  QgsFeature f;
+
+  QgsFeatureRequest request;
+  request.setNoAttributes();
+
+  if ( mExtent )
+  {
+    QgsRectangle rect = *mExtent;
+    if ( !mTransform.isShortCircuited() )
+    {
+      QgsCoordinateTransform rectTransform = mTransform;
+      rectTransform.setBallparkTransformsAreAppropriate( true );
+      try
+      {
+        rect = rectTransform.transformBoundingBox( rect, Qgis::TransformDirection::Reverse );
+      }
+      catch ( const QgsException &e )
+      {
+        Q_UNUSED( e )
+        // See https://github.com/qgis/QGIS/issues/20749
+        QgsDebugMsg( QStringLiteral( "could not transform bounding box to map, skipping the snap filter (%1)" ).arg( e.what() ) );
+      }
+    }
+    request.setFilterRect( rect );
+  }
+
+  bool filter = false;
+  QgsRenderContext *ctx = nullptr;
+  if ( mContext )
+  {
+    ctx = mContext.get();
+    if ( mRenderer )
+    {
+      // setup scale for scale dependent visibility (rule based)
+      mRenderer->startRender( *ctx, mSource->fields() );
+      filter = mRenderer->capabilities() & QgsFeatureRenderer::Filter;
+      request.setSubsetOfAttributes( mRenderer->usedAttributes( *ctx ), mSource->fields() );
+    }
+  }
+
+  QgsFeatureIterator fi = mSource->getFeatures( request );
+  while ( fi.nextFeature( f ) )
+  {
+    _insertFeature( f );
+  }
 }
 
 void QgsPointLocator::onGeometryChanged( QgsFeatureId fid, const QgsGeometry &geom )

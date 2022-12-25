@@ -244,6 +244,8 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
      * \since QGIS 3.0
      */
     void toggleEnabled();
+    
+    void extentChanged( const QgsRectange *extent );
 
   signals:
 
@@ -305,6 +307,8 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     QSet<QString> mHybridNonindexableLayers;
     //! list of additional snapping layers
     QSet<QgsVectorLayer *> mExtraSnapLayers;
+    
+    QList<QString> mWebLayers;
 
     /**
      * a record for each layer seen:

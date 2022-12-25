@@ -461,6 +461,12 @@ class CORE_EXPORT QgsPointLocator : public QObject
      */
     void waitForIndexingFinished();
 
+    /**
+     * Updates the index by including new features within the extent.
+     * \since QGIS 3.30
+     */
+    void extentChanged( Const QgsRectange* extent );
+
   signals:
 
     /**
@@ -489,6 +495,13 @@ class CORE_EXPORT QgsPointLocator : public QObject
      * \param relaxed TRUE if index build has to be non blocking
      */
     bool prepare( bool relaxed );
+    
+    
+    /**
+     * Adds a new feature to the existing index
+     * \since QGIS 3.20
+     */
+    void _insertFeature( QgsFeature f );
 
     //! Storage manager
     std::unique_ptr< SpatialIndex::IStorageManager > mStorage;

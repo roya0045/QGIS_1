@@ -34,14 +34,22 @@ QgsSnappingUtils::~QgsSnappingUtils()
 }
 
 
-QgsPointLocator *QgsSnappingUtils::locatorForLayer( QgsVectorLayer *vl )
+QgsPointLocator *QgsSnappingUtils::locatorForLayer( QgsVectorLayer *vl, const QgsRectangle* extent )
 {
   if ( !vl )
     return nullptr;
 
   if ( !mLocators.contains( vl ) )
   {
-    QgsPointLocator *vlpl = new QgsPointLocator( vl, destinationCrs(), mMapSettings.transformContext(), nullptr );
+    QgsPointLocator *vlpl;
+    // check layer type, add a refresh on move or compare to extent
+    if  ( vl. isWeb )
+    {
+      vlpl = new QgsPointLocator( vl, destinationCrs(), mMapSettings.transformContext(), extent );
+      mWebLayers.append( vl->publicSource() );
+    }
+    else
+      vlpl = new QgsPointLocator( vl, destinationCrs(), mMapSettings.transformContext(), nullptr );
     connect( vlpl, &QgsPointLocator::initFinished, this, &QgsSnappingUtils::onInitFinished );
     mLocators.insert( vl, vlpl );
   }
@@ -55,6 +63,9 @@ void QgsSnappingUtils::clearAllLocators()
 
   qDeleteAll( mTemporaryLocators );
   mTemporaryLocators.clear();
+
+  qDeleteAll( mWebLayers );
+  mWebLayers.clear();
 }
 
 
@@ -708,5 +719,17 @@ void QgsSnappingUtils::onIndividualLayerSettingsChanged( const QHash<QgsVectorLa
     {
       mLayers.append( LayerConfig( i.key(), _snappingTypeToPointLocatorType( static_cast<Qgis::SnappingTypes>( i->typeFlag() ) ), i->tolerance(), i->units() ) );
     }
+  }
+}
+
+void QgsSnappingUtils::extentChanged( const QgsRectange *extent )
+{
+  QMap<QgsVectorLayer *, QgsPointLocator *>::const_iterator i;
+
+  for ( i =  LocatorsMap.constBegin(); i !=  LocatorsMap.constEnd(); ++i )
+  {
+    if ( mWebLayers.contains( i.key()->publicSource() ) )
+      i.value()->extentChanged( extent );
+    
   }
 }
