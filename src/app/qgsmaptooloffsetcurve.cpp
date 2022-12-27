@@ -78,7 +78,8 @@ void QgsMapToolOffsetCurve::canvasReleaseEvent( QgsMapMouseEvent *e )
 
     if ( e->modifiers() & Qt::ControlModifier )
     {
-      match = mCanvas->snappingUtils()->snapToMap( e->pos(), nullptr );
+      const QgsRectangle extent = mCanvas->extent();
+      match = mCanvas->snappingUtils()->snapToMap( e->pos(), nullptr, false, &extent );
     }
     else
     {
@@ -441,7 +442,8 @@ void QgsMapToolOffsetCurve::canvasMoveEvent( QgsMapMouseEvent *e )
     QgsPointLocator::Match match;
     if ( e->modifiers() & Qt::ControlModifier )
     {
-      match = mCanvas->snappingUtils()->snapToMap( e->pos(), nullptr );
+      const QgsRectangle extent = mCanvas->extent();
+      match = mCanvas->snappingUtils()->snapToMap( e->pos(), nullptr, false, &extent );
     }
     else
     {

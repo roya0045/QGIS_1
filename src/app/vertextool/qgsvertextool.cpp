@@ -883,8 +883,9 @@ QgsPointLocator::Match QgsVertexTool::snapToEditableLayer( QgsMapMouseEvent *e )
       }
 
       snapUtils->setConfig( config );
+      const QgsRectangle extent = canvas()->extent();
       SelectedMatchFilter filter( tol, mLockedFeature.get() );
-      m = snapUtils->snapToMap( mapPoint, &filter, true );
+      m = snapUtils->snapToMap( mapPoint, &filter, true, &extent );
 
       // we give priority to snap matches that are from selected features
       if ( filter.hasSelectedMatch() )
@@ -894,7 +895,7 @@ QgsPointLocator::Match QgsVertexTool::snapToEditableLayer( QgsMapMouseEvent *e )
       }
     }
   }
-
+  const QgsRectangle extent = canvas()->extent();
   // if there is no match from the current layer, try to use any editable vector layer
   if ( !m.isValid() && mMode == AllLayers )
   {
@@ -923,8 +924,9 @@ QgsPointLocator::Match QgsVertexTool::snapToEditableLayer( QgsMapMouseEvent *e )
     }
 
     snapUtils->setConfig( config );
+
     SelectedMatchFilter filter( tol, mLockedFeature.get() );
-    m = snapUtils->snapToMap( mapPoint, &filter, true );
+    m = snapUtils->snapToMap( mapPoint, &filter, true, &extent );
 
     // we give priority to snap matches that are from selected features
     if ( filter.hasSelectedMatch() )
@@ -939,7 +941,7 @@ QgsPointLocator::Match QgsVertexTool::snapToEditableLayer( QgsMapMouseEvent *e )
   if ( mLastSnap )
   {
     OneFeatureFilter filterLast( mLastSnap->layer(), mLastSnap->featureId() );
-    QgsPointLocator::Match lastMatch = snapUtils->snapToMap( mapPoint, &filterLast, true );
+    QgsPointLocator::Match lastMatch = snapUtils->snapToMap( mapPoint, &filterLast, true, &extent );
     // but skip the the previously used feature if it would only snap to segment, while now we have snap to vertex
     // so that if there is a point on a line, it gets priority (as is usual with combined vertex+segment snapping)
     bool matchHasVertexLastHasEdge = m.hasVertex() && lastMatch.hasEdge();
@@ -963,6 +965,7 @@ QgsPointLocator::Match QgsVertexTool::snapToPolygonInterior( QgsMapMouseEvent *e
   QgsPointLocator::Match m;
 
   QgsPointXY mapPoint = toMapCoordinates( e->pos() );
+  const QgsRectangle extent = canvas()->extent();
 
   // if there is a current layer, it should have priority over other layers
   // because sometimes there may be match from multiple layers at one location
@@ -971,7 +974,7 @@ QgsPointLocator::Match QgsVertexTool::snapToPolygonInterior( QgsMapMouseEvent *e
   {
     if ( currentVlayer->isEditable() && currentVlayer->geometryType() == QgsWkbTypes::PolygonGeometry )
     {
-      QgsPointLocator::MatchList matchList = snapUtils->locatorForLayer( currentVlayer )->pointInPolygon( mapPoint, true );
+    QgsPointLocator::MatchList matchList = snapUtils->locatorForLayer( currentVlayer, &extent )->pointInPolygon( mapPoint, true );
       if ( !matchList.isEmpty() )
       {
         m = matchList.first();
@@ -991,7 +994,7 @@ QgsPointLocator::Match QgsVertexTool::snapToPolygonInterior( QgsMapMouseEvent *e
 
       if ( vlayer->isEditable() && vlayer->geometryType() == QgsWkbTypes::PolygonGeometry )
       {
-        QgsPointLocator::MatchList matchList = snapUtils->locatorForLayer( vlayer )->pointInPolygon( mapPoint, true );
+        QgsPointLocator::MatchList matchList = snapUtils->locatorForLayer( vlayer, &extent )->pointInPolygon( mapPoint, true );
         if ( !matchList.isEmpty() )
         {
           m = matchList.first();
@@ -1017,9 +1020,10 @@ QList<QgsPointLocator::Match> QgsVertexTool::findEditableLayerMatches( const Qgs
 
   if ( !layer->isEditable() )
     return matchList;
+  const QgsRectangle extent = canvas()->extent();
 
   QgsSnappingUtils *snapUtils = canvas()->snappingUtils();
-  QgsPointLocator *locator = snapUtils->locatorForLayer( layer );
+  QgsPointLocator *locator = snapUtils->locatorForLayer( layer, &extent );
 
   if ( layer->geometryType() == QgsWkbTypes::PolygonGeometry )
   {
@@ -1937,7 +1941,9 @@ void QgsVertexTool::buildDragBandsForVertices( const QSet<Vertex> &movingVertice
 QList<QgsPointLocator::Match> QgsVertexTool::layerVerticesSnappedToPoint( QgsVectorLayer *layer, const QgsPointXY &mapPoint )
 {
   MatchCollectingFilter myfilter( this );
-  QgsPointLocator *loc = canvas()->snappingUtils()->locatorForLayer( layer );
+  const QgsRectangle extent = canvas()->extent();
+
+  QgsPointLocator *loc = canvas()->snappingUtils()->locatorForLayer( layer, &extent );
   loc->nearestVertex( mapPoint, 0, &myfilter, true );
   return myfilter.matches;
 }

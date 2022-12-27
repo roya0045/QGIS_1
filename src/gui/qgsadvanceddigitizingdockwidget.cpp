@@ -1094,7 +1094,9 @@ bool QgsAdvancedDigitizingDockWidget::applyConstraints( QgsMapMouseEvent *e )
    * the point is not linked to a layer.
    */
   e->setMapPoint( point );
-  mSnapMatch = context.snappingUtils->snapToMap( point, nullptr, true );
+  const QgsRectangle extent = mMapCanvas->extent();
+  mSnapMatch = context.snappingUtils->snapToMap( point, nullptr, true, &extent );
+
   if ( mSnapMatch.layer() )
   {
     if ( ( ( mSnapMatch.hasVertex() || mSnapMatch.hasLineEndpoint() ) && ( point == mSnapMatch.point() ) )
@@ -1239,7 +1241,8 @@ QList<QgsPointXY> QgsAdvancedDigitizingDockWidget::snapSegmentToAllLayers( const
   localConfig.setTypeFlag( Qgis::SnappingType::Segment );
   snappingUtils->setConfig( localConfig );
 
-  match = snappingUtils->snapToMap( originalMapPoint, nullptr, true );
+  const QgsRectangle extent = mMapCanvas->extent();
+  match = snappingUtils->snapToMap( originalMapPoint, nullptr, true, &extent );
 
   snappingUtils->setConfig( canvasConfig );
 
