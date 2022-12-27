@@ -81,12 +81,12 @@ void QgsMapToolTrimExtendFeature::canvasMoveEvent( QgsMapMouseEvent *e )
 
   FeatureFilter filter;
   QgsPointLocator::Match match;
-
+  const QgsRectangle extent = mCanvas->extent();
   switch ( mStep )
   {
     case StepLimit:
 
-      match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true );
+      match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true, &extent );
       if ( match.isValid() && match.layer() )
       {
         mIs3DLayer = QgsWkbTypes::hasZ( match.layer()->wkbType() );
@@ -128,7 +128,7 @@ void QgsMapToolTrimExtendFeature::canvasMoveEvent( QgsMapMouseEvent *e )
       }
 
       filter.setLayer( mVlayer );
-      match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true );
+      match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true, &extent );
 
       if ( match.isValid() )
       {
@@ -228,13 +228,13 @@ void QgsMapToolTrimExtendFeature::canvasReleaseEvent( QgsMapMouseEvent *e )
 
   FeatureFilter filter;
   QgsPointLocator::Match match;
-
+  const QgsRectangle extent = mCanvas->extent();
   if ( e->button() == Qt::LeftButton )
   {
     switch ( mStep )
     {
       case StepLimit:
-        match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true );
+        match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true, &extent );
         if ( mRubberBandLimit && mRubberBandLimit->isVisible() )
         {
           if ( getPoints( match, pLimit1, pLimit2 ) )
@@ -248,7 +248,7 @@ void QgsMapToolTrimExtendFeature::canvasReleaseEvent( QgsMapMouseEvent *e )
         if ( mIsModified )
         {
           filter.setLayer( mVlayer );
-          match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true );
+          match = mCanvas->snappingUtils()->snapToMap( mMapPoint, &filter, true, &extent );
 
           if ( auto *lLayer = match.layer() )
           {

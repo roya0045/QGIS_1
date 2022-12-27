@@ -74,8 +74,9 @@ bool QgsMapToolShapeCircle3Tangents::cadCanvasReleaseEvent( QgsMapMouseEvent *e,
 
   const QgsPoint point = mParentTool->mapPoint( *e );
 
+  const QgsRectangle extent = mCanvas->extent();
   EdgesOnlyFilter filter;
-  const QgsPointLocator::Match match = mParentTool->canvas()->snappingUtils()->snapToMap( point, &filter );
+  const QgsPointLocator::Match match = mCanvas->snappingUtils()->snapToMap( point, &filter, false, &extent );
 
   QgsPointXY p1, p2;
 
@@ -119,8 +120,9 @@ void QgsMapToolShapeCircle3Tangents::cadCanvasMoveEvent( QgsMapMouseEvent *e, Qg
 {
   const QgsPoint point = mParentTool->mapPoint( *e );
 
+  const QgsRectangle extent = mCanvas->extent();
   EdgesOnlyFilter filter;
-  const QgsPointLocator::Match match = mParentTool->canvas()->snappingUtils()->snapToMap( point, &filter );
+  const QgsPointLocator::Match match = mCanvas->snappingUtils()->snapToMap( point, &filter, false, &extent );
 
   if ( !mTempRubberBand )
   {

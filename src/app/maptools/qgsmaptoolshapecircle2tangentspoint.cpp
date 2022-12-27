@@ -68,8 +68,9 @@ bool QgsMapToolShapeCircle2TangentsPoint::cadCanvasReleaseEvent( QgsMapMouseEven
 {
   Q_UNUSED( mode )
 
+  const QgsRectangle extent = mCanvas->extent();
   EdgesOnlyFilter filter;
-  const QgsPointLocator::Match match = mParentTool->canvas()->snappingUtils()->snapToMap( mParentTool->mapPoint( *e ), &filter );
+  const QgsPointLocator::Match match = mCanvas->snappingUtils()->snapToMap( mapPoint, &filter, false, &extent );
 
   QgsPointXY p1, p2;
 
@@ -113,8 +114,9 @@ void QgsMapToolShapeCircle2TangentsPoint::cadCanvasMoveEvent( QgsMapMouseEvent *
 {
   const QgsPoint mapPoint( e->mapPoint() );
 
+  const QgsRectangle extent = mCanvas->extent();
   EdgesOnlyFilter filter;
-  const QgsPointLocator::Match match = mParentTool->canvas()->snappingUtils()->snapToMap( mapPoint, &filter );
+  const QgsPointLocator::Match match = mCanvas->snappingUtils()->snapToMap( mapPoint, &filter, false, &extent );
 
   if ( mPoints.size() < 2 * 2 )
   {
