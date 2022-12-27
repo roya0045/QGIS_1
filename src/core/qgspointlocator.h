@@ -465,7 +465,7 @@ class CORE_EXPORT QgsPointLocator : public QObject
      * Updates the index by including new features within the extent.
      * \since QGIS 3.30
      */
-    void extentChanged( Const QgsRectange* extent );
+    void extentChanged( const QgsRectangle* extent );
 
   signals:
 

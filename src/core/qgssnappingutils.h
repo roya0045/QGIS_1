@@ -69,7 +69,7 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
      * Gets a point locator for the given layer. If such locator does not exist, it will be created
      * \param vl the vector layer
      */
-    QgsPointLocator *locatorForLayer( QgsVectorLayer *vl );
+    QgsPointLocator *locatorForLayer( QgsVectorLayer *vl,const QgsRectangle* extent = nullptr );
 
     /**
      * Snap to map according to the current configuration.
@@ -231,6 +231,8 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     }
 
 
+    void extentChanged( const QgsRectangle *extent );
+
   public slots:
 
     /**
@@ -244,8 +246,6 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
      * \since QGIS 3.0
      */
     void toggleEnabled();
-    
-    void extentChanged( const QgsRectange *extent );
 
   signals:
 

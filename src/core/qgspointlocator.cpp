@@ -1212,7 +1212,8 @@ void QgsPointLocator::onFeatureAdded( QgsFeatureId fid )
 
 void QgsPointLocator::_insertFeature( QgsFeature f )
 {
-  if ( !f.hasGeometry() || mGeoms.conains( f.id() ) )
+  long fid = f.id();
+  if ( !f.hasGeometry() || mGeoms.contains( fid ) )
      return;
   if ( mContext )
   {
@@ -1303,8 +1304,9 @@ void QgsPointLocator::onFeatureDeleted( QgsFeatureId fid )
 
 }
 
-void QgsPointLocator::extentChanged( Const QgsRectange* extent )
+void QgsPointLocator::extentChanged( const QgsRectangle* extent )
 {
+  qDebug()<<QString("extent changed");
   setExtent( extent );
   QgsFeature f;
 

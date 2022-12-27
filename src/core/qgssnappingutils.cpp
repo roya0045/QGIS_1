@@ -65,7 +65,6 @@ void QgsSnappingUtils::clearAllLocators()
   qDeleteAll( mTemporaryLocators );
   mTemporaryLocators.clear();
 
-  qDeleteAll( mWebLayers );
   mWebLayers.clear();
 }
 
@@ -723,11 +722,12 @@ void QgsSnappingUtils::onIndividualLayerSettingsChanged( const QHash<QgsVectorLa
   }
 }
 
-void QgsSnappingUtils::extentChanged( const QgsRectange *extent )
+void QgsSnappingUtils::extentChanged( const QgsRectangle *extent )
 {
+  qDebug()<<QString("extent chaged");
   QMap<QgsVectorLayer *, QgsPointLocator *>::const_iterator i;
 
-  for ( i =  LocatorsMap.constBegin(); i !=  LocatorsMap.constEnd(); ++i )
+  for ( i =  mLocators.constBegin(); i !=  mLocators.constEnd(); ++i )
   {
     if ( mWebLayers.contains( i.key()->publicSource() ) )
       i.value()->extentChanged( extent );
