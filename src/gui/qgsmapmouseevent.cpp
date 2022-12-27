@@ -49,7 +49,8 @@ QgsPointXY QgsMapMouseEvent::snapPoint()
   mHasCachedSnapResult = true;
 
   QgsSnappingUtils *snappingUtils = mMapCanvas->snappingUtils();
-  mSnapMatch = snappingUtils->snapToMap( mMapPoint, nullptr, true );
+  const QgsRectangle extent = mMapCanvas->extent();
+  mSnapMatch = snappingUtils->snapToMap( mMapPoint, nullptr, true, &extent );
 
   if ( mSnapMatch.isValid() )
   {

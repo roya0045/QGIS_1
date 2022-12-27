@@ -50,7 +50,9 @@ QgsPointLocator *QgsSnappingUtils::locatorForLayer( QgsVectorLayer *vl, const Qg
       mWebLayers.append( vl->publicSource() );
     }
     else
+    {
       vlpl = new QgsPointLocator( vl, destinationCrs(), mMapSettings.transformContext(), nullptr );
+    }
     connect( vlpl, &QgsPointLocator::initFinished, this, &QgsSnappingUtils::onInitFinished );
     mLocators.insert( vl, vlpl );
   }
@@ -73,7 +75,6 @@ QgsPointLocator *QgsSnappingUtils::locatorForLayerUsingStrategy( QgsVectorLayer 
 {
   if ( vl->geometryType() == QgsWkbTypes::NullGeometry || mStrategy == IndexNeverFull )
     return nullptr;
-
   QgsRectangle aoi( pointMap.x() - tolerance, pointMap.y() - tolerance,
                     pointMap.x() + tolerance, pointMap.y() + tolerance );
 
@@ -265,9 +266,9 @@ static QgsPointLocator::Types _snappingTypeToPointLocatorType( Qgis::SnappingTyp
   return QgsPointLocator::Types( static_cast<int>( type ) );
 }
 
-QgsPointLocator::Match QgsSnappingUtils::snapToMap( QPoint point, QgsPointLocator::MatchFilter *filter, bool relaxed )
+QgsPointLocator::Match QgsSnappingUtils::snapToMap( QPoint point, QgsPointLocator::MatchFilter *filter, bool relaxed, const QgsRectangle* extent  )
 {
-  return snapToMap( mMapSettings.mapToPixel().toMapCoordinates( point ), filter, relaxed );
+  return snapToMap( mMapSettings.mapToPixel().toMapCoordinates( point ), filter, relaxed, extent );
 }
 
 inline QgsRectangle _areaOfInterest( const QgsPointXY &point, double tolerance )
@@ -276,7 +277,7 @@ inline QgsRectangle _areaOfInterest( const QgsPointXY &point, double tolerance )
                        point.x() + tolerance, point.y() + tolerance );
 }
 
-QgsPointLocator::Match QgsSnappingUtils::snapToMap( const QgsPointXY &pointMap, QgsPointLocator::MatchFilter *filter, bool relaxed )
+QgsPointLocator::Match QgsSnappingUtils::snapToMap( const QgsPointXY &pointMap, QgsPointLocator::MatchFilter *filter, bool relaxed, const QgsRectangle* extent )
 {
   if ( !mMapSettings.hasValidSettings() || !mSnappingConfig.enabled() )
   {
@@ -292,7 +293,7 @@ QgsPointLocator::Match QgsSnappingUtils::snapToMap( const QgsPointXY &pointMap, 
     double tolerance = QgsTolerance::toleranceInProjectUnits( mSnappingConfig.tolerance(), mCurrentLayer, mMapSettings, mSnappingConfig.units() );
     QgsPointLocator::Types type = _snappingTypeToPointLocatorType( mSnappingConfig.typeFlag() );
 
-    prepareIndex( QList<LayerAndAreaOfInterest>() << qMakePair( mCurrentLayer, _areaOfInterest( pointMap, tolerance ) ), relaxed );
+    prepareIndex( QList<LayerAndAreaOfInterest>() << qMakePair( mCurrentLayer, _areaOfInterest( pointMap, tolerance ) ), relaxed, extent );
 
     // use ad-hoc locator
     QgsPointLocator *loc = locatorForLayerUsingStrategy( mCurrentLayer, pointMap, tolerance );
@@ -355,7 +356,7 @@ QgsPointLocator::Match QgsSnappingUtils::snapToMap( const QgsPointXY &pointMap, 
         filteredConfigs << layerConfig;
       }
     }
-    prepareIndex( layers, relaxed );
+    prepareIndex( layers, relaxed, extent );
 
     QgsPointLocator::Match bestMatch;
     QgsPointLocator::MatchList edges; // for snap on intersection
@@ -405,7 +406,7 @@ QgsPointLocator::Match QgsSnappingUtils::snapToMap( const QgsPointXY &pointMap, 
     for ( QgsMapLayer *layer : constLayers )
       if ( QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( layer ) )
         layers << qMakePair( vl, aoi );
-    prepareIndex( layers, relaxed );
+    prepareIndex( layers, relaxed, extent );
 
     QgsPointLocator::MatchList edges; // for snap on intersection
     QgsPointLocator::Match bestMatch;
@@ -451,7 +452,7 @@ void QgsSnappingUtils::onInitFinished( bool ok )
   }
 }
 
-void QgsSnappingUtils::prepareIndex( const QList<LayerAndAreaOfInterest> &layers, bool relaxed )
+void QgsSnappingUtils::prepareIndex( const QList<LayerAndAreaOfInterest> &layers, bool relaxed, const QgsRectangle* extent )
 {
   // check if we need to build any index
   QList<LayerAndAreaOfInterest> layersToIndex;
@@ -463,7 +464,7 @@ void QgsSnappingUtils::prepareIndex( const QList<LayerAndAreaOfInterest> &layers
     if ( vl->geometryType() == QgsWkbTypes::NullGeometry || mStrategy == IndexNeverFull )
       continue;
 
-    QgsPointLocator *loc = locatorForLayer( vl );
+    QgsPointLocator *loc = locatorForLayer( vl, extent );
 
     if ( !loc->isIndexing() && !isIndexPrepared( loc, entry.second ) )
       layersToIndex << entry;
@@ -622,7 +623,7 @@ void QgsSnappingUtils::setCurrentLayer( QgsVectorLayer *layer )
 QString QgsSnappingUtils::dump()
 {
   QString msg = QStringLiteral( "--- SNAPPING UTILS DUMP ---\n" );
-
+  qDebug()<<msg;
   if ( !mMapSettings.hasValidSettings() )
   {
     msg += QLatin1String( "invalid map settings!" );

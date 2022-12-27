@@ -914,8 +914,11 @@ void QgsPointLocator::setExtent( const QgsRectangle *extent )
 void QgsPointLocator::setRenderContext( const QgsRenderContext *context )
 {
   if ( mIsIndexing )
-    // already indexing, return!
+  {
+    qDebug()<<QString("already indexing, return!");
     return;
+  }
+
 
   disconnect( mLayer, &QgsVectorLayer::styleChanged, this, &QgsPointLocator::destroyIndex );
 
@@ -1084,9 +1087,10 @@ bool QgsPointLocator::rebuildIndex( int maxFeaturesToIndex )
 
   QgsFeatureIterator fi = mSource->getFeatures( request );
   int indexedCount = 0;
-
+  qDebug()<<mSource->id()<<QString("feat: %1").arg(indexedCount);
   while ( fi.nextFeature( f ) )
   {
+    qDebug()<<QString("feat: %1").arg(indexedCount);
     if ( !f.hasGeometry() )
       continue;
 
@@ -1307,7 +1311,7 @@ void QgsPointLocator::onFeatureDeleted( QgsFeatureId fid )
 void QgsPointLocator::extentChanged( const QgsRectangle* extent )
 {
   qDebug()<<QString("extent changed");
-  setExtent( extent );
+  mExtent.reset( extent ? new QgsRectangle( *extent ) : nullptr );
   QgsFeature f;
 
   QgsFeatureRequest request;

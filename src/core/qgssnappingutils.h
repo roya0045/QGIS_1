@@ -69,7 +69,7 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
      * Gets a point locator for the given layer. If such locator does not exist, it will be created
      * \param vl the vector layer
      */
-    QgsPointLocator *locatorForLayer( QgsVectorLayer *vl,const QgsRectangle* extent = nullptr );
+    QgsPointLocator *locatorForLayer( QgsVectorLayer *vl, const QgsRectangle* extent = nullptr );
 
     /**
      * Snap to map according to the current configuration.
@@ -77,7 +77,7 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
      * \param filter allows discarding unwanted matches.
      * \param relaxed TRUE if this method is non blocking and the matching result can be invalid while indexing
      */
-    QgsPointLocator::Match snapToMap( QPoint point, QgsPointLocator::MatchFilter *filter = nullptr, bool relaxed = false );
+    QgsPointLocator::Match snapToMap( QPoint point, QgsPointLocator::MatchFilter *filter = nullptr, bool relaxed = false, const QgsRectangle* extent = nullptr );
 
     /**
      * Snap to map according to the current configuration.
@@ -85,7 +85,7 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
      * \param filter allows discarding unwanted matches.
      * \param relaxed TRUE if this method is non blocking and the matching result can be invalid while indexing
      */
-    QgsPointLocator::Match snapToMap( const QgsPointXY &pointMap, QgsPointLocator::MatchFilter *filter = nullptr, bool relaxed = false );
+    QgsPointLocator::Match snapToMap( const QgsPointXY &pointMap, QgsPointLocator::MatchFilter *filter = nullptr, bool relaxed = false, const QgsRectangle* extent = nullptr );
 
     //! Snap to current layer
     QgsPointLocator::Match snapToCurrentLayer( QPoint point, QgsPointLocator::Types type, QgsPointLocator::MatchFilter *filter = nullptr );
@@ -284,7 +284,7 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     //! Returns TRUE if \a loc index is ready to be used in the area of interest \a areaOfInterest
     bool isIndexPrepared( QgsPointLocator *loc, const QgsRectangle &areaOfInterest );
     //! initialize index for layers where it makes sense (according to the indexing strategy)
-    void prepareIndex( const QList<LayerAndAreaOfInterest> &layers, bool relaxed );
+    void prepareIndex( const QList<LayerAndAreaOfInterest> &layers, bool relaxed, const QgsRectangle* extent = nullptr );
 
   private:
     // environment
