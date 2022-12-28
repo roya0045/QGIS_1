@@ -2549,6 +2549,11 @@ void QgsMapCanvas::updateCanvasItemPositions()
       item->updatePosition();
     }
   }
+  if ( mSnappingUtils )
+  {
+    const QgsRectangle mapextent = extent();
+    mSnappingUtils->extentChanged( &mapextent );
+  }
 }
 
 
