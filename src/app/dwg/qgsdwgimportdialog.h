@@ -46,7 +46,7 @@ class QgsDwgImportDialog : public QDialog, private Ui::QgsDwgImportBase
     void propose_layers();
     void updateCheckState( Qt::CheckState state );
     bool mImported = false;
-     bool dwgReadable = false;
+    bool dwgReadable = false;
 };
 
 #endif // QGSDWGIMPORTDIALOG_H

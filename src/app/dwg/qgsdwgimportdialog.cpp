@@ -51,6 +51,7 @@
 #include "qgsgui.h"
 #include "qgsfillsymbol.h"
 #include "qgslinesymbol.h"
+#include "layers/qgsapplayerhandling.h"
 
 QgsDwgImportDialog::QgsDwgImportDialog( QWidget *parent, Qt::WindowFlags f )
   : QDialog( parent, f )
@@ -167,7 +168,7 @@ void QgsDwgImportDialog::propose_layers()
   if (!QFileInfo::exists( db ) )
     return;
 
-  QgisApp::instance()->openLayer( db, true );
+  QgsAppLayerHandling::openLayer( db, true );
 
 }
 
