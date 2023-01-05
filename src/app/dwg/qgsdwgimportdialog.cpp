@@ -73,7 +73,7 @@ QgsDwgImportDialog::QgsDwgImportDialog( QWidget *parent, Qt::WindowFlags f )
   cbCadStyle->setChecked( s.value( QStringLiteral( "/DwgImport/lastCADStyling" ), true ).toBool() );
   mDatabaseFileWidget->setDefaultRoot( s.value( QStringLiteral( "/DwgImport/lastDirDatabase" ), QDir::homePath() ).toString() );
 
- lblMessage->setHidden( true );
+  lblMessage->setHidden( true );
 
   const int crsid = s.value( QStringLiteral( "/DwgImport/lastCrs" ), QString::number( QgsProject::instance()->crs().srsid() ) ).toInt();
 
