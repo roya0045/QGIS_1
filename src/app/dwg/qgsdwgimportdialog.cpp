@@ -167,8 +167,8 @@ void QgsDwgImportDialog::propose_layers()
   QString db = mDatabaseFileWidget->filePath();
   if (!QFileInfo::exists( db ) )
     return;
-
-  QgsAppLayerHandling::openLayer( db, true );
+  bool ok = false;
+  QgsAppLayerHandling::openLayer( db, ok );
 
 }
 
