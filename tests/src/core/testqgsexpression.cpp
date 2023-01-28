@@ -5863,6 +5863,27 @@ class TestQgsExpression : public QObject
       QCOMPARE( exp.rootNode()->cachedStaticValue().toInt(), 55 );
     }
 
+    void testExpressionLocalizedStringToInt()
+    {
+      QgsExpressionContext context;
+
+      QLocale::setDefault( QLocale::Italian );
+      QgsExpression exp( QStringLiteral( "toint('3.2')" ) );
+      QVERIFY( exp.prepare( &context ) );
+      QCOMPARE( exp.evaluate( &context ), QVariant( 3 ) );
+      exp( QStringLiteral( "toint('3,2')" ) );
+      QVERIFY( exp.prepare( &context ) );
+      QCOMPARE( exp.evaluate( &context ), QVariant( 3 ) );
+
+      QLocale::setDefault( QLocale::English );
+      exp( QStringLiteral( "toint('3.2')" ) );
+      QVERIFY( exp.prepare( &context ) );
+      QCOMPARE( exp.evaluate( &context ), QVariant( 3 ) );
+      exp( QStringLiteral( "toint('3,2')" ) );
+      QVERIFY( exp.prepare( &context ) );
+      QCOMPARE( exp.evaluate( &context ), QVariant() );
+    }
+
     void testExpressionUtilsToLocalizedString()
     {
       const QVariant t_int( 12346 );
