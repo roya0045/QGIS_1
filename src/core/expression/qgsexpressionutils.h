@@ -228,7 +228,7 @@ class CORE_EXPORT QgsExpressionUtils
     static double getDoubleValue( const QVariant &value, QgsExpression *parent )
     {
       bool ok;
-      const double converted = getDoubleInternal( value, &ok );
+      const double converted = value.toDouble( &ok );
       if ( !ok || std::isnan( converted ) || !std::isfinite( converted ) )
       {
         if ( parent )
@@ -238,22 +238,12 @@ class CORE_EXPORT QgsExpressionUtils
       return converted;
     }
 
-    static double getDoubleInternal( const QVariant &value, bool *validation )
-    {
-      const double converted = value.toDouble( validation );
-      if ( validation && *validation == false )
-      {
-        return QLocale().toDouble( value.toString(), validation );
-      }
-      return converted;
-    }
-
     static qlonglong getIntValue( const QVariant &value, QgsExpression *parent )
     {
       bool ok;
       if ( value.type() == QVariant::String )
       {
-        const double doubleValue = getDoubleInternal( value, &ok );
+        const double doubleValue = value.toDouble( ok );
         if ( ok )
         {
           return qRound64( doubleValue );
