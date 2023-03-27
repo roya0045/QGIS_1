@@ -668,7 +668,7 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
       }
       else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( firstLayerTreeIndex ) )
       {
-         isFirstNodeChecked = legendNode->data( Qt::CheckStateRole ).toInt() == Qt::Checked;
+        isFirstNodeChecked = legendNode->data( Qt::CheckStateRole ).toInt() == Qt::Checked;
       }
 
       for ( const QModelIndex &index : selected )
