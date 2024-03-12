@@ -3116,11 +3116,11 @@ static QVariant fcnSplitGeometry( const QVariantList &values, const QgsExpressio
   if ( inGeom.isNull() || inGeom.type() == Qgis::GeometryType::Point )
     return QVariant::fromValue( initGeom );
   QgsGeometry splitGeom = QgsExpressionUtils::getGeometry( values.at( 1 ), parent );
-  if ( splitGeom.isNull() )
+  if ( splitGeom.isNull() || splitGeom.type() == Qgis::GeometryType::Point )
     return QVariant::fromValue( initGeom );
 
   QVector< QgsGeometry > outGeoms = initGeom.asGeometryCollection();
-  auto splitterFcn = [ = ]( const QVector< QgsGeometry > &sourceGeom, const QVector<QgsPoint> &line ) -> QVector< QgsGeometry >
+  auto splitterFcn = [ = ]( const QVector< QgsGeometry > &sourceGeom, const QVector<QgsPoint> &line) -> QVector< QgsGeometry >
   {
 
     QVector< QgsGeometry > outGeom;
@@ -3152,6 +3152,8 @@ static QVariant fcnSplitGeometry( const QVariantList &values, const QgsExpressio
     QVector<QgsPoint> splitter;
     for ( auto pointIt = partGeom.vertices_begin(); pointIt != partGeom.vertices_end(); ++pointIt )
       splitter.append( ( *pointIt ) );
+    if ( splitter.size() < 2 )
+      continue;
     if ( partGeom.type() == Qgis::GeometryType::Polygon )
     {
       QgsPoint firstVertex = partGeom.vertexAt( 0 );
