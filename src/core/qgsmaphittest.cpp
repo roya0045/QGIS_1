@@ -211,18 +211,18 @@ bool QgsMapHitTest::layerVisible( QgsMapLayer *layer )
     return false;
   if ( layer->hasScaleBasedVisibility() )
   {
-    if ( mSettings.scale() < layer->minimumScale() || mSettings.scale() > layer->maximumScale() )
+    if ( mapSettings.scale() < layer->minimumScale() || mapSettings.scale() > layer->maximumScale() )
       return false;
   }
   else if ( mMapContains.contains( mapId ) )
     return mMapContains.value( mapId );
 
   QgsRectangle footprint = layer->extent();
-  if ( mSettings.destinationCrs() != layer->crs() )
+  if ( mapSettings.destinationCrs() != layer->crs() )
   {
     try
     {
-      QgsCoordinateTransform ct = QgsCoordinateTransform( layer->crs(), mSettings.destinationCrs(), mSettings.transformContext() );
+      QgsCoordinateTransform ct = QgsCoordinateTransform( layer->crs(), mapSettings.destinationCrs(), mapSettings.transformContext() );
       footprint = ct.transformBoundingBox( footprint );
     }
     catch ( QgsCsException & )
@@ -232,7 +232,7 @@ bool QgsMapHitTest::layerVisible( QgsMapLayer *layer )
     }
   }
   bool withinExt = false;
-  if ( mSettings.visibleExtent().intersects( footprint ) )
+  if ( mapSettings.visibleExtent().intersects( footprint ) )
   {
     withinExt = true;
   }
