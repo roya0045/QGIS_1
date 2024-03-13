@@ -206,7 +206,7 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer *vl, SymbolSet &usedSymbols,
 bool QgsMapHitTest::layerVisible( QgsMapLayer *layer )
 {
   QString mapId = layer->id();
-
+  const QgsMapSettings &mapSettings = mSettings.mapSettings();
   if ( ! layer->dataProvider() )
     return false;
   if ( layer->hasScaleBasedVisibility() )
