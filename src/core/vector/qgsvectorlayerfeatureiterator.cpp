@@ -973,7 +973,7 @@ bool QgsVectorLayerFeatureIterator::handleGeometryValidity( QgsFeature &feature 
             return false;
         }
 
-        if ( outputGeometry.wkbType() == Qgis::GeometryType::Unknown ||
+        if ( outputGeometry.type() == Qgis::GeometryType::Unknown ||
              QgsWkbTypes::flatType( outputGeometry.wkbType() ) == Qgis::WkbType::GeometryCollection )
         {
           // keep only the parts of the geometry collection with correct type
