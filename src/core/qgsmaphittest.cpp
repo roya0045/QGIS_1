@@ -420,7 +420,7 @@ bool QgsMapHitTestTask::run()
 bool QgsMapHitTest::layerVisible( QgsMapLayer *layer )
 {
   QString mapId = layer->id();
-
+  const QgsMapSettings &mapSettings = mSettings.mapSettings();
   if ( ! layer->dataProvider() )
     return false;
   if ( layer->hasScaleBasedVisibility() )
