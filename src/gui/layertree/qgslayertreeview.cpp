@@ -620,31 +620,33 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
   {
     const QModelIndexList selected = selectionModel()->selectedIndexes();
     if ( ! selected.isEmpty() )
-    {
-      const QModelIndex firstLayerTreeIndex = mProxyModel->mapToSource( selected.at( 0 ) );
-      bool isFirstNodeChecked = false;
+    {    
+      QModelIndex layerTreeIndex = mProxyModel->mapToSource( selected.at( 0 ) );
+      bool isFirstNodeChecked;
 
-      if ( QgsLayerTreeNode *node = layerTreeModel()->index2node( firstLayerTreeIndex ) )
+      if ( QgsLayerTreeNode *node = layerTreeModel()->index2node( layerTreeIndex ) )
+
+
+
       {
         isFirstNodeChecked = node->itemVisibilityChecked();
       }
-      else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( firstLayerTreeIndex ) )
+      else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
       {
-        isFirstNodeChecked = legendNode->data( Qt::CheckStateRole ).toInt() == Qt::Checked;
+         isFirstNodeChecked = legendNode->isVisibile(); // TO IMPLEMENT
       }
-
+ 
       for ( const QModelIndex &index : selected )
       {
-        const QModelIndex layerTreeIndex = mProxyModel->mapToSource( index );
+        layerTreeIndex = mProxyModel->mapToSource( index );
         if ( QgsLayerTreeNode *node = layerTreeModel()->index2node( layerTreeIndex ) )
         {
           node->setItemVisibilityChecked( ! isFirstNodeChecked );
         }
         else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
         {
-          legendNode->setData( isFirstNodeChecked ? Qt::Unchecked : Qt::Checked, Qt::CheckStateRole );
+          legendNode->setVisibility( ! isFirstNodeChecked ); // TO IMPLEMENT
         }
-      }
       // if we call the original keyPress handler, the current item will be checked to the original state yet again
       return;
     }
