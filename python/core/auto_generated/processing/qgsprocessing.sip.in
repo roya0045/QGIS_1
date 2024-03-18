@@ -17,33 +17,17 @@ class QgsProcessing
 
 Contains enumerations and other constants for use in processing algorithms
 and parameters.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
 #include "qgsprocessing.h"
 %End
   public:
+    static const QMetaObject staticMetaObject;
 
-    enum SourceType
-    {
-      TypeMapLayer,
-      TypeVectorAnyGeometry,
-      TypeVectorPoint,
-      TypeVectorLine,
-      TypeVectorPolygon,
-      TypeRaster,
-      TypeFile,
-      TypeVector,
-      TypeMesh,
-      TypePlugin,
-      TypePointCloud,
-      TypeAnnotation,
-      TypeVectorTile
-    };
+  public:
 
-    enum PythonOutputType
+    enum class PythonOutputType
     {
       PythonQgsProcessingAlgorithmSubclass,
     };
@@ -55,7 +39,7 @@ and parameters.
     typedef QFlags<QgsProcessing::LayerOptionsFlag> LayerOptionsFlags;
 
 
-    static QString sourceTypeToString( SourceType type );
+    static QString sourceTypeToString( Qgis::ProcessingSourceType type );
 %Docstring
 Converts a source ``type`` to a string representation.
 

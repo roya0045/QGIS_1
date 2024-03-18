@@ -30,23 +30,12 @@
  *
  * An algorithm provider is a set of related algorithms, typically from the same external application or related
  * to a common area of analysis.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingProvider : public QObject
 {
     Q_OBJECT
 
   public:
-
-    /**
-     * Flags indicating how and when an provider operates and should be exposed to users
-     * \since QGIS 3.14
-     */
-    enum Flag
-    {
-      FlagDeemphasiseSearchResults = 1 << 1, //!< Algorithms should be de-emphasised in the search results when searching for algorithms. Use for low-priority providers or those with substantial known issues.
-    };
-    Q_DECLARE_FLAGS( Flags, Flag )
 
     /**
      * Constructor for QgsProcessingProvider.
@@ -64,20 +53,20 @@ class CORE_EXPORT QgsProcessingProvider : public QObject
      * Returns an icon for the provider.
      * \see svgIconPath()
      */
-    virtual QIcon icon() const;
+    virtual QIcon icon() const SIP_HOLDGIL;
 
     /**
      * Returns a path to an SVG version of the provider's icon.
      * \see icon()
      */
-    virtual QString svgIconPath() const;
+    virtual QString svgIconPath() const SIP_HOLDGIL;
 
     /**
      * Returns the flags indicating how and when the provider operates and should be exposed to users.
      * Default is no flags.
      * \since QGIS 3.14
      */
-    virtual Flags flags() const;
+    virtual Qgis::ProcessingProviderFlags flags() const SIP_HOLDGIL;
 
     /**
      * Returns the unique provider id, used for identifying the provider. This string
@@ -86,7 +75,7 @@ class CORE_EXPORT QgsProcessingProvider : public QObject
      * \see name()
      * \see helpId()
      */
-    virtual QString id() const = 0;
+    virtual QString id() const = 0 SIP_HOLDGIL;
 
     /**
      * Returns the provider help id string, used for creating QgsHelp urls for algorithms
@@ -94,7 +83,7 @@ class CORE_EXPORT QgsProcessingProvider : public QObject
      * no QgsHelp url should be created for the provider's algorithms.
      * \see id()
      */
-    virtual QString helpId() const;
+    virtual QString helpId() const SIP_HOLDGIL;
 
     /**
      * Returns the provider name, which is used to describe the provider within the GUI.
@@ -102,7 +91,7 @@ class CORE_EXPORT QgsProcessingProvider : public QObject
      * \see longName()
      * \see id()
      */
-    virtual QString name() const = 0;
+    virtual QString name() const = 0 SIP_HOLDGIL;
 
     /**
      * Returns the longer version of the provider name, which can include extra details
@@ -114,7 +103,7 @@ class CORE_EXPORT QgsProcessingProvider : public QObject
      * \see name()
      * \see id()
      */
-    virtual QString longName() const;
+    virtual QString longName() const SIP_HOLDGIL;
 
     /**
      * Returns a version information string for the provider, or an empty string if this
@@ -124,7 +113,7 @@ class CORE_EXPORT QgsProcessingProvider : public QObject
      *
      * \since QGIS 3.8
      */
-    virtual QString versionInfo() const;
+    virtual QString versionInfo() const SIP_HOLDGIL;
 
     /**
      * Returns TRUE if the provider can be activated, or FALSE if it cannot be activated (e.g. due to
@@ -368,8 +357,6 @@ class CORE_EXPORT QgsProcessingProvider : public QObject
     QgsProcessingProvider( const QgsProcessingProvider &other );
 #endif
 };
-
-Q_DECLARE_OPERATORS_FOR_FLAGS( QgsProcessingProvider::Flags )
 
 #endif // QGSPROCESSINGPROVIDER_H
 

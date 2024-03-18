@@ -154,7 +154,7 @@ QgsWelcomePage::QgsWelcomePage( bool skipVersionCheck, QWidget *parent )
   mVersionInformation->setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Maximum );
   mVersionInformation->setReadOnly( true );
   mVersionInformation->setOpenExternalLinks( true );
-  mVersionInformation->setStyleSheet( QStringLiteral( "QTextEdit { background-color: #dff0d8; border: 1px solid #8e998a; padding-top: 0.25em; max-height: 1.75em; min-height: 1.75em; } "
+  mVersionInformation->setStyleSheet( QStringLiteral( "QTextEdit { background-color: #dff0d8; color:#000000; border: 1px solid #8e998a; padding-top: 0.25em; max-height: 1.75em; min-height: 1.75em; } "
                                       "QScrollBar { background-color: rgba(0,0,0,0); } "
                                       "QScrollBar::add-page,QScrollBar::sub-page,QScrollBar::handle { background-color: rgba(0,0,0,0); color: rgba(0,0,0,0); } "
                                       "QScrollBar::up-arrow,QScrollBar::down-arrow { color: rgb(0,0,0); } " ) );
@@ -223,7 +223,7 @@ void QgsWelcomePage::newsItemActivated( const QModelIndex &index )
   if ( !index.isValid() )
     return;
 
-  const QUrl link = index.data( QgsNewsFeedModel::Link ).toUrl();
+  const QUrl link = index.data( static_cast< int >( QgsNewsFeedModel::CustomRole::Link ) ).toUrl();
   QDesktopServices::openUrl( link );
 }
 
@@ -391,7 +391,7 @@ void QgsWelcomePage::showContextMenuForNews( QPoint point )
   if ( !index.isValid() )
     return;
 
-  const int key = index.data( QgsNewsFeedModel::Key ).toInt();
+  const int key = index.data( static_cast< int >( QgsNewsFeedModel::CustomRole::Key ) ).toInt();
 
   QMenu *menu = new QMenu();
 
@@ -459,7 +459,7 @@ bool QgsWelcomePage::eventFilter( QObject *obj, QEvent *event )
         const QPoint itemClickPoint = mouseEvent->pos() - mNewsFeedListView->visualRect( index ).topLeft();
         if ( QRect( mNewsDelegate->dismissRect().left(), mNewsDelegate->dismissRect().top(), mNewsDelegate->dismissRectSize().width(), mNewsDelegate->dismissRectSize().height() ).contains( itemClickPoint ) )
         {
-          mNewsFeedParser->dismissEntry( index.data( QgsNewsFeedModel::Key ).toInt() );
+          mNewsFeedParser->dismissEntry( index.data( static_cast< int >( QgsNewsFeedModel::CustomRole::Key ) ).toInt() );
         }
         return true;
       }

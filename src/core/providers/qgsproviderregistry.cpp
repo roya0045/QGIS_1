@@ -32,6 +32,7 @@
 #include "providers/ogr/qgsogrprovidermetadata.h"
 #include "providers/ogr/qgsogrprovider.h"
 #include "providers/meshmemory/qgsmeshmemorydataprovider.h"
+#include "providers/sensorthings/qgssensorthingsprovider.h"
 
 #include "qgsmbtilesvectortiledataprovider.h"
 #include "qgsarcgisvectortileservicedataprovider.h"
@@ -194,6 +195,10 @@ void QgsProviderRegistry::init()
   {
     const QgsScopedRuntimeProfile profile( QObject::tr( "Create OGR provider" ) );
     mProviders[ QgsOgrProvider::providerKey() ] = new QgsOgrProviderMetadata();
+  }
+  {
+    const QgsScopedRuntimeProfile profile( QObject::tr( "Create OGC SensorThings API provider" ) );
+    mProviders[ QgsSensorThingsProvider::providerKey() ] = new QgsSensorThingsProviderMetadata();
   }
   {
     const QgsScopedRuntimeProfile profile( QObject::tr( "Create vector tile providers" ) );
@@ -453,11 +458,7 @@ void QgsProviderRegistry::rebuildFilterStrings()
     {
       QgsDebugMsgLevel( "point cloud filters: " + filePointCloudFilters, 2 );
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      const QStringList filters = filePointCloudFilters.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
       const QStringList filters = filePointCloudFilters.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
       for ( const QString &filter : filters )
       {
         pointCloudFilters.append( filter );
@@ -471,11 +472,7 @@ void QgsProviderRegistry::rebuildFilterStrings()
     {
       QgsDebugMsgLevel( "vector tile filters: " + fileVectorTileFilters, 2 );
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      const QStringList filters = fileVectorTileFilters.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
       const QStringList filters = fileVectorTileFilters.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
       for ( const QString &filter : filters )
       {
         vectorTileFilters.append( filter );
@@ -489,11 +486,7 @@ void QgsProviderRegistry::rebuildFilterStrings()
     {
       QgsDebugMsgLevel( "tiled scene filters: " + fileTiledSceneFilters, 2 );
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      const QStringList filters = fileTiledSceneFilters.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
       const QStringList filters = fileTiledSceneFilters.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
       for ( const QString &filter : filters )
       {
         tiledSceneFilters.append( filter );
@@ -643,14 +636,14 @@ QgsDataProvider *QgsProviderRegistry::createProvider( QString const &providerKey
   return metadata->createProvider( dataSource, options, flags );
 }
 
-int QgsProviderRegistry::providerCapabilities( const QString &providerKey ) const
+Qgis::DataItemProviderCapabilities QgsProviderRegistry::providerCapabilities( const QString &providerKey ) const
 {
   const QList< QgsDataItemProvider * > itemProviders = dataItemProviders( providerKey );
-  int ret = QgsDataProvider::NoDataCapabilities;
+  Qgis::DataItemProviderCapabilities ret;
   //concat flags
   for ( const QgsDataItemProvider *itemProvider : itemProviders )
   {
-    ret = ret | itemProvider->capabilities();
+    ret |= itemProvider->capabilities();
   }
   return ret;
 }

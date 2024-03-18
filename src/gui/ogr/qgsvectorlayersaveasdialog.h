@@ -28,7 +28,6 @@ class QgsVectorLayer;
 /**
  * \ingroup gui
  * \brief Class to select destination file, type and CRS for ogr layers
- * \since QGIS 1.0
  */
 class GUI_EXPORT QgsVectorLayerSaveAsDialog : public QDialog, private Ui::QgsVectorLayerSaveAsDialogBase
 {
@@ -39,7 +38,7 @@ class GUI_EXPORT QgsVectorLayerSaveAsDialog : public QDialog, private Ui::QgsVec
     /**
      * Available dialog options.
      */
-    enum class Option : int
+    enum class Option : int SIP_ENUM_BASETYPE( IntFlag )
     {
       Symbology = 1, //!< Show symbology options
       DestinationCrs = 1 << 2, //!< Show destination CRS (reprojection) option
@@ -128,7 +127,6 @@ class GUI_EXPORT QgsVectorLayerSaveAsDialog : public QDialog, private Ui::QgsVec
     /**
      * Returns selected attributes that must be exported with their displayed values instead of their raw values.
      *
-     * \since QGIS 2.16
      */
     QgsAttributeList attributesAsDisplayedValues() const;
 

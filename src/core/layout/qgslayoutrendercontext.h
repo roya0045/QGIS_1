@@ -31,7 +31,6 @@ class QgsFeatureFilterProvider;
  * \ingroup core
  * \class QgsLayoutRenderContext
  * \brief Stores information relating to the current rendering settings for a layout.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutRenderContext : public QObject
 {
@@ -41,7 +40,7 @@ class CORE_EXPORT QgsLayoutRenderContext : public QObject
   public:
 
     //! Flags for controlling how a layout is rendered
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       FlagDebug = 1 << 1,  //!< Debug/testing mode, items are drawn as solid rectangles.
       FlagOutlineOnly = 1 << 2, //!< Render items as outlines only.

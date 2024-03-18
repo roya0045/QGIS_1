@@ -48,8 +48,9 @@ Constructor for TabData
       QList<QgsEditFormConfig::GroupData> mGroups;
     };
 
-    enum DataDefinedProperty
-    {
+
+    enum class DataDefinedProperty
+      {
       NoProperty,
       AllProperties,
       Alias,
@@ -59,8 +60,6 @@ Constructor for TabData
     QgsEditFormConfig( const QgsEditFormConfig &o );
 %Docstring
 Copy constructor
-
-.. versionadded:: 3.0
 %End
     ~QgsEditFormConfig();
 

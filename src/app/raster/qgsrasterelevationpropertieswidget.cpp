@@ -27,9 +27,25 @@ QgsRasterElevationPropertiesWidget::QgsRasterElevationPropertiesWidget( QgsRaste
   setupUi( this );
   setObjectName( QStringLiteral( "mOptsPage_Elevation" ) );
 
+  mModeComboBox->addItem( tr( "Disabled" ) );
+  mModeComboBox->addItem( tr( "Represents Elevation Surface" ), QVariant::fromValue( Qgis::RasterElevationMode::RepresentsElevationSurface ) );
+  mModeComboBox->addItem( tr( "Fixed Elevation Range" ), QVariant::fromValue( Qgis::RasterElevationMode::FixedElevationRange ) );
+
+  mLimitsComboBox->addItem( tr( "Include Lower and Upper" ), QVariant::fromValue( Qgis::RangeLimits::IncludeBoth ) );
+  mLimitsComboBox->addItem( tr( "Include Lower, Exclude Upper" ), QVariant::fromValue( Qgis::RangeLimits::IncludeLowerExcludeUpper ) );
+  mLimitsComboBox->addItem( tr( "Exclude Lower, Include Upper" ), QVariant::fromValue( Qgis::RangeLimits::ExcludeLowerIncludeUpper ) );
+  mLimitsComboBox->addItem( tr( "Exclude Lower and Upper" ), QVariant::fromValue( Qgis::RangeLimits::ExcludeBoth ) );
+
+  mStackedWidget->setSizeMode( QgsStackedWidget::SizeMode::CurrentPageOnly );
+  mSymbologyStackedWidget->setSizeMode( QgsStackedWidget::SizeMode::CurrentPageOnly );
+
   mOffsetZSpinBox->setClearValue( 0 );
   mScaleZSpinBox->setClearValue( 1 );
-  mElevationGroupBox->setChecked( false );
+  mFixedLowerSpinBox->setClearValueMode( QgsDoubleSpinBox::ClearValueMode::MinimumValue, tr( "Not set" ) );
+  mFixedUpperSpinBox->setClearValueMode( QgsDoubleSpinBox::ClearValueMode::MinimumValue, tr( "Not set" ) );
+  mFixedLowerSpinBox->clear();
+  mFixedUpperSpinBox->clear();
+
   mLineStyleButton->setSymbolType( Qgis::SymbolType::Line );
   mFillStyleButton->setSymbolType( Qgis::SymbolType::Fill );
   mStyleComboBox->addItem( QgsApplication::getThemeIcon( QStringLiteral( "mIconSurfaceElevationLine.svg" ) ), tr( "Line" ), static_cast< int >( Qgis::ProfileSurfaceSymbology::Line ) );
@@ -42,7 +58,8 @@ QgsRasterElevationPropertiesWidget::QgsRasterElevationPropertiesWidget( QgsRaste
   connect( mOffsetZSpinBox, qOverload<double >( &QDoubleSpinBox::valueChanged ), this, &QgsRasterElevationPropertiesWidget::onChanged );
   connect( mScaleZSpinBox, qOverload<double >( &QDoubleSpinBox::valueChanged ), this, &QgsRasterElevationPropertiesWidget::onChanged );
   connect( mElevationLimitSpinBox, qOverload<double >( &QDoubleSpinBox::valueChanged ), this, &QgsRasterElevationPropertiesWidget::onChanged );
-  connect( mElevationGroupBox, &QGroupBox::toggled, this, &QgsRasterElevationPropertiesWidget::onChanged );
+  connect( mModeComboBox, qOverload<int>( &QComboBox::currentIndexChanged ), this, &QgsRasterElevationPropertiesWidget::modeChanged );
+  connect( mLimitsComboBox, qOverload<int>( &QComboBox::currentIndexChanged ), this, &QgsRasterElevationPropertiesWidget::onChanged );
   connect( mLineStyleButton, &QgsSymbolButton::changed, this, &QgsRasterElevationPropertiesWidget::onChanged );
   connect( mFillStyleButton, &QgsSymbolButton::changed, this, &QgsRasterElevationPropertiesWidget::onChanged );
   connect( mBandComboBox, &QgsRasterBandComboBox::bandChanged, this, &QgsRasterElevationPropertiesWidget::onChanged );
@@ -73,7 +90,27 @@ void QgsRasterElevationPropertiesWidget::syncToLayer( QgsMapLayer *layer )
 
   mBlockUpdates = true;
   const QgsRasterLayerElevationProperties *props = qgis::down_cast< const QgsRasterLayerElevationProperties * >( mLayer->elevationProperties() );
-  mElevationGroupBox->setChecked( props->isEnabled() );
+  if ( !props->isEnabled() )
+  {
+    mModeComboBox->setCurrentIndex( 0 );
+    mStackedWidget->setCurrentWidget( mPageDisabled );
+    mProfileChartGroupBox->hide();
+  }
+  else
+  {
+    mModeComboBox->setCurrentIndex( mModeComboBox->findData( QVariant::fromValue( props->mode() ) ) );
+    switch ( props->mode() )
+    {
+      case Qgis::RasterElevationMode::FixedElevationRange:
+        mStackedWidget->setCurrentWidget( mPageFixedRange );
+        break;
+      case Qgis::RasterElevationMode::RepresentsElevationSurface:
+        mStackedWidget->setCurrentWidget( mPageSurface );
+        break;
+    }
+    mProfileChartGroupBox->show();
+  }
+
   mOffsetZSpinBox->setValue( props->zOffset() );
   mScaleZSpinBox->setValue( props->zScale() );
   if ( std::isnan( props->elevationLimit() ) )
@@ -84,6 +121,17 @@ void QgsRasterElevationPropertiesWidget::syncToLayer( QgsMapLayer *layer )
   mFillStyleButton->setSymbol( props->profileFillSymbol()->clone() );
   mBandComboBox->setLayer( mLayer );
   mBandComboBox->setBand( props->bandNumber() );
+
+  if ( props->fixedRange().lower() != std::numeric_limits< double >::lowest() )
+    mFixedLowerSpinBox->setValue( props->fixedRange().lower() );
+  else
+    mFixedLowerSpinBox->clear();
+  if ( props->fixedRange().upper() != std::numeric_limits< double >::max() )
+    mFixedUpperSpinBox->setValue( props->fixedRange().upper() );
+  else
+    mFixedUpperSpinBox->clear();
+  mLimitsComboBox->setCurrentIndex( mLimitsComboBox->findData( QVariant::fromValue( props->fixedRange().rangeLimits() ) ) );
+
   mStyleComboBox->setCurrentIndex( mStyleComboBox->findData( static_cast <int >( props->profileSymbology() ) ) );
   switch ( props->profileSymbology() )
   {
@@ -105,7 +153,17 @@ void QgsRasterElevationPropertiesWidget::apply()
     return;
 
   QgsRasterLayerElevationProperties *props = qgis::down_cast< QgsRasterLayerElevationProperties * >( mLayer->elevationProperties() );
-  props->setEnabled( mElevationGroupBox->isChecked() );
+
+  if ( !mModeComboBox->currentData().isValid() )
+  {
+    props->setEnabled( false );
+  }
+  else
+  {
+    props->setEnabled( true );
+    props->setMode( mModeComboBox->currentData().value< Qgis::RasterElevationMode >() );
+  }
+
   props->setZOffset( mOffsetZSpinBox->value() );
   props->setZScale( mScaleZSpinBox->value() );
   if ( mElevationLimitSpinBox->value() != mElevationLimitSpinBox->clearValue() )
@@ -116,7 +174,41 @@ void QgsRasterElevationPropertiesWidget::apply()
   props->setProfileFillSymbol( mFillStyleButton->clonedSymbol< QgsFillSymbol >() );
   props->setProfileSymbology( static_cast< Qgis::ProfileSurfaceSymbology >( mStyleComboBox->currentData().toInt() ) );
   props->setBandNumber( mBandComboBox->currentBand() );
+
+  double fixedLower = std::numeric_limits< double >::lowest();
+  double fixedUpper = std::numeric_limits< double >::max();
+  if ( mFixedLowerSpinBox->value() != mFixedLowerSpinBox->clearValue() )
+    fixedLower = mFixedLowerSpinBox->value();
+  if ( mFixedUpperSpinBox->value() != mFixedUpperSpinBox->clearValue() )
+    fixedUpper = mFixedUpperSpinBox->value();
+
+  props->setFixedRange( QgsDoubleRange( fixedLower, fixedUpper, mLimitsComboBox->currentData().value< Qgis::RangeLimits >() ) );
+
   mLayer->trigger3DUpdate();
+}
+
+void QgsRasterElevationPropertiesWidget::modeChanged()
+{
+  if ( mModeComboBox->currentData().isValid() )
+  {
+    switch ( mModeComboBox->currentData().value< Qgis::RasterElevationMode >() )
+    {
+      case Qgis::RasterElevationMode::FixedElevationRange:
+        mStackedWidget->setCurrentWidget( mPageFixedRange );
+        break;
+      case Qgis::RasterElevationMode::RepresentsElevationSurface:
+        mStackedWidget->setCurrentWidget( mPageSurface );
+        break;
+    }
+    mProfileChartGroupBox->show();
+  }
+  else
+  {
+    mStackedWidget->setCurrentWidget( mPageDisabled );
+    mProfileChartGroupBox->hide();
+  }
+
+  onChanged();
 }
 
 void QgsRasterElevationPropertiesWidget::onChanged()

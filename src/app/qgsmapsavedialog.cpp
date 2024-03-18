@@ -22,7 +22,6 @@
 #include <QImage>
 #include <QList>
 #include <QPainter>
-#include <QPrinter>
 #include <QSpinBox>
 #include <QUrl>
 
@@ -65,6 +64,7 @@ QgsMapSaveDialog::QgsMapSaveDialog( QWidget *parent, QgsMapCanvas *mapCanvas, co
   mExtent = ms.visibleExtent();
   mDpi = ms.outputDpi();
   mSize = ms.outputSize();
+  mDevicePixelRatio = ms.devicePixelRatio();
 
   mResolutionSpinBox->setValue( static_cast< int >( std::round( mDpi ) ) );
 
@@ -162,6 +162,7 @@ void QgsMapSaveDialog::updateDpi( int dpi )
   mDpi = dpi;
 
   updateOutputSize();
+  checkOutputSize();
 }
 
 void QgsMapSaveDialog::updateOutputWidth( int width )
@@ -188,6 +189,8 @@ void QgsMapSaveDialog::updateOutputWidth( int width )
   }
 
   whileBlocking( mExtentGroupBox )->setOutputExtentFromUser( mExtent, mExtentGroupBox->currentCrs() );
+
+  checkOutputSize();
 }
 
 void QgsMapSaveDialog::updateOutputHeight( int height )
@@ -214,6 +217,8 @@ void QgsMapSaveDialog::updateOutputHeight( int height )
   }
 
   whileBlocking( mExtentGroupBox )->setOutputExtentFromUser( mExtent, mExtentGroupBox->currentCrs() );
+
+  checkOutputSize();
 }
 
 void QgsMapSaveDialog::updateExtent( const QgsRectangle &extent )
@@ -245,6 +250,7 @@ void QgsMapSaveDialog::updateExtent( const QgsRectangle &extent )
     mSize.setHeight( mSize.height() * extent.height() / mExtent.height() );
   }
   updateOutputSize();
+  checkOutputSize();
 
   mExtent = extent;
   if ( mLockAspectRatio->locked() )
@@ -269,6 +275,15 @@ void QgsMapSaveDialog::updateOutputSize()
 {
   whileBlocking( mOutputWidthSpinBox )->setValue( mSize.width() );
   whileBlocking( mOutputHeightSpinBox )->setValue( mSize.height() );
+}
+
+void QgsMapSaveDialog::checkOutputSize()
+{
+  // check if image size does not exceed QPainter limitation https://doc.qt.io/qt-5/qpainter.html#limitations
+  if ( mSize.width() > 32768 || mSize.height() > 32768 )
+  {
+    mMessageBar->pushWarning( QString(), tr( "Output will be truncated, as image width or height is larger than 32768 pixels." ) );
+  }
 }
 
 QgsRectangle QgsMapSaveDialog::extent() const
@@ -327,6 +342,7 @@ void QgsMapSaveDialog::applyMapSettings( QgsMapSettings &mapSettings )
       mapSettings.setFlag( Qgis::MapSettingsFlag::HighQualityImageTransforms, settings.value( QStringLiteral( "qgis/enable_anti_aliasing" ), true ).toBool() );
       break;
   }
+
   mapSettings.setFlag( Qgis::MapSettingsFlag::ForceVectorOutput, true ); // force vector output (no caching of marker images etc.)
   mapSettings.setFlag( Qgis::MapSettingsFlag::DrawEditingInfo, false );
   mapSettings.setFlag( Qgis::MapSettingsFlag::DrawSelection, true );
@@ -335,6 +351,7 @@ void QgsMapSaveDialog::applyMapSettings( QgsMapSettings &mapSettings )
   mapSettings.setExtent( extent() );
   mapSettings.setOutputSize( size() );
   mapSettings.setOutputDpi( dpi() );
+  mapSettings.setDevicePixelRatio( mDevicePixelRatio );
   mapSettings.setBackgroundColor( mMapCanvas->canvasColor() );
   mapSettings.setRotation( mMapCanvas->rotation() );
   mapSettings.setEllipsoid( QgsProject::instance()->ellipsoid() );
@@ -350,6 +367,7 @@ void QgsMapSaveDialog::applyMapSettings( QgsMapSettings &mapSettings )
   mapSettings.setPathResolver( QgsProject::instance()->pathResolver() );
   mapSettings.setTemporalRange( mMapCanvas->mapSettings().temporalRange() );
   mapSettings.setIsTemporal( mMapCanvas->mapSettings().isTemporal() );
+  mapSettings.setZRange( mMapCanvas->mapSettings().zRange() );
   mapSettings.setElevationShadingRenderer( mMapCanvas->mapSettings().elevationShadingRenderer() );
 
   //build the expression context
@@ -383,13 +401,14 @@ void QgsMapSaveDialog::copyToClipboard()
   QPainter *p = nullptr;
   QImage *img = nullptr;
 
-  img = new QImage( ms.outputSize(), QImage::Format_ARGB32 );
+  img = new QImage( ms.outputSize() * ms.devicePixelRatio(), QImage::Format_ARGB32 );
   if ( img->isNull() )
   {
     QgisApp::instance()->messageBar()->pushWarning( tr( "Save as image" ), tr( "Could not allocate required memory for image" ) );
     return;
   }
 
+  img->setDevicePixelRatio( ms.devicePixelRatio() );
   img->setDotsPerMeterX( 1000 * ms.outputDpi() / 25.4 );
   img->setDotsPerMeterY( 1000 * ms.outputDpi() / 25.4 );
 

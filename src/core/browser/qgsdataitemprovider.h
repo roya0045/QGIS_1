@@ -18,6 +18,7 @@
 
 #include "qgis_core.h"
 #include "qgis_sip.h"
+#include "qgis.h"
 #include <QString>
 #include <QVector>
 
@@ -39,7 +40,6 @@ typedef bool handlesDirectoryPath_t( const QString &path ) SIP_SKIP;
  *   of the following: QgsDataProvider::Dir or QgsDataProvider::File. Passed path is the file
  *   or directory being inspected, parent item is a valid QgsDirectoryItem
  *
- * \since QGIS 2.10
  */
 class CORE_EXPORT QgsDataItemProvider
 {
@@ -58,7 +58,7 @@ class CORE_EXPORT QgsDataItemProvider
     virtual QString dataProviderKey() const { return QString(); };
 
     //! Returns combination of flags from QgsDataProvider::DataCapabilities
-    virtual int capabilities() const = 0;
+    virtual Qgis::DataItemProviderCapabilities capabilities() const = 0;
 
     /**
      * Create a new instance of QgsDataItem (or NULLPTR) for given path and parent item.
@@ -81,7 +81,6 @@ class CORE_EXPORT QgsDataItemProvider
      *
      * The default implementation returns FALSE for all paths.
      *
-     * \since QGIS 3.0
      */
     virtual bool handlesDirectoryPath( const QString &path );
 };

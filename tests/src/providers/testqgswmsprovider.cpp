@@ -145,6 +145,29 @@ class TestQgsWmsProvider: public QgsTest
       QCOMPARE( provider4.crs().authid(), QStringLiteral( "EPSG:3857" ) );
     }
 
+    void testWmtsConstruction()
+    {
+      const QgsWmsParserSettings config;
+      QgsWmsCapabilities cap;
+      QFile file( QStringLiteral( TEST_DATA_DIR ) + "/provider/GetCapabilitiesWmts.xml" );
+      QVERIFY( file.open( QIODevice::ReadOnly | QIODevice::Text ) );
+      const QByteArray content = file.readAll();
+      QVERIFY( cap.parseResponse( content, config ) );
+
+      // explicitly state crs and format
+      {
+        QgsWmsProvider provider( "contextualWMSLegend=0&crs=EPSG:4326&dpiMode=7&featureCount=10&format=image/jpg&layers=CountryGroup&styles=default&tileMatrixSet=standard&tilePixelRatio=0&url=http://localhost:8380/mapserv?xxx", QgsDataProvider::ProviderOptions(), &cap );
+        QCOMPARE( provider.crs().authid(), QStringLiteral( "EPSG:4326" ) );
+        QCOMPARE( provider.mSettings.mImageMimeType, QStringLiteral( "image/jpg" ) );
+      }
+      // no crs or format specified, should use tile matrix crs
+      {
+        QgsWmsProvider provider( "contextualWMSLegend=0&dpiMode=7&featureCount=10&layers=CountryGroup&styles=default&tileMatrixSet=standard&tilePixelRatio=0&url=http://localhost:8380/mapserv?xxx", QgsDataProvider::ProviderOptions(), &cap );
+        QCOMPARE( provider.crs().authid(), QStringLiteral( "EPSG:3857" ) );
+        QCOMPARE( provider.mSettings.mImageMimeType, QStringLiteral( "image/png" ) );
+      }
+    }
+
     void testMBTiles()
     {
       QString dataDir( TEST_DATA_DIR );
@@ -353,11 +376,26 @@ class TestQgsWmsProvider: public QgsTest
       QString uriString = QStringLiteral( "url=file:///my/local/tiles.mbtiles&type=mbtiles" );
       QVariantMap parts = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "wms" ), uriString );
       QVariantMap expectedParts { { QString( "type" ), QVariant( "mbtiles" ) },
-        { QString( "path" ), QVariant( "/my/local/tiles.mbtiles" ) } };
+        { QString( "path" ), QVariant( "/my/local/tiles.mbtiles" ) },
+        { QString( "url" ), QVariant( "file:///my/local/tiles.mbtiles" ) } };
       QCOMPARE( parts, expectedParts );
 
       QString encodedUri = QgsProviderRegistry::instance()->encodeUri( QStringLiteral( "wms" ), parts );
       QCOMPARE( encodedUri, uriString );
+
+      QgsProviderMetadata *wmsMetadata = QgsProviderRegistry::instance()->providerMetadata( "wms" );
+      QVERIFY( wmsMetadata );
+
+      // query sublayers
+      QList< QgsProviderSublayerDetails > sublayers;
+      sublayers = wmsMetadata->querySublayers( QStringLiteral( "type=xyz&url=file:///my/xyz/directory/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=19&zmin=0" ) );
+      QCOMPARE( sublayers.size(), 1 );
+      QCOMPARE( sublayers.at( 0 ).providerKey(), QStringLiteral( "wms" ) );
+      QCOMPARE( sublayers.at( 0 ).name(), QLatin1String( "" ) );
+      QCOMPARE( sublayers.at( 0 ).uri(), QStringLiteral( "type=xyz&url=file:///my/xyz/directory/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=19&zmin=0" ) );
+      QCOMPARE( sublayers.at( 0 ).type(), Qgis::LayerType::Raster );
+      QVERIFY( !sublayers.at( 0 ).skippedContainerScan() );
+      QVERIFY( !QgsProviderUtils::sublayerDetailsAreIncomplete( sublayers ) );
     }
 
     void absoluteRelativeUri()

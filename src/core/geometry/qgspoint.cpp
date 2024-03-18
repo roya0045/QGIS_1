@@ -179,11 +179,7 @@ bool QgsPoint::fromWkt( const QString &wkt )
     return true;
 
   const thread_local QRegularExpression rx( QStringLiteral( "\\s" ) );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList coordinates = parts.second.split( rx, QString::SkipEmptyParts );
-#else
   QStringList coordinates = parts.second.split( rx, Qt::SkipEmptyParts );
-#endif
 
   // So far the parser hasn't looked at the coordinates. We'll avoid having anything but numbers and return NULL instead of 0 as a coordinate.
   // Without this check, "POINT (a, b)" or "POINT (( 4, 3 ))" returned "POINT (0 ,0)"
@@ -681,42 +677,6 @@ void QgsPoint::transformVertices( const std::function<QgsPoint( const QgsPoint &
   if ( isMeasure() )
     mM = res.m();
   clearCache();
-}
-
-double QgsPoint::distance3D( double x, double y, double z ) const
-{
-  double zDistSquared = 0.0;
-  if ( is3D() || !std::isnan( z ) )
-    zDistSquared = ( mZ - z ) * ( mZ - z );
-
-  return std::sqrt( ( mX - x ) * ( mX - x ) + ( mY - y ) * ( mY - y ) + zDistSquared );
-}
-
-double QgsPoint::distance3D( const QgsPoint &other ) const
-{
-  double zDistSquared = 0.0;
-  if ( is3D() || other.is3D() )
-    zDistSquared = ( mZ - other.z() ) * ( mZ - other.z() );
-
-  return std::sqrt( ( mX - other.x() ) * ( mX - other.x() ) + ( mY - other.y() ) * ( mY - other.y() ) + zDistSquared );
-}
-
-double QgsPoint::distanceSquared3D( double x, double y, double z ) const
-{
-  double zDistSquared = 0.0;
-  if ( is3D() || !std::isnan( z ) )
-    zDistSquared = ( mZ - z ) * ( mZ - z );
-
-  return ( mX - x ) * ( mX - x ) + ( mY - y ) * ( mY - y ) + zDistSquared;
-}
-
-double QgsPoint::distanceSquared3D( const QgsPoint &other ) const
-{
-  double zDistSquared = 0.0;
-  if ( is3D() || other.is3D() )
-    zDistSquared = ( mZ - other.z() ) * ( mZ - other.z() );
-
-  return ( mX - other.x() ) * ( mX - other.x() ) + ( mY - other.y() ) * ( mY - other.y() ) + zDistSquared;
 }
 
 double QgsPoint::azimuth( const QgsPoint &other ) const

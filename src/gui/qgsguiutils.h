@@ -56,14 +56,12 @@ namespace QgsGuiUtils
   /**
    * Minimum magnification level allowed in map canvases.
    * \see CANVAS_MAGNIFICATION_MAX
-   * \since QGIS 3.0
    */
   constexpr double CANVAS_MAGNIFICATION_MIN = 0.1;
 
   /**
    * Maximum magnification level allowed in map canvases.
    * \see CANVAS_MAGNIFICATION_MAX
-   * \since QGIS 3.0
    */
   // Must be a factor of 2, so zooming in to max from 100% then zooming back out will result in 100% mag
   constexpr double CANVAS_MAGNIFICATION_MAX = 16.0;
@@ -137,7 +135,7 @@ namespace QgsGuiUtils
   QFont GUI_EXPORT getFont( bool &ok, const QFont &initial, const QString &title = QString() );
 
   /**
-   * Restore the wigget geometry from settings. Will use the objetName() of the widget  and if empty, or keyName is set, will
+   * Restore the wigget geometry from settings. Will use the objectName() of the widget  and if empty, or keyName is set, will
    * use keyName to save state into settings.
    * \param widget The widget to restore.
    * \param keyName Override for objectName() if needed.
@@ -191,7 +189,7 @@ namespace QgsGuiUtils
 
   /**
    * Returns a localized string representation of the \a value with the appropriate number of
-   * decimals supported by the \a dataType. Traling zeroes after decimal separator are not
+   * decimals supported by the \a dataType. Trailing zeroes after decimal separator are not
    * show unless \a displayTrailingZeroes is set.
    * Note that for floating point types the number of decimals may exceed the actual internal
    * precision because the precision is always calculated on the mantissa and the conversion to

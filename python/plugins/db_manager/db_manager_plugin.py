@@ -29,8 +29,6 @@ from qgis.core import (
     QgsApplication
 )
 
-from . import resources_rc  # NOQA
-
 
 class DBManagerPlugin:
 
@@ -89,7 +87,7 @@ class DBManagerPlugin:
             self.dlg.destroyed.connect(self.onDestroyed)
         self.dlg.show()
         self.dlg.raise_()
-        self.dlg.setWindowState(self.dlg.windowState() & ~Qt.WindowMinimized)
+        self.dlg.setWindowState(self.dlg.windowState() & ~Qt.WindowState.WindowMinimized)
         self.dlg.activateWindow()
 
     def onDestroyed(self, obj):

@@ -34,11 +34,11 @@ class QgsAttributeTableFilterModel: QSortFilterProxyModel, QgsFeatureModel
       ColumnTypeActionButton
     };
 
-    enum Role
-    {
-      TypeRole
-    };
 
+    enum class CustomRole
+    {
+      Type
+    };
 
     QgsAttributeTableFilterModel( QgsMapCanvas *canvas, QgsAttributeTableModel *sourceModel, QObject *parent /TransferThis/ = 0 );
 %Docstring
@@ -55,8 +55,6 @@ Make sure, the master model is already loaded, so the selection will get synchro
 Set the attribute table model that backs this model
 
 :param sourceModel: The model
-
-.. versionadded:: 2.0
 %End
 
 

@@ -44,9 +44,8 @@ class CORE_EXPORT QgsRendererAbstractMetadata
 
     /**
      * Layer types the renderer is compatible with
-     * \since QGIS 2.16
      */
-    enum LayerType
+    enum LayerType SIP_ENUM_BASETYPE( IntFlag )
     {
       PointLayer = 1, //!< Compatible with point layers
       LineLayer = 2, //!< Compatible with line layers
@@ -95,7 +94,6 @@ class CORE_EXPORT QgsRendererAbstractMetadata
 
     /**
      * Returns flags indicating the types of layer the renderer is compatible with.
-     * \since QGIS 2.16
      */
     virtual QgsRendererAbstractMetadata::LayerTypes compatibleLayerTypes() const { return All; }
 
@@ -267,7 +265,6 @@ class CORE_EXPORT QgsRendererRegistry
     /**
      * Returns a list of available renderers which are compatible with a specified layer.
      * \param layer vector layer
-     * \since QGIS 2.16
      */
     QStringList renderersList( const QgsVectorLayer *layer ) const;
 

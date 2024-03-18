@@ -61,6 +61,24 @@ Allow non-spatial layers and empty groups to be show.
 .. versionadded:: 3.20
 %End
 
+    bool hideValidLayers() const;
+%Docstring
+Returns if valid layers should be hidden (i.e. only invalid layers are shown).
+
+.. seealso:: :py:func:`setHideValidLayers`
+
+.. versionadded:: 3.38
+%End
+
+    void setHideValidLayers( bool hideValid );
+%Docstring
+Sets whether valid layers should be hidden (i.e. only invalid layers are shown).
+
+.. seealso:: :py:func:`setHideValidLayers`
+
+.. versionadded:: 3.38
+%End
+
   protected:
 
     virtual bool filterAcceptsRow( int sourceRow, const QModelIndex &sourceParent ) const;
@@ -84,8 +102,6 @@ Allows the client to specify a context menu provider with custom actions. Also i
 with a set of default actions that can be used when building context menu.
 
 .. seealso:: :py:class:`QgsLayerTreeModel`
-
-.. versionadded:: 2.4
 %End
 
 %TypeHeaderCode
@@ -244,8 +260,6 @@ Gets current group node. If a layer is current node, the function will return pa
     QgsLayerTreeModelLegendNode *currentLegendNode() const;
 %Docstring
 Gets current legend node. May be ``None`` if current node is not a legend node.
-
-.. versionadded:: 2.14
 %End
 
     QList<QgsLayerTreeNode *> selectedNodes( bool skipInternal = false ) const;
@@ -361,6 +375,22 @@ Allow non-spatial layers and empty groups to be show.
 
 
 
+    bool showPrivateLayers() const;
+%Docstring
+Returns the show private layers status
+
+.. versionadded:: 3.18
+%End
+
+    bool hideValidLayers() const;
+%Docstring
+Returns if valid layers should be hidden (i.e. only invalid layers are shown).
+
+.. seealso:: :py:func:`setHideValidLayers`
+
+.. versionadded:: 3.38
+%End
+
   public slots:
     void refreshLayerSymbology( const QString &layerId );
 %Docstring
@@ -370,15 +400,11 @@ Force refresh of layer symbology. Normally not needed as the changes of layer's 
     void expandAllNodes();
 %Docstring
 Enhancement of QTreeView.expandAll() that also records expanded state in layer tree nodes
-
-.. versionadded:: 2.18
 %End
 
     void collapseAllNodes();
 %Docstring
 Enhancement of QTreeView.collapseAll() that also records expanded state in layer tree nodes
-
-.. versionadded:: 2.18
 %End
 
     void setLayerMarkWidth( int width );
@@ -404,11 +430,13 @@ Set the show private layers to ``showPrivate``
 .. versionadded:: 3.18
 %End
 
-    bool showPrivateLayers( );
+    void setHideValidLayers( bool hideValid );
 %Docstring
-Returns the show private layers status
+Sets whether valid layers should be hidden (i.e. only invalid layers are shown).
 
-.. versionadded:: 3.18
+.. seealso:: :py:func:`setHideValidLayers`
+
+.. versionadded:: 3.38
 %End
 
   signals:
@@ -438,6 +466,8 @@ Allows customization of the menu.
     void updateExpandedStateFromNode( QgsLayerTreeNode *node );
 
     QgsMapLayer *layerForIndex( const QModelIndex &index ) const;
+
+    virtual void mouseDoubleClickEvent( QMouseEvent *event );
 
     virtual void mouseReleaseEvent( QMouseEvent *event );
 
@@ -478,8 +508,6 @@ Implementation of this interface can be implemented to allow QgsLayerTreeView
 instance to provide custom context menus (opened upon right-click).
 
 .. seealso:: :py:class:`QgsLayerTreeView`
-
-.. versionadded:: 2.4
 %End
 
 %TypeHeaderCode

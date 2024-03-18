@@ -44,12 +44,12 @@ void QgsProcessingFeatureSourceOptionsWidget::setLayer( QgsVectorLayer *layer )
   mFilterExpressionWidget->setLayer( layer );
 }
 
-void QgsProcessingFeatureSourceOptionsWidget::setGeometryCheckMethod( bool isOverridden, QgsFeatureRequest::InvalidGeometryCheck check )
+void QgsProcessingFeatureSourceOptionsWidget::setGeometryCheckMethod( bool isOverridden, Qgis::InvalidGeometryCheck check )
 {
   if ( !isOverridden )
     mComboInvalidFeatureFiltering->setCurrentIndex( mComboInvalidFeatureFiltering->findData( QVariant() ) );
   else
-    mComboInvalidFeatureFiltering->setCurrentIndex( mComboInvalidFeatureFiltering->findData( check ) );
+    mComboInvalidFeatureFiltering->setCurrentIndex( mComboInvalidFeatureFiltering->findData( QVariant::fromValue( check ) ) );
 }
 
 void QgsProcessingFeatureSourceOptionsWidget::setFeatureLimit( int limit )
@@ -62,9 +62,9 @@ void QgsProcessingFeatureSourceOptionsWidget::setFilterExpression( const QString
   mFilterExpressionWidget->setExpression( expression );
 }
 
-QgsFeatureRequest::InvalidGeometryCheck QgsProcessingFeatureSourceOptionsWidget::geometryCheckMethod() const
+Qgis::InvalidGeometryCheck QgsProcessingFeatureSourceOptionsWidget::geometryCheckMethod() const
 {
-  return mComboInvalidFeatureFiltering->currentData().isValid() ? static_cast< QgsFeatureRequest::InvalidGeometryCheck >( mComboInvalidFeatureFiltering->currentData().toInt() ) : QgsFeatureRequest::GeometryAbortOnInvalid;
+  return mComboInvalidFeatureFiltering->currentData().isValid() ? mComboInvalidFeatureFiltering->currentData().value< Qgis::InvalidGeometryCheck >() : Qgis::InvalidGeometryCheck::AbortOnInvalid;
 }
 
 bool QgsProcessingFeatureSourceOptionsWidget::isOverridingInvalidGeometryCheck() const

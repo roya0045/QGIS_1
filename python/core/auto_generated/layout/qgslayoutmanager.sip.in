@@ -21,8 +21,6 @@ rather accessed through a :py:class:`QgsProject` via :py:func:`QgsProject.layout
 
 :py:class:`QgsLayoutManager` retains ownership of all the layouts contained
 in the manager.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -171,9 +169,10 @@ layout manager.
 %End
   public:
 
-    enum Role
+
+    enum class CustomRole
     {
-      LayoutRole,
+      Layout,
     };
 
     explicit QgsLayoutManagerModel( QgsLayoutManager *manager, QObject *parent /TransferThis/ = 0 );

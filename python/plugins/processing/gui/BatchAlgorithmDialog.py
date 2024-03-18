@@ -56,7 +56,7 @@ class BatchAlgorithmDialog(QgsProcessingBatchAlgorithmDialogBase):
         from processing.gui.AlgorithmDialog import AlgorithmDialog
         dlg = AlgorithmDialog(self.algorithm().create(), parent=iface.mainWindow())
         dlg.show()
-        dlg.exec_()
+        dlg.exec()
 
     def processingContext(self):
         if self.context is None:
@@ -75,7 +75,11 @@ class BatchAlgorithmDialog(QgsProcessingBatchAlgorithmDialogBase):
         project = QgsProject.instance() if load_layers else None
 
         for row in range(self.mainWidget().batchRowCount()):
-            parameters, ok = self.mainWidget().parametersForRow(row, destinationProject=project, warnOnInvalid=True)
+            parameters, ok = self.mainWidget().parametersForRow(
+                row=row,
+                context=self.processingContext(),
+                destinationProject=project,
+                warnOnInvalid=True)
             if ok:
                 alg_parameters.append(parameters)
         if not alg_parameters:

@@ -160,6 +160,8 @@ class QgsAppGpsConnection;
 class QgsGpsToolBar;
 class QgsAppGpsSettingsMenu;
 class Qgs3DMapScene;
+class Qgs3DMapCanvas;
+class QgsAppCanvasFiltering;
 
 class QgsThemeManagerWidget;
 #include <QMainWindow>
@@ -226,7 +228,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     /**
      * Returns and adjusted uri for the layer based on current and available CRS as well as the last selected image format
-     * \since QGIS 2.8
      */
     QString crsAndFormatAdjustedLayerUri( const QString &uri, const QStringList &supportedCrs, const QStringList &supportedFormats ) const;
 
@@ -380,7 +381,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
      * Add a toolbar to the main window. Overloaded from QMainWindow.
      * After adding the toolbar to the ui (by delegating to the QMainWindow
      * parent class, it will also add it to the View menu list of toolbars.
-     * \since QGIS 2.3
      */
     void addToolBar( QToolBar *toolBar, Qt::ToolBarArea area = Qt::TopToolBarArea );
 
@@ -432,6 +432,20 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
      * If a designer already exists for this layout then it will be activated.
      */
     QgsLayoutDesignerDialog *openLayoutDesignerDialog( QgsMasterLayoutInterface *layout );
+
+    /**
+     * Returns a list of all 3D map canvases open in the app.
+     *
+     * \since QGIS 3.36
+     */
+    QList< Qgs3DMapCanvas * > mapCanvases3D();
+
+    /**
+     * Create a new 3D map canvas with the specified unique \a name.
+     *
+     * \since QGIS 3.36
+     */
+    Qgs3DMapCanvas *createNewMapCanvas3D( const QString &name );
 
     /**
      * Opens a 3D view canvas for a 3D map view called \a name.
@@ -607,7 +621,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QAction *actionLayerSaveAs() { return mActionLayerSaveAs; }
     QAction *actionRemoveLayer() { return mActionRemoveLayer; }
     QAction *actionDuplicateLayer() { return mActionDuplicateLayer; }
-    //! \since QGIS 2.4
     QAction *actionSetLayerScaleVisibility() { return mActionSetLayerScaleVisibility; }
     QAction *actionSetLayerCrs() { return mActionSetLayerCRS; }
     QAction *actionSetProjectCrsFromLayer() { return mActionSetProjectCRSFromLayer; }
@@ -660,7 +673,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QMenu *viewMenu() { return mViewMenu; }
     QMenu *layerMenu() { return mLayerMenu; }
     QMenu *newLayerMenu() { return mNewLayerMenu; }
-    //! \since QGIS 2.5
     QMenu *addLayerMenu() { return mAddLayerMenu; }
     QMenu *settingsMenu() { return mSettingsMenu; }
     QMenu *pluginMenu() { return mPluginMenu; }
@@ -759,7 +771,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! A a map decoration \a item
     void addDecorationItem( QgsDecorationItem *item ) { mDecorationItems.append( item ); }
 
-    //! \since QGIS 2.1
     static QString normalizedMenuName( const QString &name );
 
     void parseVersionInfo( QNetworkReply *reply, int &latestVersion, QStringList &versionInfo );
@@ -871,7 +882,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
       * Checks available datum transforms and ask user if several are available and none
       * is chosen. Dialog is shown only if global option is set accordingly.
       * \returns TRUE if a datum transform has been specifically chosen by user or only one is available.
-      * \since 3.0
       */
     bool askUserForDatumTransform( const QgsCoordinateReferenceSystem &sourceCrs, const QgsCoordinateReferenceSystem &destinationCrs, const QgsMapLayer *layer = nullptr );
 
@@ -884,6 +894,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QgsMapToolIdentifyAction *identifyMapTool() const;
 
     QgsMapLayerActionContext createMapLayerActionContext();
+
+    QgsAppCanvasFiltering *canvasFiltering();
 
     /**
      * Take screenshots for user documentation
@@ -1271,7 +1283,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     /**
      * Refreshes the state of the layer actions toolbar action
-     * \since QGIS 2.1
     */
     void refreshActionFeatureAction();
 
@@ -1288,13 +1299,11 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     /**
      * Reload connections emitting the connectionsChanged signal
-     * \since QGIS 3.0
      */
     void reloadConnections();
 
     /**
      * Shows the layout manager dialog.
-     * \since QGIS 3.0
      */
     void showLayoutManager();
 
@@ -1455,7 +1464,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     /**
      * Slot to handle user rotation input;
-     * \since QGIS 2.8
      */
     void userRotation();
 
@@ -1894,7 +1902,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! Activates or deactivates actions depending on the selected layers in the layer panel.
     void activateDeactivateMultipleLayersRelatedActions();
 
-    void selectionChanged( QgsMapLayer *layer );
+    void selectionChanged( const QgsFeatureIds &selected, const QgsFeatureIds &deselected, bool clearAndSelect );
 
     void extentChanged();
     void showRotation();
@@ -1949,6 +1957,22 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! shows the map styling dock
     void mapStyleDock( bool enabled );
 
+    /**
+     * Sets whether changes to the active layer should be temporarily
+     * blocked.
+     *
+     * This is a low-level method, designed to avoid unnecessary work when adding lots
+     * of layers at once. Clients which will be adding many layers may call blockActiveLayerChanges( TRUE ) upfront,
+     * add all the layers, and then follow up with a call to blockActiveLayerChanges( FALSE ). This will defer emitting
+     * the active layer changed signal until they've added all layers, and only emit the signal once for
+     * the final layer added.
+     *
+     * \warning This must be accompanied by a subsequent call with \a blocked as FALSE.
+     *
+     * \since QGIS 3.36
+     */
+    void blockActiveLayerChanges( bool blocked );
+
     //! diagrams properties
     void diagramProperties();
 
@@ -1961,7 +1985,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! show Python console
     void showPythonDialog();
 
-    //! add Python cnosole at start up
+    //! add Python console at start up
     void initPythonConsoleOptions();
 
     //! Shows a warning when an older/newer project file is read.
@@ -2035,31 +2059,26 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     /**
      * Disable any preview modes shown on the map canvas
-     * \since QGIS 2.3
     */
     void disablePreviewMode();
 
     /**
      * Enable a monochrome preview mode on the map canvas
-     * \since QGIS 2.3
     */
     void activateMonoPreview();
 
     /**
      * Enable a grayscale preview mode on the map canvas
-     * \since QGIS 2.3
     */
     void activateGrayscalePreview();
 
     /**
      * Enable a color blindness (protanopia) preview mode on the map canvas
-     * \since QGIS 2.3
     */
     void activateProtanopePreview();
 
     /**
      * Enable a color blindness (deuteranopia) preview mode on the map canvas
-     * \since QGIS 2.3
     */
     void activateDeuteranopePreview();
 
@@ -2141,7 +2160,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     /**
      * Emitted when a new layout \a designer has been opened.
      * \see layoutDesignerWillBeClosed()
-     * \since QGIS 3.0
      */
     void layoutDesignerOpened( QgsLayoutDesignerInterface *designer );
 
@@ -2150,7 +2168,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
      * and deleted.
      * \see layoutDesignerClosed()
      * \see layoutDesignerOpened()
-     * \since QGIS 3.0
      */
     void layoutDesignerWillBeClosed( QgsLayoutDesignerInterface *designer );
 
@@ -2158,7 +2175,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
      * Emitted after a layout designer window is closed.
      * \see layoutDesignerWillBeClosed()
      * \see layoutDesignerOpened()
-     * \since QGIS 3.0
      */
     void layoutDesignerClosed();
 
@@ -2169,7 +2185,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     /**
      * Emitted when a layer has been saved using save as
-     * \since QGIS 2.7
      */
     void layerSavedAs( QgsMapLayer *l, const QString &path );
 
@@ -2498,7 +2513,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QgsMapOverviewCanvas *mOverviewCanvas = nullptr;
     //! Table of contents (legend) for the map
     QgsLayerTreeView *mLayerTreeView = nullptr;
-    //! Keep track of whether ongoing dataset(s) is/are being dropped through the table of contens
+    //! Keep track of whether ongoing dataset(s) is/are being dropped through the table of contents
     bool mLayerTreeDrop = false;
 
     //! Helper class that connects layer tree with map canvas
@@ -2632,6 +2647,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QToolButton *mFilterLegendToolButton = nullptr;
     QAction *mFilterLegendByMapContentAction = nullptr;
     QAction *mFilterLegendToggleShowPrivateLayersAction = nullptr;
+    QAction *mFilterLegendToggleHideValidLayersAction = nullptr;
     QAction *mActionStyleDock = nullptr;
 
     QgsLegendFilterButton *mLegendExpressionFilterButton = nullptr;
@@ -2696,8 +2712,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     QgsProxyProgressTask *mProjectLoadingProxyTask = nullptr;
 
-    //! True if we are blocking the activeLayerChanged signal from being emitted
-    bool mBlockActiveLayerChanged = false;
+    // Non-zero if we are blocking the activeLayerChanged signal from being emitted
+    int mBlockActiveLayerChanged = 0;
 
     int mBlockBrowser1Refresh = 0;
     int mBlockBrowser2Refresh = 0;
@@ -2720,6 +2736,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     QMap< QString, QToolButton * > mAnnotationItemGroupToolButtons;
     QAction *mAnnotationsItemInsertBefore = nullptr; // Used to insert annotation items at the appropriate location in the annotations toolbar
+
+    QgsAppCanvasFiltering *mAppCanvasFiltering = nullptr;
 
     QSet<QgsMapCanvasDockWidget *> mOpen2DMapViews;
 

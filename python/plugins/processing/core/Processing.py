@@ -82,7 +82,7 @@ class Processing:
 
     @staticmethod
     def initialize():
-        if "model" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
+        if "script" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
             return
 
         with QgsRuntimeProfiler.profile('Initialize'):
@@ -101,13 +101,20 @@ class Processing:
                     pass
 
             # Add the basic providers
-            for c in [
+            basic_providers = [
                 QgisAlgorithmProvider,
                 GdalAlgorithmProvider,
-                ScriptAlgorithmProvider,
-                ModelerAlgorithmProvider,
-                ProjectProvider
-            ]:
+                ScriptAlgorithmProvider
+            ]
+
+            # model providers are deferred for qgis_process startup
+            if QgsApplication.platform() != 'qgis_process':
+                basic_providers.extend([
+                    ModelerAlgorithmProvider,
+                    ProjectProvider
+                ])
+
+            for c in basic_providers:
                 p = c()
                 if QgsApplication.processingRegistry().addProvider(p):
                     Processing.BASIC_PROVIDERS.append(p)
@@ -115,8 +122,8 @@ class Processing:
             if QgsApplication.platform() == 'external':
                 # for external applications we must also load the builtin providers stored in separate plugins
                 try:
-                    from grassprovider.Grass7AlgorithmProvider import Grass7AlgorithmProvider
-                    p = Grass7AlgorithmProvider()
+                    from grassprovider.grass_provider import GrassProvider
+                    p = GrassProvider()
                     if QgsApplication.processingRegistry().addProvider(p):
                         Processing.BASIC_PROVIDERS.append(p)
                 except ImportError:
@@ -126,6 +133,23 @@ class Processing:
             ProcessingConfig.initialize()
             ProcessingConfig.readSettings()
             RenderingStyles.loadStyles()
+
+    @staticmethod
+    def perform_deferred_model_initialization():
+        if "model" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
+            return
+
+        # Add the model providers
+        # note that we don't add the Project Provider, as this cannot be called
+        # from qgis_process
+        model_providers = [
+            ModelerAlgorithmProvider
+        ]
+
+        for c in model_providers:
+            p = c()
+            if QgsApplication.processingRegistry().addProvider(p):
+                Processing.BASIC_PROVIDERS.append(p)
 
     @staticmethod
     def deinitialize():

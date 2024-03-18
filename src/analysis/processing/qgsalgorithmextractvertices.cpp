@@ -49,7 +49,7 @@ QString QgsExtractVerticesAlgorithm::groupId() const
 
 QString QgsExtractVerticesAlgorithm::shortHelpString() const
 {
-  return QObject::tr( "This algorithm takes a line or polygon layer and generates a point layer with points representing the vertices in the input lines or polygons. The attributes associated to each point are the same ones associated to the line or polygon that the point belongs to." ) +
+  return QObject::tr( "This algorithm takes a vector layer and generates a point layer with points representing the vertices in the input geometries. The attributes associated to each point are the same ones associated to the feature that the point belongs to." ) +
          QStringLiteral( "\n\n" )  +
          QObject::tr( "Additional fields are added to the point indicating the vertex index (beginning at 0), the vertex’s part and its index within the part (as well as its ring for polygons), distance along original geometry and bisector angle of vertex for original geometry." );
 }
@@ -64,9 +64,9 @@ QgsExtractVerticesAlgorithm *QgsExtractVerticesAlgorithm::createInstance() const
   return new QgsExtractVerticesAlgorithm();
 }
 
-QgsProcessing::SourceType QgsExtractVerticesAlgorithm::outputLayerType() const
+Qgis::ProcessingSourceType QgsExtractVerticesAlgorithm::outputLayerType() const
 {
-  return QgsProcessing::TypeVectorPoint;
+  return Qgis::ProcessingSourceType::VectorPoint;
 }
 
 QgsFields QgsExtractVerticesAlgorithm::outputFields( const QgsFields &inputFields ) const
@@ -100,9 +100,9 @@ Qgis::WkbType QgsExtractVerticesAlgorithm::outputWkbType( Qgis::WkbType inputWkb
   return outputWkbType;
 }
 
-QgsProcessingFeatureSource::Flag QgsExtractVerticesAlgorithm::sourceFlags() const
+Qgis::ProcessingFeatureSourceFlags QgsExtractVerticesAlgorithm::sourceFlags() const
 {
-  return QgsProcessingFeatureSource::FlagSkipGeometryValidityChecks;
+  return Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks;
 }
 
 QgsFeatureSink::SinkFlags QgsExtractVerticesAlgorithm::sinkFlags() const
@@ -123,7 +123,7 @@ QgsFeatureList QgsExtractVerticesAlgorithm::processFeature( const QgsFeature &fe
 
   QgsFeature f = feature;
   const QgsGeometry inputGeom = f.geometry();
-  if ( inputGeom.isNull() )
+  if ( inputGeom.isEmpty() )
   {
     QgsAttributes attrs = f.attributes();
     attrs << QVariant()
@@ -136,6 +136,7 @@ QgsFeatureList QgsExtractVerticesAlgorithm::processFeature( const QgsFeature &fe
           << QVariant()
           << QVariant();
 
+    f.clearGeometry();
     f.setAttributes( attrs );
     outputFeatures << f;
   }

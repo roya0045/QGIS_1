@@ -10,6 +10,7 @@ __date__ = '20/10/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
 import os
+from typing import Optional
 
 from qgis.PyQt.QtCore import QDir, QFileInfo, QRectF
 from qgis.PyQt.QtGui import QPainter
@@ -30,8 +31,7 @@ from qgis.core import (
     QgsRectangle,
     QgsSingleSymbolRenderer,
     QgsSymbolLayer,
-    QgsVectorLayer,
-    QgsLayoutChecker
+    QgsVectorLayer
 )
 import unittest
 from qgis.testing import start_app, QgisTestCase
@@ -50,13 +50,9 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         super(TestQgsLayoutMap, cls).setUpClass()
         cls.item_class = QgsLayoutItemMap
 
-    def setUp(self):
-        self.report = "<h1>Python QgsLayoutItemMap Tests</h1>\n"
-
-    def tearDown(self):
-        report_file_path = f"{QDir.tempPath()}/qgistest.html"
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(self.report)
+    @classmethod
+    def control_path_prefix(cls):
+        return "composer_mapoverview"
 
     def __init__(self, methodName):
         """Run once on class initialization."""
@@ -99,13 +95,13 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap.setExtent(myRectangle2)
         overviewMap.overview().setLinkedMap(self.map)
         self.assertTrue(overviewMap.overviews().hasEnabledItems())
-        checker = QgsLayoutChecker('composermap_overview', self.layout)
-        checker.setColorTolerance(6)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
+
+        result = self.render_layout_check("composermap_overview",
+                                          self.layout,
+                                          color_tolerance=6)
+
         self.layout.removeLayoutItem(overviewMap)
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(result)
 
     def testOverviewMapBlend(self):
         overviewMap = QgsLayoutItemMap(self.layout)
@@ -119,13 +115,13 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         myRectangle2 = QgsRectangle(0, -256, 256, 0)
         overviewMap.setExtent(myRectangle2)
         overviewMap.overview().setLinkedMap(self.map)
-        overviewMap.overview().setBlendMode(QPainter.CompositionMode_Multiply)
-        checker = QgsLayoutChecker('composermap_overview_blending', self.layout)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
+        overviewMap.overview().setBlendMode(QPainter.CompositionMode.CompositionMode_Multiply)
+
+        result = self.render_layout_check("composermap_overview_blending",
+                                          self.layout)
+
         self.layout.removeLayoutItem(overviewMap)
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(result)
 
     def testOverviewMapInvert(self):
         overviewMap = QgsLayoutItemMap(self.layout)
@@ -140,12 +136,12 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap.setExtent(myRectangle2)
         overviewMap.overview().setLinkedMap(self.map)
         overviewMap.overview().setInverted(True)
-        checker = QgsLayoutChecker('composermap_overview_invert', self.layout)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
+
+        result = self.render_layout_check("composermap_overview_invert",
+                                          self.layout)
+
         self.layout.removeLayoutItem(overviewMap)
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(result)
 
     def testOverviewMapCenter(self):
         overviewMap = QgsLayoutItemMap(self.layout)
@@ -161,12 +157,12 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap.overview().setLinkedMap(self.map)
         overviewMap.overview().setInverted(False)
         overviewMap.overview().setCentered(True)
-        checker = QgsLayoutChecker('composermap_overview_center', self.layout)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
+
+        result = self.render_layout_check("composermap_overview_center",
+                                          self.layout)
+
         self.layout.removeLayoutItem(overviewMap)
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(result)
 
     def testAsMapLayer(self):
         l = QgsLayout(QgsProject.instance())
@@ -199,14 +195,14 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap.overview().setFrameSymbol(fill_symbol)
         layer = overviewMap.overview().asMapLayer()
         self.assertIsInstance(layer.renderer(), QgsSingleSymbolRenderer)
-        self.assertEqual(layer.renderer().symbol().symbolLayer(0).properties()['color'], '0,255,0,255')
-        self.assertEqual(layer.renderer().symbol().symbolLayer(0).properties()['outline_color'], '255,0,0,255')
+        self.assertEqual(layer.renderer().symbol().symbolLayer(0).properties()['color'], '0,255,0,255,rgb:0,1,0,1')
+        self.assertEqual(layer.renderer().symbol().symbolLayer(0).properties()['outline_color'], '255,0,0,255,rgb:1,0,0,1')
 
         # test layer blend mode
-        self.assertEqual(layer.blendMode(), QPainter.CompositionMode_SourceOver)
-        overviewMap.overview().setBlendMode(QPainter.CompositionMode_Clear)
+        self.assertEqual(layer.blendMode(), QPainter.CompositionMode.CompositionMode_SourceOver)
+        overviewMap.overview().setBlendMode(QPainter.CompositionMode.CompositionMode_Clear)
         layer = overviewMap.overview().asMapLayer()
-        self.assertEqual(layer.blendMode(), QPainter.CompositionMode_Clear)
+        self.assertEqual(layer.blendMode(), QPainter.CompositionMode.CompositionMode_Clear)
 
         # should have no effect
         overviewMap.setMapRotation(45)
@@ -247,10 +243,10 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap = QgsLayoutItemMap(l)
         overviewMap.attemptSetSceneRect(QRectF(20, 130, 70, 70))
         l.addLayoutItem(overviewMap)
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackBelowMap)
-        self.assertEqual(overviewMap.overview().stackingPosition(), QgsLayoutItemMapItem.StackBelowMap)
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackBelowMapLayer)
-        self.assertEqual(overviewMap.overview().stackingPosition(), QgsLayoutItemMapItem.StackBelowMapLayer)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMap)
+        self.assertEqual(overviewMap.overview().stackingPosition(), QgsLayoutItemMapItem.StackingPosition.StackBelowMap)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMapLayer)
+        self.assertEqual(overviewMap.overview().stackingPosition(), QgsLayoutItemMapItem.StackingPosition.StackBelowMapLayer)
 
         overviewMap.overview().setStackingLayer(self.raster_layer)
         self.assertEqual(overviewMap.overview().stackingLayer(), self.raster_layer)
@@ -273,10 +269,10 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         self.assertFalse(overviewMap.overviews().modifyMapLayerList([]))
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]), [self.raster_layer, self.vector_layer])
         overviewMap.overview().setLinkedMap(map)
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackBelowMap)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMap)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [self.raster_layer, self.vector_layer, overviewMap.overview().asMapLayer()])
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackBelowMapLayer)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMapLayer)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [self.raster_layer, self.vector_layer])
         overviewMap.overview().setStackingLayer(self.raster_layer)
@@ -285,7 +281,7 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap.overview().setStackingLayer(self.vector_layer)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [self.raster_layer, self.vector_layer, overviewMap.overview().asMapLayer()])
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackAboveMapLayer)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackAboveMapLayer)
         overviewMap.overview().setStackingLayer(None)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [self.raster_layer, self.vector_layer])
@@ -295,18 +291,18 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap.overview().setStackingLayer(self.vector_layer)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [self.raster_layer, overviewMap.overview().asMapLayer(), self.vector_layer])
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackBelowMapLabels)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMapLabels)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [overviewMap.overview().asMapLayer(), self.raster_layer, self.vector_layer])
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackAboveMapLabels)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackAboveMapLabels)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [self.raster_layer, self.vector_layer])
 
         # two overviews
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackBelowMap)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMap)
         overviewMap.overviews().addOverview(QgsLayoutItemMapOverview('x', overviewMap))
         overviewMap.overviews().overview(1).setLinkedMap(map)
-        overviewMap.overviews().overview(1).setStackingPosition(QgsLayoutItemMapItem.StackBelowMapLabels)
+        overviewMap.overviews().overview(1).setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMapLabels)
         self.assertEqual(overviewMap.overviews().modifyMapLayerList([self.raster_layer, self.vector_layer]),
                          [overviewMap.overviews().overview(1).asMapLayer(), self.raster_layer, self.vector_layer, overviewMap.overview().asMapLayer()])
 
@@ -331,25 +327,17 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         overviewMap.setExtent(myRectangle2)
         overviewMap.overview().setLinkedMap(map)
         overviewMap.overview().setInverted(True)
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackBelowMapLayer)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackBelowMapLayer)
         overviewMap.overview().setStackingLayer(self.raster_layer)
 
-        checker = QgsLayoutChecker('composermap_overview_belowmap', l)
-        checker.setColorTolerance(6)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(self.render_layout_check("composermap_overview_belowmap",
+                                                 l, color_tolerance=6))
 
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackAboveMapLayer)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackAboveMapLayer)
         overviewMap.overview().setStackingLayer(self.raster_layer)
 
-        checker = QgsLayoutChecker('composermap_overview_abovemap', l)
-        checker.setColorTolerance(6)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(self.render_layout_check("composermap_overview_abovemap",
+                                                 l, color_tolerance=6))
 
     def testOverviewExpressionContextStacking(self):
         atlas_layer = QgsVectorLayer("Point?crs=epsg:4326&field=attr:int(1)&field=label:string(20)", "points", "memory")
@@ -382,32 +370,24 @@ class TestQgsLayoutMap(QgisTestCase, LayoutItemTestCase):
         myRectangle2 = QgsRectangle(-20, -276, 276, 20)
         overviewMap.setExtent(myRectangle2)
         overviewMap.overview().setLinkedMap(map)
-        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackAboveMapLayer)
+        overviewMap.overview().setStackingPosition(QgsLayoutItemMapItem.StackingPosition.StackAboveMapLayer)
         overviewMap.overview().setStackingLayer(atlas_layer)
 
         fill_symbol = QgsFillSymbol.createSimple({'color': '#0000ff', 'outline_style': 'no'})
-        fill_symbol[0].setDataDefinedProperty(QgsSymbolLayer.PropertyFillColor, QgsProperty.fromExpression('case when label=\'a\' then \'red\' else \'green\' end'))
+        fill_symbol[0].setDataDefinedProperty(QgsSymbolLayer.Property.PropertyFillColor, QgsProperty.fromExpression('case when label=\'a\' then \'red\' else \'green\' end'))
 
         overviewMap.overview().setFrameSymbol(fill_symbol)
 
         l.reportContext().setLayer(atlas_layer)
         l.reportContext().setFeature(atlas_feature1)
 
-        checker = QgsLayoutChecker('composermap_overview_atlas_1', l)
-        checker.setColorTolerance(6)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(self.render_layout_check("composermap_overview_atlas_1",
+                                                 l, color_tolerance=6))
 
         l.reportContext().setFeature(atlas_feature2)
 
-        checker = QgsLayoutChecker('composermap_overview_atlas_2', l)
-        checker.setColorTolerance(6)
-        checker.setControlPathPrefix("composer_mapoverview")
-        myTestResult, myMessage = checker.testLayout()
-        self.report += checker.report()
-        self.assertTrue(myTestResult, myMessage)
+        self.assertTrue(self.render_layout_check("composermap_overview_atlas_2",
+                                                 l, color_tolerance=6))
 
 
 if __name__ == '__main__':

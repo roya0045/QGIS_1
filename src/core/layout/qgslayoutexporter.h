@@ -17,6 +17,7 @@
 #define QGSLAYOUTEXPORTER_H
 
 #include "qgis_core.h"
+#include "qgsconfig.h"
 #include "qgsmargins.h"
 #include "qgslayoutrendercontext.h"
 #include "qgslayoutreportcontext.h"
@@ -29,7 +30,7 @@
 #include <QVector>
 #include <functional>
 
-#ifndef QT_NO_PRINTER
+#if defined( HAVE_QTPRINTER )
 #include <QPrinter>
 #endif
 
@@ -45,7 +46,6 @@ class QgsSettingsEntryBool;
  * \ingroup core
  * \class QgsLayoutExporter
  * \brief Handles rendering and exports of layouts to various formats.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutExporter
 {
@@ -471,7 +471,8 @@ class CORE_EXPORT QgsLayoutExporter
 
     };
 
-#ifndef QT_NO_PRINTER
+#if defined( HAVE_QTPRINTER )
+    SIP_IF_FEATURE( HAVE_QTPRINTER )
 
     /**
      * Prints the layout to a \a printer, using the specified export \a settings.
@@ -491,6 +492,8 @@ class CORE_EXPORT QgsLayoutExporter
     static ExportResult print( QgsAbstractLayoutIterator *iterator, QPrinter &printer,
                                const QgsLayoutExporter::PrintExportSettings &settings,
                                QString &error SIP_OUT, QgsFeedback *feedback = nullptr );
+
+    SIP_END
 #endif
 
     //! Contains settings relating to exporting layouts to SVG

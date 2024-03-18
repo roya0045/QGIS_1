@@ -30,11 +30,24 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 from warnings import warn
 
-from qgis.PyQt.QtCore import QVariant, QDateTime, QDate, QDir, QUrl, QSize
-from qgis.PyQt.QtGui import QImage, QDesktopServices
+from qgis.PyQt.QtCore import (
+    Qt,
+    QVariant,
+    QDateTime,
+    QDate,
+    QDir,
+    QUrl,
+    QSize,
+    QCoreApplication
+)
+from qgis.PyQt.QtGui import (
+    QImage,
+    QDesktopServices,
+    QPainter
+)
 from qgis.core import (
     QgsApplication,
     QgsFeatureRequest,
@@ -170,9 +183,19 @@ class QgisTestCase(unittest.TestCase):
         control_name=None,
         color_tolerance: int = 2,
         allowed_mismatch: int = 20,
-        size_tolerance: Optional[int] = None,
+        size_tolerance: Optional[Union[int, QSize]] = None,
         expect_fail: bool = False,
+        control_path_prefix: Optional[str] = None,
+        use_checkerboard_background: bool = False
     ) -> bool:
+        if use_checkerboard_background:
+            output_image = QImage(image.size(), QImage.Format.Format_RGB32)
+            QgsMultiRenderChecker.drawBackground(output_image)
+            painter = QPainter(output_image)
+            painter.drawImage(0, 0, image)
+            painter.end()
+            image = output_image
+
         temp_dir = QDir.tempPath() + "/"
         file_name = temp_dir + name + ".png"
         image.save(file_name, "PNG")
@@ -182,7 +205,9 @@ class QgisTestCase(unittest.TestCase):
         if caller_file:
             checker.setFileFunctionLine(caller_file, caller_function, caller_line_no)
 
-        if cls.control_path_prefix():
+        if control_path_prefix:
+            checker.setControlPathPrefix(control_path_prefix)
+        elif cls.control_path_prefix():
             checker.setControlPathPrefix(cls.control_path_prefix())
 
         checker.setControlName(control_name or "expected_" + reference_image)
@@ -190,7 +215,11 @@ class QgisTestCase(unittest.TestCase):
         checker.setColorTolerance(color_tolerance)
         checker.setExpectFail(expect_fail)
         if size_tolerance is not None:
-            checker.setSizeTolerance(size_tolerance, size_tolerance)
+            if isinstance(size_tolerance, QSize):
+                if size_tolerance.isValid():
+                    checker.setSizeTolerance(size_tolerance.width(), size_tolerance.height())
+            else:
+                checker.setSizeTolerance(size_tolerance, size_tolerance)
 
         result = checker.runTest(name, allowed_mismatch)
         if (not expect_fail and not result) or (expect_fail and result):
@@ -210,8 +239,10 @@ class QgisTestCase(unittest.TestCase):
         name: str,
         reference_image: str,
         map_settings: QgsMapSettings,
+        control_name=None,
         color_tolerance: Optional[int] = None,
         allowed_mismatch: Optional[int] = None,
+        control_path_prefix: Optional[str] = None
     ) -> bool:
         checker = QgsMultiRenderChecker()
         checker.setMapSettings(map_settings)
@@ -220,9 +251,11 @@ class QgisTestCase(unittest.TestCase):
         if caller_file:
             checker.setFileFunctionLine(caller_file, caller_function, caller_line_no)
 
-        if cls.control_path_prefix():
+        if control_path_prefix:
+            checker.setControlPathPrefix(control_path_prefix)
+        elif cls.control_path_prefix():
             checker.setControlPathPrefix(cls.control_path_prefix())
-        checker.setControlName("expected_" + reference_image)
+        checker.setControlName(control_name or "expected_" + reference_image)
         if color_tolerance:
             checker.setColorTolerance(color_tolerance)
         result = checker.runTest(name, allowed_mismatch or 0)
@@ -239,8 +272,13 @@ class QgisTestCase(unittest.TestCase):
 
     @classmethod
     def render_layout_check(
-        cls, name: str, layout: QgsLayout, size: Optional[QSize] = None
-    ):
+        cls, name: str,
+        layout: QgsLayout,
+        size: Optional[QSize] = None,
+        color_tolerance: Optional[int] = None,
+        allowed_mismatch: Optional[int] = None,
+        page: Optional[int] = 0
+    ) -> bool:
         checker = QgsLayoutChecker(name, layout)
 
         caller_file, caller_function, caller_line_no = cls.get_test_caller_details()
@@ -249,9 +287,13 @@ class QgisTestCase(unittest.TestCase):
 
         if size is not None:
             checker.setSize(size)
+        if color_tolerance is not None:
+            checker.setColorTolerance(color_tolerance)
+
         if cls.control_path_prefix():
             checker.setControlPathPrefix(cls.control_path_prefix())
-        result, message = checker.testLayout()
+        result, message = checker.testLayout(page=page,
+                                             pixelDiff=allowed_mismatch or 0)
         if not result:
             cls.report += f"<h2>Render {name}</h2>\n"
             cls.report += checker.report()
@@ -310,8 +352,8 @@ class QgisTestCase(unittest.TestCase):
 
         # Compare CRS
         if 'ignore_crs_check' not in compare or not compare['ignore_crs_check']:
-            expected_wkt = layer_expected.dataProvider().crs().toWkt(QgsCoordinateReferenceSystem.WKT_PREFERRED)
-            result_wkt = layer_result.dataProvider().crs().toWkt(QgsCoordinateReferenceSystem.WKT_PREFERRED)
+            expected_wkt = layer_expected.dataProvider().crs().toWkt(QgsCoordinateReferenceSystem.WktVariant.WKT_PREFERRED)
+            result_wkt = layer_result.dataProvider().crs().toWkt(QgsCoordinateReferenceSystem.WktVariant.WKT_PREFERRED)
 
             if use_asserts:
                 self.assertEqual(layer_expected.dataProvider().crs(), layer_result.dataProvider().crs())
@@ -408,7 +450,7 @@ class QgisTestCase(unittest.TestCase):
 
             return True
 
-        def sort_by_pk_or_fid(f):
+        def get_pk_or_fid(f):
             if 'pk' in kwargs and kwargs['pk'] is not None:
                 key = kwargs['pk']
                 if isinstance(key, list) or isinstance(key, tuple):
@@ -417,6 +459,14 @@ class QgisTestCase(unittest.TestCase):
                     return f[kwargs['pk']]
             else:
                 return f.id()
+
+        def sort_by_pk_or_fid(f):
+            pk = get_pk_or_fid(f)
+            # we want NULL values sorted first, and don't want to try to
+            # directly compare NULL against non-NULL values
+            if isinstance(pk, list):
+                pk = [(v == NULL, v) for v in pk]
+            return (pk == NULL, pk)
 
         expected_features = sorted(layer_expected.getFeatures(request), key=sort_by_pk_or_fid)
         result_features = sorted(layer_result.getFeatures(request), key=sort_by_pk_or_fid)
@@ -835,6 +885,8 @@ def start_app(cleanup=True):
             argvb = list(map(os.fsencode, sys.argv))
         except AttributeError:
             argvb = sys.argv
+
+        QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
 
         # Note: QGIS_PREFIX_PATH is evaluated in QgsApplication -
         # no need to mess with it here.

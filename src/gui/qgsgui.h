@@ -55,7 +55,6 @@ class QgsInputControllerManager;
  * \ingroup gui
  * \brief QgsGui is a singleton class containing various registry and other global members
  * related to GUI classes.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsGui : public QObject
 {
@@ -250,7 +249,7 @@ class GUI_EXPORT QgsGui : public QObject
      * HIG flags, which indicate the Human Interface Guidelines for the current platform.
      * \since QGIS 3.4
     */
-    enum HigFlag
+    enum HigFlag SIP_ENUM_BASETYPE( IntFlag )
     {
       HigMenuTextIsTitleCase = 1 << 0,       //!< Menu action texts should be title case
       HigDialogTitleIsTitleCase = 1 << 1     //!< Dialog titles should be title case

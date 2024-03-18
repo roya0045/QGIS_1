@@ -216,6 +216,8 @@ QgsNetworkAccessManager::QgsNetworkAccessManager( QObject *parent )
 {
   setProxyFactory( new QgsNetworkProxyFactory() );
   setCookieJar( new QgsNetworkCookieJar( this ) );
+  enableStrictTransportSecurityStore( true );
+  setStrictTransportSecurityEnabled( true );
 }
 
 void QgsNetworkAccessManager::setSslErrorHandler( std::unique_ptr<QgsSslErrorHandler> handler )
@@ -356,6 +358,7 @@ QNetworkReply *QgsNetworkAccessManager::createRequest( QNetworkAccessManager::Op
   QNetworkReply *reply = QNetworkAccessManager::createRequest( op, req, outgoingData );
   reply->setProperty( "requestId", requestId );
 
+  emit requestCreated( QgsNetworkRequestParameters( op, reply->request(), requestId, content ) );
   Q_NOWARN_DEPRECATED_PUSH
   emit requestCreated( reply );
   Q_NOWARN_DEPRECATED_POP
@@ -631,6 +634,9 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
     connect( this, qOverload< QgsNetworkRequestParameters >( &QgsNetworkAccessManager::requestAboutToBeCreated ),
              sMainNAM, qOverload< QgsNetworkRequestParameters >( &QgsNetworkAccessManager::requestAboutToBeCreated ) );
 
+    connect( this, qOverload< const QgsNetworkRequestParameters & >( &QgsNetworkAccessManager::requestCreated ),
+             sMainNAM, qOverload< const QgsNetworkRequestParameters & >( &QgsNetworkAccessManager::requestCreated ) );
+
     connect( this, qOverload< QgsNetworkReplyContent >( &QgsNetworkAccessManager::finished ),
              sMainNAM, qOverload< QgsNetworkReplyContent >( &QgsNetworkAccessManager::finished ) );
 
@@ -732,8 +738,8 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
     {
       QgsDebugMsgLevel( QStringLiteral( "setting proxy from stored authentication configuration %1" ).arg( authcfg ), 2 );
       // Never crash! Never.
-      if ( QgsApplication::authManager() )
-        QgsApplication::authManager()->updateNetworkProxy( proxy, authcfg );
+      if ( QgsAuthManager *authManager = QgsApplication::authManager() )
+        authManager->updateNetworkProxy( proxy, authcfg );
     }
   }
 

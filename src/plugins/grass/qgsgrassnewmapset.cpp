@@ -40,6 +40,8 @@
 #include <QMessageBox>
 #include <QRegExp>
 #include <QTextStream>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 
 
 extern "C"
@@ -128,14 +130,14 @@ QgsGrassNewMapset::QgsGrassNewMapset( QgisInterface *iface,
   databaseChanged();
 
   // LOCATION
-  QRegExp rx( "[A-Za-z0-9_.]+" );
-  mLocationLineEdit->setValidator( new QRegExpValidator( rx, mLocationLineEdit ) );
+  const thread_local QRegularExpression rx( "[A-Za-z0-9_.]+" );
+  mLocationLineEdit->setValidator( new QRegularExpressionValidator( rx, mLocationLineEdit ) );
 
   // CRS
 
   // MAPSET
   mMapsetsListView->clear();
-  mMapsetLineEdit->setValidator( new QRegExpValidator( rx, mMapsetLineEdit ) );
+  mMapsetLineEdit->setValidator( new QRegularExpressionValidator( rx, mMapsetLineEdit ) );
 
   mMapsetsListView->header()->setSectionResizeMode( QHeaderView::ResizeToContents );
 
@@ -719,24 +721,15 @@ void QgsGrassNewMapset::loadRegions()
     if ( coorElem.text().isNull() )
       continue;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    QStringList coor = coorElem.text().split( QStringLiteral( " " ), QString::SkipEmptyParts );
-#else
     QStringList coor = coorElem.text().split( QStringLiteral( " " ), Qt::SkipEmptyParts );
-#endif
     if ( coor.size() != 2 )
     {
       QgsDebugError( QString( "Cannot parse coordinates: %1" ).arg( coorElem.text() ) );
       continue;
     }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    QStringList ll = coor[0].split( QStringLiteral( "," ), QString::SkipEmptyParts );
-    QStringList ur = coor[1].split( QStringLiteral( "," ), QString::SkipEmptyParts );
-#else
     QStringList ll = coor[0].split( QStringLiteral( "," ), Qt::SkipEmptyParts );
     QStringList ur = coor[1].split( QStringLiteral( "," ), Qt::SkipEmptyParts );
-#endif
     if ( ll.size() != 2 || ur.size() != 2 )
     {
       QgsDebugError( QString( "Cannot parse coordinates: %1" ).arg( coorElem.text() ) );

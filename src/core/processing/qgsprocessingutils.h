@@ -48,10 +48,11 @@ class QgsTiledSceneLayer;
  * \class QgsProcessingUtils
  * \ingroup core
  * \brief Utility functions for use with processing classes.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingUtils
 {
+    Q_GADGET
+
   public:
 
     /**
@@ -262,6 +263,7 @@ class CORE_EXPORT QgsProcessingUtils
       VectorTile, //!< Vector tile layer type, since QGIS 3.32
       TiledScene, //!< Tiled scene layer type, since QGIS 3.34
     };
+    Q_ENUM( LayerHint )
 
     /**
      * Interprets a string as a map layer within the supplied \a context.
@@ -304,13 +306,22 @@ class CORE_EXPORT QgsProcessingUtils
      * Normalizes a layer \a source string for safe comparison across different
      * operating system environments.
      */
-    static QString normalizeLayerSource( const QString &source );
+    static QString normalizeLayerSource( const QString &source ) SIP_HOLDGIL;
+
+    /**
+     * Returns a string representation of the source for a \a layer. The returned
+     * value is suitable for storage for subsequent executions of an algorithm
+     * using the same layer source.
+     *
+     * \since QGIS 3.34
+     */
+    static QString layerToStringIdentifier( const QgsMapLayer *layer ) SIP_HOLDGIL;
 
     /**
      * Converts a variant to a Python literal.
      *
      * \see stringToPythonLiteral()
-     * \since QGSIS 3.6
+     * \since QGIS 3.6
      */
     static QString variantToPythonLiteral( const QVariant &value );
 
@@ -319,7 +330,7 @@ class CORE_EXPORT QgsProcessingUtils
      *
      * \see variantToPythonLiteral()
      */
-    static QString stringToPythonLiteral( const QString &string );
+    static QString stringToPythonLiteral( const QString &string ) SIP_HOLDGIL;
 
     /**
      * Creates a feature sink ready for adding features. The \a destination specifies a destination
@@ -503,20 +514,20 @@ class CORE_EXPORT QgsProcessingUtils
      * length of field names, so be aware that the results of calling this method may
      * be truncated when saving to these formats.
      */
-    static QgsFields combineFields( const QgsFields &fieldsA, const QgsFields &fieldsB, const QString &fieldsBPrefix = QString() );
+    static QgsFields combineFields( const QgsFields &fieldsA, const QgsFields &fieldsB, const QString &fieldsBPrefix = QString() ) SIP_HOLDGIL;
 
     /**
      * Returns a list of field indices parsed from the given list of field names. Unknown field names are ignored.
      * If the list of field names is empty, it is assumed that all fields are required.
      * \since QGIS 3.2
      */
-    static QList<int> fieldNamesToIndices( const QStringList &fieldNames, const QgsFields &fields );
+    static QList<int> fieldNamesToIndices( const QStringList &fieldNames, const QgsFields &fields ) SIP_HOLDGIL;
 
     /**
      * Returns a subset of fields based on the indices of desired fields.
      * \since QGIS 3.2
      */
-    static QgsFields indicesToFields( const QList<int> &indices, const QgsFields &fields );
+    static QgsFields indicesToFields( const QList<int> &indices, const QgsFields &fields ) SIP_HOLDGIL;
 
     /**
      * Returns the default vector extension to use, in the absence of all other constraints (e.g.
@@ -670,18 +681,10 @@ class CORE_EXPORT QgsProcessingUtils
  * \ingroup core
  * \brief QgsFeatureSource subclass which proxies methods to an underlying QgsFeatureSource, modifying
  * results according to the settings in a QgsProcessingContext.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
 {
   public:
-
-    //! Flags controlling how QgsProcessingFeatureSource fetches features
-    enum Flag
-    {
-      FlagSkipGeometryValidityChecks = 1 << 1, //!< Invalid geometry checks should always be skipped. This flag can be useful for algorithms which always require invalid geometries, regardless of any user settings (e.g. "repair geometry" type algorithms).
-    };
-    Q_DECLARE_FLAGS( Flags, Flag )
 
     /**
      * Constructor for QgsProcessingFeatureSource, accepting an original feature source \a originalSource
@@ -705,9 +708,9 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
      * An optional \a request can be used to optimise the returned
      * iterator, eg by restricting the returned attributes or geometry.
      */
-    QgsFeatureIterator getFeatures( const QgsFeatureRequest &request, Flags flags ) const;
+    QgsFeatureIterator getFeatures( const QgsFeatureRequest &request, Qgis::ProcessingFeatureSourceFlags flags ) const;
 
-    QgsFeatureSource::FeatureAvailability hasFeatures() const override;
+    Qgis::FeatureAvailability hasFeatures() const override;
 
     QgsFeatureIterator getFeatures( const QgsFeatureRequest &request = QgsFeatureRequest() ) const override;
     QgsCoordinateReferenceSystem sourceCrs() const override;
@@ -720,7 +723,7 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
     QVariant maximumValue( int fieldIndex ) const override;
     QgsRectangle sourceExtent() const override;
     QgsFeatureIds allFeatureIds() const override;
-    SpatialIndexPresence hasSpatialIndex() const override;
+    Qgis::SpatialIndexPresence hasSpatialIndex() const override;
 
     /**
      * Returns an expression context scope suitable for this source.
@@ -733,7 +736,7 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
      * \see invalidGeometryCheck()
      * \since QGIS 3.14
      */
-    void setInvalidGeometryCheck( QgsFeatureRequest::InvalidGeometryCheck method );
+    void setInvalidGeometryCheck( Qgis::InvalidGeometryCheck method );
 
     /**
      * Returns the geometry check method for the source.
@@ -741,7 +744,7 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
      * \see setInvalidGeometryCheck()
      * \since QGIS 3.36
      */
-    QgsFeatureRequest::InvalidGeometryCheck invalidGeometryCheck() const;
+    Qgis::InvalidGeometryCheck invalidGeometryCheck() const;
 
   private:
 
@@ -752,9 +755,9 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
     Qgis::WkbType mSourceWkbType = Qgis::WkbType::Unknown;
     QString mSourceName;
     QgsRectangle mSourceExtent;
-    QgsFeatureSource::SpatialIndexPresence mSourceSpatialIndexPresence = QgsFeatureSource::SpatialIndexPresence::SpatialIndexUnknown;
+    Qgis::SpatialIndexPresence mSourceSpatialIndexPresence = Qgis::SpatialIndexPresence::Unknown;
 
-    QgsFeatureRequest::InvalidGeometryCheck mInvalidGeometryCheck = QgsFeatureRequest::GeometryNoCheck;
+    Qgis::InvalidGeometryCheck mInvalidGeometryCheck = Qgis::InvalidGeometryCheck::NoCheck;
     std::function< void( const QgsFeature & ) > mInvalidGeometryCallback;
     std::function< void( const QgsFeature & ) > mTransformErrorCallback;
 
@@ -774,7 +777,6 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
  * \ingroup core
  * \brief QgsProxyFeatureSink subclass which reports feature addition errors to a QgsProcessingContext.
  * \note Not available in Python bindings.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingFeatureSink : public QgsProxyFeatureSink
 {

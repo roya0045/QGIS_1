@@ -36,8 +36,10 @@
 #include "qgstiledownloadmanager.h"
 #include "qgsblockingnetworkrequest.h"
 #include "qgseptpointcloudblockrequest.h"
+#include "qgscachedpointcloudblockrequest.h"
 #include "qgspointcloudexpression.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 
 ///@cond PRIVATE
 
@@ -78,24 +80,25 @@ QList<IndexedPointCloudNode> QgsRemoteEptPointCloudIndex::nodeChildren( const In
   return lst;
 }
 
-void QgsRemoteEptPointCloudIndex::load( const QString &url )
+void QgsRemoteEptPointCloudIndex::load( const QString &uri )
 {
-  mUrl = QUrl( url );
+  mUri = uri;
 
-  QStringList splitUrl = url.split( '/' );
+  QStringList splitUrl = uri.split( '/' );
 
   mUrlFileNamePart = splitUrl.back();
   splitUrl.pop_back();
   mUrlDirectoryPart = splitUrl.join( '/' );
 
-  QNetworkRequest nr( url );
+  QNetworkRequest nr = QNetworkRequest( QUrl( mUri ) );
 
   QgsBlockingNetworkRequest req;
   const QgsBlockingNetworkRequest::ErrorCode errCode = req.get( nr );
   if ( errCode != QgsBlockingNetworkRequest::NoError )
   {
-    QgsDebugError( QStringLiteral( "Request failed: " ) + url );
+    QgsDebugError( QStringLiteral( "Request failed: " ) + uri );
     mIsValid = false;
+    mError = req.errorMessage();
     return;
   }
 
@@ -105,6 +108,11 @@ void QgsRemoteEptPointCloudIndex::load( const QString &url )
 
 std::unique_ptr<QgsPointCloudBlock> QgsRemoteEptPointCloudIndex::nodeData( const IndexedPointCloudNode &n, const QgsPointCloudRequest &request )
 {
+  if ( QgsPointCloudBlock *cached = getNodeDataFromCache( n, request ) )
+  {
+    return std::unique_ptr<QgsPointCloudBlock>( cached );
+  }
+
   std::unique_ptr<QgsPointCloudBlockRequest> blockRequest( asyncNodeData( n, request ) );
   if ( !blockRequest )
     return nullptr;
@@ -119,11 +127,18 @@ std::unique_ptr<QgsPointCloudBlock> QgsRemoteEptPointCloudIndex::nodeData( const
     QgsDebugError( QStringLiteral( "Error downloading node %1 data, error : %2 " ).arg( n.toString(), blockRequest->errorStr() ) );
   }
 
+  storeNodeDataToCache( block.get(), n, request );
   return block;
 }
 
 QgsPointCloudBlockRequest *QgsRemoteEptPointCloudIndex::asyncNodeData( const IndexedPointCloudNode &n, const QgsPointCloudRequest &request )
 {
+  if ( QgsPointCloudBlock *cached = getNodeDataFromCache( n, request ) )
+  {
+    return new QgsCachedPointCloudBlockRequest( cached,  n, mUri, attributes(), request.attributes(),
+           scale(), offset(), mFilterExpression, request.filterRect() );
+  }
+
   if ( !loadNodeHierarchy( n ) )
     return nullptr;
 
@@ -206,7 +221,7 @@ bool QgsRemoteEptPointCloudIndex::loadNodeHierarchy( const IndexedPointCloudNode
 
     if ( reply->error() != QNetworkReply::NoError )
     {
-      QgsDebugError( QStringLiteral( "Request failed: " ) + mUrl.toString() );
+      QgsDebugError( QStringLiteral( "Request failed: " ) + mUri );
       return false;
     }
 
@@ -253,7 +268,6 @@ void QgsRemoteEptPointCloudIndex::copyCommonProperties( QgsRemoteEptPointCloudIn
   // QgsRemoteEptPointCloudIndex specific fields
   destination->mUrlDirectoryPart = mUrlDirectoryPart;
   destination->mUrlFileNamePart = mUrlFileNamePart;
-  destination->mUrl = mUrl;
   destination->mHierarchyNodes = mHierarchyNodes;
 }
 

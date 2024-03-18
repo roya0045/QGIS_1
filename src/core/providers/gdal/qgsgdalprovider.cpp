@@ -1780,6 +1780,11 @@ QString QgsGdalProvider::description() const
   return PROVIDER_DESCRIPTION;
 }
 
+Qgis::DataProviderFlags QgsGdalProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D;
+}
+
 QgsRasterDataProvider::ProviderCapabilities QgsGdalProvider::providerCapabilities() const
 {
   return ProviderCapability::ProviderHintBenefitsFromResampling |
@@ -1895,7 +1900,7 @@ bool QgsGdalProvider::hasHistogram( int bandNo,
   if ( ( sourceHasNoDataValue( bandNo ) && !useSourceNoDataValue( bandNo ) ) ||
        !userNoDataValues( bandNo ).isEmpty() )
   {
-    QgsDebugMsgLevel( QStringLiteral( "Custom no data values -> GDAL histogram not sufficient." ), 3 );
+    QgsDebugMsgLevel( QStringLiteral( "Custom NoData values -> GDAL histogram not sufficient." ), 3 );
     return false;
   }
 
@@ -1980,7 +1985,7 @@ QgsRasterHistogram QgsGdalProvider::histogram( int bandNo,
   if ( ( sourceHasNoDataValue( bandNo ) && !useSourceNoDataValue( bandNo ) ) ||
        !userNoDataValues( bandNo ).isEmpty() )
   {
-    QgsDebugMsgLevel( QStringLiteral( "Custom no data values, using generic histogram." ), 2 );
+    QgsDebugMsgLevel( QStringLiteral( "Custom NoData values, using generic histogram." ), 2 );
     return QgsRasterDataProvider::histogram( bandNo, binCount, minimum, maximum, boundingBox, sampleSize, includeOutOfRange, feedback );
   }
 
@@ -2395,7 +2400,7 @@ QList<QgsRasterPyramid> QgsGdalProvider::buildPyramidList()
       }
     }
     mPyramidList.append( myRasterPyramid );
-    //sqare the divisor each step
+    //square the divisor each step
     myDivisor = ( myDivisor * 2 );
   }
 
@@ -2424,7 +2429,7 @@ QList<QgsRasterPyramid> QgsGdalProvider::buildPyramidList( const QList<int> &lis
     while ( ( myWidth / myDivisor > 32 ) && ( ( myHeight / myDivisor ) > 32 ) )
     {
       overviewList.append( myDivisor );
-      //sqare the divisor each step
+      //square the divisor each step
       myDivisor = ( myDivisor * 2 );
     }
   }
@@ -2746,7 +2751,7 @@ void buildSupportedRasterFileFilterAndExtensions( QString &fileFiltersString, QS
   // Grind through all the drivers and their respective metadata.
   // We'll add a file filter for those drivers that have a file
   // extension defined for them; the others, well, even though
-  // theoreticaly we can open those files because there exists a
+  // theoretically we can open those files because there exists a
   // driver for them, the user will have to use the "All Files" to
   // open datasets with no explicitly defined file name extension.
 
@@ -2859,11 +2864,7 @@ void buildSupportedRasterFileFilterAndExtensions( QString &fileFiltersString, QS
   }                           // each loaded GDAL driver
 
   // sort file filters alphabetically
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList filters = fileFiltersString.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
   QStringList filters = fileFiltersString.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
   filters.sort();
   fileFiltersString = filters.join( QLatin1String( ";;" ) ) + ";;";
 
@@ -2936,7 +2937,7 @@ bool QgsGdalProvider::isValidRasterFileName( QString const &fileNameQString, QSt
 }
 
 bool QgsGdalProvider::hasStatistics( int bandNo,
-                                     int stats,
+                                     Qgis::RasterBandStatistics _stats,
                                      const QgsRectangle &boundingBox,
                                      int sampleSize )
 {
@@ -2945,6 +2946,8 @@ bool QgsGdalProvider::hasStatistics( int bandNo,
     return false;
 
   QgsDebugMsgLevel( QStringLiteral( "theBandNo = %1 sampleSize = %2" ).arg( bandNo ).arg( sampleSize ), 2 );
+
+  Qgis::RasterBandStatistics stats = static_cast< Qgis::RasterBandStatistics >( _stats );
 
   // First check if cached in mStatistics
   if ( QgsRasterDataProvider::hasStatistics( bandNo, stats, boundingBox, sampleSize ) )
@@ -2958,14 +2961,14 @@ bool QgsGdalProvider::hasStatistics( int bandNo,
   if ( ( sourceHasNoDataValue( bandNo ) && !useSourceNoDataValue( bandNo ) ) ||
        !userNoDataValues( bandNo ).isEmpty() )
   {
-    QgsDebugMsgLevel( QStringLiteral( "Custom no data values -> GDAL statistics not sufficient." ), 2 );
+    QgsDebugMsgLevel( QStringLiteral( "Custom NoData values -> GDAL statistics not sufficient." ), 2 );
     return false;
   }
 
   // If not cached, check if supported by GDAL
-  int supportedStats = QgsRasterBandStats::Min | QgsRasterBandStats::Max
-                       | QgsRasterBandStats::Range | QgsRasterBandStats::Mean
-                       | QgsRasterBandStats::StdDev;
+  Qgis::RasterBandStatistics supportedStats = Qgis::RasterBandStatistic::Min | Qgis::RasterBandStatistic::Max
+      | Qgis::RasterBandStatistic::Range | Qgis::RasterBandStatistic::Mean
+      | Qgis::RasterBandStatistic::StdDev;
 
   if ( myRasterBandStats.extent != extent() ||
        ( stats & ( ~supportedStats ) ) )
@@ -2999,10 +3002,14 @@ bool QgsGdalProvider::hasStatistics( int bandNo,
   double *pdfMean = &dfMean;
   double *pdfStdDev = &dfStdDev;
 
-  if ( !( stats & QgsRasterBandStats::Min ) ) pdfMin = nullptr;
-  if ( !( stats & QgsRasterBandStats::Max ) ) pdfMax = nullptr;
-  if ( !( stats & QgsRasterBandStats::Mean ) ) pdfMean = nullptr;
-  if ( !( stats & QgsRasterBandStats::StdDev ) ) pdfStdDev = nullptr;
+  if ( !( stats & Qgis::RasterBandStatistic::Min ) )
+    pdfMin = nullptr;
+  if ( !( stats & Qgis::RasterBandStatistic::Max ) )
+    pdfMax = nullptr;
+  if ( !( stats & Qgis::RasterBandStatistic::Mean ) )
+    pdfMean = nullptr;
+  if ( !( stats & Qgis::RasterBandStatistic::StdDev ) )
+    pdfStdDev = nullptr;
 
   CPLErr myerval = GDALGetRasterStatistics( myGdalBand, bApproxOK, true, pdfMin, pdfMax, pdfMean, pdfStdDev );
 
@@ -3015,7 +3022,7 @@ bool QgsGdalProvider::hasStatistics( int bandNo,
   return false;
 }
 
-QgsRasterBandStats QgsGdalProvider::bandStatistics( int bandNo, int stats, const QgsRectangle &boundingBox, int sampleSize, QgsRasterBlockFeedback *feedback )
+QgsRasterBandStats QgsGdalProvider::bandStatistics( int bandNo, Qgis::RasterBandStatistics stats, const QgsRectangle &boundingBox, int sampleSize, QgsRasterBlockFeedback *feedback )
 {
   QMutexLocker locker( mpMutex );
   if ( !initIfNeeded() )
@@ -3048,13 +3055,13 @@ QgsRasterBandStats QgsGdalProvider::bandStatistics( int bandNo, int stats, const
   if ( ( sourceHasNoDataValue( bandNo ) && !useSourceNoDataValue( bandNo ) ) ||
        !userNoDataValues( bandNo ).isEmpty() )
   {
-    QgsDebugMsgLevel( QStringLiteral( "Custom no data values, using generic statistics." ), 2 );
+    QgsDebugMsgLevel( QStringLiteral( "Custom NoData values, using generic statistics." ), 2 );
     return QgsRasterDataProvider::bandStatistics( bandNo, stats, boundingBox, sampleSize, feedback );
   }
 
-  int supportedStats = QgsRasterBandStats::Min | QgsRasterBandStats::Max
-                       | QgsRasterBandStats::Range | QgsRasterBandStats::Mean
-                       | QgsRasterBandStats::StdDev;
+  const Qgis::RasterBandStatistics supportedStats = Qgis::RasterBandStatistic::Min | Qgis::RasterBandStatistic::Max
+      | Qgis::RasterBandStatistic::Range | Qgis::RasterBandStatistic::Mean
+      | Qgis::RasterBandStatistic::StdDev;
 
   QgsDebugMsgLevel( QStringLiteral( "theStats = %1 supportedStats = %2" ).arg( stats, 0, 2 ).arg( supportedStats, 0, 2 ), 2 );
 
@@ -3128,9 +3135,9 @@ QgsRasterBandStats QgsGdalProvider::bandStatistics( int bandNo, int stats, const
     myRasterBandStats.elementCount = 0; //not available via gdal
     myRasterBandStats.sumOfSquares = 0; //not available via gdal
     myRasterBandStats.stdDev = pdfStdDev;
-    myRasterBandStats.statsGathered = QgsRasterBandStats::Min | QgsRasterBandStats::Max
-                                      | QgsRasterBandStats::Range | QgsRasterBandStats::Mean
-                                      | QgsRasterBandStats::StdDev;
+    myRasterBandStats.statsGathered = Qgis::RasterBandStatistic::Min | Qgis::RasterBandStatistic::Max
+                                      | Qgis::RasterBandStatistic::Range | Qgis::RasterBandStatistic::Mean
+                                      | Qgis::RasterBandStatistic::StdDev;
 
     // define if the band has scale and offset to apply
     double myScale = bandScale( bandNo );
@@ -3172,7 +3179,7 @@ QgsRasterBandStats QgsGdalProvider::bandStatistics( int bandNo, int stats, const
   }
   else
   {
-    myRasterBandStats.statsGathered = QgsRasterBandStats::Stats::None;
+    myRasterBandStats.statsGathered = Qgis::RasterBandStatistic::NoStatistic;
   }
 
   mStatistics.append( myRasterBandStats );
@@ -3278,7 +3285,7 @@ bool QgsGdalProvider::initIfNeeded()
 
     for ( const QString &option : std::as_const( openOptions ) )
     {
-      if ( option.startsWith( QStringLiteral( "MODE=" ) ) )
+      if ( option.startsWith( QLatin1String( "MODE=" ) ) )
       {
         hasModeOption = true;
         break;
@@ -3935,7 +3942,7 @@ QgsGdalProvider *QgsGdalProviderMetadata::createRasterDataProvider(
   }
 
   GDALSetGeoTransform( dataset.get(), geoTransform );
-  GDALSetProjection( dataset.get(), crs.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLocal8Bit().data() );
+  GDALSetProjection( dataset.get(), crs.toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLocal8Bit().data() );
 
   QgsDataProvider::ProviderOptions providerOptions;
   return new QgsGdalProvider( uri, providerOptions, true, dataset.release() );
@@ -3985,9 +3992,9 @@ bool QgsGdalProvider::setNoDataValue( int bandNo, double noDataValue )
   {
     const QStringList errors = handler.popErrors();
     if ( !errors.empty() )
-      QgsDebugError( QStringLiteral( "Cannot set no data value: %1" ).arg( errors.join( QLatin1String( ", " ) ) ) );
+      QgsDebugError( QStringLiteral( "Cannot set NoData value: %1" ).arg( errors.join( QLatin1String( ", " ) ) ) );
     else
-      QgsDebugError( QStringLiteral( "Cannot set no data value" ) );
+      QgsDebugError( QStringLiteral( "Cannot set NoData value" ) );
     return false;
   }
 

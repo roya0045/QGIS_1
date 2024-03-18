@@ -22,7 +22,7 @@ set(CMAKE_LINK_DEPENDS_NO_SHARED ON)
 #############################################################
 # Project and version
 set(CPACK_PACKAGE_VERSION_MAJOR "3")
-set(CPACK_PACKAGE_VERSION_MINOR "35")
+set(CPACK_PACKAGE_VERSION_MINOR "37")
 set(CPACK_PACKAGE_VERSION_PATCH "0")
 set(COMPLETE_VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
 set(RELEASE_NAME "Master")
@@ -375,9 +375,6 @@ if(WITH_CORE)
 
   find_package(Protobuf CONFIG)
   find_package(Protobuf REQUIRED)
-  if(Protobuf_VERSION GREATER_EQUAL 4.23)
-    set(Protobuf_LITE_LIBRARY protobuf::libprotobuf-lite)
-  endif()
 
   message(STATUS "Found Protobuf: ${Protobuf_LIBRARIES}")
   if (NOT Protobuf_PROTOC_EXECUTABLE)
@@ -398,7 +395,7 @@ if(WITH_CORE)
   endif()
 
   if (NOT WITH_INTERNAL_POLY2TRI)
-    find_package(Poly2Tri REQUIRED)
+    find_package(poly2tri REQUIRED)
   endif()
 
   if (WITH_SPATIALITE)
@@ -468,7 +465,7 @@ if(WITH_CORE)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
   else()
     set(QT_VERSION_MAJOR 5)
-    set(QT_MIN_VERSION 5.14.0)
+    set(QT_MIN_VERSION 5.15.2)
     set(QT_VERSION_BASE "Qt5")
     set(QT_VERSION_BASE_LOWER "qt5")
     set(HAS_KDE_QT5_PDF_TRANSFORM_FIX FALSE CACHE BOOL "Using KDE's Qt 5.15 fork with the PDF brush transform fix")
@@ -492,22 +489,56 @@ if(WITH_CORE)
       set (HAVE_QTGAMEPAD TRUE)
   endif()
 
+  set (WITH_PDF4QT FALSE CACHE BOOL "Determines whether the embedded PDF4Qt library should be build for PDF and HTML to QPainter conversion")
+  if (WITH_PDF4QT)
+    set(HAVE_PDF4QT TRUE)  # used in qgisconfig.h
+    message(STATUS "PDF4Qt enabled")
+  else()
+    message(STATUS "PDF4Qt disabled")
+  endif()
+
   find_package(${QT_VERSION_BASE} COMPONENTS Core Gui Widgets Network Xml Svg Concurrent Test Sql Positioning REQUIRED)
   if (BUILD_WITH_QT6)
     find_package(${QT_VERSION_BASE} COMPONENTS Core5Compat REQUIRED)
   endif()
+
   if (NOT IOS)
-    find_package(${QT_VERSION_BASE} COMPONENTS PrintSupport REQUIRED)
-  else()
-    add_definitions(-DQT_NO_PRINTER)
+    set (DEFAULT_WITH_QTPRINTER TRUE)
+  else ()
+    set (DEFAULT_WITH_QTPRINTER FALSE)
   endif()
-  if (WITH_QTWEBKIT AND NOT BUILD_WITH_QT6)
+  set (WITH_QTPRINTER ${DEFAULT_WITH_QTPRINTER} CACHE BOOL "Enable QtPrinter support")
+  if (WITH_QTPRINTER)
+    find_package(${QT_VERSION_BASE} COMPONENTS PrintSupport REQUIRED)
+    set (HAVE_QTPRINTER TRUE)
+  endif()
+
+  if (WITH_QTWEBKIT)
+    if(BUILD_WITH_QT6)
+      message(FATAL_ERROR "Qt WebKit support cannot be enabled on Qt 6 builds")
+    endif()
     find_package(Qt5WebKit REQUIRED)
     find_package(Qt5WebKitWidgets REQUIRED)
   endif()
   if (WITH_3D)
     find_package(${QT_VERSION_BASE} COMPONENTS 3DCore 3DRender 3DInput 3DLogic 3DExtras REQUIRED)
     set(HAVE_3D TRUE)  # used in qgsconfig.h
+  endif()
+
+  set (WITH_QTWEBENGINE FALSE CACHE BOOL "Enable QtWebEngine support")
+  if (WITH_QTWEBENGINE)
+    if(BUILD_WITH_QT6)
+      find_package(${QT_VERSION_BASE} COMPONENTS WebEngineCore REQUIRED)
+    else()
+      # QWebEnginePage is only available in widgets module in Qt5
+      find_package(${QT_VERSION_BASE} COMPONENTS WebEngineCore WebEngineWidgets REQUIRED)
+    endif()
+
+    message(STATUS "QtWebEngine support enabled")
+    set(HAVE_WEBENGINE TRUE)  # used in qgsconfig.h
+  else()
+    message(STATUS "QtWebEngine support DISABLED.")
+    set(HAVE_WEBENGINE FALSE)  # used in qgsconfig.h
   endif()
 
   # get the Qt plugins directory
@@ -542,7 +573,11 @@ if(WITH_CORE)
   endif()
 
   # Password helper
-  find_package(QtKeychain REQUIRED)
+  if(BUILD_WITH_QT6)
+    find_package(Qt6Keychain CONFIG REQUIRED)
+  else()
+    find_package(Qt5Keychain CONFIG REQUIRED)
+  endif()
   # Master password hash and authentication encryption
   find_package(QCA REQUIRED)
   # Check for runtime dependency of qca-ossl plugin
@@ -1067,7 +1102,7 @@ if (WITH_CORE AND WITH_BINDINGS)
   include(SIPMacros)
 
   set(SIP_INCLUDES ${PYQT_SIP_DIR} ${CMAKE_SOURCE_DIR}/python)
-  set(SIP_CONCAT_PARTS 22)
+  set(SIP_CONCAT_PARTS 26)
 
   if (NOT BINDINGS_GLOBAL_INSTALL)
     set(Python_SITEARCH ${QGIS_DATA_DIR}/python)

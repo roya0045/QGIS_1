@@ -60,17 +60,24 @@ class fillnodata(GdalAlgorithm):
                                                      parentLayerParameterName=self.INPUT))
         self.addParameter(QgsProcessingParameterNumber(self.DISTANCE,
                                                        self.tr('Maximum distance (in pixels) to search out for values to interpolate'),
-                                                       type=QgsProcessingParameterNumber.Integer,
+                                                       type=QgsProcessingParameterNumber.Type.Integer,
                                                        minValue=0,
                                                        defaultValue=10))
         self.addParameter(QgsProcessingParameterNumber(self.ITERATIONS,
                                                        self.tr('Number of smoothing iterations to run after the interpolation'),
-                                                       type=QgsProcessingParameterNumber.Integer,
+                                                       type=QgsProcessingParameterNumber.Type.Integer,
                                                        minValue=0,
                                                        defaultValue=0))
-        self.addParameter(QgsProcessingParameterBoolean(self.NO_MASK,
-                                                        self.tr('Do not use the default validity mask for the input band'),
-                                                        defaultValue=False))
+
+        # The -nomask option is no longer supported since GDAL 3.4 and
+        # it doesn't work as expected even using GDAL < 3.4 https://github.com/OSGeo/gdal/pull/4201
+        nomask_param = QgsProcessingParameterBoolean(self.NO_MASK,
+                                                     self.tr('Do not use the default validity mask for the input band'),
+                                                     defaultValue=False,
+                                                     optional=True)
+        nomask_param.setFlags(nomask_param.flags() | QgsProcessingParameterDefinition.FlagHidden)
+        self.addParameter(nomask_param)
+
         self.addParameter(QgsProcessingParameterRasterLayer(self.MASK_LAYER,
                                                             self.tr('Validity mask'),
                                                             optional=True))
@@ -79,7 +86,7 @@ class fillnodata(GdalAlgorithm):
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         options_param.setMetadata({
             'widget_wrapper': {
                 'class': 'processing.algs.gdal.ui.RasterOptionsWidget.RasterOptionsWidgetWrapper'}})
@@ -89,7 +96,7 @@ class fillnodata(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         self.addParameter(QgsProcessingParameterRasterDestination(self.OUTPUT, self.tr('Filled')))
@@ -98,7 +105,7 @@ class fillnodata(GdalAlgorithm):
         return 'fillnodata'
 
     def displayName(self):
-        return self.tr('Fill nodata')
+        return self.tr('Fill NoData')
 
     def group(self):
         return self.tr('Raster analysis')
@@ -110,7 +117,7 @@ class fillnodata(GdalAlgorithm):
         return 'gdal_fillnodata'
 
     def flags(self):
-        return super().flags() | QgsProcessingAlgorithm.FlagDisplayNameIsLiteral
+        return super().flags() | QgsProcessingAlgorithm.Flag.FlagDisplayNameIsLiteral
 
     def getConsoleCommands(self, parameters, context, feedback, executing=True):
         raster = self.parameterAsRasterLayer(parameters, self.INPUT, context)
@@ -134,9 +141,6 @@ class fillnodata(GdalAlgorithm):
 
         arguments.append('-b')
         arguments.append(str(self.parameterAsInt(parameters, self.BAND, context)))
-
-        if self.parameterAsBoolean(parameters, self.NO_MASK, context):
-            arguments.append('-nomask')
 
         mask = self.parameterAsRasterLayer(parameters, self.MASK_LAYER, context)
         if mask:

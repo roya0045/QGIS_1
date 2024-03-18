@@ -11,14 +11,15 @@ python/ext-libs/
 python/qsci_apis/
 src/core/pal
 tests/testdata/provider/postgresraster/
+tests/testdata/newsfeed/
 
 #Extensions
-*.*.orig
-*.*.sortinc
-*.*.png
-*.*.prepare
-*.sld
-*.lintian-overrides
+.*\..*.orig
+.*\..*.sortinc
+.*\..*.png
+.*\..*.prepare
+.*\.sld
+.*\.lintian-overrides
 .agignore
 
 #Specific files

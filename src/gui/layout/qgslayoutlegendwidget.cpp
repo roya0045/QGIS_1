@@ -110,6 +110,8 @@ QgsLayoutLegendWidget::QgsLayoutLegendWidget( QgsLayoutItemLegend *legend, QgsMa
   connect( mRasterStrokeGroupBox, &QgsCollapsibleGroupBoxBasic::toggled, this, &QgsLayoutLegendWidget::mRasterStrokeGroupBox_toggled );
   connect( mRasterStrokeWidthSpinBox, static_cast < void ( QDoubleSpinBox::* )( double ) > ( &QDoubleSpinBox::valueChanged ), this, &QgsLayoutLegendWidget::mRasterStrokeWidthSpinBox_valueChanged );
   connect( mRasterStrokeColorButton, &QgsColorButton::colorChanged, this, &QgsLayoutLegendWidget::mRasterStrokeColorButton_colorChanged );
+  connect( mExpandAllToolButton, &QToolButton::clicked, this, &QgsLayoutLegendWidget::expandLegendTree );
+  connect( mCollapseAllToolButton, &QToolButton::clicked, this, &QgsLayoutLegendWidget::collapseLegendTree );
   connect( mMoveDownToolButton, &QToolButton::clicked, this, &QgsLayoutLegendWidget::mMoveDownToolButton_clicked );
   connect( mMoveUpToolButton, &QToolButton::clicked, this, &QgsLayoutLegendWidget::mMoveUpToolButton_clicked );
   connect( mRemoveToolButton, &QToolButton::clicked, this, &QgsLayoutLegendWidget::mRemoveToolButton_clicked );
@@ -163,6 +165,8 @@ QgsLayoutLegendWidget::QgsLayoutLegendWidget( QgsLayoutItemLegend *legend, QgsMa
   mMoveDownToolButton->setIcon( QIcon( QgsApplication::iconPath( "mActionArrowDown.svg" ) ) );
   mCountToolButton->setIcon( QIcon( QgsApplication::iconPath( "mActionSum.svg" ) ) );
   mLayerExpressionButton->setIcon( QIcon( QgsApplication::iconPath( "mIconExpression.svg" ) ) );
+  mExpandAllToolButton->setIcon( QIcon( QgsApplication::iconPath( "mActionExpandTree.svg" ) ) );
+  mCollapseAllToolButton->setIcon( QIcon( QgsApplication::iconPath( "mActionCollapseTree.svg" ) ) );
 
   mMoveDownToolButton->setIconSize( QgsGuiUtils::iconSize( true ) );
   mMoveUpToolButton->setIconSize( QgsGuiUtils::iconSize( true ) );
@@ -173,6 +177,8 @@ QgsLayoutLegendWidget::QgsLayoutLegendWidget( QgsLayoutItemLegend *legend, QgsMa
   mCountToolButton->setIconSize( QgsGuiUtils::iconSize( true ) );
   mExpressionFilterButton->setIconSize( QgsGuiUtils::iconSize( true ) );
   mLayerExpressionButton->setIconSize( QgsGuiUtils::iconSize( true ) );
+  mExpandAllToolButton->setIconSize( QgsGuiUtils::iconSize( true ) );
+  mCollapseAllToolButton->setIconSize( QgsGuiUtils::iconSize( true ) );
 
   mRasterStrokeColorButton->setColorDialogTitle( tr( "Select Stroke Color" ) );
   mRasterStrokeColorButton->setAllowOpacity( true );
@@ -218,8 +224,8 @@ QgsLayoutLegendWidget::QgsLayoutLegendWidget( QgsLayoutItemLegend *legend, QgsMa
     connect( &mLegend->layout()->reportContext(), &QgsLayoutReportContext::layerChanged, mItemFontButton, &QgsFontButton::setLayer );
   }
 
-  registerDataDefinedButton( mLegendTitleDDBtn, QgsLayoutObject::LegendTitle );
-  registerDataDefinedButton( mColumnsDDBtn, QgsLayoutObject::LegendColumnCount );
+  registerDataDefinedButton( mLegendTitleDDBtn, QgsLayoutObject::DataDefinedProperty::LegendTitle );
+  registerDataDefinedButton( mColumnsDDBtn, QgsLayoutObject::DataDefinedProperty::LegendColumnCount );
 
   setGuiElements();
 
@@ -812,6 +818,16 @@ void QgsLayoutLegendWidget::mMoveUpToolButton_clicked()
   mLegend->endCommand();
 }
 
+void QgsLayoutLegendWidget::expandLegendTree()
+{
+  mItemTreeView -> expandAll();
+}
+
+void QgsLayoutLegendWidget::collapseLegendTree()
+{
+  mItemTreeView -> collapseAll();
+}
+
 void QgsLayoutLegendWidget::mCheckBoxAutoUpdate_stateChanged( int state, bool userTriggered )
 {
   if ( userTriggered )
@@ -827,7 +843,7 @@ void QgsLayoutLegendWidget::mCheckBoxAutoUpdate_stateChanged( int state, bool us
   QList<QWidget *> widgets;
   widgets << mMoveDownToolButton << mMoveUpToolButton << mRemoveToolButton << mAddToolButton
           << mEditPushButton << mCountToolButton << mUpdateAllPushButton << mAddGroupToolButton
-          << mExpressionFilterButton;
+          << mExpressionFilterButton << mCollapseAllToolButton << mExpandAllToolButton;
   for ( QWidget *w : std::as_const( widgets ) )
     w->setEnabled( state != Qt::Checked );
 
@@ -1166,16 +1182,11 @@ void QgsLayoutLegendWidget::mLayerExpressionButton_clicked()
   QgsExpressionContext legendContext = mLegend->createExpressionContext();
   legendContext.appendScope( vl->createExpressionContextScope() );
 
-  QgsExpressionContextScope *symbolLegendScope = new QgsExpressionContextScope( tr( "Symbol scope" ) );
-
-  QgsFeatureRenderer *r = vl->renderer();
-
   QStringList highlighted;
-  if ( r )
+  if ( QgsLegendModel *model = mLegend->model() )
   {
-    const QgsLegendSymbolList legendSymbols = r->legendSymbolItems();
-
-    if ( !legendSymbols.empty() )
+    const QList<QgsLayerTreeModelLegendNode *> legendNodes = model->layerLegendNodes( layerNode, false );
+    if ( !legendNodes.isEmpty() )
     {
       QgsSymbolLegendNode legendNode( layerNode, legendSymbols.first() );
 
@@ -1189,8 +1200,6 @@ void QgsLayoutLegendWidget::mLayerExpressionButton_clicked()
     }
   }
 
-  legendContext.appendScope( symbolLegendScope );
-
   legendContext.setHighlightedVariables( highlighted );
 
   // Passing the vector layer to expression dialog exposes the fields, but we still want generic
@@ -1201,7 +1210,10 @@ void QgsLayoutLegendWidget::mLayerExpressionButton_clicked()
 
   QgsExpressionBuilderDialog expressiondialog( nullptr, currentExpression, nullptr, QStringLiteral( "generic" ), legendContext );
   if ( expressiondialog.exec() )
+  {
     layerNode->setLabelExpression( expressiondialog.expressionText() );
+    mItemTreeView->layerTreeModel()->refreshLayerLegend( layerNode );
+  }
 
   mLegend->beginCommand( tr( "Update Legend" ) );
   mLegend->refresh();
@@ -1647,7 +1659,7 @@ QgsLayoutLegendNodeWidget::QgsLayoutLegendNodeWidget( QgsLayoutItemLegend *legen
 
   if ( mLegendNode )
   {
-    switch ( static_cast< QgsLayerTreeModelLegendNode::NodeTypes >( mLegendNode->data( QgsLayerTreeModelLegendNode::NodeTypeRole ).toInt() ) )
+    switch ( static_cast< QgsLayerTreeModelLegendNode::NodeTypes >( mLegendNode->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::NodeType ) ).toInt() ) )
     {
       case QgsLayerTreeModelLegendNode::EmbeddedWidget:
       case QgsLayerTreeModelLegendNode::RasterSymbolLegend:
@@ -2103,5 +2115,3 @@ bool QgsLayoutLegendMapFilteringModel::filterAcceptsRow( int source_row, const Q
 
 
 ///@endcond
-
-

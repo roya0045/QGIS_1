@@ -475,11 +475,7 @@ QString QgsExpression::replaceExpressionText( const QString &action, const QgsEx
     if ( exp.hasParserError() )
     {
       QgsDebugError( "Expression parser error: " + exp.parserErrorString() );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
-      expr_action += action.midRef( start, index - start );
-#else
       expr_action += QStringView {action} .mid( start, index - start );
-#endif
       continue;
     }
 
@@ -494,11 +490,7 @@ QString QgsExpression::replaceExpressionText( const QString &action, const QgsEx
     if ( exp.hasEvalError() )
     {
       QgsDebugError( "Expression parser eval error: " + exp.evalErrorString() );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
-      expr_action += action.midRef( start, index - start );
-#else
       expr_action += QStringView {action} .mid( start, index - start );
-#endif
       continue;
     }
 
@@ -511,12 +503,7 @@ QString QgsExpression::replaceExpressionText( const QString &action, const QgsEx
     expr_action += action.mid( start, pos - start ) + resultString;
   }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
-  expr_action += action.midRef( index );
-#else
   expr_action += QStringView {action} .mid( index ).toString();
-#endif
-
   return expr_action;
 }
 
@@ -851,7 +838,7 @@ void QgsExpression::initVariableHelp()
 
   // map canvas item variables
   sVariableHelpTexts()->insert( QStringLiteral( "canvas_cursor_point" ), QCoreApplication::translate( "variable_help", "Last cursor position on the canvas in the project's geographical coordinates." ) );
-  sVariableHelpTexts()->insert( QStringLiteral( "layer_cursor_point" ), QCoreApplication::translate( "variable_help", "Last cursor position on the canvas in the current layers's geographical coordinates." ) );
+  sVariableHelpTexts()->insert( QStringLiteral( "layer_cursor_point" ), QCoreApplication::translate( "variable_help", "Last cursor position on the canvas in the current layers's geographical coordinates. QGIS Server: When used in a maptip expression for a raster layer, this variable holds the GetFeatureInfo position." ) );
 
   // legend canvas item variables
   sVariableHelpTexts()->insert( QStringLiteral( "legend_title" ), QCoreApplication::translate( "variable_help", "Title of the legend." ) );

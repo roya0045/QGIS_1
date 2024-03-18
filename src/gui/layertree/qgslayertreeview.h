@@ -80,6 +80,22 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
      * \since QGIS 3.20
      */
     void setShowAllNodes( bool show );
+  
+    /**
+     * Returns if valid layers should be hidden (i.e. only invalid layers are shown).
+     *
+     * \see setHideValidLayers()
+     * \since QGIS 3.38
+     */
+    bool hideValidLayers() const;
+
+    /**
+     * Sets whether valid layers should be hidden (i.e. only invalid layers are shown).
+     *
+     * \see setHideValidLayers()
+     * \since QGIS 3.38
+     */
+    void setHideValidLayers( bool hideValid );
 
   protected:
 
@@ -95,6 +111,7 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
     bool mShowPrivateLayers = false;
     bool mShowAllNodes = true;
 
+    bool mHideValidLayers = false;
 
 };
 
@@ -113,7 +130,6 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
  * with a set of default actions that can be used when building context menu.
  *
  * \see QgsLayerTreeModel
- * \since QGIS 2.4
  */
 class GUI_EXPORT QgsLayerTreeView : public QTreeView
 {
@@ -257,7 +273,6 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
 
     /**
      * Gets current legend node. May be NULLPTR if current node is not a legend node.
-     * \since QGIS 2.14
      */
     QgsLayerTreeModelLegendNode *currentLegendNode() const;
 
@@ -365,19 +380,31 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
 
 ///@endcond
 
+    /**
+     * Returns the show private layers status
+     * \since QGIS 3.18
+     */
+    bool showPrivateLayers() const;
+
+    /**
+     * Returns if valid layers should be hidden (i.e. only invalid layers are shown).
+     *
+     * \see setHideValidLayers()
+     * \since QGIS 3.38
+     */
+    bool hideValidLayers() const;
+
   public slots:
     //! Force refresh of layer symbology. Normally not needed as the changes of layer's renderer are monitored by the model
     void refreshLayerSymbology( const QString &layerId );
 
     /**
      * Enhancement of QTreeView::expandAll() that also records expanded state in layer tree nodes
-     * \since QGIS 2.18
      */
     void expandAllNodes();
 
     /**
      * Enhancement of QTreeView::collapseAll() that also records expanded state in layer tree nodes
-     * \since QGIS 2.18
      */
     void collapseAllNodes();
 
@@ -401,10 +428,12 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
     void setShowPrivateLayers( bool showPrivate );
 
     /**
-     * Returns the show private layers status
-     * \since QGIS 3.18
+     * Sets whether valid layers should be hidden (i.e. only invalid layers are shown).
+     *
+     * \see setHideValidLayers()
+     * \since QGIS 3.38
      */
-    bool showPrivateLayers( );
+    void setHideValidLayers( bool hideValid );
 
   signals:
     //! Emitted when a current layer is changed
@@ -429,6 +458,7 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
 
     QgsMapLayer *layerForIndex( const QModelIndex &index ) const;
 
+    void mouseDoubleClickEvent( QMouseEvent *event ) override;
     void mouseReleaseEvent( QMouseEvent *event ) override;
     void keyPressEvent( QKeyEvent *event ) override;
 
@@ -477,7 +507,9 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
     QgsMessageBar *mMessageBar = nullptr;
 
     bool mShowPrivateLayers = false;
+    bool mHideValidLayers = false;
 
+    QTimer *mBlockDoubleClickTimer = nullptr;
     // For model  debugging
     // void checkModel( );
 
@@ -492,7 +524,6 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
  * instance to provide custom context menus (opened upon right-click).
  *
  * \see QgsLayerTreeView
- * \since QGIS 2.4
  */
 class GUI_EXPORT QgsLayerTreeViewMenuProvider
 {

@@ -787,7 +787,7 @@ void QgsCoordinateTransform::transformCoords( int numPoints, double *x, double *
                       y, sizeof( double ), numPoints,
                       z, sizeof( double ), numPoints,
                       useTime ? t.data() : nullptr, sizeof( double ), useTime ? numPoints : 0 );
-  // Try to - approximatively - emulate the behavior of pj_transform()...
+  // Try to - approximately - emulate the behavior of pj_transform()...
   // In the case of a single point transform, and a transformation error occurs,
   // pj_transform() would return the errno. In cases of multiple point transform,
   // it would continue (for non-transient errors, that is pipeline definition
@@ -832,7 +832,7 @@ void QgsCoordinateTransform::transformCoords( int numPoints, double *x, double *
                           yprev.data(), sizeof( double ), numPoints,
                           zprev.data(), sizeof( double ), numPoints,
                           useTime ? t.data() : nullptr, sizeof( double ), useTime ? numPoints : 0 );
-      // Try to - approximatively - emulate the behavior of pj_transform()...
+      // Try to - approximately - emulate the behavior of pj_transform()...
       // In the case of a single point transform, and a transformation error occurs,
       // pj_transform() would return the errno. In cases of multiple point transform,
       // it would continue (for non-transient errors, that is pipeline definition
@@ -983,9 +983,9 @@ bool QgsCoordinateTransform::setFromCache( const QgsCoordinateReferenceSystem &s
     return false;
 
   const QString sourceKey = src.authid().isEmpty() ?
-                            src.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ) : src.authid();
+                            src.toWkt( Qgis::CrsWktVariant::Preferred ) : src.authid();
   const QString destKey = dest.authid().isEmpty() ?
-                          dest.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ) : dest.authid();
+                          dest.toWkt( Qgis::CrsWktVariant::Preferred ) : dest.authid();
 
   if ( sourceKey.isEmpty() || destKey.isEmpty() )
     return false;
@@ -1028,9 +1028,9 @@ void QgsCoordinateTransform::addToCache()
     return;
 
   const QString sourceKey = d->mSourceCRS.authid().isEmpty() ?
-                            d->mSourceCRS.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ) : d->mSourceCRS.authid();
+                            d->mSourceCRS.toWkt( Qgis::CrsWktVariant::Preferred ) : d->mSourceCRS.authid();
   const QString destKey = d->mDestCRS.authid().isEmpty() ?
-                          d->mDestCRS.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ) : d->mDestCRS.authid();
+                          d->mDestCRS.toWkt( Qgis::CrsWktVariant::Preferred ) : d->mDestCRS.authid();
 
   if ( sourceKey.isEmpty() || destKey.isEmpty() )
     return;

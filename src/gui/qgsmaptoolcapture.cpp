@@ -40,6 +40,8 @@
 #include <QCursor>
 #include <QPixmap>
 #include <QStatusBar>
+#include <algorithm>
+#include <memory>
 
 
 QgsMapToolCapture::QgsMapToolCapture( QgsMapCanvas *canvas, QgsAdvancedDigitizingDockWidget *cadDockWidget, CaptureMode mode )
@@ -1381,21 +1383,42 @@ void QgsMapToolCapture::cadCanvasReleaseEvent( QgsMapMouseEvent *e )
     if ( digitizingFinished )
     {
       QgsGeometry g;
-      QgsCurve *curveToAdd = captureCurve()->clone();
+      std::unique_ptr<QgsCurve> curveToAdd( captureCurve()->clone() );
 
       if ( mode() == CaptureLine )
       {
-        g = QgsGeometry( curveToAdd );
+        g = QgsGeometry( curveToAdd->clone() );
         geometryCaptured( g );
-        lineCaptured( curveToAdd );
+        lineCaptured( curveToAdd.release() );
       }
       else
       {
-        QgsCurvePolygon *poly = new QgsCurvePolygon();
-        poly->setExteriorRing( curveToAdd );
-        g = QgsGeometry( poly );
+
+        //does compoundcurve contain circular strings?
+        //does provider support circular strings?
+        if ( QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer() ) )
+        {
+          const bool hasCurvedSegments = captureCurve()->hasCurvedSegments();
+          const bool providerSupportsCurvedSegments = vlayer->dataProvider()->capabilities() & QgsVectorDataProvider::CircularGeometries;
+
+          if ( hasCurvedSegments && providerSupportsCurvedSegments )
+          {
+            curveToAdd.reset( captureCurve()->clone() );
+          }
+          else
+          {
+            curveToAdd.reset( captureCurve()->curveToLine() );
+          }
+        }
+        else
+        {
+          curveToAdd.reset( captureCurve()->clone() );
+        }
+        std::unique_ptr<QgsCurvePolygon> poly{new QgsCurvePolygon()};
+        poly->setExteriorRing( curveToAdd.release() );
+        g = QgsGeometry( poly->clone() );
         geometryCaptured( g );
-        polygonCaptured( poly );
+        polygonCaptured( poly.get() );
       }
 
       stopCapturing();

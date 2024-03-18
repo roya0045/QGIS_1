@@ -46,8 +46,9 @@ from qgis.core import (QgsVectorLayer,
                        QgsProcessingFeedback)
 from qgis.analysis import (QgsNativeAlgorithms)
 from qgis.testing import (_UnexpectedSuccess,
-                          start_app,
-                          unittest)
+                          QgisTestCase,
+                          start_app)
+
 from utilities import unitTestDataPath
 
 import processing
@@ -63,7 +64,7 @@ class AlgorithmsTest:
         """
         This is the main test function. All others will be executed based on the definitions in testdata/algorithm_tests.yaml
         """
-        with open(os.path.join(processingTestDataPath(), self.test_definition_file())) as stream:
+        with open(os.path.join(processingTestDataPath(), self.definition_file())) as stream:
             algorithm_tests = yaml.load(stream, Loader=yaml.SafeLoader)
 
         if 'tests' in algorithm_tests and algorithm_tests['tests'] is not None:
@@ -125,7 +126,7 @@ class AlgorithmsTest:
         context.setProject(QgsProject.instance())
 
         if 'skipInvalid' in defs and defs['skipInvalid']:
-            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
+            context.setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid)
 
         feedback = QgsProcessingFeedback()
 
@@ -391,7 +392,7 @@ class AlgorithmsTest:
                     self.assertRegex(data, rule)
 
 
-class GenericAlgorithmsTest(unittest.TestCase):
+class GenericAlgorithmsTest(QgisTestCase):
     """
     General (non-provider specific) algorithm tests
     """

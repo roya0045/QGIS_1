@@ -20,6 +20,7 @@ The content of this file is based on
  ***************************************************************************/
 """
 
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QFileInfo
 from qgis.PyQt.QtWidgets import QDialog, QFileDialog, QMessageBox
 
@@ -35,7 +36,9 @@ from qgis.core import (QgsDataSourceUri,
 from qgis.gui import QgsMessageViewer
 from qgis.utils import OverrideCursor, iface
 
-from .ui.ui_DlgImportVector import Ui_DbManagerDlgImportVector as Ui_Dialog
+from .gui_utils import GuiUtils
+
+Ui_Dialog, _ = uic.loadUiType(GuiUtils.get_ui_file_path('DlgImportVector.ui'))
 
 
 class DlgImportVector(QDialog, Ui_Dialog):
@@ -291,7 +294,7 @@ class DlgImportVector(QDialog, Ui_Dialog):
                                      self.tr("Invalid target srid: must be a valid crs."))
                 return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             # store current input layer crs and encoding, so I can restore it
             prevInCrs = self.inLayer.crs()
             prevInEncoding = self.inLayer.dataProvider().encoding()

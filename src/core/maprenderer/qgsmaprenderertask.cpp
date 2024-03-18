@@ -126,6 +126,12 @@ QgsMapRendererTask::QgsMapRendererTask( const QgsMapSettings &ms, const QString 
   , mGeoPDF( geoPDF && mFileFormat == QLatin1String( "PDF" ) && QgsAbstractGeoPdfExporter::geoPDFCreationAvailable() )
   , mGeoPdfExportDetails( geoPdfExportDetails )
 {
+  if ( mFileFormat == QLatin1String( "PDF" ) && !qgsDoubleNear( mMapSettings.devicePixelRatio(), 1.0 ) )
+  {
+    mMapSettings.setOutputSize( mMapSettings.outputSize() * mMapSettings.devicePixelRatio() );
+    mMapSettings.setOutputDpi( mMapSettings.outputDpi() * mMapSettings.devicePixelRatio() );
+    mMapSettings.setDevicePixelRatio( 1.0 );
+  }
   prepare();
 }
 
@@ -319,7 +325,7 @@ bool QgsMapRendererTask::run()
             f -= 0.5 * e;
             double geoTransform[6] = { c, a, b, f, d, e };
             GDALSetGeoTransform( outputDS.get(), geoTransform );
-            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLocal8Bit().constData() );
+            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLocal8Bit().constData() );
           }
 
           if ( mExportMetadata )
@@ -397,7 +403,7 @@ bool QgsMapRendererTask::run()
             f -= 0.5 * e;
             double geoTransform[] = { c, a, b, f, d, e };
             GDALSetGeoTransform( outputDS.get(), geoTransform );
-            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLocal8Bit().constData() );
+            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLocal8Bit().constData() );
           }
         }
 
@@ -480,7 +486,7 @@ void QgsMapRendererTask::prepare()
   if ( !mDestPainter )
   {
     // save rendered map to an image file
-    mImage = QImage( mMapSettings.outputSize(), QImage::Format_ARGB32 );
+    mImage = QImage( mMapSettings.outputSize() * mMapSettings.devicePixelRatio(), QImage::Format_ARGB32 );
     if ( mImage.isNull() )
     {
       mErrored = true;
@@ -488,6 +494,7 @@ void QgsMapRendererTask::prepare()
       return;
     }
 
+    mImage.setDevicePixelRatio( mMapSettings.devicePixelRatio() );
     mImage.setDotsPerMeterX( 1000 * mMapSettings.outputDpi() / 25.4 );
     mImage.setDotsPerMeterY( 1000 * mMapSettings.outputDpi() / 25.4 );
 

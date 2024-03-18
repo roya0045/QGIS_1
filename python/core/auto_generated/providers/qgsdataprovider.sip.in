@@ -44,24 +44,11 @@ Abstract base class for spatial data provider implementations.
 %End
   public:
 
-
-    enum DataCapability
-    {
-      NoDataCapabilities,
-      File,
-      Dir,
-      Database,
-      Net
-    };
-    typedef QFlags<QgsDataProvider::DataCapability> DataCapabilities;
-
-
     enum ProviderProperty
     {
       EvaluateDefaultValues,
       CustomData
     };
-
 
     struct ProviderOptions
     {
@@ -145,8 +132,6 @@ Obtain a formatted HTML string containing assorted metadata for this data provid
     void setUri( const QgsDataSourceUri &uri );
 %Docstring
 Set the data source specification.
-
-.. versionadded:: 3.0
 %End
 
     void setUri( const QString &uri );
@@ -159,8 +144,6 @@ Set the data source specification.
     QgsDataSourceUri uri() const;
 %Docstring
 Gets the data source specification.
-
-.. versionadded:: 3.0
 %End
 
     virtual Qgis::DataProviderFlags flags() const;
@@ -192,16 +175,26 @@ This may be ``None``, depending on the data provider.
 
     virtual QgsRectangle extent() const = 0;
 %Docstring
-Returns the extent of the layer
+Returns the extent of the layer.
 
-:return: :py:class:`QgsRectangle` containing the extent of the layer
+.. warning::
+
+   This may be expensive to calculate for some data providers, as it may involve
+   additional network requests or in some cases, iterating through all the features in a layer.
+   If the provider returns the :py:class:`Qgis`.DataProviderFlag.FastExtent2D flag from the :py:func:`~QgsDataProvider.flags` method
+   then the call to :py:func:`~QgsDataProvider.extent` is guaranteed to ALWAYS be fast and not involve any additional work.
 %End
 
     virtual QgsBox3D extent3D() const;
 %Docstring
-Returns the 3D extent of the layer
+Returns the 3D extent of the layer.
 
-:return: :py:class:`QgsBox3D` containing the 3D extent of the layer
+.. warning::
+
+   This may be expensive to calculate for some data providers, as it may involve
+   additional network requests or in some cases, iterating through all the features in a layer.
+   If the provider returns the :py:class:`Qgis`.DataProviderFlag.FastExtent3D flag from the :py:func:`~QgsDataProvider.flags` method
+   then the call to :py:func:`~QgsDataProvider.extent3D` is guaranteed to ALWAYS be fast and not involve any additional work.
 
 .. versionadded:: 3.36
 %End
@@ -376,8 +369,6 @@ after accessing data by :py:func:`~QgsDataProvider.block`, :py:func:`~QgsDataPro
     virtual void invalidateConnections( const QString &connection );
 %Docstring
 Invalidate connections corresponding to specified name
-
-.. versionadded:: 2.16
 %End
 
     virtual bool enterUpdateMode();
@@ -400,8 +391,6 @@ a concept of stack of calls that must be handled by the provider. Only the first
 call to :py:func:`~QgsDataProvider.enterUpdateMode` will really turn update mode on.
 
 :return: ``True`` in case of success (or no-op implementation), ``False`` in case of failure.
-
-.. versionadded:: 2.16
 %End
 
     virtual bool leaveUpdateMode();
@@ -419,24 +408,18 @@ a concept of stack of calls that must be handled by the provider. Only the last
 call to :py:func:`~QgsDataProvider.leaveUpdateMode` will really turn update mode off.
 
 :return: ``True`` in case of success (or no-op implementation), ``False`` in case of failure.
-
-.. versionadded:: 2.16
 %End
 
     void setProviderProperty( ProviderProperty property, const QVariant &value );
 %Docstring
 Allows setting arbitrary properties on the provider.
 It depends on the provider which properties are supported.
-
-.. versionadded:: 2.16
 %End
 
     QVariant providerProperty( ProviderProperty property, const QVariant &defaultValue = QVariant() ) const;
 %Docstring
 Gets the current value of a certain provider property.
 It depends on the provider which properties are supported.
-
-.. versionadded:: 2.16
 %End
 
     virtual void setListening( bool isListening );
@@ -447,8 +430,6 @@ If set, the provider will issue notify signals.
 The default implementation does nothing.
 
 .. seealso:: :py:func:`notify`
-
-.. versionadded:: 3.0
 %End
 
 
@@ -459,8 +440,6 @@ Returns layer metadata collected from the provider's source.
 Individual data providers must implement this method if they support collecting metadata.
 
 .. seealso:: :py:func:`writeLayerMetadata`
-
-.. versionadded:: 3.0
 %End
 
     virtual bool writeLayerMetadata( const QgsLayerMetadata &metadata );
@@ -471,8 +450,6 @@ on individual provider capabilities.
 Returns ``True`` if metadata was successfully written to the data provider.
 
 .. seealso:: :py:func:`layerMetadata`
-
-.. versionadded:: 3.0
 %End
 
 
@@ -528,8 +505,6 @@ feature ids should be invalidated.
 Emitted when the datasource issues a notification.
 
 .. seealso:: :py:func:`setListening`
-
-.. versionadded:: 3.0
 %End
 
 

@@ -9,7 +9,7 @@ __author__ = 'Nyall Dawson'
 __date__ = '3/05/2016'
 __copyright__ = 'Copyright 2016, The QGIS Project'
 
-from qgis.PyQt.QtCore import QLocale, Qt, QTextCodec, QVariant
+from qgis.PyQt.QtCore import QT_VERSION_STR, QLocale, Qt, QVariant
 from qgis.core import (
     NULL,
     QgsCoordinateReferenceSystem,
@@ -31,7 +31,10 @@ import unittest
 from qgis.testing import start_app, QgisTestCase
 
 start_app()
-codec = QTextCodec.codecForName("System")
+
+if int(QT_VERSION_STR.split('.')[0]) < 6:
+    from qgis.PyQt.QtCore import QTextCodec
+    codec = QTextCodec.codecForName("System")
 
 
 class TestQgsJsonUtils(QgisTestCase):
@@ -42,38 +45,48 @@ class TestQgsJsonUtils(QgisTestCase):
         fields.append(QgsField("name", QVariant.String))
 
         # empty string
-        features = QgsJsonUtils.stringToFeatureList("", fields, codec)
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            features = QgsJsonUtils.stringToFeatureList("", fields)
+        else:
+            features = QgsJsonUtils.stringToFeatureList("", fields, codec)
         self.assertEqual(features, [])
 
         # bad string
-        features = QgsJsonUtils.stringToFeatureList("asdasdas", fields, codec)
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            features = QgsJsonUtils.stringToFeatureList("asdasdas", fields)
+        else:
+            features = QgsJsonUtils.stringToFeatureList("asdasdas", fields, codec)
         self.assertEqual(features, [])
 
         # geojson string with 1 feature
-        features = QgsJsonUtils.stringToFeatureList(
-            '{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands"}}',
-            fields, codec)
+        s = '{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands"}}'
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            features = QgsJsonUtils.stringToFeatureList(s, fields)
+        else:
+            features = QgsJsonUtils.stringToFeatureList(s, fields, codec)
         self.assertEqual(len(features), 1)
         self.assertFalse(features[0].geometry().isNull())
-        self.assertEqual(features[0].geometry().wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(features[0].geometry().wkbType(), QgsWkbTypes.Type.Point)
         point = features[0].geometry().constGet()
         self.assertEqual(point.x(), 125.0)
         self.assertEqual(point.y(), 10.0)
         self.assertEqual(features[0]['name'], "Dinagat Islands")
 
         # geojson string with 2 features
-        features = QgsJsonUtils.stringToFeatureList(
-            '{ "type": "FeatureCollection","features":[{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands"}}, {\n"type": "Feature","geometry": {"type": "Point","coordinates": [110, 20]},"properties": {"name": "Henry Gale Island"}}]}',
-            fields, codec)
+        s = '{ "type": "FeatureCollection","features":[{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands"}}, {\n"type": "Feature","geometry": {"type": "Point","coordinates": [110, 20]},"properties": {"name": "Henry Gale Island"}}]}'
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            features = QgsJsonUtils.stringToFeatureList(s, fields)
+        else:
+            features = QgsJsonUtils.stringToFeatureList(s, fields, codec)
         self.assertEqual(len(features), 2)
         self.assertFalse(features[0].geometry().isNull())
-        self.assertEqual(features[0].geometry().wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(features[0].geometry().wkbType(), QgsWkbTypes.Type.Point)
         point = features[0].geometry().constGet()
         self.assertEqual(point.x(), 125.0)
         self.assertEqual(point.y(), 10.0)
         self.assertEqual(features[0]['name'], "Dinagat Islands")
         self.assertFalse(features[1].geometry().isNull())
-        self.assertEqual(features[1].geometry().wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(features[1].geometry().wkbType(), QgsWkbTypes.Type.Point)
         point = features[1].geometry().constGet()
         self.assertEqual(point.x(), 110.0)
         self.assertEqual(point.y(), 20.0)
@@ -92,12 +105,12 @@ class TestQgsJsonUtils(QgisTestCase):
         # No milliseconds
         features = QgsJsonUtils.stringToFeatureList(geojson_with_time('22:00:10'), fields)
         self.assertEqual(len(features), 1)
-        self.assertEqual(features[0]['some_time_field'].toString(Qt.ISODateWithMs), f"{date}22:00:10.000")
+        self.assertEqual(features[0]['some_time_field'].toString(Qt.DateFormat.ISODateWithMs), f"{date}22:00:10.000")
 
         # milliseconds
         features = QgsJsonUtils.stringToFeatureList(geojson_with_time('22:00:10.123'), fields)
         self.assertEqual(len(features), 1)
-        self.assertEqual(features[0]['some_time_field'].toString(Qt.ISODateWithMs), f"{date}22:00:10.123")
+        self.assertEqual(features[0]['some_time_field'].toString(Qt.DateFormat.ISODateWithMs), f"{date}22:00:10.123")
 
     def testStringToFeatureListWithTimeProperty_regression44160(self):
         """Test that milliseconds and time zone information is parsed from time properties"""
@@ -110,28 +123,36 @@ class TestQgsJsonUtils(QgisTestCase):
         # No milliseconds
         features = QgsJsonUtils.stringToFeatureList(geojson_with_time('22:00:10'), fields)
         self.assertEqual(len(features), 1)
-        self.assertEqual(features[0]['some_time_field'].toString(Qt.ISODateWithMs), "22:00:10.000")
+        self.assertEqual(features[0]['some_time_field'].toString(Qt.DateFormat.ISODateWithMs), "22:00:10.000")
 
         # milliseconds
         features = QgsJsonUtils.stringToFeatureList(geojson_with_time('22:00:10.123'), fields)
         self.assertEqual(len(features), 1)
-        self.assertEqual(features[0]['some_time_field'].toString(Qt.ISODateWithMs), "22:00:10.123")
+        self.assertEqual(features[0]['some_time_field'].toString(Qt.DateFormat.ISODateWithMs), "22:00:10.123")
 
     def testStringToFields(self):
         """test retrieving fields from GeoJSON strings"""
 
         # empty string
-        fields = QgsJsonUtils.stringToFields("", codec)
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            fields = QgsJsonUtils.stringToFields("")
+        else:
+            fields = QgsJsonUtils.stringToFields("", codec)
         self.assertEqual(fields.count(), 0)
 
         # bad string
-        fields = QgsJsonUtils.stringToFields("asdasdas", codec)
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            fields = QgsJsonUtils.stringToFields("asdasdas")
+        else:
+            fields = QgsJsonUtils.stringToFields("asdasdas", codec)
         self.assertEqual(fields.count(), 0)
 
         # geojson string
-        fields = QgsJsonUtils.stringToFields(
-            '{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands","height":5.5}}',
-            codec)
+        s = '{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands","height":5.5}}'
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            fields = QgsJsonUtils.stringToFields(s)
+        else:
+            fields = QgsJsonUtils.stringToFields(s, codec)
         self.assertEqual(fields.count(), 2)
         self.assertEqual(fields[0].name(), "name")
         self.assertEqual(fields[0].type(), QVariant.String)
@@ -139,9 +160,11 @@ class TestQgsJsonUtils(QgisTestCase):
         self.assertEqual(fields[1].type(), QVariant.Double)
 
         # geojson string with 2 features
-        fields = QgsJsonUtils.stringToFields(
-            '{ "type": "FeatureCollection","features":[{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands","height":5.5}}, {\n"type": "Feature","geometry": {"type": "Point","coordinates": [110, 20]},"properties": {"name": "Henry Gale Island","height":6.5}}]}',
-            codec)
+        s = '{ "type": "FeatureCollection","features":[{\n"type": "Feature","geometry": {"type": "Point","coordinates": [125, 10]},"properties": {"name": "Dinagat Islands","height":5.5}}, {\n"type": "Feature","geometry": {"type": "Point","coordinates": [110, 20]},"properties": {"name": "Henry Gale Island","height":6.5}}]}'
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            fields = QgsJsonUtils.stringToFields(s)
+        else:
+            fields = QgsJsonUtils.stringToFields(s, codec)
         self.assertEqual(fields.count(), 2)
         self.assertEqual(fields[0].name(), "name")
         self.assertEqual(fields[0].type(), QVariant.String)

@@ -40,27 +40,6 @@ QgsCompoundCurve::~QgsCompoundCurve()
   clear();
 }
 
-bool QgsCompoundCurve::equals( const QgsCurve &other ) const
-{
-  const QgsCompoundCurve *otherCurve = qgsgeometry_cast< const QgsCompoundCurve * >( &other );
-  if ( !otherCurve )
-    return false;
-
-  if ( mWkbType != otherCurve->mWkbType )
-    return false;
-
-  if ( mCurves.size() != otherCurve->mCurves.size() )
-    return false;
-
-  for ( int i = 0; i < mCurves.size(); ++i )
-  {
-    if ( *mCurves.at( i ) != *otherCurve->mCurves.at( i ) )
-      return false;
-  }
-
-  return true;
-}
-
 QgsCompoundCurve *QgsCompoundCurve::createEmptyWithSameType() const
 {
   auto result = std::make_unique< QgsCompoundCurve >();
@@ -1269,7 +1248,7 @@ double QgsCompoundCurve::vertexAngle( QgsVertexId vertex ) const
     QgsCurve *curve2 = mCurves[curveIds.at( 1 ).first];
     double angle1 = curve1->vertexAngle( curveIds.at( 0 ).second );
     double angle2 = curve2->vertexAngle( curveIds.at( 1 ).second );
-    return QgsGeometryUtils::averageAngle( angle1, angle2 );
+    return QgsGeometryUtilsBase::averageAngle( angle1, angle2 );
   }
   else
   {

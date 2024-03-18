@@ -507,7 +507,7 @@ QString QgsRasterLayer::htmlMetadata() const
 
   // Band table
   myMetadata += QStringLiteral( "</table>\n<br><table width=\"100%\" class=\"tabular-view\">\n" ) %
-                QStringLiteral( "<tr><th>" ) % tr( "Number" ) % QStringLiteral( "</th><th>" ) % tr( "Band" ) % QStringLiteral( "</th><th>" ) % tr( "No-Data" ) % QStringLiteral( "</th><th>" ) %
+                QStringLiteral( "<tr><th>" ) % tr( "Number" ) % QStringLiteral( "</th><th>" ) % tr( "Band" ) % QStringLiteral( "</th><th>" ) % tr( "NoData" ) % QStringLiteral( "</th><th>" ) %
                 tr( "Min" ) % QStringLiteral( "</th><th>" ) % tr( "Max" ) % QStringLiteral( "</th></tr>\n" );
 
   QgsRasterDataProvider *provider = const_cast< QgsRasterDataProvider * >( mDataProvider );
@@ -525,9 +525,9 @@ QString QgsRasterLayer::htmlMetadata() const
       myMetadata += tr( "n/a" );
     myMetadata += QLatin1String( "</td>" );
 
-    if ( provider->hasStatistics( i, QgsRasterBandStats::Min | QgsRasterBandStats::Max, provider->extent(), static_cast<int>( SAMPLE_SIZE ) ) )
+    if ( provider->hasStatistics( i, Qgis::RasterBandStatistic::Min | Qgis::RasterBandStatistic::Max, provider->extent(), static_cast<int>( SAMPLE_SIZE ) ) )
     {
-      const QgsRasterBandStats myRasterBandStats = provider->bandStatistics( i, QgsRasterBandStats::Min | QgsRasterBandStats::Max, provider->extent(), static_cast<int>( SAMPLE_SIZE ) );
+      const QgsRasterBandStats myRasterBandStats = provider->bandStatistics( i, Qgis::RasterBandStatistic::Min | Qgis::RasterBandStatistic::Max, provider->extent(), static_cast<int>( SAMPLE_SIZE ) );
       myMetadata += QStringLiteral( "<td>" ) % QString::number( myRasterBandStats.minimumValue, 'f', 10 ) % QStringLiteral( "</td>" ) %
                     QStringLiteral( "<td>" ) % QString::number( myRasterBandStats.maximumValue, 'f', 10 ) % QStringLiteral( "</td>" );
     }
@@ -785,7 +785,7 @@ void QgsRasterLayer::setDataProvider( QString const &provider, const QgsDataProv
   // Setup source CRS
   setCrs( QgsCoordinateReferenceSystem( mDataProvider->crs() ) );
 
-  QgsDebugMsgLevel( "using wkt:\n" + crs().toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ), 4 );
+  QgsDebugMsgLevel( "using wkt:\n" + crs().toWkt( Qgis::CrsWktVariant::Preferred ), 4 );
 
   //defaults - Needs to be set after the Contrast list has been build
   //Try to read the default contrast enhancement from the config file
@@ -1218,9 +1218,9 @@ void QgsRasterLayer::computeMinMax( int band,
 
   if ( limits == QgsRasterMinMaxOrigin::MinMax )
   {
-    QgsRasterBandStats myRasterBandStats = mDataProvider->bandStatistics( band, QgsRasterBandStats::Min | QgsRasterBandStats::Max, extent, sampleSize );
+    QgsRasterBandStats myRasterBandStats = mDataProvider->bandStatistics( band, Qgis::RasterBandStatistic::Min | Qgis::RasterBandStatistic::Max, extent, sampleSize );
     // Check if statistics were actually gathered, None means a failure
-    if ( myRasterBandStats.statsGathered == QgsRasterBandStats::Stats::None )
+    if ( myRasterBandStats.statsGathered == static_cast< int >( Qgis::RasterBandStatistic::NoStatistic ) )
     {
       // Best guess we can do
       switch ( mDataProvider->dataType( band ) )
@@ -1291,7 +1291,7 @@ void QgsRasterLayer::computeMinMax( int band,
   }
   else if ( limits == QgsRasterMinMaxOrigin::StdDev )
   {
-    const QgsRasterBandStats myRasterBandStats = mDataProvider->bandStatistics( band, QgsRasterBandStats::Mean | QgsRasterBandStats::StdDev, extent, sampleSize );
+    const QgsRasterBandStats myRasterBandStats = mDataProvider->bandStatistics( band, Qgis::RasterBandStatistic::Mean | Qgis::RasterBandStatistic::StdDev, extent, sampleSize );
     min = myRasterBandStats.mean - ( mmo.stdDevFactor() * myRasterBandStats.stdDev );
     max = myRasterBandStats.mean + ( mmo.stdDevFactor() * myRasterBandStats.stdDev );
   }
@@ -1369,7 +1369,7 @@ void QgsRasterLayer::setContrastEnhancement( QgsContrastEnhancement::ContrastEnh
     {
       return;
     }
-    myBands << myGrayRenderer->grayBand();
+    myBands << myGrayRenderer->inputBand();
     myRasterRenderer = myGrayRenderer;
     myMinMaxOrigin = myGrayRenderer->minMaxOrigin();
   }
@@ -1391,7 +1391,7 @@ void QgsRasterLayer::setContrastEnhancement( QgsContrastEnhancement::ContrastEnh
     {
       return;
     }
-    myBands << myPseudoColorRenderer->band();
+    myBands << myPseudoColorRenderer->inputBand();
     myRasterRenderer = myPseudoColorRenderer;
     myMinMaxOrigin = myPseudoColorRenderer->minMaxOrigin();
   }
@@ -1442,7 +1442,7 @@ void QgsRasterLayer::setContrastEnhancement( QgsContrastEnhancement::ContrastEnh
           QgsColorRampShader *colorRampShader = dynamic_cast<QgsColorRampShader *>( myPseudoColorRenderer->shader()->rasterShaderFunction() );
           if ( colorRampShader )
           {
-            colorRampShader->classifyColorRamp( myPseudoColorRenderer->band(), extent, myPseudoColorRenderer->input() );
+            colorRampShader->classifyColorRamp( myPseudoColorRenderer->inputBand(), extent, myPseudoColorRenderer->input() );
           }
         }
       }
@@ -1573,7 +1573,7 @@ void QgsRasterLayer::refreshRenderer( QgsRasterRenderer *rasterRenderer, const Q
       mLastRectangleUsedByRefreshContrastEnhancementIfNeeded = extent;
       double min;
       double max;
-      computeMinMax( sbpcr->band(),
+      computeMinMax( sbpcr->inputBand(),
                      rasterRenderer->minMaxOrigin(),
                      rasterRenderer->minMaxOrigin().limits(), extent,
                      static_cast<int>( SAMPLE_SIZE ), min, max );
@@ -1585,7 +1585,7 @@ void QgsRasterLayer::refreshRenderer( QgsRasterRenderer *rasterRenderer, const Q
         QgsColorRampShader *colorRampShader = dynamic_cast<QgsColorRampShader *>( sbpcr->shader()->rasterShaderFunction() );
         if ( colorRampShader )
         {
-          colorRampShader->classifyColorRamp( sbpcr->band(), extent, rasterRenderer->input() );
+          colorRampShader->classifyColorRamp( sbpcr->inputBand(), extent, rasterRenderer->input() );
         }
       }
 
@@ -1598,7 +1598,7 @@ void QgsRasterLayer::refreshRenderer( QgsRasterRenderer *rasterRenderer, const Q
         QgsColorRampShader *colorRampShader = dynamic_cast<QgsColorRampShader *>( r->shader()->rasterShaderFunction() );
         if ( colorRampShader )
         {
-          colorRampShader->classifyColorRamp( sbpcr->band(), extent, rasterRenderer->input() );
+          colorRampShader->classifyColorRamp( sbpcr->inputBand(), extent, rasterRenderer->input() );
         }
       }
 

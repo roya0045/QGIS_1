@@ -40,7 +40,6 @@ class QgsRasterLayerRenderer;
  * \ingroup core
  * \brief Specific internal feedback class to provide preview of raster layer rendering.
  * \note not available in Python bindings
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsRasterLayerRendererFeedback : public QgsRasterBlockFeedback
 {
@@ -65,7 +64,6 @@ class CORE_EXPORT QgsRasterLayerRendererFeedback : public QgsRasterBlockFeedback
  * \brief Implementation of threaded rendering for raster layers.
  *
  * \note not available in Python bindings
- * \since QGIS 2.4
  */
 class CORE_EXPORT QgsRasterLayerRenderer : public QgsMapLayerRenderer
 {
@@ -85,7 +83,7 @@ class CORE_EXPORT QgsRasterLayerRenderer : public QgsMapLayerRenderer
     double mLayerOpacity = 1.0;
     std::unique_ptr<QgsRasterPipe> mPipe;
 
-    QgsRasterDataProvider::Capability mProviderCapabilities;
+    QgsRasterDataProvider::ProviderCapabilities mProviderCapabilities;
 
     //! feedback class for cancellation and preview generation
     QgsRasterLayerRendererFeedback *mFeedback = nullptr;

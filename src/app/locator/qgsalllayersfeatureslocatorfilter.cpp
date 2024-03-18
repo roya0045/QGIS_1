@@ -65,7 +65,7 @@ QStringList QgsAllLayersFeaturesLocatorFilter::prepare( const QString &string, c
     QgsFeatureRequest req;
     req.setSubsetOfAttributes( qgis::setToList( expression.referencedAttributeIndexes( layer->fields() ) ) );
     if ( !expression.needsGeometry() )
-      req.setFlags( QgsFeatureRequest::NoGeometry );
+      req.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
     QString enhancedSearch = string;
     enhancedSearch.replace( ' ', '%' );
     req.setFilterExpression( QStringLiteral( "%1 ILIKE '%%2%'" )
@@ -179,7 +179,7 @@ void QgsAllLayersFeaturesLocatorFilter::triggerResult( const QgsLocatorResult &r
 
 void QgsAllLayersFeaturesLocatorFilter::triggerResultFromAction( const QgsLocatorResult &result, const int actionId )
 {
-  ResultData data = ResultData::fromVariant( result.getUserData() );
+  ResultData data = ResultData::fromVariant( result.userData() );
   QgsFeatureId fid = data.id();
   QString layerId = data.layerId();
   bool layerIsSpatial = data.layerIsSpatial();

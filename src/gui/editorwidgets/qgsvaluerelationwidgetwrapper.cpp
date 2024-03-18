@@ -37,13 +37,15 @@
 #include <QVBoxLayout>
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QStandardItemModel>
 
 #include <nlohmann/json.hpp>
 using namespace nlohmann;
 
 ///@cond PRIVATE
-QgsFilteredTableWidget::QgsFilteredTableWidget( QWidget *parent, bool showSearch )
+QgsFilteredTableWidget::QgsFilteredTableWidget( QWidget *parent, bool showSearch, bool displayGroupName )
   : QWidget( parent )
+  , mDisplayGroupName( displayGroupName )
 {
   mSearchWidget = new QgsFilterLineEdit( this );
   mSearchWidget->setShowSearchIcon( true );
@@ -95,32 +97,63 @@ void QgsFilteredTableWidget::filterStringChanged( const QString &filterString )
 {
   auto signalBlockedTableWidget = whileBlocking( mTableWidget );
   Q_UNUSED( signalBlockedTableWidget )
-  mTableWidget->clearContents();
-  const int rCount = std::max( 1, ( int ) std::ceil( ( float ) mCache.count() / ( float ) mColumnCount ) );
-  mTableWidget->setRowCount( rCount );
-  int row = 0;
-  int column = 0;
 
-  for ( const QPair<QgsValueRelationFieldFormatter::ValueRelationItem, Qt::CheckState> &pair : std::as_const( mCache ) )
+  mTableWidget->clearContents();
+  if ( !mCache.isEmpty() )
   {
-    if ( column == mColumnCount )
+    QVariantList groups;
+    groups << QVariant();
+    for ( const QPair<QgsValueRelationFieldFormatter::ValueRelationItem, Qt::CheckState> &pair : std::as_const( mCache ) )
     {
-      row++;
-      column = 0;
+      if ( !groups.contains( pair.first.group ) )
+      {
+        groups << pair.first.group;
+      }
     }
-    if ( pair.first.value.contains( filterString, Qt::CaseInsensitive ) )
+    const int groupsCount = mDisplayGroupName ? groups.count() : groups.count() - 1;
+
+    const int rCount = std::max( 1, ( int ) std::ceil( ( float )( mCache.count() + groupsCount ) / ( float ) mColumnCount ) );
+    mTableWidget->setRowCount( rCount );
+
+    int row = 0;
+    int column = 0;
+    QVariant currentGroup;
+    for ( const QPair<QgsValueRelationFieldFormatter::ValueRelationItem, Qt::CheckState> &pair : std::as_const( mCache ) )
     {
-      QTableWidgetItem *item = nullptr;
-      item = new QTableWidgetItem( pair.first.value );
-      item->setData( Qt::UserRole, pair.first.key );
-      item->setData( Qt::ToolTipRole, pair.first.description );
-      item->setCheckState( pair.second );
-      item->setFlags( mEnabledTable ? item->flags() | Qt::ItemIsEnabled : item->flags() & ~Qt::ItemIsEnabled );
-      mTableWidget->setItem( row, column, item );
-      column++;
+      if ( column == mColumnCount )
+      {
+        row++;
+        column = 0;
+      }
+      if ( currentGroup != pair.first.group )
+      {
+        currentGroup = pair.first.group;
+        if ( mDisplayGroupName || !( row == 0 && column == 0 ) )
+        {
+          QTableWidgetItem *item = new QTableWidgetItem( mDisplayGroupName ? pair.first.group.toString() : QString() );
+          item->setFlags( item->flags() & ~Qt::ItemIsEnabled );
+          mTableWidget->setItem( row, column, item );
+          column++;
+          if ( column == mColumnCount )
+          {
+            row++;
+            column = 0;
+          }
+        }
+      }
+      if ( pair.first.value.contains( filterString, Qt::CaseInsensitive ) )
+      {
+        QTableWidgetItem *item = new QTableWidgetItem( pair.first.value );
+        item->setData( Qt::UserRole, pair.first.key );
+        item->setData( Qt::ToolTipRole, pair.first.description );
+        item->setCheckState( pair.second );
+        item->setFlags( mEnabledTable ? item->flags() | Qt::ItemIsEnabled : item->flags() & ~Qt::ItemIsEnabled );
+        mTableWidget->setItem( row, column, item );
+        column++;
+      }
     }
+    mTableWidget->setRowCount( row + 1 );
   }
-  mTableWidget->setRowCount( row + 1 );
 }
 
 QStringList QgsFilteredTableWidget::selection() const
@@ -290,7 +323,8 @@ QWidget *QgsValueRelationWidgetWrapper::createWidget( QWidget *parent )
   const bool useCompleter = config( QStringLiteral( "UseCompleter" ) ).toBool();
   if ( allowMulti )
   {
-    return new QgsFilteredTableWidget( parent, useCompleter );
+    const bool displayGroupName = config( QStringLiteral( "DisplayGroupName" ) ).toBool();
+    return new QgsFilteredTableWidget( parent, useCompleter, displayGroupName );
   }
   else if ( useCompleter )
   {
@@ -307,8 +341,7 @@ QWidget *QgsValueRelationWidgetWrapper::createWidget( QWidget *parent )
 
 void QgsValueRelationWidgetWrapper::initWidget( QWidget *editor )
 {
-
-  mComboBox = qobject_cast<QgsToolTipComboBox *>( editor );
+  mComboBox = qobject_cast<QComboBox *>( editor );
   mTableWidget = qobject_cast<QgsFilteredTableWidget *>( editor );
   mLineEdit = qobject_cast<QLineEdit *>( editor );
 
@@ -327,7 +360,18 @@ void QgsValueRelationWidgetWrapper::initWidget( QWidget *editor )
   }
   else if ( mLineEdit )
   {
-    connect( mLineEdit, &QLineEdit::textChanged, this, &QgsValueRelationWidgetWrapper::emitValueChangedInternal, Qt::UniqueConnection );
+    if ( QgsFilterLineEdit *filterLineEdit = qobject_cast<QgsFilterLineEdit *>( editor ) )
+    {
+      connect( filterLineEdit, &QgsFilterLineEdit::valueChanged, this, [ = ]( const QString & )
+      {
+        if ( mSubWidgetSignalBlocking == 0 )
+          emitValueChanged();
+      } );
+    }
+    else
+    {
+      connect( mLineEdit, &QLineEdit::textChanged, this, &QgsValueRelationWidgetWrapper::emitValueChangedInternal, Qt::UniqueConnection );
+    }
   }
 }
 
@@ -389,6 +433,7 @@ void QgsValueRelationWidgetWrapper::updateValues( const QVariant &value, const Q
   }
   else if ( mLineEdit )
   {
+    mSubWidgetSignalBlocking ++;
     mLineEdit->clear();
     bool wasFound { false };
     for ( const QgsValueRelationFieldFormatter::ValueRelationItem &i : std::as_const( mCache ) )
@@ -405,6 +450,7 @@ void QgsValueRelationWidgetWrapper::updateValues( const QVariant &value, const Q
     {
       mLineEdit->setText( tr( "(no selection)" ) );
     }
+    mSubWidgetSignalBlocking --;
   }
 }
 
@@ -497,7 +543,7 @@ QVariant::Type QgsValueRelationWidgetWrapper::fkType() const
   return QVariant::Type::Invalid;
 }
 
-void QgsValueRelationWidgetWrapper::populate( )
+void QgsValueRelationWidgetWrapper::populate()
 {
   // Initialize, note that signals are blocked, to avoid double signals on new features
   if ( QgsValueRelationFieldFormatter::expressionRequiresFormScope( mExpression ) ||
@@ -519,19 +565,45 @@ void QgsValueRelationWidgetWrapper::populate( )
 
   if ( mComboBox )
   {
+    mComboBox->blockSignals( true );
     mComboBox->clear();
-    if ( config( QStringLiteral( "AllowNull" ) ).toBool( ) )
+    const bool allowNull = config( QStringLiteral( "AllowNull" ) ).toBool();
+    if ( allowNull )
     {
-      whileBlocking( mComboBox )->addItem( tr( "(no selection)" ), QVariant( field().type( ) ) );
+      mComboBox->addItem( tr( "(no selection)" ), QVariant( field().type( ) ) );
     }
 
-    for ( const QgsValueRelationFieldFormatter::ValueRelationItem &element : std::as_const( mCache ) )
+    if ( !mCache.isEmpty() )
     {
-      whileBlocking( mComboBox )->addItem( element.value, element.key );
-      if ( !element.description.isEmpty() )
-        mComboBox->setItemData( mComboBox->count() - 1, element.description, Qt::ToolTipRole );
-    }
+      QVariant currentGroup;
+      QStandardItemModel *model = qobject_cast<QStandardItemModel *>( mComboBox->model() );
+      const bool displayGroupName = config( QStringLiteral( "DisplayGroupName" ) ).toBool();
+      for ( const QgsValueRelationFieldFormatter::ValueRelationItem &element : std::as_const( mCache ) )
+      {
+        if ( currentGroup != element.group )
+        {
+          if ( mComboBox->count() > ( allowNull ? 1 : 0 ) )
+          {
+            mComboBox->insertSeparator( mComboBox->count() );
+          }
+          if ( displayGroupName )
+          {
+            mComboBox->addItem( element.group.toString() );
+            QStandardItem *item = model->item( mComboBox->count() - 1 );
+            item->setFlags( item->flags() & ~Qt::ItemIsEnabled );
+          }
+          currentGroup = element.group;
+        }
 
+        mComboBox->addItem( element.value, element.key );
+
+        if ( !element.description.isEmpty() )
+        {
+          mComboBox->setItemData( mComboBox->count() - 1, element.description, Qt::ToolTipRole );
+        }
+      }
+    }
+    mComboBox->blockSignals( false );
   }
   else if ( mTableWidget )
   {
@@ -548,6 +620,17 @@ void QgsValueRelationWidgetWrapper::populate( )
     }
     QStringListModel *m = new QStringListModel( values, mLineEdit );
     QCompleter *completer = new QCompleter( m, mLineEdit );
+
+    const Qt::MatchFlags completerMatchFlags { config().contains( QStringLiteral( "CompleterMatchFlags" ) ) ? static_cast<Qt::MatchFlags>( config().value( QStringLiteral( "CompleterMatchFlags" ), Qt::MatchFlag::MatchStartsWith ).toInt( ) ) :  Qt::MatchFlag::MatchStartsWith };
+
+    if ( completerMatchFlags.testFlag( Qt::MatchFlag::MatchContains ) )
+    {
+      completer->setFilterMode( Qt::MatchFlag::MatchContains );
+    }
+    else
+    {
+      completer->setFilterMode( Qt::MatchFlag::MatchStartsWith );
+    }
     completer->setCaseSensitivity( Qt::CaseInsensitive );
     mLineEdit->setCompleter( completer );
   }

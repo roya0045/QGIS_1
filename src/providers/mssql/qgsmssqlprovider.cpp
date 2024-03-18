@@ -21,6 +21,8 @@
 #include "qgsmssqlproviderconnection.h"
 #include "qgsfeedback.h"
 #include "qgsdbquerylog.h"
+#include "qgsdbquerylog_p.h"
+#include "qgsvariantutils.h"
 
 #include <QtGlobal>
 #include <QFileInfo>
@@ -56,6 +58,7 @@
 #include "qgsconfig.h"
 constexpr int sMssqlConQueryLogFilePrefixLength = CMAKE_SOURCE_DIR[sizeof( CMAKE_SOURCE_DIR ) - 1] == '/' ? sizeof( CMAKE_SOURCE_DIR ) + 1 : sizeof( CMAKE_SOURCE_DIR );
 #define LoggedExec(query, sql ) execLogged( query, sql, QString(QString( __FILE__ ).mid( sMssqlConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")") )
+#define LoggedExecPrepared(query ) execPreparedLogged( query, QString(QString( __FILE__ ).mid( sMssqlConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")") )
 #define LoggedExecMetadata(query, sql, uri ) execLogged( query, sql, uri, QString(QString( __FILE__ ).mid( sMssqlConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")") )
 
 
@@ -187,7 +190,7 @@ QgsMssqlProvider::QgsMssqlProvider( const QString &uri, const ProviderOptions &o
 
     if ( mValid )
     {
-      for ( const QString &col : cols )
+      for ( const QString &col : std::as_const( cols ) )
       {
         const int idx = mAttributeFields.indexFromName( col );
         if ( idx < 0 )
@@ -358,6 +361,29 @@ bool QgsMssqlProvider::execLogged( QSqlQuery &qry, const QString &sql, const QSt
   return res;
 }
 
+bool QgsMssqlProvider::execPreparedLogged( QSqlQuery &qry, const QString &queryOrigin ) const
+{
+  QgsDatabaseQueryLogWrapper logWrapper{ qry.lastQuery(), uri().uri(), QStringLiteral( "mssql" ), QStringLiteral( "QgsMssqlProvider" ),  queryOrigin };
+  const bool res { qry.exec( ) };
+  if ( ! res )
+  {
+    logWrapper.setError( qry.lastError().text() );
+  }
+  else
+  {
+    if ( qry.isSelect() )
+    {
+      logWrapper.setFetchedRows( qry.size() );
+    }
+    else
+    {
+      logWrapper.setFetchedRows( qry.numRowsAffected() );
+    }
+  }
+  logWrapper.setQuery( qry.lastQuery() );
+  return res;
+}
+
 void QgsMssqlProvider::setLastError( const QString &error )
 {
   appendError( error );
@@ -479,7 +505,7 @@ void QgsMssqlProvider::loadFields()
                           sqlType,
                           sqlTypeName,
                           query.value( QStringLiteral( "PRECISION" ) ).toInt(),
-                          sqlTypeName == QLatin1String( "decimal" ) ? query.value( QStringLiteral( "SCALE" ) ).toInt() : -1 );
+                          sqlTypeName == QLatin1String( "decimal" ) || sqlTypeName == QLatin1String( "numeric" ) ? query.value( QStringLiteral( "SCALE" ) ).toInt() : -1 );
       }
       else if ( sqlType == QVariant::Date || sqlType == QVariant::DateTime || sqlType == QVariant::Time )
       {
@@ -685,7 +711,8 @@ QVariant QgsMssqlProvider::defaultValue( int fieldId ) const
     return QVariant();
   }
 
-  return query.value( 0 );
+  const QVariant res = query.value( 0 );
+  return QgsVariantUtils::isNull( res ) ? QVariant() : res;
 }
 
 QString QgsMssqlProvider::storageType() const
@@ -1266,7 +1293,7 @@ bool QgsMssqlProvider::addFeatures( QgsFeatureList &flist, Flags flags )
 
       QString delim;
 
-      for ( const auto idx : mPrimaryKeyAttrs )
+      for ( const auto idx : std::as_const( mPrimaryKeyAttrs ) )
       {
         const QgsField &fld = mAttributeFields.at( idx );
         statement += delim + QStringLiteral( "inserted.[%1]" ).arg( fld.name() );
@@ -1397,7 +1424,7 @@ bool QgsMssqlProvider::addFeatures( QgsFeatureList &flist, Flags flags )
       }
     }
 
-    if ( !query.exec() )
+    if ( !LoggedExecPrepared( query ) )
     {
       const QString msg = query.lastError().text();
       QgsDebugError( QStringLiteral( "SQL:%1\n  Error:%2" ).arg( query.lastQuery(), query.lastError().text() ) );
@@ -1655,7 +1682,7 @@ bool QgsMssqlProvider::changeAttributeValues( const QgsChangedAttributesMap &att
       }
     }
 
-    if ( !query.exec() )
+    if ( !LoggedExecPrepared( query ) )
     {
       QgsDebugError( QStringLiteral( "SQL:%1\n  Error:%2" ).arg( query.lastQuery(), query.lastError().text() ) );
       return false;
@@ -1746,7 +1773,7 @@ bool QgsMssqlProvider::changeGeometryValues( const QgsGeometryMap &geometry_map 
       query.addBindValue( wkt );
     }
 
-    if ( !query.exec() )
+    if ( ! LoggedExecPrepared( query ) )
     {
       pushError( query.lastError().text() );
       return false;

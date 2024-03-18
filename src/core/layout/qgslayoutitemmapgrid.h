@@ -41,7 +41,6 @@ class QgsLineSymbol;
  * QgsLayoutItemMap. The grid stack controls which grids are drawn and the
  * order they are drawn in.
  * \see QgsLayoutItemMapGrid
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemMapGridStack : public QgsLayoutItemMapItemStack
 {
@@ -135,7 +134,6 @@ class CORE_EXPORT QgsLayoutItemMapGridStack : public QgsLayoutItemMapItemStack
  * \brief An individual grid which is drawn above the map content in a
  * QgsLayoutItemMap.
  * \see QgsLayoutItemMapGridStack
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemMapGrid : public QgsLayoutItemMapItem
 {
@@ -254,7 +252,7 @@ class CORE_EXPORT QgsLayoutItemMapGrid : public QgsLayoutItemMapItem
     /**
      * Flags for controlling which side of the map a frame is drawn on
      */
-    enum FrameSideFlag
+    enum FrameSideFlag SIP_ENUM_BASETYPE( IntFlag )
     {
       FrameLeft = 0x01, //!< Left side of map
       FrameRight = 0x02, //!< Right side of map

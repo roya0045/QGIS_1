@@ -26,32 +26,8 @@ Contains settings for how a map layer will be labeled.
     ~QgsPalLayerSettings();
 
 
-
-    enum LinePlacementFlags
-    {
-      OnLine,
-      AboveLine,
-      BelowLine,
-      MapOrientation,
-    };
-
-    enum DirectionSymbols
-    {
-      SymbolLeftRight,
-      SymbolAbove,
-      SymbolBelow
-    };
-
-
-    enum ObstacleType
-    {
-      PolygonInterior,
-      PolygonBoundary,
-      PolygonWhole
-    };
-
-    enum Property
-    {
+    enum class Property
+      {
       // text style
       Size,
       Bold,
@@ -191,7 +167,6 @@ Contains settings for how a map layer will be labeled.
       AlwaysShow
     };
 
-
     bool prepare( QgsRenderContext &context, QSet<QString> &attributeNames /In,Out/, const QgsFields &fields, const QgsMapSettings &mapSettings, const QgsCoordinateReferenceSystem &crs );
 %Docstring
 Prepare for registration of features.
@@ -242,8 +217,6 @@ such as blend modes, which require output in raster formats to be fully respecte
     static const QgsPropertiesDefinition &propertyDefinitions();
 %Docstring
 Returns the labeling property definitions.
-
-.. versionadded:: 3.0
 %End
 
     bool drawLabels;
@@ -375,61 +348,6 @@ Set unit for rotation of labels.
 
     bool labelPerPart;
 
-
-%Property( name = limitNumLabels, get = _limitNumLabels, set = _setLimitNumLabels )
-%Property( name = maxNumLabels, get = _maxNumLabels, set = _setMaxNumLabels )
-%Property( name = minFeatureSize, get = _minFeatureSize, set = _setMinFeatureSize )
-%Property( name = obstacle, get = _getIsObstacle, set = _setIsObstacle )
-%Property( name = obstacleFactor, get = _getObstacleFactor, set = _setObstacleFactor )
-%Property( name = obstacleType, get = _getObstacleType, set = _setObstacleType )
-%Property( name = placementFlags, get = _getLinePlacementFlags, set = _setLinePlacementFlags )
-%Property( name = mergeLines, get = _getMergeLines, set = _setMergeLines )
-%Property( name = addDirectionSymbol, get = _getAddDirectionSymbol, set = _setAddDirectionSymbol )
-%Property( name = leftDirectionSymbol, get = _getLeftDirectionSymbol, set = _setLeftDirectionSymbol )
-%Property( name = rightDirectionSymbol, get = _getRightDirectionSymbol, set = _setRightDirectionSymbol )
-%Property( name = reverseDirectionSymbol, get = _getReverseDirectionSymbol, set = _setReverseDirectionSymbol )
-%Property( name = placeDirectionSymbol, get = _getPlaceDirectionSymbol, set = _setPlaceDirectionSymbol )
-
-%Property( name = overrunDistance, get = _getOverrunDistance, set = _setOverrunDistance )
-%Property( name = overrunDistanceUnit, get = _getOverrunDistanceUnit, set = _setOverrunDistanceUnit )
-%Property( name = overrunDistanceMapUnitScale, get = _getOverrunDistanceMapUnitScale, set = _setOverrunDistanceMapUnitScale )
-%Property( name = displayAll, get = _getDisplayAll, set = _setDisplayAll )
-
-    bool _limitNumLabels() const;
-    void _setLimitNumLabels( bool limit );
-    int _maxNumLabels() const;
-    void _setMaxNumLabels( int max );
-    double _minFeatureSize() const;
-    void _setMinFeatureSize( double size );
-    bool _getIsObstacle() const;
-    void _setIsObstacle( bool obstacle );
-    double _getObstacleFactor() const;
-    void _setObstacleFactor( double factor );
-    ObstacleType _getObstacleType() const;
-    void _setObstacleType( ObstacleType type );
-    unsigned int _getLinePlacementFlags() const;
-    void _setLinePlacementFlags( unsigned int flags );
-    bool _getMergeLines() const;
-    void _setMergeLines( bool merge );
-    bool _getAddDirectionSymbol() const;
-    void _setAddDirectionSymbol( bool add );
-    QString _getLeftDirectionSymbol() const;
-    void _setLeftDirectionSymbol( const QString &symbol );
-    QString _getRightDirectionSymbol() const;
-    void _setRightDirectionSymbol( const QString &symbol );
-    bool _getReverseDirectionSymbol() const;
-    void _setReverseDirectionSymbol( bool reverse );
-    DirectionSymbols _getPlaceDirectionSymbol() const;
-    void _setPlaceDirectionSymbol( DirectionSymbols placement );
-    double _getOverrunDistance() const;
-    void _setOverrunDistance( double distance );
-    Qgis::RenderUnit _getOverrunDistanceUnit() const;
-    void _setOverrunDistanceUnit( Qgis::RenderUnit unit );
-    QgsMapUnitScale _getOverrunDistanceMapUnitScale() const;
-    void _setOverrunDistanceMapUnitScale( const QgsMapUnitScale &scale );
-    bool _getDisplayAll() const;
-    void _setDisplayAll( bool display );
-
     double zIndex;
 
     QString geometryGenerator;
@@ -480,15 +398,11 @@ Registers a feature for labeling.
     void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
 %Docstring
 Read settings from a DOM element
-
-.. versionadded:: 2.12
 %End
 
     QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
 %Docstring
 Write settings into a DOM element
-
-.. versionadded:: 2.12
 %End
 
     QgsPropertyCollection &dataDefinedProperties();
@@ -496,8 +410,6 @@ Write settings into a DOM element
 Returns a reference to the label's property collection, used for data defined overrides.
 
 .. seealso:: :py:func:`setDataDefinedProperties`
-
-.. versionadded:: 3.0
 %End
 
 
@@ -510,8 +422,6 @@ Sets the label's property collection, used for data defined overrides.
 .. seealso:: :py:func:`dataDefinedProperties`
 
 .. seealso:: Property
-
-.. versionadded:: 3.0
 %End
 
     const QgsTextFormat &format() const;
@@ -519,8 +429,6 @@ Sets the label's property collection, used for data defined overrides.
 Returns the label text formatting settings, e.g., font settings, buffer settings, etc.
 
 .. seealso:: :py:func:`setFormat`
-
-.. versionadded:: 3.0
 %End
 
     void setFormat( const QgsTextFormat &format );
@@ -530,8 +438,6 @@ Sets the label text formatting settings, e.g., font settings, buffer settings, e
 :param format: label text format
 
 .. seealso:: :py:func:`format`
-
-.. versionadded:: 3.0
 %End
 
     QgsCallout *callout() const;
@@ -712,8 +618,6 @@ PAL labeling utilities.
     static bool staticWillUseLayer( const QgsMapLayer *layer );
 %Docstring
 Called to find out whether a specified ``layer`` is used for labeling.
-
-.. versionadded:: 2.4
 %End
 
 
@@ -728,8 +632,6 @@ Prepares a geometry for registration with PAL. Handles reprojection, rotation, c
 :param mergeLines: ``True`` if touching lines from this layer will be merged and treated as single features during labeling
 
 :return: prepared geometry
-
-.. versionadded:: 2.9
 %End
 
     static bool geometryRequiresPreparation( const QgsGeometry &geometry, QgsRenderContext &context, const QgsCoordinateTransform &ct, const QgsGeometry &clipGeometry = QgsGeometry(), bool mergeLines = false );
@@ -743,8 +645,6 @@ Checks whether a geometry requires preparation before registration with PAL
 :param mergeLines: ``True`` if touching lines from this layer will be merged and treated as single features during labeling
 
 :return: ``True`` if geometry requires preparation
-
-.. versionadded:: 2.9
 %End
 
     static QStringList splitToLines( const QString &text, const QString &wrapCharacter, int autoWrapLength = 0, bool useMaxLineLengthWhenAutoWrapping = true );
@@ -757,8 +657,6 @@ wrap text to (automatic wrapping is disabled if ``autoWrapLength`` is 0). This a
 after processing wrapping using ``wrapCharacter``. When auto wrapping is enabled, the ``useMaxLineLengthWhenAutoWrapping``
 argument controls whether the lines should be wrapped to an ideal maximum of ``autoWrapLength`` characters, or
 if ``False`` then the lines are wrapped to an ideal minimum length of ``autoWrapLength`` characters.
-
-.. versionadded:: 2.9
 %End
 
     static QStringList splitToGraphemes( const QString &text );
@@ -770,8 +668,6 @@ allowed to be split apart (e.g., Arabic and Indic based scripts)
 :param text: string to split
 
 :return: list of graphemes
-
-.. versionadded:: 2.10
 %End
 
 };

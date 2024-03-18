@@ -22,6 +22,7 @@
 #include "qgsmessageoutput.h"
 #include "qgsvectorlayer.h"
 #include "qgsdbquerylog.h"
+#include "qgsdbquerylog_p.h"
 #include "qgsvectorlayerexporter.h"
 
 #include <QMessageBox>
@@ -589,9 +590,9 @@ QString QgsOracleDataItemProvider::dataProviderKey() const
   return QStringLiteral( "oracle" );
 }
 
-int QgsOracleDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsOracleDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Database;
+  return Qgis::DataItemProviderCapability::Databases;
 }
 
 

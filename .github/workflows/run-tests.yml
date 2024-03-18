@@ -27,11 +27,12 @@ on:
     # paths cannot be filtered on this workflow on pull request as it is a required one in the branch protection
     # feature request and hacks: https://github.community/t/feature-request-conditional-required-checks/16761
 
+permissions:
+  contents: read
+
 jobs:
   build:
     env:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       QGIS_WORKSPACE: ${{ github.workspace }} # used in docker compose
       RUN_FLAKY_TESTS: ${{ contains( github.event.pull_request.labels.*.name, 'run flaky tests') }}
 
@@ -44,7 +45,6 @@ jobs:
           - distro-version: '22.04'
             qt-version: 5
             run-tests: true
-            docker-tag-suffix: ''
             with-qt6: OFF
             with-qt5: ON
             with-3d: ON
@@ -52,14 +52,15 @@ jobs:
             with-clazy: ON
             with-grass7: OFF
             with-grass8: OFF
+            with-webengine: OFF
+            with-pdf4qt: OFF
             with-compile-commands: ON
             # LD_PRELOAD: /lib/x86_64-linux-gnu/libSegFault.so
             experimental: false
 
-          - distro-version: '38'
+          - distro-version: '39'
             qt-version: 6
             run-tests: true
-            docker-tag-suffix: ''
             with-qt6: ON
             with-qt5: OFF
             with-3d: ON
@@ -67,6 +68,8 @@ jobs:
             with-clazy: OFF
             with-grass7: OFF
             with-grass8: ON
+            with-webengine: ON
+            with-pdf4qt: ON
             with-compile-commands: OFF
             LD_PRELOAD: ''
             experimental: false
@@ -100,7 +103,7 @@ jobs:
           GITHUB_PR_NUMBER: ${{github.event.number}}
         run: |
           # Be aware that these instructions are duplicated in run-tests job
-          DOCKER_TAG=$(echo $( [[ ${GITHUB_EVENT_NAME} == pull_request ]] && echo ${GITHUB_BASE_REF} || echo ${GITHUB_REF##*/} ) | sed 's/^master$/latest/')${{ matrix.docker-tag-suffix }}
+          DOCKER_TAG=$(echo $( [[ ${GITHUB_EVENT_NAME} == pull_request ]] && echo ${GITHUB_BASE_REF} || echo ${GITHUB_REF##*/} ) | sed 's/^master$/latest/')
           CTEST_BUILD_NAME=$( [[ ${GITHUB_EVENT_NAME} == pull_request ]] && echo "PR${GITHUB_PR_NUMBER}" || echo ${GITHUB_REF##*/} )"_${GITHUB_SHA}"
           echo "DOCKER_TAG=${DOCKER_TAG}" >> $GITHUB_ENV
           echo "CTEST_BUILD_NAME=${CTEST_BUILD_NAME}" >> $GITHUB_ENV
@@ -112,57 +115,35 @@ jobs:
           echo CTEST_BUILD_NAME: ${CTEST_BUILD_NAME}
           echo QT_VERSION: ${QT_VERSION}
 
+      - name: Login to Docker Hub
+        if: ${{ github.event_name == 'push' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build Docker Container with Build Environment
         id: docker-build
-        uses: whoan/docker-build-with-cache-action@v8
+        uses: docker/build-push-action@v5
         with:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: docker.pkg.github.com
-          image_name: qgis3-build-deps-${{ matrix.distro-version }}
-          dockerfile: .docker/qgis3-qt${{ matrix.qt-version }}-build-deps.dockerfile
-          build_extra_args: "--build-arg=DISTRO_VERSION=${{ matrix.distro-version }}"
-          push_git_tag: true
-          push_image_and_stages: on:push
-          pull_image_and_stages: ${{ github.event_name != 'workflow_dispatch' }}
+          context: .
+          file: .docker/qgis3-qt${{ matrix.qt-version }}-build-deps.dockerfile
+          tags: qgis/qgis3-build-deps-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}:${{ github.event.pull_request.base.ref || github.ref_name }}
+          push: ${{ github.event_name == 'push' }}
+          pull: true
+          build-args:
+            DISTRO_VERSION=${{ matrix.distro-version }}
 
       - name: Tag image
-        run: |
-          docker tag ${DOCKER_IMAGE} qgis3-build-deps
-        env:
-          DOCKER_IMAGE: ${{ steps.docker-build.outputs.FULL_IMAGE_NAME }}
+        run: docker tag ${{ steps.docker-build.outputs.imageid }} qgis3-build-deps
 
-      - name: Push Qt5 deps image to Docker hub
-        if: ${{ github.repository_owner == 'qgis' && github.event_name != 'pull_request' && matrix.qt-version == '5' }}
-        run: |
-          docker tag qgis3-build-deps qgis/qgis3-build-deps:${DOCKER_TAG}
-          docker login -u="${DOCKER_USERNAME}" -p="${DOCKER_PASSWORD}"
-          docker push "qgis/qgis3-build-deps:${DOCKER_TAG}"
-
-      - name: Prepare build cache for pull request
-        uses: pat-s/always-upload-cache@v3.0.11
-        if: github.event_name == 'pull_request'
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
         with:
           path: /home/runner/QGIS/.ccache
-          key: build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-${{ github.actor }}-${{ github.head_ref }}-${{ github.sha }}
-          # The head_ref or source branch of the pull request in a workflow run.
-          # The base_ref or target branch of the pull request in a workflow run.
+          key: build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-${{ github.event.pull_request.base.ref || github.ref_name }}
           restore-keys: |
-            build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-${{ github.actor }}-${{ github.head_ref }}-
-            build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-refs/heads/${{ github.base_ref }}-
-            build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-refs/heads/master-
-
-      - name: Prepare build cache for branch/tag
-        # use a fork of actions/cache@v2 to upload cache even when the build or test failed
-        uses: pat-s/always-upload-cache@v3.0.11
-        if: github.event_name != 'pull_request'
-        with:
-          path: /home/runner/QGIS/.ccache
-          # The branch or tag ref that triggered the workflow run. For branches this in the format refs/heads/<branch_name>, and for tags it is refs/tags/<tag_name>
-          key: build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-${{ github.ref }}-
-            build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-refs/heads/master-
+            build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-master
 
       - name: Compile QGIS
         id: compile
@@ -171,6 +152,7 @@ jobs:
                      -v $(pwd):/root/QGIS \
                      -v /home/runner/QGIS/.ccache:/root/.ccache \
                      --env-file .docker/docker-variables.env \
+                     --env CCACHE_DIR=/root/.ccache \
                      --env PUSH_TO_CDASH=true \
                      --env WITH_QT5=${{ matrix.with-qt5 }} \
                      --env BUILD_WITH_QT6=${{ matrix.with-qt6 }} \
@@ -178,18 +160,27 @@ jobs:
                      --env WITH_3D=${{ matrix.with-3d }} \
                      --env WITH_GRASS7=${{ matrix.with-grass7 }} \
                      --env WITH_GRASS8=${{ matrix.with-grass8 }} \
+                     --env WITH_QTWEBENGINE=${{ matrix.with-webengine }} \
+                     --env WITH_PDF4QT=${{ matrix.with-pdf4qt }} \
                      --env LD_PRELOAD=${{ matrix.LD_PRELOAD }} \
                      --env WITH_CLAZY=${{ matrix.with-clazy }} \
                      --env WITH_COMPILE_COMMANDS=${{ matrix.with-compile-commands }} \
                      qgis3-build-deps \
                      /root/QGIS/.docker/docker-qgis-build.sh
 
+      - name: Save build cache for push only
+        uses: actions/cache/save@v4
+        if: ${{ github.event_name == 'push' }}
+        with:
+          path: /home/runner/QGIS/.ccache
+          key: build-ccache-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}-${{ github.ref_name }}-${{ github.run_id }}
+
       - name: Push artifact
         id: push_artifact
         if: ${{ matrix.run-tests }}
         run: tar --exclude='*.o' -cvzf build.tgz build
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ matrix.run-tests }}
         with:
           name: build-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}.tgz
@@ -292,8 +283,6 @@ jobs:
   run-tests:
     name: Run tests
     env:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       QGIS_WORKSPACE: ${{ github.workspace }} # used in docker compose
 
     runs-on: ubuntu-latest
@@ -312,8 +301,8 @@ jobs:
             docker-target: binary-only
 
           - qt-version: 6
-            distro-version: 38
-            docker-target: single
+            distro-version: 39
+            docker-target: binary-only
 
           - qt-version: 5
             distro-version: 22.04
@@ -357,25 +346,28 @@ jobs:
         run: |
           echo CTEST_BUILD_NAME: ${CTEST_BUILD_NAME}
 
+      - name: Login to Docker Hub
+        if: ${{ github.event_name == 'push' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build Docker Container with Testing Environment
         id: docker-build
-        uses: whoan/docker-build-with-cache-action@v8
+        uses: docker/build-push-action@v5
         with:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: docker.pkg.github.com
-          image_name: qgis3-qt${{ matrix.qt-version }}-build-deps-bin-only
-          dockerfile: .docker/qgis3-qt${{ matrix.qt-version }}-build-deps.dockerfile
-          build_extra_args: "--target ${{ matrix.docker-target }} --build-arg=DISTRO_VERSION=${{ matrix.distro-version }}"
-          push_git_tag: true
-          push_image_and_stages: on:push
-          pull_image_and_stages: ${{ github.event_name != 'workflow_dispatch' }}
+          context: .
+          file: .docker/qgis3-qt${{ matrix.qt-version }}-build-deps.dockerfile
+          tags: qgis/qgis3-qt${{ matrix.qt-version }}-build-deps-bin-only:${{ github.event.pull_request.base.ref || github.ref_name }}
+          push: ${{ github.event_name == 'push' }}
+          pull: true
+          target: ${{ matrix.docker-target }}
+          build-args:
+            DISTRO_VERSION=${{ matrix.distro-version }}
 
       - name: Tag image
-        run: |
-          docker tag ${DOCKER_IMAGE} qgis3-build-deps-binary-image
-        env:
-          DOCKER_IMAGE: ${{ steps.docker-build.outputs.FULL_IMAGE_NAME }}
+        run: docker tag ${{ steps.docker-build.outputs.imageid }} qgis3-build-deps-binary-image
 
       - name: Print disk space
         run: |
@@ -385,7 +377,7 @@ jobs:
           sudo df -h
 
       - name: Download build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}.tgz
           path: .
@@ -425,19 +417,17 @@ jobs:
       - name: Dump report contents
         if: ${{ failure() }}
         run: |
-          sudo cat qgis_test_report/summary.md
-          sudo cat qgis_test_report/index.html
+          MD_REPORT_FILE="qgis_test_report/summary.md"; [ -f "$MD_REPORT_FILE" ] && cat "$MD_REPORT_FILE" || true
 
       - name: Save PR number to test report
         if: ${{ failure() }}
-        env:
-          PR_NUMBER: ${{ github.event.number }}
         run: |
-          echo $PR_NUMBER | sudo tee qgis_test_report/pr_number
+          echo ${{ github.event.number }} | tee qgis_test_report/pr_number
+          echo ${{ github.event.pull_request.head.sha }} | tee qgis_test_report/git_commit
 
       - name: Archive test results report
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-qt${{ matrix.qt-version }}
           path: qgis_test_report
@@ -467,28 +457,31 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Login to Docker Hub
+        if: ${{ github.event_name == 'push' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build Docker Container with Testing Environment
         id: docker-build
-        uses: whoan/docker-build-with-cache-action@v8
+        uses: docker/build-push-action@v5
         with:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: docker.pkg.github.com
-          image_name: qgis3-qt${{ matrix.qt-version }}-build-deps-bin-only
-          dockerfile: .docker/qgis3-qt${{ matrix.qt-version }}-build-deps.dockerfile
-          build_extra_args: "--build-arg=DISTRO_VERSION=${{ matrix.distro-version }}"
-          push_git_tag: true
-          push_image_and_stages: on:push
-          pull_image_and_stages: ${{ github.event_name != 'workflow_dispatch' }}
+          context: .
+          file: .docker/qgis3-qt${{ matrix.qt-version }}-build-deps.dockerfile
+          tags: qgis/qgis3-qt${{ matrix.qt-version }}-build-deps-bin-only:${{ github.event.pull_request.base.ref || github.ref_name }}
+          push: ${{ github.event_name == 'push' }}
+          pull: true
+          target: ${{ matrix.docker-target }}
+          build-args:
+            DISTRO_VERSION=${{ matrix.distro-version }}
 
       - name: Tag image
-        run: |
-          docker tag ${DOCKER_IMAGE} qgis3-build-deps
-        env:
-          DOCKER_IMAGE: ${{ steps.docker-build.outputs.FULL_IMAGE_NAME }}
+        run: docker tag ${{ steps.docker-build.outputs.imageid }} qgis3-build-deps-binary-image
 
       - name: Download build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-${{ matrix.distro-version }}-qt${{ matrix.qt-version }}.tgz
           path: .
@@ -504,5 +497,5 @@ jobs:
           -v $(pwd):/root/QGIS \
           -v /home/runner/QGIS/.ccache:/root/.ccache \
           --env-file .docker/docker-variables.env \
-          qgis3-build-deps \
+          qgis3-build-deps-binary-image \
           /root/QGIS/.docker/docker-qgis-clangtidy.sh

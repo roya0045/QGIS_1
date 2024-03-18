@@ -30,17 +30,28 @@
 #include <QRegularExpression>
 
 #ifdef Q_OS_MACX
-QgsAbout::QgsAbout( QWidget *parent )
-  : QgsOptionsDialogBase( "about", parent, Qt::WindowSystemMenuHint )  // Modeless dialog with close button only
+// Modeless dialog with close button only
+constexpr Qt::WindowFlags kAboutWindowFlags = Qt::WindowSystemMenuHint;
 #else
-QgsAbout::QgsAbout( QWidget * parent )
-  : QgsOptionsDialogBase( QStringLiteral( "about" ), parent )  // Normal dialog in non Mac-OS
+// Normal dialog in non Mac-OS
+constexpr Qt::WindowFlags kAboutWindowFlags = Qt::WindowFlags();
 #endif
+
+QgsAbout::QgsAbout( QWidget *parent )
+  : QgsOptionsDialogBase( QStringLiteral( "about" ), parent, kAboutWindowFlags )
 {
   setupUi( this );
   connect( btnQgisUser, &QPushButton::clicked, this, &QgsAbout::btnQgisUser_clicked );
   connect( btnQgisHome, &QPushButton::clicked, this, &QgsAbout::btnQgisHome_clicked );
-  initOptionsBase( true, QStringLiteral( "%1 - %2 Bit" ).arg( windowTitle() ).arg( QSysInfo::WordSize ) );
+  if constexpr( QSysInfo::WordSize != 64 )
+  {
+    // 64 bit is the current standard. Only specify word size if it is not 64.
+    initOptionsBase( true, tr( "%1 - %2 Bit" ).arg( windowTitle() ).arg( QSysInfo::WordSize ) );
+  }
+  else
+  {
+    initOptionsBase( true );
+  }
   init();
 }
 
@@ -88,11 +99,7 @@ void QgsAbout::init()
       //ignore the line if it starts with a hash....
       if ( !line.isEmpty() && line.at( 0 ) == '#' )
         continue;
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      QStringList myTokens = line.split( '\t', QString::SkipEmptyParts );
-#else
       QStringList myTokens = line.split( '\t', Qt::SkipEmptyParts );
-#endif
       lines << myTokens[0];
     }
     file.close();

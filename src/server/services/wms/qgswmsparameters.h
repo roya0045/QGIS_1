@@ -330,7 +330,6 @@ namespace QgsWms
    * \ingroup server
    * \class QgsWms::QgsWmsParameters
    * \brief Provides an interface to retrieve and manipulate WMS parameters received from the client.
-   * \since QGIS 3.0
    */
   class QgsWmsParameters : public QgsServerParameters
   {
@@ -1309,10 +1308,25 @@ namespace QgsWms
       bool withGeometry() const;
 
       /**
+       * \brief withMapTipAsString
+       * \returns WITH_MAPTIP parameter as string
+       * \since QGIS 3.36
+       */
+      QString withMapTipAsString() const;
+
+      /**
        * \brief withMapTip
        * \returns TRUE if maptip information is requested for feature info response
        */
       bool withMapTip() const;
+
+      /**
+       * Returns TRUE if only maptip information is requested for HTML
+       * feature info response
+       * \returns htmlInfoOnlyMapTip
+       * \since QGIS 3.36
+       */
+      bool htmlInfoOnlyMapTip() const;
 
       /**
        * \brief withDisplayName

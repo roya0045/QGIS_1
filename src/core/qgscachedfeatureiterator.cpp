@@ -64,26 +64,20 @@ QgsCachedFeatureIterator::QgsCachedFeatureIterator( QgsVectorLayerCache *vlCache
 
   switch ( featureRequest.filterType() )
   {
-    case QgsFeatureRequest::FilterFids:
+    case Qgis::FeatureRequestFilterType::Fids:
     {
       const QgsFeatureIds filterFids = featureRequest.filterFids();
       mFeatureIds = QList< QgsFeatureId >( filterFids.begin(), filterFids.end() );
       break;
     }
 
-    case QgsFeatureRequest::FilterFid:
+    case Qgis::FeatureRequestFilterType::Fid:
       mFeatureIds = QList< QgsFeatureId >() << featureRequest.filterFid();
       break;
 
-    default:
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      mFeatureIds.clear();
-      mFeatureIds.reserve( static_cast< int >( mVectorLayerCache->mCacheOrderedKeys.size() ) );
-      for ( auto it = mVectorLayerCache->mCacheOrderedKeys.begin(); it != mVectorLayerCache->mCacheOrderedKeys.end(); ++it )
-        mFeatureIds << *it;
-#else
+    case Qgis::FeatureRequestFilterType::Expression:
+    case Qgis::FeatureRequestFilterType::NoFilter:
       mFeatureIds = QList( mVectorLayerCache->mCacheOrderedKeys.begin(), mVectorLayerCache->mCacheOrderedKeys.end() );
-#endif
       break;
   }
 
@@ -182,7 +176,7 @@ bool QgsCachedFeatureWriterIterator::fetchFeature( QgsFeature &f )
   if ( mFeatIt.nextFeature( f ) )
   {
     // As long as features can be fetched from the provider: Write them to cache
-    mVectorLayerCache->cacheFeature( f, ! mRequest.flags().testFlag( QgsFeatureRequest::Flag::SubsetOfAttributes ) );
+    mVectorLayerCache->cacheFeature( f, ! mRequest.flags().testFlag( Qgis::FeatureRequestFlag::SubsetOfAttributes ) );
     mFids.insert( f.id() );
     geometryToDestinationCrs( f, mTransform );
     return true;

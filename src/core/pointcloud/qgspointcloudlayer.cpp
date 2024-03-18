@@ -429,7 +429,7 @@ void QgsPointCloudLayer::setDataSourcePrivate( const QString &dataSource, const 
   setCrs( mDataProvider->crs() );
   if ( !( flags & QgsDataProvider::SkipGetExtent ) )
   {
-    setExtent( mDataProvider->extent() );
+    setExtent3D( mDataProvider->extent3D() );
   }
 
   bool loadDefaultStyleFlag = false;
@@ -455,7 +455,7 @@ void QgsPointCloudLayer::setDataSourcePrivate( const QString &dataSource, const 
     calculateStatistics();
   }
 
-  // Note: we load the statistics from the data provider regardless of it being an existing metadata (do not check fot hasStatisticsMetadata)
+  // Note: we load the statistics from the data provider regardless of it being an existing metadata (do not check for hasStatisticsMetadata)
   // since the X, Y & Z coordinates will be in the header of the dataset
   if ( mDataProvider && mDataProvider->isValid() && mStatistics.sampledPointsCount() == 0 && mDataProvider->indexingState() == QgsPointCloudDataProvider::Indexed )
   {
@@ -905,19 +905,19 @@ void QgsPointCloudLayer::calculateStatistics()
     for ( const QString &attribute : coordinateAttributes )
     {
       QgsPointCloudAttributeStatistics s;
-      QVariant min = index->metadataStatistic( attribute, QgsStatisticalSummary::Min );
-      QVariant max = index->metadataStatistic( attribute, QgsStatisticalSummary::Max );
+      QVariant min = index->metadataStatistic( attribute, Qgis::Statistic::Min );
+      QVariant max = index->metadataStatistic( attribute, Qgis::Statistic::Max );
       if ( !min.isValid() )
         continue;
       s.minimum = min.toDouble();
       s.maximum = max.toDouble();
-      s.count = index->metadataStatistic( attribute, QgsStatisticalSummary::Count ).toInt();
-      s.mean = index->metadataStatistic( attribute, QgsStatisticalSummary::Mean ).toInt();
-      s.stDev = index->metadataStatistic( attribute, QgsStatisticalSummary::StDev ).toInt();
+      s.count = index->metadataStatistic( attribute, Qgis::Statistic::Count ).toInt();
+      s.mean = index->metadataStatistic( attribute, Qgis::Statistic::Mean ).toInt();
+      s.stDev = index->metadataStatistic( attribute, Qgis::Statistic::StDev ).toInt();
       QVariantList classes = index->metadataClasses( attribute );
       for ( const QVariant &c : classes )
       {
-        s.classCount[ c.toInt() ] = index->metadataClassStatistic( attribute, c, QgsStatisticalSummary::Count ).toInt();
+        s.classCount[ c.toInt() ] = index->metadataClassStatistic( attribute, c, Qgis::Statistic::Count ).toInt();
       }
       statsMap[ attribute ] = s;
     }

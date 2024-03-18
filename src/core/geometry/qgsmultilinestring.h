@@ -26,7 +26,6 @@ class QgsLineString;
  * \ingroup core
  * \class QgsMultiLineString
  * \brief Multi line string geometry collection.
- * \since QGIS 2.10
  */
 class CORE_EXPORT QgsMultiLineString: public QgsMultiCurve
 {
@@ -104,7 +103,6 @@ class CORE_EXPORT QgsMultiLineString: public QgsMultiCurve
      * Should be used by qgsgeometry_cast<QgsMultiLineString *>( geometry ).
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
-     * \since QGIS 3.0
      */
     inline static const QgsMultiLineString *cast( const QgsAbstractGeometry *geom )
     {
@@ -126,6 +124,14 @@ class CORE_EXPORT QgsMultiLineString: public QgsMultiCurve
     sipRes = PyUnicode_FromString( str.toUtf8().constData() );
     % End
 #endif
+
+    /**
+     * Re-write the measure ordinate (or add one, if it isn't already there) interpolating
+     * the measure between the supplied \a start and \a end values.
+     *
+     * \since QGIS 3.36
+     */
+    QgsMultiLineString *measuredLine( double start, double end ) const SIP_FACTORY;
 
   protected:
 

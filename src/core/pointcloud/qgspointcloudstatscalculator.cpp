@@ -58,6 +58,9 @@ struct StatsProcessor
 
     QgsPointCloudStatistics operator()( IndexedPointCloudNode node )
     {
+      if ( mIndex->nodePointCount( node ) < 1 )
+        return QgsPointCloudStatistics();
+
       std::unique_ptr<QgsPointCloudBlock> block = nullptr;
       if ( mIndex->accessType() == QgsPointCloudIndex::Local )
       {
@@ -118,7 +121,11 @@ struct StatsProcessor
              attribute.name() == QLatin1String( "ScanDirectionFlag" ) ||
              attribute.name() == QLatin1String( "Classification" ) ||
              attribute.name() == QLatin1String( "EdgeOfFlightLine" ) ||
-             attribute.name() == QLatin1String( "PointSourceId" ) )
+             attribute.name() == QLatin1String( "PointSourceId" ) ||
+             attribute.name() == QLatin1String( "Synthetic" ) ||
+             attribute.name() == QLatin1String( "KeyPoint" ) ||
+             attribute.name() == QLatin1String( "Withheld" ) ||
+             attribute.name() == QLatin1String( "Overlap" ) )
         {
           classifiableAttributesOffsetSet.insert( attributeOffset );
         }
@@ -209,9 +216,7 @@ bool QgsPointCloudStatsCalculator::calculateStats( QgsFeedback *feedback, const 
 
   feedback->setProgress( 0 );
 
-  QThreadPool::globalInstance()->releaseThread();
   QVector<QgsPointCloudStatistics> list = QtConcurrent::blockingMapped( nodes, StatsProcessor( mIndex.get(), mRequest, feedback, 100.0 / ( double )nodes.size() ) );
-  QThreadPool::globalInstance()->reserveThread();
 
   for ( QgsPointCloudStatistics &s : list )
   {

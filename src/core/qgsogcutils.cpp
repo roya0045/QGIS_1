@@ -54,7 +54,9 @@ QgsOgcUtilsExprToFilter::QgsOgcUtilsExprToFilter( QDomDocument &doc,
     const QString &geometryName,
     const QString &srsName,
     bool honourAxisOrientation,
-    bool invertAxisOrientation )
+    bool invertAxisOrientation,
+    const QMap<QString, QString> &fieldNameToXPathMap,
+    const QMap<QString, QString> &namespacePrefixToUriMap )
   : mDoc( doc )
   , mGMLUsed( false )
   , mGMLVersion( gmlVersion )
@@ -64,6 +66,8 @@ QgsOgcUtilsExprToFilter::QgsOgcUtilsExprToFilter( QDomDocument &doc,
   , mGeometryName( geometryName )
   , mSrsName( srsName )
   , mInvertAxisOrientation( invertAxisOrientation )
+  , mFieldNameToXPathMap( fieldNameToXPathMap )
+  , mNamespacePrefixToUriMap( namespacePrefixToUriMap )
   , mFilterPrefix( ( filterVersion == QgsOgcUtils::FILTER_FES_2_0 ) ? "fes" : "ogc" )
   , mPropertyName( ( filterVersion == QgsOgcUtils::FILTER_FES_2_0 ) ? "ValueReference" : "PropertyName" )
   , mGeomId( 1 )
@@ -919,7 +923,7 @@ QDomElement QgsOgcUtils::filterElement( QDomDocument &doc, GMLVersion gmlVersion
 bool QgsOgcUtils::readGMLCoordinates( QgsPolylineXY &coords, const QDomElement &elem )
 {
   QString coordSeparator = QStringLiteral( "," );
-  QString tupelSeparator = QStringLiteral( " " );
+  QString tupleSeparator = QStringLiteral( " " );
   //"decimal" has to be "."
 
   coords.clear();
@@ -930,14 +934,10 @@ bool QgsOgcUtils::readGMLCoordinates( QgsPolylineXY &coords, const QDomElement &
   }
   if ( elem.hasAttribute( QStringLiteral( "ts" ) ) )
   {
-    tupelSeparator = elem.attribute( QStringLiteral( "ts" ) );
+    tupleSeparator = elem.attribute( QStringLiteral( "ts" ) );
   }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList tupels = elem.text().split( tupelSeparator, QString::SkipEmptyParts );
-#else
-  const QStringList tupels = elem.text().split( tupelSeparator, Qt::SkipEmptyParts );
-#endif
+  const QStringList tupels = elem.text().split( tupleSeparator, Qt::SkipEmptyParts );
   QStringList tuple_coords;
   double x, y;
   bool conversionSuccess;
@@ -945,11 +945,7 @@ bool QgsOgcUtils::readGMLCoordinates( QgsPolylineXY &coords, const QDomElement &
   QStringList::const_iterator it;
   for ( it = tupels.constBegin(); it != tupels.constEnd(); ++it )
   {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    tuple_coords = ( *it ).split( coordSeparator, QString::SkipEmptyParts );
-#else
     tuple_coords = ( *it ).split( coordSeparator, Qt::SkipEmptyParts );
-#endif
     if ( tuple_coords.size() < 2 )
     {
       continue;
@@ -979,22 +975,22 @@ QgsRectangle QgsOgcUtils::rectangleFromGMLBox( const QDomNode &boxNode )
 
   const QDomElement bElem = boxElem.firstChild().toElement();
   QString coordSeparator = QStringLiteral( "," );
-  QString tupelSeparator = QStringLiteral( " " );
+  QString tupleSeparator = QStringLiteral( " " );
   if ( bElem.hasAttribute( QStringLiteral( "cs" ) ) )
   {
     coordSeparator = bElem.attribute( QStringLiteral( "cs" ) );
   }
   if ( bElem.hasAttribute( QStringLiteral( "ts" ) ) )
   {
-    tupelSeparator = bElem.attribute( QStringLiteral( "ts" ) );
+    tupleSeparator = bElem.attribute( QStringLiteral( "ts" ) );
   }
 
   const QString bString = bElem.text();
   bool ok1, ok2, ok3, ok4;
-  const double xmin = bString.section( tupelSeparator, 0, 0 ).section( coordSeparator, 0, 0 ).toDouble( &ok1 );
-  const double ymin = bString.section( tupelSeparator, 0, 0 ).section( coordSeparator, 1, 1 ).toDouble( &ok2 );
-  const double xmax = bString.section( tupelSeparator, 1, 1 ).section( coordSeparator, 0, 0 ).toDouble( &ok3 );
-  const double ymax = bString.section( tupelSeparator, 1, 1 ).section( coordSeparator, 1, 1 ).toDouble( &ok4 );
+  const double xmin = bString.section( tupleSeparator, 0, 0 ).section( coordSeparator, 0, 0 ).toDouble( &ok1 );
+  const double ymin = bString.section( tupleSeparator, 0, 0 ).section( coordSeparator, 1, 1 ).toDouble( &ok2 );
+  const double xmax = bString.section( tupleSeparator, 1, 1 ).section( coordSeparator, 0, 0 ).toDouble( &ok3 );
+  const double ymax = bString.section( tupleSeparator, 1, 1 ).section( coordSeparator, 1, 1 ).toDouble( &ok4 );
 
   if ( ok1 && ok2 && ok3 && ok4 )
   {
@@ -1009,11 +1005,7 @@ bool QgsOgcUtils::readGMLPositions( QgsPolylineXY &coords, const QDomElement &el
 {
   coords.clear();
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList pos = elem.text().split( ' ', QString::SkipEmptyParts );
-#else
   const QStringList pos = elem.text().split( ' ', Qt::SkipEmptyParts );
-#endif
   double x, y;
   bool conversionSuccess;
   const int posSize = pos.size();
@@ -1905,7 +1897,9 @@ QDomElement QgsOgcUtils::expressionToOgcFilter( const QgsExpression &expression,
     const QString &srsName,
     bool honourAxisOrientation,
     bool invertAxisOrientation,
-    QString *errorMessage )
+    QString *errorMessage,
+    const QMap<QString, QString> &fieldNameToXPathMap,
+    const QMap<QString, QString> &namespacePrefixToUriMap )
 {
   if ( !expression.rootNode() )
     return QDomElement();
@@ -1914,7 +1908,7 @@ QDomElement QgsOgcUtils::expressionToOgcFilter( const QgsExpression &expression,
 
   QgsExpressionContext context;
   context << QgsExpressionContextUtils::globalScope();
-  QgsOgcUtilsExprToFilter utils( doc, gmlVersion, filterVersion, namespacePrefix, namespaceURI, geometryName, srsName, honourAxisOrientation, invertAxisOrientation );
+  QgsOgcUtilsExprToFilter utils( doc, gmlVersion, filterVersion, namespacePrefix, namespaceURI, geometryName, srsName, honourAxisOrientation, invertAxisOrientation, fieldNameToXPathMap, namespacePrefixToUriMap );
   const QDomElement exprRootElem = utils.expressionNodeToOgcFilter( exp.rootNode(), &exp, &context );
   if ( errorMessage )
     *errorMessage = utils.errorMessage();
@@ -1943,7 +1937,9 @@ QDomElement QgsOgcUtils::expressionToOgcExpression( const QgsExpression &express
     bool honourAxisOrientation,
     bool invertAxisOrientation,
     QString *errorMessage,
-    bool requiresFilterElement )
+    bool requiresFilterElement,
+    const QMap<QString, QString> &fieldNameToXPathMap,
+    const QMap<QString, QString> &namespacePrefixToUriMap )
 {
   QgsExpressionContext context;
   context << QgsExpressionContextUtils::globalScope();
@@ -1960,7 +1956,7 @@ QDomElement QgsOgcUtils::expressionToOgcExpression( const QgsExpression &express
     case QgsExpressionNode::ntLiteral:
     case QgsExpressionNode::ntColumnRef:
     {
-      QgsOgcUtilsExprToFilter utils( doc, gmlVersion, filterVersion, QString(), QString(), geometryName, srsName, honourAxisOrientation, invertAxisOrientation );
+      QgsOgcUtilsExprToFilter utils( doc, gmlVersion, filterVersion, QString(), QString(), geometryName, srsName, honourAxisOrientation, invertAxisOrientation, fieldNameToXPathMap, namespacePrefixToUriMap );
       const QDomElement exprRootElem = utils.expressionNodeToOgcFilter( node, &exp, &context );
 
       if ( errorMessage )
@@ -1997,14 +1993,16 @@ QDomElement QgsOgcUtils::SQLStatementToOgcFilter( const QgsSQLStatement &stateme
     bool honourAxisOrientation,
     bool invertAxisOrientation,
     const QMap< QString, QString> &mapUnprefixedTypenameToPrefixedTypename,
-    QString *errorMessage )
+    QString *errorMessage,
+    const QMap<QString, QString> &fieldNameToXPathMap,
+    const QMap<QString, QString> &namespacePrefixToUriMap )
 {
   if ( !statement.rootNode() )
     return QDomElement();
 
   QgsOgcUtilsSQLStatementToFilter utils( doc, gmlVersion, filterVersion,
                                          layerProperties, honourAxisOrientation, invertAxisOrientation,
-                                         mapUnprefixedTypenameToPrefixedTypename );
+                                         mapUnprefixedTypenameToPrefixedTypename, fieldNameToXPathMap, namespacePrefixToUriMap );
   const QDomElement exprRootElem = utils.toOgcFilter( statement.rootNode() );
   if ( errorMessage )
     *errorMessage = utils.errorMessage();
@@ -2204,6 +2202,39 @@ QDomElement QgsOgcUtilsExprToFilter::expressionColumnRefToOgcFilter( const QgsEx
   Q_UNUSED( expression )
   Q_UNUSED( context )
   QDomElement propElem = mDoc.createElement( mFilterPrefix + ":" + mPropertyName );
+  if ( !mFieldNameToXPathMap.isEmpty() )
+  {
+    const auto iterFieldName = mFieldNameToXPathMap.constFind( node->name() );
+    if ( iterFieldName != mFieldNameToXPathMap.constEnd() )
+    {
+      const QString xpath( *iterFieldName );
+
+      if ( !mNamespacePrefixToUriMap.isEmpty() )
+      {
+        const QStringList parts = xpath.split( '/' );
+        QSet<QString> setNamespacePrefix;
+        for ( const QString &part : std::as_const( parts ) )
+        {
+          const QStringList subparts = part.split( ':' );
+          if ( subparts.size() == 2 && !setNamespacePrefix.contains( subparts[0] ) )
+          {
+            const auto iterNamespacePrefix = mNamespacePrefixToUriMap.constFind( subparts[0] );
+            if ( iterNamespacePrefix != mNamespacePrefixToUriMap.constEnd() )
+            {
+              setNamespacePrefix.insert( subparts[0] );
+              QDomAttr attr = mDoc.createAttribute( QStringLiteral( "xmlns:" ) +  subparts[0] );
+              attr.setValue( *iterNamespacePrefix );
+              propElem.setAttributeNode( attr );
+            }
+          }
+        }
+      }
+
+      propElem.appendChild( mDoc.createTextNode( xpath ) );
+
+      return propElem;
+    }
+  }
   QString columnRef( node->name() );
   if ( !mNamespacePrefix.isEmpty() && !mNamespaceURI.isEmpty() )
     columnRef =  mNamespacePrefix + QStringLiteral( ":" ) + columnRef;
@@ -2489,7 +2520,9 @@ QgsOgcUtilsSQLStatementToFilter::QgsOgcUtilsSQLStatementToFilter( QDomDocument &
     const QList<QgsOgcUtils::LayerProperties> &layerProperties,
     bool honourAxisOrientation,
     bool invertAxisOrientation,
-    const QMap< QString, QString> &mapUnprefixedTypenameToPrefixedTypename )
+    const QMap< QString, QString> &mapUnprefixedTypenameToPrefixedTypename,
+    const QMap<QString, QString> &fieldNameToXPathMap,
+    const QMap<QString, QString> &namespacePrefixToUriMap )
   : mDoc( doc )
   , mGMLUsed( false )
   , mGMLVersion( gmlVersion )
@@ -2501,6 +2534,8 @@ QgsOgcUtilsSQLStatementToFilter::QgsOgcUtilsSQLStatementToFilter( QDomDocument &
   , mPropertyName( ( filterVersion == QgsOgcUtils::FILTER_FES_2_0 ) ? "ValueReference" : "PropertyName" )
   , mGeomId( 1 )
   , mMapUnprefixedTypenameToPrefixedTypename( mapUnprefixedTypenameToPrefixedTypename )
+  , mFieldNameToXPathMap( fieldNameToXPathMap )
+  , mNamespacePrefixToUriMap( namespacePrefixToUriMap )
 {
 }
 
@@ -2697,6 +2732,39 @@ QDomElement QgsOgcUtilsSQLStatementToFilter::toOgcFilter( const QgsSQLStatement:
   QDomElement propElem = mDoc.createElement( mFilterPrefix + ":" + mPropertyName );
   if ( node->tableName().isEmpty() || mLayerProperties.size() == 1 )
   {
+    if ( !mFieldNameToXPathMap.isEmpty() )
+    {
+      const auto iterFieldName = mFieldNameToXPathMap.constFind( node->name() );
+      if ( iterFieldName != mFieldNameToXPathMap.constEnd() )
+      {
+        const QString xpath( *iterFieldName );
+
+        if ( !mNamespacePrefixToUriMap.isEmpty() )
+        {
+          const QStringList parts = xpath.split( '/' );
+          QSet<QString> setNamespacePrefix;
+          for ( const QString &part : std::as_const( parts ) )
+          {
+            const QStringList subparts = part.split( ':' );
+            if ( subparts.size() == 2 && !setNamespacePrefix.contains( subparts[0] ) )
+            {
+              const auto iterNamespacePrefix = mNamespacePrefixToUriMap.constFind( subparts[0] );
+              if ( iterNamespacePrefix != mNamespacePrefixToUriMap.constEnd() )
+              {
+                setNamespacePrefix.insert( subparts[0] );
+                QDomAttr attr = mDoc.createAttribute( QStringLiteral( "xmlns:" ) +  subparts[0] );
+                attr.setValue( *iterNamespacePrefix );
+                propElem.setAttributeNode( attr );
+              }
+            }
+          }
+        }
+
+        propElem.appendChild( mDoc.createTextNode( xpath ) );
+
+        return propElem;
+      }
+    }
     if ( mLayerProperties.size() == 1 && !mLayerProperties[0].mNamespacePrefix.isEmpty() && !mLayerProperties[0].mNamespaceURI.isEmpty() )
       propElem.appendChild( mDoc.createTextNode(
                               mLayerProperties[0].mNamespacePrefix + QStringLiteral( ":" ) + node->name() ) );
@@ -2782,13 +2850,8 @@ QDomElement QgsOgcUtilsSQLStatementToFilter::toOgcFilter( const QgsSQLStatement:
 static QString mapBinarySpatialToOgc( const QString &name )
 {
   QString nameCompare( name );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
-  if ( name.size() > 3 && name.midRef( 0, 3 ).compare( QLatin1String( "ST_" ), Qt::CaseInsensitive ) == 0 )
+  if ( name.size() > 3 && QStringView {name} .mid( 0, 3 ).toString().compare( QLatin1String( "ST_" ), Qt::CaseInsensitive ) == 0 )
     nameCompare = name.mid( 3 );
-#else
-  if ( name.size() > 3 && QStringView {name}.mid( 0, 3 ).toString().compare( QLatin1String( "ST_" ), Qt::CaseInsensitive ) == 0 )
-    nameCompare = name.mid( 3 );
-#endif
   QStringList spatialOps;
   spatialOps << QStringLiteral( "BBOX" ) << QStringLiteral( "Intersects" ) << QStringLiteral( "Contains" ) << QStringLiteral( "Crosses" ) << QStringLiteral( "Equals" )
              << QStringLiteral( "Disjoint" ) << QStringLiteral( "Overlaps" ) << QStringLiteral( "Touches" ) << QStringLiteral( "Within" );
@@ -2804,13 +2867,8 @@ static QString mapBinarySpatialToOgc( const QString &name )
 static QString mapTernarySpatialToOgc( const QString &name )
 {
   QString nameCompare( name );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
-  if ( name.size() > 3 && name.midRef( 0, 3 ).compare( QLatin1String( "ST_" ), Qt::CaseInsensitive ) == 0 )
+  if ( name.size() > 3 && QStringView {name} .mid( 0, 3 ).compare( QLatin1String( "ST_" ), Qt::CaseInsensitive ) == 0 )
     nameCompare = name.mid( 3 );
-#else
-  if ( name.size() > 3 && QStringView {name}.mid( 0, 3 ).compare( QLatin1String( "ST_" ), Qt::CaseInsensitive ) == 0 )
-    nameCompare = name.mid( 3 );
-#endif
   if ( nameCompare.compare( QLatin1String( "DWithin" ), Qt::CaseInsensitive ) == 0 )
     return QStringLiteral( "DWithin" );
   if ( nameCompare.compare( QLatin1String( "Beyond" ), Qt::CaseInsensitive ) == 0 )

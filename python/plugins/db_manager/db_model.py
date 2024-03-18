@@ -26,6 +26,7 @@ from qgis.PyQt.QtGui import QIcon
 from .db_plugins import supportedDbTypes, createDbPlugin
 from .db_plugins.plugin import BaseError, Table, Database
 from .dlg_db_error import DlgDbError
+from .gui_utils import GuiUtils
 
 from qgis.core import (
     QgsApplication,
@@ -40,8 +41,6 @@ from qgis.core import (
 )
 
 from qgis.utils import OverrideCursor
-
-from . import resources_rc  # NOQA
 
 try:
     from qgis.core import QgsVectorLayerExporter  # NOQA
@@ -156,8 +155,8 @@ class ConnectionItem(TreeItem):
 
         # load (shared) icon with first instance of table item
         if not hasattr(ConnectionItem, 'connectedIcon'):
-            ConnectionItem.connectedIcon = QIcon(":/db_manager/icons/plugged.png")
-            ConnectionItem.disconnectedIcon = QIcon(":/db_manager/icons/unplugged.png")
+            ConnectionItem.connectedIcon = GuiUtils.get_icon("plugged")
+            ConnectionItem.disconnectedIcon = GuiUtils.get_icon("unplugged")
 
     def data(self, column):
         if column == 0:
@@ -214,7 +213,7 @@ class SchemaItem(TreeItem):
 
         # load (shared) icon with first instance of schema item
         if not hasattr(SchemaItem, 'schemaIcon'):
-            SchemaItem.schemaIcon = QIcon(":/db_manager/icons/namespace.png")
+            SchemaItem.schemaIcon = GuiUtils.get_icon("namespace")
 
     def data(self, column):
         if column == 0:
@@ -246,13 +245,13 @@ class TableItem(TreeItem):
         # load (shared) icon with first instance of table item
         if not hasattr(TableItem, 'tableIcon'):
             TableItem.tableIcon = QgsApplication.getThemeIcon("/mIconTableLayer.svg")
-            TableItem.viewIcon = QIcon(":/db_manager/icons/view.png")
-            TableItem.viewMaterializedIcon = QIcon(":/db_manager/icons/view_materialized.png")
+            TableItem.viewIcon = GuiUtils.get_icon("view")
+            TableItem.viewMaterializedIcon = GuiUtils.get_icon("view_materialized")
             TableItem.layerPointIcon = QgsApplication.getThemeIcon("/mIconPointLayer.svg")
             TableItem.layerLineIcon = QgsApplication.getThemeIcon("/mIconLineLayer.svg")
             TableItem.layerPolygonIcon = QgsApplication.getThemeIcon("/mIconPolygonLayer.svg")
             TableItem.layerRasterIcon = QgsApplication.getThemeIcon("/mIconRasterLayer.svg")
-            TableItem.layerUnknownIcon = QIcon(":/db_manager/icons/layer_unknown.png")
+            TableItem.layerUnknownIcon = GuiUtils.get_icon("layer_unknown")
 
     def data(self, column):
         if column == 0:
@@ -377,12 +376,12 @@ class DBModel(QAbstractItemModel):
         if not index.isValid():
             return None
 
-        if role == Qt.DecorationRole and index.column() == 0:
+        if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
             icon = index.internalPointer().icon()
             if icon:
                 return icon
 
-        if role != Qt.DisplayRole and role != Qt.EditRole:
+        if role != Qt.ItemDataRole.DisplayRole and role != Qt.ItemDataRole.EditRole:
             return None
 
         retval = index.internalPointer().data(index.column())
@@ -392,35 +391,35 @@ class DBModel(QAbstractItemModel):
         global isImportVectorAvail
 
         if not index.isValid():
-            return Qt.NoItemFlags
+            return Qt.ItemFlag.NoItemFlags
 
-        flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        flags = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
         if index.column() == 0:
             item = index.internalPointer()
 
             if isinstance(item, SchemaItem) or isinstance(item, TableItem):
-                flags |= Qt.ItemIsEditable
+                flags |= Qt.ItemFlag.ItemIsEditable
 
             if isinstance(item, TableItem):
-                flags |= Qt.ItemIsDragEnabled
+                flags |= Qt.ItemFlag.ItemIsDragEnabled
 
             # vectors/tables can be dropped on connected databases to be imported
             if isImportVectorAvail:
                 if isinstance(item, ConnectionItem) and item.populated:
-                    flags |= Qt.ItemIsDropEnabled
+                    flags |= Qt.ItemFlag.ItemIsDropEnabled
 
                 if isinstance(item, (SchemaItem, TableItem)):
-                    flags |= Qt.ItemIsDropEnabled
+                    flags |= Qt.ItemFlag.ItemIsDropEnabled
 
             # SL/Geopackage db files can be dropped everywhere in the tree
             if self.hasSpatialiteSupport or self.hasGPKGSupport:
-                flags |= Qt.ItemIsDropEnabled
+                flags |= Qt.ItemFlag.ItemIsDropEnabled
 
         return flags
 
     def headerData(self, section, orientation, role):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole and section < len(self.header):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole and section < len(self.header):
             return self.header[section]
         return None
 
@@ -457,7 +456,7 @@ class DBModel(QAbstractItemModel):
         return parentItem.childCount() > 0 or not parentItem.populated
 
     def setData(self, index, value, role):
-        if role != Qt.EditRole or index.column() != 0:
+        if role != Qt.ItemDataRole.EditRole or index.column() != 0:
             return False
 
         item = index.internalPointer()
@@ -470,7 +469,7 @@ class DBModel(QAbstractItemModel):
             if new_value == obj.name:
                 return False
 
-            with OverrideCursor(Qt.WaitCursor):
+            with OverrideCursor(Qt.CursorShape.WaitCursor):
                 try:
                     obj.rename(new_value)
                     self._onDataChanged(index)
@@ -490,7 +489,7 @@ class DBModel(QAbstractItemModel):
         self.endRemoveRows()
 
     def _refreshIndex(self, index, force=False):
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             try:
                 item = index.internalPointer() if index.isValid() else self.rootItem
                 prevPopulated = item.populated
@@ -522,7 +521,7 @@ class DBModel(QAbstractItemModel):
         mimeData = QMimeData()
         encodedData = QByteArray()
 
-        stream = QDataStream(encodedData, QIODevice.WriteOnly)
+        stream = QDataStream(encodedData, QIODevice.OpenModeFlag.WriteOnly)
 
         for index in indexes:
             if not index.isValid():
@@ -538,7 +537,7 @@ class DBModel(QAbstractItemModel):
     def dropMimeData(self, data, action, row, column, parent):
         global isImportVectorAvail
 
-        if action == Qt.IgnoreAction:
+        if action == Qt.DropAction.IgnoreAction:
             return True
 
         # vectors/tables to be imported must be dropped on connected db, schema or table
@@ -654,7 +653,7 @@ class DBModel(QAbstractItemModel):
 
             dlg = DlgImportVector(inLayer, outDb, outUri)
             QApplication.restoreOverrideCursor()
-            if dlg.exec_():
+            if dlg.exec():
                 self._refreshIndex(parent)
         finally:
             inLayer.deleteLater()

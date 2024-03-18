@@ -103,7 +103,7 @@ class GUI_EXPORT QgsTemporalControllerWidget : public QgsPanelWidget, private Ui
      *
      * \note Updates will only be made if the \a timeStep is valid.
      *
-     * \since 3.18
+     * \since QGIS 3.18
      */
     void updateTimeStepInputs( const QgsInterval &timeStep );
 
@@ -135,7 +135,7 @@ class GUI_EXPORT QgsTemporalControllerWidget : public QgsPanelWidget, private Ui
      * that isn't defined, the range will fallback to the full range of all
      * layers.
      */
-    void setDatesToProjectTime();
+    void setDatesToProjectTime( bool tryLastStoredRange );
 
     /**
      * Updates the value of the slider

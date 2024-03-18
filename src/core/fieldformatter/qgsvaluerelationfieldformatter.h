@@ -32,7 +32,6 @@
  * A value relation field formatter looks up the values from
  * features on another layer.
  *
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsValueRelationFieldFormatter : public QgsFieldFormatter
 {
@@ -40,10 +39,11 @@ class CORE_EXPORT QgsValueRelationFieldFormatter : public QgsFieldFormatter
     struct ValueRelationItem
     {
       //! Constructor for ValueRelationItem
-      ValueRelationItem( const QVariant &key, const QString &value, const QString &description = QString() )
+      ValueRelationItem( const QVariant &key, const QString &value, const QString &description = QString(), const QVariant group = QVariant() )
         : key( key )
         , value( value )
         , description( description )
+        , group( group )
       {}
 
       //! Constructor for ValueRelationItem
@@ -52,6 +52,8 @@ class CORE_EXPORT QgsValueRelationFieldFormatter : public QgsFieldFormatter
       QVariant key;
       QString value;
       QString description;
+      //! Value used to regroup items during sorting (since QGIS 3.38)
+      QVariant group;
     };
 
     typedef QVector < QgsValueRelationFieldFormatter::ValueRelationItem > ValueRelationCache;
@@ -83,7 +85,6 @@ class CORE_EXPORT QgsValueRelationFieldFormatter : public QgsFieldFormatter
      * \param parentFormFeature For embedded forms only, the feature currently being edited in the parent form with current attribute values
      * \return A kvp list of values for the widget
      *
-     * \since QGIS 3.0
      */
     static QgsValueRelationFieldFormatter::ValueRelationCache createCache( const QVariantMap &config, const QgsFeature &formFeature = QgsFeature(), const QgsFeature &parentFormFeature = QgsFeature() );
 

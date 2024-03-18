@@ -16,13 +16,14 @@ class QgsProcessingUtils
 {
 %Docstring(signature="appended")
 Utility functions for use with processing classes.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
 #include "qgsprocessingutils.h"
 %End
+  public:
+    static const QMetaObject staticMetaObject;
+
   public:
 
     static QList< QgsRasterLayer * > compatibleRasterLayers( QgsProject *project, bool sort = true );
@@ -328,10 +329,19 @@ if ``value`` cannot be successfully converted to a CRS.
 .. versionadded:: 3.12
 %End
 
-    static QString normalizeLayerSource( const QString &source );
+    static QString normalizeLayerSource( const QString &source ) /HoldGIL/;
 %Docstring
 Normalizes a layer ``source`` string for safe comparison across different
 operating system environments.
+%End
+
+    static QString layerToStringIdentifier( const QgsMapLayer *layer ) /HoldGIL/;
+%Docstring
+Returns a string representation of the source for a ``layer``. The returned
+value is suitable for storage for subsequent executions of an algorithm
+using the same layer source.
+
+.. versionadded:: 3.34
 %End
 
     static QString variantToPythonLiteral( const QVariant &value );
@@ -343,7 +353,7 @@ Converts a variant to a Python literal.
 .. versionadded:: 3.6
 %End
 
-    static QString stringToPythonLiteral( const QString &string );
+    static QString stringToPythonLiteral( const QString &string ) /HoldGIL/;
 %Docstring
 Converts a string to a Python string literal. E.g. by replacing ' with \'.
 
@@ -505,7 +515,7 @@ a conversion in this case and will return the target layer name in the ``layerNa
 .. versionadded:: 3.10
 %End
 
-    static QgsFields combineFields( const QgsFields &fieldsA, const QgsFields &fieldsB, const QString &fieldsBPrefix = QString() );
+    static QgsFields combineFields( const QgsFields &fieldsA, const QgsFields &fieldsB, const QString &fieldsBPrefix = QString() ) /HoldGIL/;
 %Docstring
 Combines two field lists, avoiding duplicate field names (in a case-insensitive manner).
 
@@ -519,7 +529,7 @@ non-duplicate name.
    be truncated when saving to these formats.
 %End
 
-    static QList<int> fieldNamesToIndices( const QStringList &fieldNames, const QgsFields &fields );
+    static QList<int> fieldNamesToIndices( const QStringList &fieldNames, const QgsFields &fields ) /HoldGIL/;
 %Docstring
 Returns a list of field indices parsed from the given list of field names. Unknown field names are ignored.
 If the list of field names is empty, it is assumed that all fields are required.
@@ -527,7 +537,7 @@ If the list of field names is empty, it is assumed that all fields are required.
 .. versionadded:: 3.2
 %End
 
-    static QgsFields indicesToFields( const QList<int> &indices, const QgsFields &fields );
+    static QgsFields indicesToFields( const QList<int> &indices, const QgsFields &fields ) /HoldGIL/;
 %Docstring
 Returns a subset of fields based on the indices of desired fields.
 
@@ -634,21 +644,12 @@ class QgsProcessingFeatureSource : QgsFeatureSource
 %Docstring(signature="appended")
 :py:class:`QgsFeatureSource` subclass which proxies methods to an underlying :py:class:`QgsFeatureSource`, modifying
 results according to the settings in a :py:class:`QgsProcessingContext`.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
 #include "qgsprocessingutils.h"
 %End
   public:
-
-    enum Flag
-    {
-      FlagSkipGeometryValidityChecks,
-    };
-    typedef QFlags<QgsProcessingFeatureSource::Flag> Flags;
-
 
     QgsProcessingFeatureSource( QgsFeatureSource *originalSource, const QgsProcessingContext &context, bool ownsOriginalSource = false,
                                 long long featureLimit = -1, const QString &filterExpression = QString() );
@@ -667,14 +668,14 @@ Since QGIS 3.32, the optional ``filterExpression`` can be used to specify an exp
 
     ~QgsProcessingFeatureSource();
 
-    QgsFeatureIterator getFeatures( const QgsFeatureRequest &request, Flags flags ) const;
+    QgsFeatureIterator getFeatures( const QgsFeatureRequest &request, Qgis::ProcessingFeatureSourceFlags flags ) const;
 %Docstring
 Returns an iterator for the features in the source, respecting the supplied feature ``flags``.
 An optional ``request`` can be used to optimise the returned
 iterator, eg by restricting the returned attributes or geometry.
 %End
 
-    virtual QgsFeatureSource::FeatureAvailability hasFeatures() const;
+    virtual Qgis::FeatureAvailability hasFeatures() const;
 
 
     virtual QgsFeatureIterator getFeatures( const QgsFeatureRequest &request = QgsFeatureRequest() ) const;
@@ -699,7 +700,7 @@ iterator, eg by restricting the returned attributes or geometry.
 
     virtual QgsFeatureIds allFeatureIds() const;
 
-    virtual SpatialIndexPresence hasSpatialIndex() const;
+    virtual Qgis::SpatialIndexPresence hasSpatialIndex() const;
 
 
     QgsExpressionContextScope *createExpressionContextScope() const /Factory/;
@@ -707,7 +708,7 @@ iterator, eg by restricting the returned attributes or geometry.
 Returns an expression context scope suitable for this source.
 %End
 
-    void setInvalidGeometryCheck( QgsFeatureRequest::InvalidGeometryCheck method );
+    void setInvalidGeometryCheck( Qgis::InvalidGeometryCheck method );
 %Docstring
 Overrides the default geometry check method for the source.
 
@@ -716,7 +717,7 @@ Overrides the default geometry check method for the source.
 .. versionadded:: 3.14
 %End
 
-    QgsFeatureRequest::InvalidGeometryCheck invalidGeometryCheck() const;
+    Qgis::InvalidGeometryCheck invalidGeometryCheck() const;
 %Docstring
 Returns the geometry check method for the source.
 

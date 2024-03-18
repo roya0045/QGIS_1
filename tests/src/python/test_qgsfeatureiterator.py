@@ -115,6 +115,29 @@ class TestQgsFeatureIterator(QgisTestCase):
         feat['Staff'] = 2
         vl.addFeature(feat)
 
+    def test_VectorLayerEditing(self):
+        ogr_layer = QgsVectorLayer(os.path.join(TEST_DATA_DIR, 'points.shp'), 'Points', 'ogr')
+        self.assertTrue(ogr_layer.isValid())
+
+        request = QgsFeatureRequest()
+        iterator = ogr_layer.getFeatures(request)
+        self.assertTrue(iterator.isValid())
+
+        self.assertTrue(ogr_layer.startEditing())
+        iterator = ogr_layer.getFeatures(request)
+        self.assertTrue(iterator.isValid())
+
+        memory_layer = QgsVectorLayer("Point?field=x:string&field=y:integer&field=z:integer", "layer", "memory")
+        self.assertTrue(memory_layer.isValid())
+
+        request = QgsFeatureRequest()
+        iterator = memory_layer.getFeatures(request)
+        self.assertTrue(iterator.isValid())
+
+        self.assertTrue(memory_layer.startEditing())
+        iterator = memory_layer.getFeatures(request)
+        self.assertTrue(iterator.isValid())
+
     def test_ExpressionFieldNested(self):
         myShpFile = os.path.join(TEST_DATA_DIR, 'points.shp')
         layer = QgsVectorLayer(myShpFile, 'Points', 'ogr')
@@ -139,7 +162,7 @@ class TestQgsFeatureIterator(QgisTestCase):
         idx = layer.addExpressionField('"exp1"/1.5', QgsField('exp2', QVariant.LongLong))  # NOQA
 
         fet = next(layer.getFeatures(
-            QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes(['exp2'], layer.fields())))
+            QgsFeatureRequest().setFlags(QgsFeatureRequest.Flag.NoGeometry).setSubsetOfAttributes(['exp2'], layer.fields())))
         # nested virtual fields should have made geometry be fetched
         self.assertEqual(fet['exp2'], -156)
         self.assertEqual(fet['exp1'], -234)
@@ -152,7 +175,7 @@ class TestQgsFeatureIterator(QgisTestCase):
         idx = layer.addExpressionField("eval('Class')", QgsField('exp1', QVariant.String))  # NOQA
 
         fet = next(layer.getFeatures(
-            QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes(['exp1'], layer.fields())))
+            QgsFeatureRequest().setFlags(QgsFeatureRequest.Flag.NoGeometry).setSubsetOfAttributes(['exp1'], layer.fields())))
 
         self.assertEqual(fet['exp1'], 'Jet')
 
@@ -288,7 +311,7 @@ class TestQgsFeatureIterator(QgisTestCase):
 
         f = QgsFeature()
         fi = layer.getFeatures(
-            QgsFeatureRequest().setFlags(QgsFeatureRequest.SubsetOfAttributes).setFilterExpression('joinlayer_z=654'))
+            QgsFeatureRequest().setFlags(QgsFeatureRequest.Flag.SubsetOfAttributes).setFilterExpression('joinlayer_z=654'))
         self.assertTrue(fi.nextFeature(f))
         self.assertEqual(f['fldint'], 124)
         self.assertEqual(f['joinlayer_z'], 654)
@@ -390,7 +413,7 @@ class TestQgsFeatureIterator(QgisTestCase):
 
         prop = QgsPropertyDefinition()
         prop.setComment('test_field')
-        prop.setDataType(QgsPropertyDefinition.DataTypeNumeric)
+        prop.setDataType(QgsPropertyDefinition.DataType.DataTypeNumeric)
         prop.setOrigin('user')
         prop.setName('custom')
         self.assertTrue(al.addAuxiliaryField(prop))
@@ -433,29 +456,18 @@ class TestQgsFeatureIterator(QgisTestCase):
         f2.setGeometry(QgsGeometry.fromWkt('Polygon((0 0, 1 0, 0 1, 1 1, 0 0))'))  # invalid
         f3 = QgsFeature(3)
         f3.setAttributes(["c"])
-        f3.setGeometry(QgsGeometry.fromWkt('Polygon((0 0, 0 -1, 0 0, 0 1))'))  # very invalid
-        f4 = QgsFeature(4)
-        f4.setAttributes(["d"])
-        f4.setGeometry(QgsGeometry.fromWkt('Polygon((0 0, 1 0, 1 1, 0 1, 0 0))'))  # valid
-        self.assertTrue(pr.addFeatures([f1, f2, f3, f4]))
+        f3.setGeometry(QgsGeometry.fromWkt('Polygon((0 0, 1 0, 1 1, 0 1, 0 0))'))  # valid
+        self.assertTrue(pr.addFeatures([f1, f2, f3]))
 
         res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid))]
-        self.assertEqual(res, ['a', 'd'])
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometryNoCheck))]
+        self.assertEqual(res, ['a', 'b', 'c'])
         res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryAbortOnInvalid))]
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid))]
+        self.assertEqual(res, ['a', 'c'])
+        res = [f['x'] for f in
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid))]
         self.assertEqual(res, ['a'])
-        res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck))]
-        self.assertEqual(res, ['a', 'b', 'c', 'd'])
-        res = [f for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryFixInvalidSkipOnFailure))]
-        self.assertEqual([f['x'] for f in res], ['a', 'b', 'd'])
-        self.assertNotEqual(res[1].geometry().asWkt(), f2.geometry().asWkt())
-        res = [f for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryFixInvalidAbortOnFailure))]
-        self.assertEqual([f['x'] for f in res], ['a', 'b'])
-        self.assertNotEqual(res[1].geometry().asWkt(), f2.geometry().asWkt())
 
         # with callback
         self.callback_feature_val = None
@@ -465,65 +477,45 @@ class TestQgsFeatureIterator(QgisTestCase):
 
         res = [f['x'] for f in
                layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(
-                   QgsFeatureRequest.GeometryAbortOnInvalid).setInvalidGeometryCallback(callback))]
+                   QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid).setInvalidGeometryCallback(callback))]
         self.assertEqual(res, ['a'])
         self.assertEqual(self.callback_feature_val, 'b')
         # clear callback
         res = [f['x'] for f in
                layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(
-                   QgsFeatureRequest.GeometryAbortOnInvalid).setInvalidGeometryCallback(None))]
+                   QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid).setInvalidGeometryCallback(None))]
         self.assertEqual(res, ['a'])
 
         # check with filter fids
-
         res = [f['x'] for f in
                layer.getFeatures(QgsFeatureRequest().setFilterFid(f2.id()).setInvalidGeometryCheck(
-                   QgsFeatureRequest.GeometrySkipInvalid))]
+                   QgsFeatureRequest.InvalidGeometryCheck.GeometryNoCheck))]
+        self.assertEqual(res, ['b'])
+        res = [f['x'] for f in
+               layer.getFeatures(QgsFeatureRequest().setFilterFid(f2.id()).setInvalidGeometryCheck(
+                   QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid))]
         self.assertEqual(res, [])
         res = [f['x'] for f in
                layer.getFeatures(QgsFeatureRequest().setFilterFid(f2.id()).setInvalidGeometryCheck(
-                   QgsFeatureRequest.GeometryAbortOnInvalid))]
+                   QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid))]
         self.assertEqual(res, [])
-        res = [f for f in
-               layer.getFeatures(QgsFeatureRequest().setFilterFid(f2.id()).setInvalidGeometryCheck(
-                   QgsFeatureRequest.GeometryNoCheck))]
-        self.assertEqual([f['x'] for f in res], ['b'])
-        fres = [f for f in
-                layer.getFeatures(QgsFeatureRequest().setFilterFid(f2.id()).setInvalidGeometryCheck(
-                    QgsFeatureRequest.GeometryFixInvalidSkipOnFailure))]
-        self.assertEqual([f['x'] for f in fres], ['b'])
-        self.assertNotEqual(fres[0].geometry().asWkt(), res[0].geometry().asWkt())
-        fres = [f for f in
-                layer.getFeatures(QgsFeatureRequest().setFilterFid(f2.id()).setInvalidGeometryCheck(
-                    QgsFeatureRequest.GeometryFixInvalidAbortOnFailure))]
-        self.assertEqual([f['x'] for f in fres], ['b'])
-        self.assertNotEqual(fres[0].geometry().asWkt(), res[0].geometry().asWkt())
 
-        f5 = QgsFeature(5)
-        f5.setAttributes(["e"])
-        f5.setGeometry(QgsGeometry.fromWkt('Polygon((0 0, 1 0, 0 1, 1 1, 0 0))'))  # invalid
+        f4 = QgsFeature(4)
+        f4.setAttributes(["d"])
+        f4.setGeometry(QgsGeometry.fromWkt('Polygon((0 0, 1 0, 0 1, 1 1, 0 0))'))  # invalid
 
         # check with added features
         layer.startEditing()
-        self.assertTrue(layer.addFeatures([f5]))
-
+        self.assertTrue(layer.addFeatures([f4]))
         res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid))]
-        self.assertEqual(set(res), {'a', 'd'})
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometryNoCheck))]
+        self.assertEqual(set(res), {'a', 'b', 'c', 'd'})
         res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryAbortOnInvalid))]
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid))]
+        self.assertEqual(set(res), {'a', 'c'})
+        res = [f['x'] for f in
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid))]
         self.assertEqual(res, ['a'])
-        res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck))]
-        self.assertEqual(res, ['e', 'a', 'b', 'c', 'd'])
-        res = [f for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryFixInvalidSkipOnFailure))]
-        self.assertEqual([f['x'] for f in res], ['e', 'a', 'b', 'd'])
-        self.assertNotEqual(res[0].geometry().asWkt(), f5.geometry().asWkt())
-        res = [f for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryFixInvalidAbortOnFailure))]
-        self.assertEqual([f['x'] for f in res], ['e', 'a', 'b'])
-        self.assertNotEqual(res[0].geometry().asWkt(), f5.geometry().asWkt())
 
         # check with features with changed geometry
         layer.rollBack()
@@ -531,22 +523,14 @@ class TestQgsFeatureIterator(QgisTestCase):
         layer.changeGeometry(2, QgsGeometry.fromWkt('Polygon((0 0, 1 0, 1 1, 0 1, 0 0))'))  # valid
         layer.changeGeometry(3, QgsGeometry.fromWkt('Polygon((0 0, 1 0, 0 1, 1 1, 0 0))'))  # invalid
         res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid))]
-        self.assertEqual(set(res), {'a', 'b', 'd'})
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometryNoCheck))]
+        self.assertEqual(set(res), {'a', 'b', 'c'})
         res = [f['x'] for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryAbortOnInvalid))]
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid))]
         self.assertEqual(set(res), {'a', 'b'})
-        res = [f for f in
-               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck))]
-        self.assertEqual([f['x'] for f in res], ['a', 'b', 'c', 'd'])
-        fres = [f for f in
-                layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryFixInvalidSkipOnFailure))]
-        self.assertEqual([f['x'] for f in fres], ['a', 'b', 'c', 'd'])
-        self.assertNotEqual(fres[2].geometry().asWkt(), res[2].geometry().asWkt())
-        fres = [f for f in
-                layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.GeometryFixInvalidAbortOnFailure))]
-        self.assertEqual([f['x'] for f in fres], ['a', 'b', 'c', 'd'])
-        self.assertNotEqual(fres[2].geometry().asWkt(), res[2].geometry().asWkt())
+        res = [f['x'] for f in
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid))]
+        self.assertEqual(res, ['a', 'b'])
         layer.rollBack()
 
 

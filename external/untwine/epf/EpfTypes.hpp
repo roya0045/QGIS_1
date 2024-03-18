@@ -41,7 +41,8 @@ constexpr int NumFileProcessors = 8;
 
 struct FileInfo
 {
-    FileInfo() : numPoints(0), start(0)
+    FileInfo() :
+        numPoints(0), start(0), untwineBitsOffset(-1), fileVersion(0)
     {}
 
     std::string filename;
@@ -51,6 +52,9 @@ struct FileInfo
     uint64_t start;
     pdal::BOX3D bounds;
     pdal::SpatialReference srs;
+    int untwineBitsOffset;
+    // Currently only set for LAS files.
+    int fileVersion;
 
     bool valid() const
     { return filename.size(); }

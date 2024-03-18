@@ -305,6 +305,8 @@ void QgsApplication::init( QString profileFolder )
 #endif
     qRegisterMetaType<QPainter::CompositionMode>( "QPainter::CompositionMode" );
     qRegisterMetaType<QgsDateTimeRange>( "QgsDateTimeRange" );
+    qRegisterMetaType<QgsDoubleRange>( "QgsDoubleRange" );
+    qRegisterMetaType<QgsIntRange>( "QgsIntRange" );
     qRegisterMetaType<QList<QgsMapLayer *>>( "QList<QgsMapLayer*>" );
     qRegisterMetaType<QMap<QNetworkRequest::Attribute, QVariant>>( "QMap<QNetworkRequest::Attribute,QVariant>" );
     qRegisterMetaType<QMap<QNetworkRequest::KnownHeaders, QVariant>>( "QMap<QNetworkRequest::KnownHeaders,QVariant>" );
@@ -448,8 +450,9 @@ void QgsApplication::init( QString profileFolder )
     bookmarkManager()->initialize( QgsApplication::qgisSettingsDirPath() + "/bookmarks.xml" );
   }
 
-  // trigger creation of default style
-  QgsStyle *defaultStyle = QgsStyle::defaultStyle();
+  // trigger creation of default style, but defer initialization until
+  // it's actually required
+  QgsStyle *defaultStyle = QgsStyle::defaultStyle( false );
   if ( !members()->mStyleModel )
     members()->mStyleModel = new QgsStyleModel( defaultStyle );
 
@@ -459,6 +462,26 @@ void QgsApplication::init( QString profileFolder )
 
 void QgsApplication::installTranslators()
 {
+  // Remove translators if any are already installed
+  if ( mQgisTranslator )
+  {
+    removeTranslator( mQgisTranslator );
+    delete mQgisTranslator;
+    mQgisTranslator = nullptr;
+  }
+  if ( mQtTranslator )
+  {
+    removeTranslator( mQtTranslator );
+    delete mQtTranslator;
+    mQtTranslator = nullptr;
+  }
+  if ( mQtBaseTranslator )
+  {
+    removeTranslator( mQtBaseTranslator );
+    delete mQtBaseTranslator;
+    mQtBaseTranslator = nullptr;
+  }
+
   if ( *sTranslation() != QLatin1String( "C" ) )
   {
     mQgisTranslator = new QTranslator( this );
@@ -764,6 +787,11 @@ QIcon QgsApplication::getThemeIcon( const QString &name, const QColor &fillColor
     const QByteArray svgContent = QgsApplication::svgCache()->svgContent( path, 16, fillColor, strokeColor, 1, 1 );
 
     const QString iconPath = sIconCacheDir()->filePath( cacheKey + QStringLiteral( ".svg" ) );
+    if ( const QDir dir = QFileInfo( iconPath ).dir(); !dir.exists() )
+    {
+      dir.mkpath( "." );
+    }
+
     QFile f( iconPath );
     if ( f.open( QFile::WriteOnly | QFile::Truncate ) )
     {
@@ -938,11 +966,7 @@ QString QgsApplication::resolvePkgPath()
       QgsDebugMsgLevel( QStringLiteral( "- source directory: %1" ).arg( sBuildSourcePath()->toUtf8().constData() ), 4 );
       QgsDebugMsgLevel( QStringLiteral( "- output directory of the build: %1" ).arg( sBuildOutputPath()->toUtf8().constData() ), 4 );
 #if defined(_MSC_VER) && !defined(USING_NMAKE) && !defined(USING_NINJA)
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      *sCfgIntDir() = prefix.split( '/', QString::SkipEmptyParts ).last();
-#else
       *sCfgIntDir() = prefix.split( '/', Qt::SkipEmptyParts ).last();
-#endif
       qDebug( "- cfg: %s", sCfgIntDir()->toUtf8().constData() );
 #endif
     }
@@ -1510,8 +1534,8 @@ void QgsApplication::initQgis()
   // create project instance if doesn't exist
   QgsProject::instance();
 
-  // Initialize authentication manager and connect to database
-  authManager()->init( pluginPath(), qgisAuthDatabaseFilePath() );
+  // Setup authentication manager for lazy initialization
+  authManager()->setup( pluginPath(), qgisAuthDatabaseFilePath() );
 
   // Make sure we have a NAM created on the main thread.
   // Note that this might call QgsApplication::authManager to
@@ -1792,13 +1816,8 @@ QString QgsApplication::absolutePathToRelativePath( const QString &aPath, const 
   const Qt::CaseSensitivity cs = Qt::CaseSensitive;
 #endif
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList targetElems = tPathUrl.split( '/', QString::SkipEmptyParts );
-  QStringList aPathElems = aPathUrl.split( '/', QString::SkipEmptyParts );
-#else
   QStringList targetElems = tPathUrl.split( '/', Qt::SkipEmptyParts );
   QStringList aPathElems = aPathUrl.split( '/', Qt::SkipEmptyParts );
-#endif
 
   targetElems.removeAll( QStringLiteral( "." ) );
   aPathElems.removeAll( QStringLiteral( "." ) );
@@ -1856,13 +1875,8 @@ QString QgsApplication::relativePathToAbsolutePath( const QString &rpath, const 
   bool uncPath = targetPathUrl.startsWith( "//" );
 #endif
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList srcElems = rPathUrl.split( '/', QString::SkipEmptyParts );
-  QStringList targetElems = targetPathUrl.split( '/', QString::SkipEmptyParts );
-#else
   QStringList srcElems = rPathUrl.split( '/', Qt::SkipEmptyParts );
   QStringList targetElems = targetPathUrl.split( '/', Qt::SkipEmptyParts );
-#endif
 
 #if defined(Q_OS_WIN)
   if ( uncPath )

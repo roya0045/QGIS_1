@@ -11,6 +11,14 @@ BISON_TARGET(QgsMeshCalcParser mesh/qgsmeshcalcparser.yy ${CMAKE_CURRENT_BINARY_
 FLEX_TARGET(QgsMeshCalcLexer mesh/qgsmeshcalclexer.ll ${CMAKE_CURRENT_BINARY_DIR}/qgsmeshcalclexer.cpp)
 ADD_FLEX_BISON_DEPENDENCY(QgsMeshCalcLexer QgsMeshCalcParser)
 
+if (WITH_PDF4QT)
+  SET(PDF4QT_BUILD_ONLY_CORE_LIBRARY TRUE)
+  SET(PDF4QT_ENABLE_OPENGL FALSE)
+  set(CMAKE_CXX_STANDARD 20)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  SUBDIRS(${CMAKE_SOURCE_DIR}/external/PDF4QT)
+endif()
+
 set(QGIS_CORE_SRCS
   ${CMAKE_SOURCE_DIR}/external/kdbush/include/kdbush.hpp
 
@@ -244,6 +252,8 @@ set(QGIS_CORE_SRCS
   network/qgshttpheaders.cpp
   network/qgsrangerequestcache.cpp
 
+  pdf/qgspdfrenderer.cpp
+
   processing/qgsprocessing.cpp
   processing/qgsprocessingalgorithm.cpp
   processing/qgsprocessingalgrunnertask.cpp
@@ -312,6 +322,13 @@ set(QGIS_CORE_SRCS
   providers/ogr/qgsogrdbconnection.cpp
   providers/ogr/qgsogrproviderconnection.cpp
   providers/ogr/qgsogrtransaction.cpp
+
+  providers/sensorthings/qgssensorthingsconnection.cpp
+  providers/sensorthings/qgssensorthingsdataitems.cpp
+  providers/sensorthings/qgssensorthingsfeatureiterator.cpp
+  providers/sensorthings/qgssensorthingsprovider.cpp
+  providers/sensorthings/qgssensorthingsshareddata.cpp
+  providers/sensorthings/qgssensorthingsutils.cpp
 
   scalebar/qgsdoubleboxscalebarrenderer.cpp
   scalebar/qgshollowscalebarrenderer.cpp
@@ -795,6 +812,8 @@ set(QGIS_CORE_SRCS
   mesh/qgstopologicalmesh.cpp
   mesh/qgsmeshadvancedediting.cpp
   mesh/qgsmeshforcebypolylines.cpp
+  mesh/qgsmeshlayerlabeling.cpp
+  mesh/qgsmeshlayerlabelprovider.cpp
 
   pointcloud/qgspointcloudattribute.cpp
   pointcloud/qgspointcloudattributebyramprenderer.cpp
@@ -852,6 +871,7 @@ set(QGIS_CORE_SRCS
   geometry/qgsgeometryeditutils.cpp
   geometry/qgsgeometryfactory.cpp
   geometry/qgsgeometryutils.cpp
+  geometry/qgsgeometryutils_base.cpp
   geometry/qgsgeos.cpp
   geometry/qgsinternalgeometryengine.cpp
   geometry/qgslinesegment.cpp
@@ -896,6 +916,7 @@ set(QGIS_CORE_SRCS
   settings/qgssettingsentry.cpp
   settings/qgssettingsentrygroup.cpp
   settings/qgssettingsentryimpl.cpp
+  settings/qgssettingsproxy.cpp
   settings/qgssettingsregistry.cpp
   settings/qgssettingsregistrycore.cpp
   settings/qgssettingstree.cpp
@@ -969,8 +990,6 @@ if (WITH_INTERNAL_POLY2TRI)
     ${CMAKE_SOURCE_DIR}/external/poly2tri/sweep/sweep.cc
   )
   include_directories(${CMAKE_SOURCE_DIR}/external/poly2tri)
-else ()
-  include_directories(${Poly2Tri_INCLUDE_DIR})
 endif ()
 
 file(GLOB JSON_HELP_FILES "${CMAKE_SOURCE_DIR}/resources/function_help/json/*")
@@ -1441,6 +1460,7 @@ set(QGIS_CORE_HDRS
   geometry/qgsgeometryfactory.h
   geometry/qgsgeometrytransformer.h
   geometry/qgsgeometryutils.h
+  geometry/qgsgeometryutils_base.h
   geometry/qgsgeos.h
   geometry/qgsinternalgeometryengine.h
   geometry/qgslinesegment.h
@@ -1615,6 +1635,8 @@ set(QGIS_CORE_HDRS
   mesh/qgstopologicalmesh.h
   mesh/qgsmeshadvancedediting.h
   mesh/qgsmeshforcebypolylines.h
+  mesh/qgsmeshlayerlabeling.h
+  mesh/qgsmeshlayerlabelprovider.h
 
   pal/costcalculator.h
   pal/feature.h
@@ -1631,6 +1653,8 @@ set(QGIS_CORE_HDRS
   pal/problem.h
   pal/util.h
   ${PROJECT_SOURCE_DIR}/external/rtree/include/RTree.h
+
+  pdf/qgspdfrenderer.h
 
   plot/qgsplot.h
 
@@ -1795,6 +1819,13 @@ set(QGIS_CORE_HDRS
   providers/ogr/qgsogrproviderutils.h
   providers/ogr/qgsogrtransaction.h
 
+  providers/sensorthings/qgssensorthingsconnection.h
+  providers/sensorthings/qgssensorthingsdataitems.h
+  providers/sensorthings/qgssensorthingsfeatureiterator.h
+  providers/sensorthings/qgssensorthingsprovider.h
+  providers/sensorthings/qgssensorthingsshareddata.h
+  providers/sensorthings/qgssensorthingsutils.h
+
   raster/qgsrasterattributetable.h
   raster/qgsbilinearrasterresampler.h
   raster/qgsbrightnesscontrastfilter.h
@@ -1950,6 +1981,7 @@ set(QGIS_CORE_HDRS
   settings/qgssettingsentrygroup.h
   settings/qgssettingsentryenumflag.h
   settings/qgssettingsentryimpl.h
+  settings/qgssettingsproxy.h
   settings/qgssettingsregistry.h
   settings/qgssettingsregistrycore.h
   settings/qgssettingstree.h
@@ -2059,6 +2091,15 @@ if (HAVE_OPENCL)
     )
 endif()
 
+if (HAVE_WEBENGINE)
+    set(QGIS_CORE_SRCS ${QGIS_CORE_SRCS}
+        web/qgswebenginepage.cpp
+    )
+    set(QGIS_CORE_HDRS ${QGIS_CORE_HDRS}
+        web/qgswebenginepage.h
+    )
+endif()
+
 if(MSVC)
   set_source_files_properties(
       ${CMAKE_CURRENT_BINARY_DIR}/qgsexpression_texts.cpp
@@ -2137,6 +2178,7 @@ if (WITH_COPC)
       pointcloud/qgscopcpointcloudindex.cpp
       pointcloud/qgsremotecopcpointcloudindex.cpp
       pointcloud/qgscopcpointcloudblockrequest.cpp
+      pointcloud/qgscachedpointcloudblockrequest.cpp
   )
   set(QGIS_CORE_HDRS ${QGIS_CORE_HDRS}
       providers/copc/qgscopcprovider.h
@@ -2144,6 +2186,7 @@ if (WITH_COPC)
       pointcloud/qgscopcpointcloudindex.h
       pointcloud/qgsremotecopcpointcloudindex.h
       pointcloud/qgscopcpointcloudblockrequest.h
+      pointcloud/qgscachedpointcloudblockrequest.h
   )
 
   add_definitions( -DWITH_COPC )
@@ -2234,7 +2277,6 @@ target_include_directories(qgis_core SYSTEM PUBLIC
   ${${QT_VERSION_BASE}Xml_INCLUDE_DIRS}
   ${${QT_VERSION_BASE}Widgets_INCLUDE_DIRS}
   ${${QT_VERSION_BASE}Svg_INCLUDE_DIRS}
-  ${${QT_VERSION_BASE}PrintSupport_INCLUDE_DIRS}
   ${${QT_VERSION_BASE}Network_INCLUDE_DIRS}
   ${${QT_VERSION_BASE}Sql_INCLUDE_DIRS}
   ${${QT_VERSION_BASE}Concurrent_INCLUDE_DIRS}
@@ -2242,7 +2284,6 @@ target_include_directories(qgis_core SYSTEM PUBLIC
   ${SPATIALINDEX_INCLUDE_DIR} # before GEOS for case-insensitive filesystems
   ${SQLITE3_INCLUDE_DIR}
   ${QCA_INCLUDE_DIR}
-  ${QTKEYCHAIN_INCLUDE_DIR}
   ${${QT_VERSION_BASE}SerialPort_INCLUDE_DIRS}
   ${Protobuf_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
@@ -2280,6 +2321,7 @@ target_include_directories(qgis_core PUBLIC
   network
   numericformats
   pal
+  pdf
   plot
   pointcloud
   pointcloud/expression
@@ -2293,6 +2335,7 @@ target_include_directories(qgis_core PUBLIC
   providers/gdal
   providers/ogr
   providers/meshmemory
+  providers/sensorthings
   raster
   renderer
   scalebar
@@ -2304,6 +2347,7 @@ target_include_directories(qgis_core PUBLIC
   validity
   vector
   vectortile
+  web
   ${CMAKE_SOURCE_DIR}/external
   ${CMAKE_SOURCE_DIR}/external/delaunator-cpp
   ${CMAKE_SOURCE_DIR}/external/nlohmann
@@ -2313,6 +2357,12 @@ target_include_directories(qgis_core PUBLIC
   ${CMAKE_SOURCE_DIR}/external/meshOptimizer
   ${CMAKE_SOURCE_DIR}/external/tinygltf
 )
+
+if (WITH_PDF4QT)
+  target_include_directories(qgis_core PRIVATE
+    ${CMAKE_SOURCE_DIR}/external/PDF4QT/Pdf4QtLibCore/sources)
+    target_link_libraries(qgis_core Pdf4QtLibCore)
+endif()
 
 if (WITH_EPT)
   target_include_directories(qgis_core PUBLIC
@@ -2338,7 +2388,7 @@ if(ENABLE_MODELTEST)
 endif()
 
 if (NOT WITH_INTERNAL_POLY2TRI)
-   target_link_libraries(qgis_core ${Poly2Tri_LIBRARY})
+   target_link_libraries(qgis_core poly2tri::poly2tri)
 endif()
 
 if(HAVE_OPENCL)
@@ -2404,25 +2454,35 @@ target_link_libraries(qgis_core
   ${QT_VERSION_BASE}::Concurrent
   ${OPTIONAL_QTWEBKIT}
   ${QCA_LIBRARY}
-  ${QTKEYCHAIN_LIBRARY}
   GEOS::geos_c
   GDAL::GDAL
   ${SPATIALINDEX_LIBRARY}
   EXPAT::EXPAT
   ${SQLITE3_LIBRARY}
   ${LIBZIP_LIBRARY}
-  ${Protobuf_LITE_LIBRARY}
+  $<TARGET_NAME_IF_EXISTS:protobuf::libprotobuf-lite>
   ${ZLIB_LIBRARIES}
   ${EXIV2_LIBRARY}
   PROJ::proj
 )
 
-if (WITH_DRACO)
-  target_link_libraries(qgis_core ${DRACO_LIBRARY})
+if(BUILD_WITH_QT6)
+  target_link_libraries(qgis_core
+    Qt6Keychain::Qt6Keychain
+  )
+else()
+  target_link_libraries(qgis_core
+    qt5keychain
+  )
 endif()
 
-if (NOT IOS)
+if (WITH_QTPRINTER)
   target_link_libraries(qgis_core ${QT_VERSION_BASE}::PrintSupport)
+  target_include_directories(qgis_core SYSTEM PUBLIC ${${QT_VERSION_BASE}PrintSupport_INCLUDE_DIRS})
+endif()
+
+if (WITH_DRACO)
+  target_link_libraries(qgis_core ${DRACO_LIBRARY})
 endif()
 
 if (WITH_SPATIALITE)
@@ -2449,6 +2509,20 @@ if (WITH_PDAL)
   target_link_libraries(qgis_core
     ${PDAL_LIBRARIES}
   )
+endif()
+
+if (WITH_QTWEBENGINE)
+    if(BUILD_WITH_QT6)
+      target_link_libraries(qgis_core
+        ${QT_VERSION_BASE}::WebEngineCore
+      )
+    else()
+      # QWebEnginePage is in WebEngineWidgets for Qt5
+      target_link_libraries(qgis_core
+        ${QT_VERSION_BASE}::WebEngineCore
+        ${QT_VERSION_BASE}::WebEngineWidgets
+      )
+    endif()
 endif()
 
 if (FORCE_STATIC_LIBS)
@@ -2486,11 +2560,6 @@ if (FORCE_STATIC_LIBS)
   endif()
 endif()
 
-if (MSVC)
-  #needed for linking to gdal which needs odbc
-  set(TARGET_LINK_LIBRARIES qgis_core odbc32 odbccp32)
-endif()
-
 if (${QT_VERSION_BASE}SerialPort_FOUND)
   target_link_libraries(qgis_core
     ${QT_VERSION_BASE}::SerialPort
@@ -2504,6 +2573,7 @@ if (${QT_VERSION_BASE}Positioning_FOUND)
 endif()
 
 target_compile_definitions(qgis_core PRIVATE "-DQT_NO_FOREACH")
+target_compile_definitions(qgis_core PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
 # clang-tidy
 if(CLANG_TIDY_EXE)

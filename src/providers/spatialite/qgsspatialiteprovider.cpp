@@ -31,6 +31,7 @@ email                : a.furieri@lqt.it
 #include "qgsspatialitetransaction.h"
 #include "qgsspatialiteproviderconnection.h"
 #include "qgsdbquerylog.h"
+#include "qgsdbquerylog_p.h"
 
 #include "qgsjsonutils.h"
 #include "qgsvectorlayer.h"
@@ -565,19 +566,35 @@ QgsSpatiaLiteProvider::QgsSpatiaLiteProvider( QString const &uri, const Provider
       gaiaFreeVectorLayersList( list );
       return;
     }
-    if ( !getTableSummaryAbstractInterface( lyr ) )     // gets the extent and feature count
+
+    // if DB has Z geometry we do NOT use the v.4.0 AbstractInterface as it does not retrieve Z extent data
+    if ( lyr->GeometryType == GAIA_XY_Z || lyr->GeometryType == GAIA_XY_Z_M )
     {
-      mNumberFeatures = 0;
-      QgsDebugError( QStringLiteral( "Invalid SpatiaLite layer" ) );
-      closeDb();
-      gaiaFreeVectorLayersList( list );
-      return;
+      if ( !getTableSummary() )     // gets the extent and feature count
+      {
+        mNumberFeatures = 0;
+        QgsDebugError( QStringLiteral( "Invalid SpatiaLite layer" ) );
+        closeDb();
+        return;
+      }
+    }
+    else
+    {
+      if ( !getTableSummaryAbstractInterface( lyr ) )     // gets the extent and feature count
+      {
+        mNumberFeatures = 0;
+        QgsDebugError( QStringLiteral( "Invalid SpatiaLite layer" ) );
+        closeDb();
+        gaiaFreeVectorLayersList( list );
+        return;
+      }
     }
     // load the columns list
     loadFieldsAbstractInterface( lyr );
     gaiaFreeVectorLayersList( list );
   }
-  else
+
+  else // no v.4.0 AbstractInterface
   {
     // using the traditional methods
     if ( !getGeometryDetails() )  // gets srid and geometry type
@@ -598,6 +615,8 @@ QgsSpatiaLiteProvider::QgsSpatiaLiteProvider( QString const &uri, const Provider
     // load the columns list
     loadFields();
   }
+
+  elevationProperties()->setContainsElevationData( nDims == GAIA_XY_Z || nDims == GAIA_XY_Z_M );
 
   if ( !mSqliteHandle )
   {
@@ -636,6 +655,11 @@ QgsSpatiaLiteProvider::~QgsSpatiaLiteProvider()
   }
   closeDb();
   invalidateConnections( mSqlitePath );
+}
+
+Qgis::DataProviderFlags QgsSpatiaLiteProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D | Qgis::DataProviderFlag::FastExtent3D;
 }
 
 QgsAbstractFeatureSource *QgsSpatiaLiteProvider::featureSource() const
@@ -845,18 +869,10 @@ QString QgsSpatiaLiteProvider::spatialiteVersion()
 
   QgsDebugMsgLevel( "SpatiaLite version info: " + mSpatialiteVersionInfo, 2 );
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList spatialiteParts = mSpatialiteVersionInfo.split( ' ', QString::SkipEmptyParts );
-#else
   QStringList spatialiteParts = mSpatialiteVersionInfo.split( ' ', Qt::SkipEmptyParts );
-#endif
 
   // Get major and minor version
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList spatialiteVersionParts = spatialiteParts[0].split( '.', QString::SkipEmptyParts );
-#else
   QStringList spatialiteVersionParts = spatialiteParts[0].split( '.', Qt::SkipEmptyParts );
-#endif
   if ( spatialiteVersionParts.size() < 2 )
   {
     QgsMessageLog::logMessage( tr( "Could not parse spatialite version string '%1'" ).arg( mSpatialiteVersionInfo ), tr( "SpatiaLite" ) );
@@ -882,18 +898,10 @@ bool QgsSpatiaLiteProvider::versionIsAbove( sqlite3 *sqlite_handle, int major, i
     if ( rows == 1 && columns == 1 )
     {
       QString version = QString::fromUtf8( results[1] );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      QStringList parts = version.split( ' ', QString::SkipEmptyParts );
-#else
       QStringList parts = version.split( ' ', Qt::SkipEmptyParts );
-#endif
       if ( !parts.empty() )
       {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-        QStringList verparts = parts.at( 0 ).split( '.', QString::SkipEmptyParts );
-#else
         QStringList verparts = parts.at( 0 ).split( '.', Qt::SkipEmptyParts );
-#endif
         above = verparts.size() >= 2 && ( verparts.at( 0 ).toInt() > major || ( verparts.at( 0 ).toInt() == major && verparts.at( 1 ).toInt() >= minor ) );
       }
     }
@@ -1103,8 +1111,8 @@ QVariant QgsSpatiaLiteProvider::defaultValue( int fieldId ) const
     }
   }
 
-  ( void )mAttributeFields.at( fieldId ).convertCompatible( resultVar );
-  return resultVar;
+  const bool compatible = mAttributeFields.at( fieldId ).convertCompatible( resultVar );
+  return compatible && !QgsVariantUtils::isNull( resultVar ) ? resultVar : QVariant();
 }
 
 QString QgsSpatiaLiteProvider::defaultValueClause( int fieldIndex ) const
@@ -3735,6 +3743,11 @@ bool QgsSpatiaLiteProvider::setSubsetString( const QString &theSQL, bool updateF
 
 QgsRectangle QgsSpatiaLiteProvider::extent() const
 {
+  return mLayerExtent.toRectangle();
+}
+
+QgsBox3D QgsSpatiaLiteProvider::extent3D() const
+{
   return mLayerExtent;
 }
 
@@ -4450,17 +4463,17 @@ bool QgsSpatiaLiteProvider::createAttributeIndex( int field )
   return true;
 }
 
-QgsFeatureSource::SpatialIndexPresence QgsSpatiaLiteProvider::hasSpatialIndex() const
+Qgis::SpatialIndexPresence QgsSpatiaLiteProvider::hasSpatialIndex() const
 {
   QgsDataSourceUri u = uri();
   QgsSpatiaLiteProviderConnection conn( u.uri(), QVariantMap() );
   try
   {
-    return conn.spatialIndexExists( u.schema(), u.table(), u.geometryColumn() ) ? SpatialIndexPresent : SpatialIndexNotPresent;
+    return conn.spatialIndexExists( u.schema(), u.table(), u.geometryColumn() ) ? Qgis::SpatialIndexPresence::Present : Qgis::SpatialIndexPresence::NotPresent;
   }
   catch ( QgsProviderConnectionException & )
   {
-    return SpatialIndexUnknown;
+    return Qgis::SpatialIndexPresence::Unknown;
   }
 }
 
@@ -5797,8 +5810,8 @@ bool QgsSpatiaLiteProvider::getTableSummaryAbstractInterface( gaiaVectorLayerPtr
 
   if ( lyr->ExtentInfos )
   {
-    mLayerExtent.set( lyr->ExtentInfos->MinX, lyr->ExtentInfos->MinY,
-                      lyr->ExtentInfos->MaxX, lyr->ExtentInfos->MaxY );
+    mLayerExtent = QgsBox3D( lyr->ExtentInfos->MinX, lyr->ExtentInfos->MinY, std::numeric_limits<double>::quiet_NaN(),
+                             lyr->ExtentInfos->MaxX, lyr->ExtentInfos->MaxY, std::numeric_limits<double>::quiet_NaN() );
     // This can be wrong! see: GH #29264
     // mNumberFeatures = lyr->ExtentInfos->Count;
     // Note: the unique ptr here does not own the handle, it is just used for the convenience
@@ -5833,7 +5846,7 @@ bool QgsSpatiaLiteProvider::getTableSummary()
   if ( ! mGeometryColumn.isEmpty() )
   {
     sql += QStringLiteral(
-             ", Min(MbrMinX(%1)), Min(MbrMinY(%1)), Max(MbrMaxX(%1)), Max(MbrMaxY(%1))"
+             ", Min(MbrMinX(%1)), Min(MbrMinY(%1)), Min(ST_MinZ(%1)), Max(MbrMaxX(%1)), Max(MbrMaxY(%1)), Max(ST_MaxZ(%1))"
            ).arg( QgsSqliteUtils::quotedIdentifier( mGeometryColumn ) );
   }
 
@@ -5875,9 +5888,21 @@ bool QgsSpatiaLiteProvider::getTableSummary()
     {
       const QString minX = results[columns + 1]; if ( minX.isEmpty() ) break;
       const QString minY = results[columns + 2]; if ( minY.isEmpty() ) break;
-      const QString maxX = results[columns + 3]; if ( maxX.isEmpty() ) break;
-      const QString maxY = results[columns + 4]; if ( maxY.isEmpty() ) break;
-      mLayerExtent.set( minX.toDouble(), minY.toDouble(), maxX.toDouble(), maxY.toDouble() );
+      const QString minZ = results[columns + 3];
+      const QString maxX = results[columns + 4]; if ( maxX.isEmpty() ) break;
+      const QString maxY = results[columns + 5]; if ( maxY.isEmpty() ) break;
+      const QString maxZ = results[columns + 6];
+
+      if ( nDims == GAIA_XY || nDims == GAIA_XY_M || minZ.isEmpty() || maxZ.isEmpty() )
+      {
+        mLayerExtent = QgsBox3D( minX.toDouble(), minY.toDouble(), std::numeric_limits<double>::quiet_NaN(),
+                                 maxX.toDouble(), maxY.toDouble(), std::numeric_limits<double>::quiet_NaN() );
+      }
+      else
+      {
+        mLayerExtent = QgsBox3D( minX.toDouble(), minY.toDouble(), minZ.toDouble(),
+                                 maxX.toDouble(), maxY.toDouble(), maxZ.toDouble() );
+      }
     }
     while ( 0 );
 

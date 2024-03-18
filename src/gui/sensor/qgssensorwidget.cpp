@@ -147,11 +147,50 @@ QgsSerialPortSensorWidget::QgsSerialPortSensorWidget( QWidget *parent )
     mSerialPortComboBox->addItem( QStringLiteral( "%1: %2" ).arg( info.portName(), info.description() ), info.portName() );
   }
 
+  mBaudRateComboBox->addItem( QStringLiteral( "1200 baud" ), static_cast<int>( QSerialPort::Baud1200 ) );
+  mBaudRateComboBox->addItem( QStringLiteral( "2400 baud" ), static_cast<int>( QSerialPort::Baud2400 ) );
+  mBaudRateComboBox->addItem( QStringLiteral( "4800 baud" ), static_cast<int>( QSerialPort::Baud4800 ) );
+  mBaudRateComboBox->addItem( QStringLiteral( "9600 baud" ), static_cast<int>( QSerialPort::Baud9600 ) );
+  mBaudRateComboBox->addItem( QStringLiteral( "19200 baud" ), static_cast<int>( QSerialPort::Baud19200 ) );
+  mBaudRateComboBox->addItem( QStringLiteral( "38400 baud" ), static_cast<int>( QSerialPort::Baud38400 ) );
+  mBaudRateComboBox->addItem( QStringLiteral( "57600 baud" ), static_cast<int>( QSerialPort::Baud57600 ) );
+  mBaudRateComboBox->addItem( QStringLiteral( "115200 baud" ), static_cast<int>( QSerialPort::Baud115200 ) );
+  mBaudRateComboBox->setCurrentIndex( 3 );
+
+  mDataFrameDelimiterComboBox->addItem( tr( "No Delimiter" ), QString() );
+  mDataFrameDelimiterComboBox->addItem( tr( "New Line" ), QString( "\n" ) );
+  mDataFrameDelimiterComboBox->addItem( tr( "Custom Character" ), QString() );
+
   updateSerialPortDetails();
 
-  connect( mSerialPortComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, [ = ]()
+  connect( mSerialPortComboBox, static_cast<void ( QComboBox::* )( const QString & )>( &QComboBox::currentTextChanged ), this, [ = ]()
   {
     updateSerialPortDetails();
+    emit changed();
+  } );
+
+  connect( mBaudRateComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, [ = ]()
+  {
+    updateSerialPortDetails();
+    emit changed();
+  } );
+
+  connect( mDataFrameDelimiterComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, [ = ]( int index )
+  {
+    if ( index == mDataFrameDelimiterComboBox->count() - 1 )
+    {
+      mDataFrameDelimiterLineEdit->setEnabled( true );
+      mDataFrameDelimiterLineEdit->setFocus();
+    }
+    else
+    {
+      mDataFrameDelimiterLineEdit->setEnabled( false );
+    }
+    emit changed();
+  } );
+
+  connect( mDataFrameDelimiterLineEdit, &QLineEdit::textEdited, this, [ = ]()
+  {
     emit changed();
   } );
 }
@@ -159,7 +198,10 @@ QgsSerialPortSensorWidget::QgsSerialPortSensorWidget( QWidget *parent )
 QgsAbstractSensor *QgsSerialPortSensorWidget::createSensor()
 {
   QgsSerialPortSensor *s = new QgsSerialPortSensor();
-  s->setPortName( mSerialPortComboBox->currentData().toString() );
+  s->setPortName( mSerialPortComboBox->findText( mSerialPortComboBox->currentText() ) != -1 ? mSerialPortComboBox->currentData().toString() : mSerialPortComboBox->currentText() );
+  s->setBaudRate( static_cast< QSerialPort::BaudRate >( mBaudRateComboBox->currentData().toInt() ) );
+  const QString delimiter = mDataFrameDelimiterComboBox->currentIndex() == mDataFrameDelimiterComboBox->count() - 1 ? mDataFrameDelimiterLineEdit->text() : mDataFrameDelimiterComboBox->currentData().toString();
+  s->setDelimiter( delimiter.toLocal8Bit() );
   return s;
 }
 
@@ -169,8 +211,10 @@ bool QgsSerialPortSensorWidget::updateSensor( QgsAbstractSensor *sensor )
   if ( !s )
     return false;
 
-  s->setPortName( mSerialPortComboBox->currentData().toString() );
-
+  s->setPortName( mSerialPortComboBox->findText( mSerialPortComboBox->currentText() ) != -1 ? mSerialPortComboBox->currentData().toString() : mSerialPortComboBox->currentText() );
+  s->setBaudRate( static_cast< QSerialPort::BaudRate >( mBaudRateComboBox->currentData().toInt() ) );
+  const QString delimiter = mDataFrameDelimiterComboBox->currentIndex() == mDataFrameDelimiterComboBox->count() - 1 ? mDataFrameDelimiterLineEdit->text() : mDataFrameDelimiterComboBox->currentData().toString();
+  s->setDelimiter( delimiter.toLocal8Bit() );
   return true;
 }
 
@@ -191,17 +235,47 @@ bool QgsSerialPortSensorWidget::setSensor( QgsAbstractSensor *sensor )
     mSerialPortComboBox->setCurrentIndex( mSerialPortComboBox->count() - 1 );
   }
 
+  const int baudRateIndex = mBaudRateComboBox->findData( s->baudRate() );
+  if ( index >= 0 )
+  {
+    mBaudRateComboBox->setCurrentIndex( baudRateIndex );
+  }
+  else
+  {
+    mBaudRateComboBox->setCurrentIndex( mBaudRateComboBox->count() - 1 );
+  }
+
+  const QString delimiter = QString( s->delimiter() );
+  if ( !delimiter.isEmpty() )
+  {
+    const int delimiterIndex = mDataFrameDelimiterComboBox->findData( delimiter );
+    if ( delimiterIndex > -1 )
+    {
+      mDataFrameDelimiterComboBox->setCurrentIndex( delimiterIndex );
+    }
+    else
+    {
+      mDataFrameDelimiterComboBox->setCurrentIndex( mDataFrameDelimiterComboBox->count() - 1 );
+      mDataFrameDelimiterLineEdit->setText( delimiter );
+    }
+  }
+  else
+  {
+    mDataFrameDelimiterComboBox->setCurrentIndex( 0 );
+    mDataFrameDelimiterLineEdit->setText( QString() );
+  }
+
   return true;
 }
 
 void QgsSerialPortSensorWidget::updateSerialPortDetails()
 {
-  if ( mSerialPortComboBox->currentIndex() < 0 )
+  if ( mSerialPortComboBox->currentText().isEmpty() )
   {
     return;
   }
 
-  const QString &currentPortName = mSerialPortComboBox->currentData().toString();
+  const QString &currentPortName = mSerialPortComboBox->findText( mSerialPortComboBox->currentText() ) != -1 ? mSerialPortComboBox->currentData().toString() : mSerialPortComboBox->currentText();
   bool serialPortFound = false;
   for ( const QSerialPortInfo &info : QSerialPortInfo::availablePorts() )
   {
@@ -221,6 +295,10 @@ void QgsSerialPortSensorWidget::updateSerialPortDetails()
   {
     mSerialPortDetails->setText( QStringLiteral( "%1:\n- %2: %3" ).arg( tr( "Serial port details" ),
                                  tr( "Port name" ), currentPortName ) );
+  }
+  else
+  {
+    mSerialPortDetails->setText( QString() );
   }
 }
 #endif

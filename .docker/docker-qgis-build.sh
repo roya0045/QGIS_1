@@ -35,15 +35,10 @@ pushd ${CTEST_BUILD_DIR} > /dev/null
 echo "${bold}Running cmake...${endbold}"
 echo "::group::cmake"
 
-if [[ -f "/usr/lib64/ccache/clang" ]]; then
-  export CC=/usr/lib64/ccache/clang
-  export CXX=/usr/lib64/ccache/clang++
-else
-  export CC=/usr/lib/ccache/clang
-  export CXX=/usr/lib/ccache/clang++
-fi
-
 BUILD_TYPE=Release
+
+export CC=/usr/bin/clang
+export CXX=/usr/bin/clang++
 
 if [[ "${WITH_CLAZY}" = "ON" ]]; then
   # In release mode, all variables in QgsDebugMsg would be considered unused
@@ -75,7 +70,7 @@ fi
 cmake \
  -GNinja \
  -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
- -DUSE_CCACHE=OFF \
+ -DUSE_CCACHE=ON \
  -DBUILD_WITH_QT6=${BUILD_WITH_QT6} \
  -DWITH_DESKTOP=ON \
  -DWITH_ANALYSIS=ON \
@@ -85,7 +80,7 @@ cmake \
  -DWITH_STAGED_PLUGINS=ON \
  -DWITH_GRASS7=${WITH_GRASS7} \
  -DWITH_GRASS8=${WITH_GRASS8} \
- -DWITH_GRASS_PLUGIN=${WITH_QT5} \
+ -DWITH_GRASS_PLUGIN=${WITH_GRASS8} \
  -DSUPPRESS_QT_WARNINGS=ON \
  -DENABLE_TESTS=ON \
  -DENABLE_MODELTEST=${WITH_QT5} \
@@ -101,14 +96,16 @@ cmake \
  -DWITH_QWTPOLAR=OFF \
  -DWITH_APIDOC=OFF \
  -DWITH_ASTYLE=OFF \
- -DWITH_BINDINGS=${WITH_QT5} \
+ -DWITH_BINDINGS=ON \
  -DWITH_SERVER=ON \
  -DWITH_SERVER_LANDINGPAGE_WEBAPP=${WITH_QT5} \
  -DWITH_ORACLE=ON \
  -DWITH_PDAL=ON \
  -DWITH_QTSERIALPORT=ON \
  -DWITH_QTWEBKIT=${WITH_QT5} \
+ -DWITH_QTWEBENGINE=${WITH_QTWEBENGINE} \
  -DWITH_OAUTH2_PLUGIN=${WITH_QT5} \
+ -DWITH_PDF4QT=${WITH_PDF4QT} \
  -DORACLE_INCLUDEDIR=/instantclient_19_9/sdk/include/ \
  -DORACLE_LIBDIR=/instantclient_19_9/ \
  -DDISABLE_DEPRECATED=ON \

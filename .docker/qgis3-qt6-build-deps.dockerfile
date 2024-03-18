@@ -1,6 +1,6 @@
-ARG DISTRO_VERSION=38
+ARG DISTRO_VERSION=39
 
-FROM fedora:${DISTRO_VERSION} as single
+FROM fedora:${DISTRO_VERSION} as binary-for-oracle
 MAINTAINER Matthias Kuhn <matthias@opengis.ch>
 
 RUN dnf -y --refresh install \
@@ -14,13 +14,19 @@ RUN dnf -y --refresh install \
     expat-devel \
     fcgi-devel \
     flex \
+    fontconfig-devel \
+    freetype-devel \
     git \
+    gdal \
     gdal-devel \
+    gdal-python-tools \
     geos-devel \
     gpsbabel \
     grass \
     grass-devel \
     gsl-devel \
+    lcms2-devel \
+    libjpeg-turbo-devel \
     libpq-devel \
     libspatialite-devel \
     libxml2-devel \
@@ -29,15 +35,26 @@ RUN dnf -y --refresh install \
     netcdf-devel \
     ninja-build \
     ocl-icd-devel \
+    openjpeg2-devel \
     PDAL \
     PDAL-libs \
     PDAL-devel \
+    perl-YAML-Tiny \
+    poppler-utils \
     proj-devel \
     protobuf-devel \
     protobuf-lite-devel \
     python3-devel \
+    python3-mock \
+    python3-OWSLib \
+    python3-pyqt6 \
+    python3-pyqt6-devel \
+    python3-qscintilla-qt6 \
+    python3-qscintilla-qt6-devel \
     python3-termcolor \
+    PyQt-builder \
     qca-qt6-devel \
+    qpdf \
     qt6-qt3d-devel \
     qt6-qtbase-devel \
     qt6-qtbase-private-devel \
@@ -49,9 +66,11 @@ RUN dnf -y --refresh install \
     qt6-qtdeclarative-devel \
     qt6-qt5compat-devel \
     qt6-qtmultimedia-devel \
+    qt6-qtwebengine-devel \
     qtkeychain-qt6-devel \
     qwt-qt6-devel \
     qscintilla-qt6-devel \
+    sip6 \
     spatialindex-devel \
     sqlite-devel \
     unzip \
@@ -82,3 +101,14 @@ RUN unzip instantclient-sqlplus-linux.x64-19.9.0.0.0dbru.zip
 
 ENV PATH="/instantclient_19_9:${PATH}"
 ENV LD_LIBRARY_PATH="/instantclient_19_9:${LD_LIBRARY_PATH}"
+ENV LANG=C.UTF-8
+
+FROM binary-for-oracle as binary-only
+
+RUN dnf -y install \
+    python3-gdal \
+    python3-nose2 \
+    python3-psycopg2 \
+    python3-pyyaml
+
+FROM binary-only

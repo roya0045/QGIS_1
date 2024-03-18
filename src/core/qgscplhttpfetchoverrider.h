@@ -21,16 +21,12 @@
 #include <QNetworkRequest>
 #include <QString>
 #include <QPointer>
-#include "qgsnetworkaccessmanager.h" // for QgsSetRequestInitiatorClass
 
+#include "qgis_core.h"
 #include "cpl_http.h"
 #include "gdal.h"
 
 class QgsFeedback;
-
-#ifndef SIP_RUN
-#define QgsSetCPLHTTPFetchOverriderInitiatorClass(overrider, _class) QgsSetRequestInitiatorClass((overrider), _class)
-#endif
 
 /**
  * \ingroup core
@@ -42,7 +38,7 @@ class QgsFeedback;
  * \note not available in Python bindings
  * \since QGIS 3.18
  */
-class QgsCPLHTTPFetchOverrider
+class CORE_EXPORT QgsCPLHTTPFetchOverrider
 {
   public:
     //! Installs the redirection for the current thread

@@ -886,7 +886,7 @@ void QgsRendererRulePropsWidget::testFilter()
   QApplication::setOverrideCursor( Qt::WaitCursor );
 
   QgsFeatureRequest req = QgsFeatureRequest().setNoAttributes()
-                          .setFlags( QgsFeatureRequest::NoGeometry )
+                          .setFlags( Qgis::FeatureRequestFlag::NoGeometry )
                           .setFilterExpression( editFilter->text() )
                           .setExpressionContext( context );
 

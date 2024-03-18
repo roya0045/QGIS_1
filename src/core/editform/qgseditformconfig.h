@@ -70,6 +70,8 @@ class CORE_EXPORT QgsEditFormConfig
       QList<QgsEditFormConfig::GroupData> mGroups;
     };
 
+    // *INDENT-OFF*
+
     /**
      * Data defined properties.
      * Form data defined overrides are stored in a property collection
@@ -77,18 +79,18 @@ class CORE_EXPORT QgsEditFormConfig
      * enum.
      * \since QGIS 3.14
      */
-    enum DataDefinedProperty
-    {
+    enum class DataDefinedProperty SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsEditFormConfig, DataDefinedProperty ) : int
+      {
       NoProperty = 0, //!< No property
       AllProperties = 1, //!< All properties for item
       Alias = 2, //!< Alias
       Editable = 3, //!< Editable state \since QGIS 3.30
     };
+    // *INDENT-ON*
 
     /**
      * Copy constructor
      *
-     * \since QGIS 3.0
      */
     QgsEditFormConfig( const QgsEditFormConfig &o );
     ~QgsEditFormConfig();

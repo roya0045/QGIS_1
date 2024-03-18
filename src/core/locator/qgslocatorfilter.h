@@ -33,7 +33,6 @@ class QgsLocatorFilter;
  * \class QgsLocatorResult
  * \ingroup core
  * \brief Encapsulates properties of an individual matching result found by a QgsLocatorFilter.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLocatorResult
 {
@@ -58,14 +57,14 @@ class CORE_EXPORT QgsLocatorResult
      *
      * \since QGIS 3.18
      */
-    QVariant getUserData() const;
+    QVariant userData() const SIP_PYNAME( _userData );
 
     /**
      * Set \a userData for the locator result
      *
      * \since QGIS 3.34
      */
-    void setUserData( QVariant userData );
+    void setUserData( const QVariant &userData );
 
     /**
      * Filter from which the result was obtained. This is automatically set.
@@ -137,10 +136,6 @@ class CORE_EXPORT QgsLocatorResult
       */
     QList<QgsLocatorResult::ResultAction> actions;
 
-#ifdef SIP_RUN
-    SIP_PROPERTY( name = userData, get = getUserData, set = setUserData )
-#endif
-
   private:
 
     /**
@@ -161,7 +156,6 @@ Q_DECLARE_METATYPE( QgsLocatorResult::ResultAction )
  *
  * \note If the configuration of the filter is changed outside of the main application settings,
  * one needs to invalidate current results of the locator widget: \see QgisInterface::invalidateLocatorResults
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLocatorFilter : public QObject
 {
@@ -181,7 +175,7 @@ class CORE_EXPORT QgsLocatorFilter : public QObject
     Q_ENUM( Priority )
 
     //! Flags for locator behavior.
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       FlagFast = 1 << 1, //!< Filter finds results quickly and can be safely run in the main thread
     };
@@ -336,7 +330,7 @@ class CORE_EXPORT QgsLocatorFilter : public QObject
     /**
      * Tests a \a candidate string to see how likely it is a match for
      * a specified \a search string.
-     * \since 3.14
+     * \since QGIS 3.14
      */
     static double fuzzyScore( const QString &candidate, const QString &search );
 

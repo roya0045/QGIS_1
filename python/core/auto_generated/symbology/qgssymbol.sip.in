@@ -98,9 +98,10 @@ Returns the default symbol type required for the specified geometry ``type``.
 .. versionadded:: 3.20
 %End
 
-    enum Property
+
+    enum class Property
     {
-      PropertyOpacity,
+      Opacity,
     };
 
     static const QgsPropertiesDefinition &propertyDefinitions();
@@ -134,8 +135,6 @@ Returns the list of symbol layers contained in the symbol.
 .. seealso:: :py:func:`symbolLayer`
 
 .. seealso:: :py:func:`symbolLayerCount`
-
-.. versionadded:: 2.7
 %End
 
 
@@ -148,8 +147,6 @@ Returns the symbol layer at the specified index.
 .. seealso:: :py:func:`symbolLayers`
 
 .. seealso:: :py:func:`symbolLayerCount`
-
-.. versionadded:: 2.7
 %End
 %MethodCode
     const int count = sipCpp->symbolLayerCount();
@@ -173,8 +170,6 @@ Returns the total number of symbol layers contained in the symbol.
 .. seealso:: :py:func:`symbolLayers`
 
 .. seealso:: :py:func:`symbolLayer`
-
-.. versionadded:: 2.7
 %End
 
 
@@ -352,8 +347,6 @@ matches the settings from that context.
 .. seealso:: :py:func:`exportImage`
 
 .. seealso:: :py:func:`asImage`
-
-.. versionadded:: 2.6
 %End
 
     void exportImage( const QString &path, const QString &format, QSize size );
@@ -530,8 +523,6 @@ side effects for certain symbol types.
 :param clipFeaturesToExtent: set to ``True`` to enable clipping (defaults to ``True``)
 
 .. seealso:: :py:func:`clipFeaturesToExtent`
-
-.. versionadded:: 2.9
 %End
 
     bool clipFeaturesToExtent() const;
@@ -544,8 +535,6 @@ side effects for certain symbol types.
 :return: ``True`` if features will be clipped
 
 .. seealso:: :py:func:`setClipFeaturesToExtent`
-
-.. versionadded:: 2.9
 %End
 
     void setForceRHR( bool force );
@@ -638,8 +627,6 @@ Sets the symbol's property collection, used for data defined overrides.
     bool hasDataDefinedProperties() const;
 %Docstring
 Returns whether the symbol utilizes any data defined properties.
-
-.. versionadded:: 2.12
 %End
 
     bool canCauseArtifactsBetweenAdjacentTiles() const;
@@ -763,8 +750,6 @@ geometry type, points and rings in which are being rendered by the parent symbol
     void renderVertexMarker( QPointF pt, QgsRenderContext &context, Qgis::VertexMarkerType currentVertexMarkerType, double currentVertexMarkerSize );
 %Docstring
 Render editing vertex marker at specified point
-
-.. versionadded:: 2.16
 %End
 
 

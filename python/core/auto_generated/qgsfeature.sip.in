@@ -206,8 +206,6 @@ its attributes:
 .. seealso:: :py:func:`setAttributes`
 
 .. seealso:: :py:func:`attributeMap`
-
-.. versionadded:: 2.9
 %End
 
 
@@ -244,7 +242,8 @@ Returns the feature's attributes as a map of field name to value.
     else
     {
       QVariantMap *v = new QVariantMap( sipCpp->attributeMap() );
-      sipRes = sipConvertFromNewType( v, sipType_QVariantMap, Py_None );
+      const sipTypeDef *qvariantmap_type = sipFindType( "QMap<QString,QVariant>" );
+      sipRes = sipConvertFromNewType( v, qvariantmap_type, Py_None );
     }
 %End
 
@@ -426,8 +425,6 @@ Sets the validity of the feature.
 Returns ``True`` if the feature has an associated geometry.
 
 .. seealso:: :py:func:`geometry`
-
-.. versionadded:: 3.0.
 %End
 
     QgsGeometry geometry() const;
@@ -501,8 +498,6 @@ Removes any geometry associated with the feature.
 .. seealso:: :py:func:`setGeometry`
 
 .. seealso:: :py:func:`hasGeometry`
-
-.. versionadded:: 3.0
 %End
 
     void setFields( const QgsFields &fields, bool initAttributes = true  );
@@ -513,8 +508,6 @@ Assigns a field map with the feature to allow attribute access by attribute name
 :param initAttributes: If ``True``, attributes are initialized. Clears any data previously assigned.
 
 .. seealso:: :py:func:`fields`
-
-.. versionadded:: 2.9
 %End
 
     QgsFields fields() const;

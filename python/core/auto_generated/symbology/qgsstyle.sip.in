@@ -117,6 +117,17 @@ Sets the ``name`` of the style.
 .. versionadded:: 3.26
 %End
 
+    bool isInitialized() const;
+%Docstring
+Returns ``True`` if the style is initialized and ready for use.
+
+Most instances of QgsStyle will already be initialized. However, if the
+style is the :py:func:`QgsStyle.defaultStyle()` object it may have been created using
+lazy initialization and will return ``False`` until it is :py:func:`~QgsStyle.initialized`.
+
+.. versionadded:: 3.36
+%End
+
     bool isReadOnly() const;
 %Docstring
 Returns ``True`` if the style is considered a read-only library.
@@ -280,8 +291,6 @@ Adds a new smartgroup to the database and returns the id.
 Returns a list of all tags in the style database
 
 .. seealso:: :py:func:`addTag`
-
-.. versionadded:: 2.16
 %End
 
     void clear();
@@ -428,9 +437,14 @@ Returns 0 if the label settings were not found.
 .. versionadded:: 3.10
 %End
 
-    static QgsStyle *defaultStyle();
+    static QgsStyle *defaultStyle( bool initialize = true );
 %Docstring
-Returns default application-wide style
+Returns the default application-wide style.
+
+Since QGIS 3.36, the ``initialize`` argument can be set to ``False`` to temporarily
+defer the actual loading of the style's objects until they are first requested.
+This lazy-initialization can substantially improve application startup times,
+especially for standalone applications which do not utilize styles.
 %End
 
 
@@ -805,8 +819,6 @@ This function creates a new on-disk permanent style database.
 :return: returns the success state of the database creation
 
 .. seealso:: :py:func:`createMemoryDatabase`
-
-.. versionadded:: 3.0
 %End
 
     bool createMemoryDatabase();
@@ -818,8 +830,6 @@ This function is used to create a temporary style database in case a permanent o
 :return: returns the success state of the temporary memory database creation
 
 .. seealso:: :py:func:`createDatabase`
-
-.. versionadded:: 3.0
 %End
 
     void createTables();
@@ -831,8 +841,6 @@ This function is used to create the tables structure in a newly-created database
 .. seealso:: :py:func:`createDatabase`
 
 .. seealso:: :py:func:`createMemoryDatabase`
-
-.. versionadded:: 3.0
 %End
 
     bool load( const QString &filename );
@@ -993,6 +1001,16 @@ large xml files.
 
   signals:
 
+    void initialized();
+%Docstring
+Emitted when the style database has been fully initialized.
+
+This signals is only emitted by the :py:func:`QgsStyle.defaultStyle()` instance,
+and only when the :py:func:`~QgsStyle.defaultStyle` has been lazily initialized.
+
+.. versionadded:: 3.36
+%End
+
     void aboutToBeDestroyed();
 %Docstring
 Emitted just before the style object is destroyed.
@@ -1139,7 +1157,6 @@ name or tag changes.
 
 .. versionadded:: 3.4
 %End
-
 
     void textFormatRenamed( const QString &oldName, const QString &newName );
 %Docstring

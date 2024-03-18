@@ -20,6 +20,7 @@ The content of this file is based on
  ***************************************************************************/
 """
 
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QFileInfo
 from qgis.PyQt.QtWidgets import QDialog, QFileDialog, QMessageBox, QApplication
 from qgis.PyQt.QtGui import QCursor
@@ -31,7 +32,9 @@ from qgis.core import (QgsVectorFileWriter,
                        QgsSettings)
 from qgis.utils import OverrideCursor
 
-from .ui.ui_DlgExportVector import Ui_DbManagerDlgExportVector as Ui_Dialog
+from .gui_utils import GuiUtils
+
+Ui_Dialog, _ = uic.loadUiType(GuiUtils.get_ui_file_path('DlgExportVector.ui'))
 
 
 class DlgExportVector(QDialog, Ui_Dialog):
@@ -143,7 +146,7 @@ class DlgExportVector(QDialog, Ui_Dialog):
                                         self.tr("Invalid target srid: must be an integer"))
                 return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             # store current input layer crs, so I can restore it later
             prevInCrs = self.inLayer.crs()
             try:

@@ -124,14 +124,20 @@ class GUI_EXPORT QgsCategorizedSymbolRendererWidget : public QgsRendererWidget, 
     Q_OBJECT
   public:
 
+    // *INDENT-OFF*
+
     /**
-     * CustomRoles enum represent custom roles for the widget.
-     * \since QGIS 3.22.1
+     * Custom model roles.
+     *
+     * \note Prior to QGIS 3.36 this was available as QgsCategorizedSymbolRendererWidget::CustomRoles
+     * \since QGIS 3.36
      */
-    enum CustomRoles
+    enum class CustomRole SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsCategorizedSymbolRendererWidget, CustomRoles ) : int
     {
-      ValueRole = Qt::UserRole + 1 //!< Category value
+      Value SIP_MONKEYPATCH_COMPAT_NAME(ValueRole) = Qt::UserRole + 1 //!< Category value
     };
+    Q_ENUM( CustomRole )
+    // *INDENT-ON*
 
     static QgsRendererWidget *create( QgsVectorLayer *layer, QgsStyle *style, QgsFeatureRenderer *renderer ) SIP_FACTORY;
 
@@ -149,7 +155,6 @@ class GUI_EXPORT QgsCategorizedSymbolRendererWidget : public QgsRendererWidget, 
      * \returns number of symbols matched
      * \see matchToSymbolsFromLibrary
      * \see matchToSymbolsFromXml
-     * \since QGIS 2.9
      */
     int matchToSymbols( QgsStyle *style );
 
@@ -177,7 +182,6 @@ class GUI_EXPORT QgsCategorizedSymbolRendererWidget : public QgsRendererWidget, 
      * matching name.
      * \see matchToSymbolsFromXml
      * \see matchToSymbols
-     * \since QGIS 2.9
      */
     void matchToSymbolsFromLibrary();
 
@@ -186,7 +190,6 @@ class GUI_EXPORT QgsCategorizedSymbolRendererWidget : public QgsRendererWidget, 
      * from the XML file with a matching name.
      * \see matchToSymbolsFromLibrary
      * \see matchToSymbols
-     * \since QGIS 2.9
      */
     void matchToSymbolsFromXml();
 

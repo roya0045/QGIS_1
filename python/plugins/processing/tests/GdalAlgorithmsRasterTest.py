@@ -35,7 +35,8 @@ from qgis.core import (QgsProcessingContext,
                        QgsPointXY,
                        QgsCoordinateReferenceSystem)
 
-from qgis.testing import (start_app,
+from qgis.testing import (QgisTestCase,
+                          start_app,
                           unittest)
 
 import AlgorithmsTestBase
@@ -83,7 +84,7 @@ from processing.algs.gdal.rgb2pct import rgb2pct
 testDataPath = os.path.join(os.path.dirname(__file__), 'testdata')
 
 
-class TestGdalRasterAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsTest):
+class TestGdalRasterAlgorithms(QgisTestCase, AlgorithmsTestBase.AlgorithmsTest):
 
     @classmethod
     def setUpClass(cls):
@@ -97,14 +98,14 @@ class TestGdalRasterAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsT
         for path in cls.cleanup_paths:
             shutil.rmtree(path)
 
-    def test_definition_file(self):
+    def definition_file(self):
         return 'gdal_algorithm_raster_tests.yaml'
 
     @staticmethod
     def get_param_value_and_expected_string_for_custom_crs(proj_def):
         crs = QgsCoordinateReferenceSystem.fromProj(proj_def)
         custom_crs = f'proj4: {proj_def}'
-        return custom_crs, crs.toWkt(QgsCoordinateReferenceSystem.WKT_PREFERRED_GDAL).replace('"', '"""')
+        return custom_crs, crs.toWkt(QgsCoordinateReferenceSystem.WktVariant.WKT_PREFERRED_GDAL).replace('"', '"""')
 
     def testAssignProjection(self):
         context = QgsProcessingContext()
@@ -2304,7 +2305,9 @@ class TestGdalRasterAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsT
                 ['gdal_fillnodata.py',
                  f'{source} {outsource} -md 10 -b 1 -of GTiff'])
 
-            # nomask true
+            # The -nomask option is no longer supported since GDAL 3.4 and
+            # it doesn't work as expected even using GDAL < 3.4 https://github.com/OSGeo/gdal/pull/4201
+            # Silently ignore the NO_MASK parameter
             self.assertEqual(
                 alg.getConsoleCommands({'INPUT': source,
                                         'BAND': 1,
@@ -2313,7 +2316,7 @@ class TestGdalRasterAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsT
                                         'NO_MASK': True,
                                         'OUTPUT': outsource}, context, feedback),
                 ['gdal_fillnodata.py',
-                 f'{source} {outsource} -md 10 -b 1 -nomask -of GTiff'])
+                 f'{source} {outsource} -md 10 -b 1 -of GTiff'])
 
             # creation options
             self.assertEqual(

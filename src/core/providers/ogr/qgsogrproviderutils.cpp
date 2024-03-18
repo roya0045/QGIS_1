@@ -28,6 +28,7 @@ email                : nyall dot dawson at gmail dot com
 #include "qgsfileutils.h"
 #include "qgsvariantutils.h"
 #include "qgssettings.h"
+#include "qgssqlstatement.h"
 
 #include <ogr_srs_api.h>
 #include <cpl_port.h>
@@ -216,7 +217,7 @@ QString createFilters( const QString &type )
     // Grind through all the drivers and their respective metadata.
     // We'll add a file filter for those drivers that have a file
     // extension defined for them; the others, welll, even though
-    // theoreticaly we can open those files because there exists a
+    // theoretically we can open those files because there exists a
     // driver for them, the user will have to use the "All Files" to
     // open datasets with no explicitly defined file name extension.
     QgsDebugMsgLevel( QStringLiteral( "Driver count: %1" ).arg( OGRGetDriverCount() ), 3 );
@@ -583,11 +584,7 @@ QString createFilters( const QString &type )
         QString myGdalDriverLongName = GDALGetMetadataItem( driver, GDAL_DMD_LONGNAME, "" );
         if ( !( myGdalDriverExtensions.isEmpty() || myGdalDriverLongName.isEmpty() ) )
         {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-          const QStringList splitExtensions = myGdalDriverExtensions.split( ' ', QString::SkipEmptyParts );
-#else
           const QStringList splitExtensions = myGdalDriverExtensions.split( ' ', Qt::SkipEmptyParts );
-#endif
           QString glob;
 
           for ( const QString &ext : splitExtensions )
@@ -621,11 +618,7 @@ QString createFilters( const QString &type )
 
     // sort file filters alphabetically
     QgsDebugMsgLevel( "myFileFilters: " + sFileFilters, 2 );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    QStringList filters = sFileFilters.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
     QStringList filters = sFileFilters.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
     filters.sort();
     sFileFilters = filters.join( QLatin1String( ";;" ) ) + ";;";
     QgsDebugMsgLevel( "myFileFilters: " + sFileFilters, 2 );
@@ -725,6 +718,23 @@ QStringList QgsOgrProviderUtils::directoryExtensions()
 QStringList QgsOgrProviderUtils::wildcards()
 {
   return createFilters( QStringLiteral( "wildcards" ) ).split( '|' );
+}
+
+QStringList QgsOgrProviderUtils::tableNamesFromSelectSQL( const QString &sql )
+{
+  QStringList tableNames;
+  const QgsSQLStatement statement { sql };
+  const QgsSQLStatement::NodeSelect *nodeSelect { dynamic_cast<const QgsSQLStatement::NodeSelect *>( statement.rootNode() ) };
+  if ( nodeSelect )
+  {
+    const QList<QgsSQLStatement::NodeTableDef *> tables { nodeSelect->tables() };
+    for ( auto table : std::as_const( tables ) )
+    {
+      tableNames.push_back( table->name() );
+    }
+  }
+
+  return tableNames;
 }
 
 bool QgsOgrProviderUtils::createEmptyDataSource( const QString &uri,
@@ -3108,11 +3118,151 @@ GIntBig QgsOgrLayer::GetTotalFeatureCountFromMetaData() const
   return -1;
 }
 
+OGRErr QgsOgrLayer::isSpatialiteEnabled()
+{
+  OGRErr err = OGRERR_NONE;
+  // if sqlite, check if we support spatialite
+  QString driverName = GDALGetDriverShortName( GDALGetDatasetDriver( ds->hDS ) );
+  if ( driverName == QLatin1String( "SQLite" ) )
+  {
+    CPLPushErrorHandler( CPLQuietErrorHandler );
+    QgsOgrLayerUniquePtr l = ExecuteSQL( "select * from sqlite_master where type='table' and name='spatialite_history'" );
+    CPLPopErrorHandler();
+    if ( l )
+    {
+      gdal::ogr_feature_unique_ptr f( l->GetNextFeature() );
+      if ( f )
+      {
+        QgsDebugMsgLevel( QStringLiteral( "Sqlite layer has spatialite extension!" ), 3 );
+      }
+      else
+      {
+        QgsDebugMsgLevel( QStringLiteral( "Sqlite layer does NOT have spatialite extension!" ), 3 );
+        err = OGRERR_UNSUPPORTED_OPERATION;
+      }
+    }
+    else
+    {
+      QgsDebugMsgLevel( QStringLiteral( "Unable to read sqlite_master from Sqlite layer!" ), 3 );
+      err = OGRERR_UNSUPPORTED_OPERATION;
+    }
+  }
+  else
+  {
+    // not a sqlite layer
+    err = OGRERR_NONE;
+  }
+  return err;
+}
+
 OGRErr QgsOgrLayer::GetExtent( OGREnvelope *psExtent, bool bForce )
 {
   QMutexLocker locker( &ds->mutex );
   return OGR_L_GetExtent( hLayer, psExtent, bForce );
 }
+
+OGRErr QgsOgrLayer::GetExtent3D( OGREnvelope3D *psExtent3D, bool bForce )
+{
+  QMutexLocker locker( &ds->mutex );
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,9,0)
+  return OGR_L_GetExtent3D( hLayer, /* iGeomField = */ 0, psExtent3D, bForce );
+#else
+
+  QString driverName = GDALGetDriverShortName( GDALGetDatasetDriver( ds->hDS ) );
+  OGRErr err = OGRERR_UNSUPPORTED_OPERATION;
+  const char *geomCol = OGR_L_GetGeometryColumn( hLayer );
+  if ( geomCol != NULL && strlen( geomCol ) > 0 )
+  {
+    QgsDebugMsgLevel( QStringLiteral( "WITH geomCol: %1" ).arg( geomCol ), 3 );
+
+    psExtent3D->MinZ = std::numeric_limits<double>::quiet_NaN();
+    psExtent3D->MaxZ = std::numeric_limits<double>::quiet_NaN();
+
+    err = OGR_L_GetExtent( hLayer, psExtent3D, bForce );
+    if ( err == OGRERR_NONE )
+      err = isSpatialiteEnabled();
+
+    if ( err == OGRERR_NONE )
+    {
+      // try to retrieve minZ/maxZ
+      err = OGRERR_UNSUPPORTED_OPERATION;
+      ResetReading();
+      QByteArray geomColQuoted = QgsOgrProviderUtils::quotedIdentifier( geomCol, driverName );
+      QByteArray sql = "SELECT MIN(ST_MinZ("
+                       + geomColQuoted
+                       + ")), MAX(ST_MaxZ("
+                       + geomColQuoted
+                       + ")) FROM "
+                       + QgsOgrProviderUtils::quotedIdentifier( name(), driverName );
+      QgsDebugMsgLevel( QStringLiteral( "sql: %1" ).arg( sql.toStdString().c_str() ), 3 );
+
+      CPLPushErrorHandler( CPLQuietErrorHandler );
+      QgsOgrLayerUniquePtr l = ExecuteSQL( sql );
+      CPLPopErrorHandler();
+      if ( l )
+      {
+        gdal::ogr_feature_unique_ptr f( l->GetNextFeature() );
+        if ( f )
+        {
+          psExtent3D->MinZ = OGR_F_GetFieldAsDouble( f.get(), 0 );
+          psExtent3D->MaxZ = OGR_F_GetFieldAsDouble( f.get(), 1 );
+          QgsDebugMsgLevel( QStringLiteral( "done with Z! %1/%2" ).arg( psExtent3D->MinZ ).arg( psExtent3D->MaxZ ), 3 );
+          err = OGRERR_NONE;
+        }
+        ResetReading();
+      }
+    }
+  }
+
+  if ( err != OGRERR_NONE )
+  {
+    // previous attempts failed, try slow version
+    QgsDebugMsgLevel( QStringLiteral( "Will computeExtent3DSlowly!" ), 3 );
+    err = computeExtent3DSlowly( psExtent3D );
+  }
+
+  return err;
+#endif
+}
+
+OGRErr QgsOgrLayer::computeExtent3DSlowly( OGREnvelope3D *extent )
+{
+  OGRErr err = OGRERR_NONE;
+  gdal::ogr_feature_unique_ptr f;
+
+  extent->MinX = std::numeric_limits<double>::quiet_NaN();
+  extent->MaxX = std::numeric_limits<double>::quiet_NaN();
+  extent->MinY = std::numeric_limits<double>::quiet_NaN();
+  extent->MaxY = std::numeric_limits<double>::quiet_NaN();
+  extent->MinZ = std::numeric_limits<double>::quiet_NaN();
+  extent->MaxZ = std::numeric_limits<double>::quiet_NaN();
+
+  ResetReading();
+  while ( f.reset( GetNextFeature() ), ( err == OGRERR_NONE && f ) )
+  {
+    OGRGeometryH g = OGR_F_GetGeometryRef( f.get() );
+    if ( g && !OGR_G_IsEmpty( g ) )
+    {
+      OGREnvelope3D env;
+      OGR_G_GetEnvelope3D( g, &env );
+
+      extent->MinX = std::isnan( extent->MinX ) ? env.MinX : std::min( extent->MinX, env.MinX );
+      extent->MinY = std::isnan( extent->MinY ) ? env.MinY : std::min( extent->MinY, env.MinY );
+      extent->MaxX = std::isnan( extent->MaxX ) ? env.MaxX : std::max( extent->MaxX, env.MaxX );
+      extent->MaxY = std::isnan( extent->MaxY ) ? env.MaxY : std::max( extent->MaxY, env.MaxY );
+      if ( OGR_G_Is3D( g ) )
+      {
+        extent->MinZ = std::isnan( extent->MinZ ) ? env.MinZ : std::min( extent->MinZ, env.MinZ );
+        extent->MaxZ = std::isnan( extent->MaxZ ) ? env.MaxZ : std::max( extent->MaxZ, env.MaxZ );
+      }
+    }
+    else
+      err = OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
+  }
+  ResetReading();
+  return err;
+}
+
 
 OGRGeometryH QgsOgrLayer::GetSpatialFilter()
 {

@@ -294,38 +294,90 @@ QgsMapLayer *QgsProcessingUtils::loadMapLayerFromString( const QString &string, 
     uri = string;
 
   QString name;
-  // for disk based sources, we use the filename to determine a layer name
-  if ( !useProvider || ( provider == QLatin1String( "ogr" ) || provider == QLatin1String( "gdal" ) || provider == QLatin1String( "mdal" ) || provider == QLatin1String( "pdal" ) || provider == QLatin1String( "ept" ) || provider == QLatin1String( "copc" ) ) )
-  {
-    QStringList components = uri.split( '|' );
-    if ( components.isEmpty() )
-      return nullptr;
 
-    QFileInfo fi;
-    if ( QFileInfo::exists( uri ) )
-      fi = QFileInfo( uri );
-    else if ( QFileInfo::exists( components.at( 0 ) ) )
-      fi = QFileInfo( components.at( 0 ) );
-    else
-      return nullptr;
-    name = fi.baseName();
+  const QgsProviderMetadata *providerMetadata = useProvider ? QgsProviderRegistry::instance()->providerMetadata( provider ) : nullptr;
+  if ( providerMetadata )
+  {
+    // use the uri parts to determine a suitable layer name
+    const QVariantMap parts = providerMetadata->decodeUri( uri );
+    const QString layerName = parts.value( QStringLiteral( "layerName" ) ).toString();
+
+    if ( !layerName.isEmpty() )
+    {
+      name = layerName;
+    }
+    else if ( const QString path = parts.value( QStringLiteral( "path" ) ).toString(); !path.isEmpty() )
+    {
+      name = QFileInfo( path ).baseName();
+    }
   }
   else
   {
+    const QStringList components = uri.split( '|' );
+    if ( components.isEmpty() )
+      return nullptr;
+
+    if ( QFileInfo fi( components.at( 0 ) ); fi.isFile() )
+      name = fi.baseName();
+    else
+      name = QFileInfo( uri ).baseName();
+  }
+
+  if ( name.isEmpty() )
+  {
     name = QgsDataSourceUri( uri ).table();
+  }
+  if ( name.isEmpty() )
+  {
+    name = uri;
+  }
+
+  QList< Qgis::LayerType > candidateTypes;
+  switch ( typeHint )
+  {
+    case LayerHint::UnknownType:
+    {
+      if ( providerMetadata )
+      {
+        // refine the type hint based on what the provider supports
+        candidateTypes = providerMetadata->supportedLayerTypes();
+      }
+      break;
+    }
+    case LayerHint::Vector:
+      candidateTypes.append( Qgis::LayerType::Vector );
+      break;
+    case LayerHint::Raster:
+      candidateTypes.append( Qgis::LayerType::Raster );
+      break;
+    case LayerHint::Mesh:
+      candidateTypes.append( Qgis::LayerType::Mesh );
+      break;
+    case LayerHint::PointCloud:
+      candidateTypes.append( Qgis::LayerType::PointCloud );
+      break;
+    case LayerHint::Annotation:
+      candidateTypes.append( Qgis::LayerType::Annotation );
+      break;
+    case LayerHint::VectorTile:
+      candidateTypes.append( Qgis::LayerType::VectorTile );
+      break;
+    case LayerHint::TiledScene:
+      candidateTypes.append( Qgis::LayerType::TiledScene );
+      break;
   }
 
   // brute force attempt to load a matching layer
-  if ( typeHint == LayerHint::UnknownType || typeHint == LayerHint::Vector )
+  if ( candidateTypes.empty() || candidateTypes.contains( Qgis::LayerType::Vector ) )
   {
     QgsVectorLayer::LayerOptions options { transformContext };
     options.loadDefaultStyle = false;
     options.skipCrsValidation = true;
 
     std::unique_ptr< QgsVectorLayer > layer;
-    if ( useProvider )
+    if ( providerMetadata )
     {
-      layer = std::make_unique<QgsVectorLayer>( uri, name, provider, options );
+      layer = std::make_unique<QgsVectorLayer>( uri, name, providerMetadata->key(), options );
     }
     else
     {
@@ -337,16 +389,16 @@ QgsMapLayer *QgsProcessingUtils::loadMapLayerFromString( const QString &string, 
       return layer.release();
     }
   }
-  if ( typeHint == LayerHint::UnknownType || typeHint == LayerHint::Raster )
+  if ( candidateTypes.empty() || candidateTypes.contains( Qgis::LayerType::Raster ) )
   {
     QgsRasterLayer::LayerOptions rasterOptions;
     rasterOptions.loadDefaultStyle = false;
     rasterOptions.skipCrsValidation = true;
 
     std::unique_ptr< QgsRasterLayer > rasterLayer;
-    if ( useProvider )
+    if ( providerMetadata )
     {
-      rasterLayer = std::make_unique< QgsRasterLayer >( uri, name, provider, rasterOptions );
+      rasterLayer = std::make_unique< QgsRasterLayer >( uri, name, providerMetadata->key(), rasterOptions );
     }
     else
     {
@@ -359,15 +411,15 @@ QgsMapLayer *QgsProcessingUtils::loadMapLayerFromString( const QString &string, 
       return rasterLayer.release();
     }
   }
-  if ( typeHint == LayerHint::UnknownType || typeHint == LayerHint::Mesh )
+  if ( candidateTypes.empty() || candidateTypes.contains( Qgis::LayerType::Mesh ) )
   {
     QgsMeshLayer::LayerOptions meshOptions;
     meshOptions.skipCrsValidation = true;
 
     std::unique_ptr< QgsMeshLayer > meshLayer;
-    if ( useProvider )
+    if ( providerMetadata )
     {
-      meshLayer = std::make_unique< QgsMeshLayer >( uri, name, provider, meshOptions );
+      meshLayer = std::make_unique< QgsMeshLayer >( uri, name, providerMetadata->key(), meshOptions );
     }
     else
     {
@@ -378,7 +430,7 @@ QgsMapLayer *QgsProcessingUtils::loadMapLayerFromString( const QString &string, 
       return meshLayer.release();
     }
   }
-  if ( typeHint == LayerHint::UnknownType || typeHint == LayerHint::PointCloud )
+  if ( candidateTypes.empty() || candidateTypes.contains( Qgis::LayerType::PointCloud ) )
   {
     QgsPointCloudLayer::LayerOptions pointCloudOptions;
     pointCloudOptions.skipCrsValidation = true;
@@ -389,9 +441,9 @@ QgsMapLayer *QgsProcessingUtils::loadMapLayerFromString( const QString &string, 
     }
 
     std::unique_ptr< QgsPointCloudLayer > pointCloudLayer;
-    if ( useProvider )
+    if ( providerMetadata )
     {
-      pointCloudLayer = std::make_unique< QgsPointCloudLayer >( uri, name, provider, pointCloudOptions );
+      pointCloudLayer = std::make_unique< QgsPointCloudLayer >( uri, name, providerMetadata->key(), pointCloudOptions );
     }
     else
     {
@@ -400,13 +452,24 @@ QgsMapLayer *QgsProcessingUtils::loadMapLayerFromString( const QString &string, 
       {
         pointCloudLayer = std::make_unique< QgsPointCloudLayer >( uri, name, preferredProviders.at( 0 ).metadata()->key(), pointCloudOptions );
       }
+      else
+      {
+        // pdal provider can read ascii files but it is not exposed by the provider to
+        // prevent automatic loading of tabular ascii files.
+        // Try to open the file with pdal provider.
+        QgsProviderMetadata *pdalProvider = QgsProviderRegistry::instance()->providerMetadata( QStringLiteral( "pdal" ) );
+        if ( pdalProvider )
+        {
+          pointCloudLayer = std::make_unique< QgsPointCloudLayer >( uri, name, QStringLiteral( "pdal" ), pointCloudOptions );
+        }
+      }
     }
     if ( pointCloudLayer && pointCloudLayer->isValid() )
     {
       return pointCloudLayer.release();
     }
   }
-  if ( typeHint == LayerHint::UnknownType || typeHint == LayerHint::VectorTile )
+  if ( candidateTypes.empty() || candidateTypes.contains( Qgis::LayerType::VectorTile ) )
   {
     QgsDataSourceUri dsUri;
     dsUri.setParam( "type", "mbtiles" );
@@ -420,15 +483,15 @@ QgsMapLayer *QgsProcessingUtils::loadMapLayerFromString( const QString &string, 
       return tileLayer.release();
     }
   }
-  if ( typeHint == LayerHint::UnknownType || typeHint == LayerHint::TiledScene )
+  if ( candidateTypes.empty() || candidateTypes.contains( Qgis::LayerType::TiledScene ) )
   {
     QgsTiledSceneLayer::LayerOptions tiledSceneOptions;
     tiledSceneOptions.skipCrsValidation = true;
 
     std::unique_ptr< QgsTiledSceneLayer > tiledSceneLayer;
-    if ( useProvider )
+    if ( providerMetadata )
     {
-      tiledSceneLayer = std::make_unique< QgsTiledSceneLayer >( uri, name, provider, tiledSceneOptions );
+      tiledSceneLayer = std::make_unique< QgsTiledSceneLayer >( uri, name, providerMetadata->key(), tiledSceneOptions );
     }
     else
     {
@@ -489,7 +552,7 @@ QgsProcessingFeatureSource *QgsProcessingUtils::variantToSource( const QVariant 
   long long featureLimit = -1;
   QString filterExpression;
   bool overrideGeometryCheck = false;
-  QgsFeatureRequest::InvalidGeometryCheck geometryCheck = QgsFeatureRequest::GeometryAbortOnInvalid;
+  Qgis::InvalidGeometryCheck geometryCheck = Qgis::InvalidGeometryCheck::AbortOnInvalid;
   if ( val.userType() == QMetaType::type( "QgsProcessingFeatureSourceDefinition" ) )
   {
     // input is a QgsProcessingFeatureSourceDefinition - get extra properties from it
@@ -498,7 +561,7 @@ QgsProcessingFeatureSource *QgsProcessingUtils::variantToSource( const QVariant 
     featureLimit = fromVar.featureLimit;
     filterExpression = fromVar.filterExpression;
     val = fromVar.source;
-    overrideGeometryCheck = fromVar.flags & QgsProcessingFeatureSourceDefinition::Flag::FlagOverrideDefaultGeometryCheck;
+    overrideGeometryCheck = fromVar.flags & Qgis::ProcessingFeatureSourceDefinitionFlag::OverrideDefaultGeometryCheck;
     geometryCheck = fromVar.geometryCheck;
   }
   else if ( val.userType() == QMetaType::type( "QgsProcessingOutputLayerDefinition" ) )
@@ -661,11 +724,11 @@ bool QgsProcessingUtils::canUseLayer( const QgsVectorLayer *layer, const QList<i
 {
   return layer && layer->isValid() &&
          ( sourceTypes.isEmpty()
-           || ( sourceTypes.contains( QgsProcessing::TypeVectorPoint ) && layer->geometryType() == Qgis::GeometryType::Point )
-           || ( sourceTypes.contains( QgsProcessing::TypeVectorLine ) && layer->geometryType() == Qgis::GeometryType::Line )
-           || ( sourceTypes.contains( QgsProcessing::TypeVectorPolygon ) && layer->geometryType() == Qgis::GeometryType::Polygon )
-           || ( sourceTypes.contains( QgsProcessing::TypeVectorAnyGeometry ) && layer->isSpatial() )
-           || sourceTypes.contains( QgsProcessing::TypeVector )
+           || ( sourceTypes.contains( static_cast< int >( Qgis::ProcessingSourceType::VectorPoint ) ) && layer->geometryType() == Qgis::GeometryType::Point )
+           || ( sourceTypes.contains( static_cast< int >( Qgis::ProcessingSourceType::VectorLine ) ) && layer->geometryType() == Qgis::GeometryType::Line )
+           || ( sourceTypes.contains( static_cast< int >( Qgis::ProcessingSourceType::VectorPolygon ) ) && layer->geometryType() == Qgis::GeometryType::Polygon )
+           || ( sourceTypes.contains( static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) && layer->isSpatial() )
+           || sourceTypes.contains( static_cast< int >( Qgis::ProcessingSourceType::Vector ) )
          );
 }
 
@@ -674,6 +737,27 @@ QString QgsProcessingUtils::normalizeLayerSource( const QString &source )
   QString normalized = source;
   normalized.replace( '\\', '/' );
   return normalized.trimmed();
+}
+
+QString QgsProcessingUtils::layerToStringIdentifier( const QgsMapLayer *layer )
+{
+  if ( !layer )
+    return QString();
+
+  const QString source = QgsProcessingUtils::normalizeLayerSource( layer->source() );
+  if ( !source.isEmpty() )
+  {
+    const QString provider = layer->providerType();
+    // don't prepend provider type for these exceptional providers -- we assume them
+    // by default if the provider type is excluded. See logic in QgsProcessingUtils::loadMapLayerFromString
+    if ( provider.compare( QLatin1String( "gdal" ), Qt::CaseInsensitive ) == 0
+         || provider.compare( QLatin1String( "ogr" ), Qt::CaseInsensitive ) == 0
+         || provider.compare( QLatin1String( "mdal" ), Qt::CaseInsensitive ) == 0 )
+      return source;
+
+    return QStringLiteral( "%1://%2" ).arg( provider, source );
+  }
+  return layer->id();
 }
 
 QString QgsProcessingUtils::variantToPythonLiteral( const QVariant &value )
@@ -1222,7 +1306,7 @@ QString QgsProcessingUtils::formatHelpMapAsHtml( const QVariantMap &map, const Q
   const auto parameterDefinitions = algorithm->parameterDefinitions();
   for ( const QgsProcessingParameterDefinition *def : parameterDefinitions )
   {
-    if ( def->flags() & QgsProcessingParameterDefinition::FlagHidden || def->isDestination() )
+    if ( def->flags() & Qgis::ProcessingParameterFlag::Hidden || def->isDestination() )
       continue;
 
     if ( !getText( def->name() ).isEmpty() )
@@ -1345,7 +1429,7 @@ QString convertToCompatibleFormatInternal( const QgsVectorLayer *vl, bool select
 
     while ( it.nextFeature( f ) )
     {
-      if ( feedback->isCanceled() )
+      if ( feedback && feedback->isCanceled() )
         return QString();
       writer->addFeature( f, QgsFeatureSink::FastInsert );
     }
@@ -1603,7 +1687,7 @@ QgsProcessingFeatureSource::QgsProcessingFeatureSource( QgsFeatureSource *origin
   , mSourceExtent( mSource->sourceExtent() )
   , mSourceSpatialIndexPresence( mSource->hasSpatialIndex() )
   , mInvalidGeometryCheck( QgsWkbTypes::geometryType( mSource->wkbType() ) == Qgis::GeometryType::Point
-                           ? QgsFeatureRequest::GeometryNoCheck // never run geometry validity checks for point layers!
+                           ? Qgis::InvalidGeometryCheck::NoCheck // never run geometry validity checks for point layers!
                            : context.invalidGeometryCheck() )
   , mInvalidGeometryCallback( context.invalidGeometryCallback( originalSource ) )
   , mTransformErrorCallback( context.transformErrorCallback() )
@@ -1620,13 +1704,13 @@ QgsProcessingFeatureSource::~QgsProcessingFeatureSource()
     delete mSource;
 }
 
-QgsFeatureIterator QgsProcessingFeatureSource::getFeatures( const QgsFeatureRequest &request, Flags flags ) const
+QgsFeatureIterator QgsProcessingFeatureSource::getFeatures( const QgsFeatureRequest &request, Qgis::ProcessingFeatureSourceFlags flags ) const
 {
   QgsFeatureRequest req( request );
   req.setTransformErrorCallback( mTransformErrorCallback );
 
-  if ( flags & FlagSkipGeometryValidityChecks )
-    req.setInvalidGeometryCheck( QgsFeatureRequest::GeometryNoCheck );
+  if ( flags & Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks )
+    req.setInvalidGeometryCheck( Qgis::InvalidGeometryCheck::NoCheck );
   else
   {
     req.setInvalidGeometryCheck( mInvalidGeometryCheck );
@@ -1644,16 +1728,16 @@ QgsFeatureIterator QgsProcessingFeatureSource::getFeatures( const QgsFeatureRequ
   return mSource->getFeatures( req );
 }
 
-QgsFeatureSource::FeatureAvailability QgsProcessingFeatureSource::hasFeatures() const
+Qgis::FeatureAvailability QgsProcessingFeatureSource::hasFeatures() const
 {
-  FeatureAvailability sourceAvailability = mSource->hasFeatures();
-  if ( sourceAvailability == NoFeaturesAvailable )
-    return NoFeaturesAvailable; // never going to be features if underlying source has no features
-  else if ( mInvalidGeometryCheck == QgsFeatureRequest::GeometryNoCheck && mFilterExpression.isEmpty() )
+  Qgis::FeatureAvailability sourceAvailability = mSource->hasFeatures();
+  if ( sourceAvailability == Qgis::FeatureAvailability::NoFeaturesAvailable )
+    return Qgis::FeatureAvailability::NoFeaturesAvailable; // never going to be features if underlying source has no features
+  else if ( mInvalidGeometryCheck == Qgis::InvalidGeometryCheck::NoCheck && mFilterExpression.isEmpty() )
     return sourceAvailability;
   else
     // we don't know... source has features, but these may be filtered out by invalid geometry check or filter expression
-    return FeaturesMaybeAvailable;
+    return Qgis::FeatureAvailability::FeaturesMaybeAvailable;
 }
 
 QgsFeatureIterator QgsProcessingFeatureSource::getFeatures( const QgsFeatureRequest &request ) const
@@ -1716,7 +1800,7 @@ QSet<QVariant> QgsProcessingFeatureSource::uniqueValues( int fieldIndex, int lim
     return QSet<QVariant>();
 
   QgsFeatureRequest req;
-  req.setFlags( QgsFeatureRequest::NoGeometry );
+  req.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   req.setSubsetOfAttributes( QgsAttributeList() << fieldIndex );
   req.setFilterExpression( mFilterExpression );
 
@@ -1743,7 +1827,7 @@ QVariant QgsProcessingFeatureSource::minimumValue( int fieldIndex ) const
     return QVariant();
 
   QgsFeatureRequest req;
-  req.setFlags( QgsFeatureRequest::NoGeometry );
+  req.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   req.setSubsetOfAttributes( QgsAttributeList() << fieldIndex );
 
   QVariant min;
@@ -1771,7 +1855,7 @@ QVariant QgsProcessingFeatureSource::maximumValue( int fieldIndex ) const
     return QVariant();
 
   QgsFeatureRequest req;
-  req.setFlags( QgsFeatureRequest::NoGeometry );
+  req.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   req.setSubsetOfAttributes( QgsAttributeList() << fieldIndex );
 
   QVariant max;
@@ -1799,7 +1883,7 @@ QgsFeatureIds QgsProcessingFeatureSource::allFeatureIds() const
     return mSource->allFeatureIds();
 
   QgsFeatureIterator fit = getFeatures( QgsFeatureRequest()
-                                        .setFlags( QgsFeatureRequest::NoGeometry )
+                                        .setFlags( Qgis::FeatureRequestFlag::NoGeometry )
                                         .setNoAttributes()
                                         .setFilterExpression( mFilterExpression ) );
 
@@ -1814,7 +1898,7 @@ QgsFeatureIds QgsProcessingFeatureSource::allFeatureIds() const
   return ids;
 }
 
-QgsFeatureSource::SpatialIndexPresence QgsProcessingFeatureSource::hasSpatialIndex() const
+Qgis::SpatialIndexPresence QgsProcessingFeatureSource::hasSpatialIndex() const
 {
   return mSourceSpatialIndexPresence;
 }
@@ -1830,20 +1914,20 @@ QgsExpressionContextScope *QgsProcessingFeatureSource::createExpressionContextSc
   return expressionContextScope;
 }
 
-void QgsProcessingFeatureSource::setInvalidGeometryCheck( QgsFeatureRequest::InvalidGeometryCheck method )
+void QgsProcessingFeatureSource::setInvalidGeometryCheck( Qgis::InvalidGeometryCheck method )
 {
   mInvalidGeometryCheck = method;
   switch ( mInvalidGeometryCheck )
   {
-    case QgsFeatureRequest::GeometryNoCheck:
+    case Qgis::InvalidGeometryCheck::NoCheck:
       mInvalidGeometryCallback = nullptr;
       break;
 
-    case QgsFeatureRequest::GeometrySkipInvalid:
+    case Qgis::InvalidGeometryCheck::SkipInvalid:
       mInvalidGeometryCallback = mInvalidGeometryCallbackSkip;
       break;
 
-    case QgsFeatureRequest::GeometryAbortOnInvalid:
+    case Qgis::InvalidGeometryCheck::AbortOnInvalid:
       mInvalidGeometryCallback = mInvalidGeometryCallbackAbort;
       break;
 
@@ -1855,7 +1939,7 @@ void QgsProcessingFeatureSource::setInvalidGeometryCheck( QgsFeatureRequest::Inv
   }
 }
 
-QgsFeatureRequest::InvalidGeometryCheck QgsProcessingFeatureSource::invalidGeometryCheck() const
+Qgis::InvalidGeometryCheck QgsProcessingFeatureSource::invalidGeometryCheck() const
 {
   return mInvalidGeometryCheck;
 }

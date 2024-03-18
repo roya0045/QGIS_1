@@ -105,13 +105,10 @@ class GUI_EXPORT QgsMapTool : public QObject
 
     /**
      * Enumeration of flags that adjust the way the map tool operates
-     * \since QGIS 2.16
      */
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
-      Transient = 1 << 1, /*!< Indicates that this map tool performs a transient (one-off) operation.
-                               If it does, the tool can be operated once and then a previous map
-                               tool automatically restored. */
+      Transient = 1 << 1, //!< Deprecated since QGIS 3.36 -- no longer used by QGIS and will be removed in QGIS 4.0
       EditTool = 1 << 2, //!< Map tool is an edit tool, which can only be used when layer is editable
       AllowZoomRect = 1 << 3, //!< Allow zooming by rectangle (by holding shift and dragging) while the tool is active
       ShowContextMenu = 1 << 4, //!< Show a context menu when right-clicking with the tool (since QGIS 3.14). See populateContextMenu().
@@ -120,7 +117,6 @@ class GUI_EXPORT QgsMapTool : public QObject
 
     /**
      * Returns the flags for the map tool.
-     * \since QGIS 2.16
      */
     virtual Flags flags() const { return Flags(); }
 
@@ -209,7 +205,6 @@ class GUI_EXPORT QgsMapTool : public QObject
     /**
      * Emit map tool changed with the old tool
      * \see setToolName()
-     * \since QGIS 2.3
      */
     QString toolName() { return mToolName; }
 
@@ -217,21 +212,18 @@ class GUI_EXPORT QgsMapTool : public QObject
      * Gets search radius in mm. Used by identify, tip etc.
      *  The values is currently set in identify tool options (move somewhere else?)
      *  and defaults to Qgis::DEFAULT_SEARCH_RADIUS_MM.
-     *  \since QGIS 2.3
     */
     static double searchRadiusMM();
 
     /**
      * Gets search radius in map units for given context. Used by identify, tip etc.
      *  The values is calculated from searchRadiusMM().
-     *  \since QGIS 2.3
     */
     static double searchRadiusMU( const QgsRenderContext &context );
 
     /**
      * Gets search radius in map units for given canvas. Used by identify, tip etc.
      *  The values is calculated from searchRadiusMM().
-     *  \since QGIS 2.3
      */
     static double searchRadiusMU( QgsMapCanvas *canvas );
 

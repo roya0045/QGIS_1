@@ -58,6 +58,11 @@ QgsVirtualPointCloudProvider::QgsVirtualPointCloudProvider(
   parseFile();
 }
 
+Qgis::DataProviderFlags QgsVirtualPointCloudProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D;
+}
+
 QgsVirtualPointCloudProvider::~QgsVirtualPointCloudProvider() = default;
 
 QgsPointCloudDataProvider::Capabilities QgsVirtualPointCloudProvider::capabilities() const
@@ -220,7 +225,7 @@ void QgsVirtualPointCloudProvider::parseFile()
     if ( !mCrs.isValid() )
     {
       if ( f["properties"].contains( "proj:epsg" ) )
-        mCrs.createFromSrsId( f["properties"]["proj:epsg"].get<long>() );
+        mCrs = QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:%1" ).arg( f["properties"]["proj:epsg"].get<long>() ) );
       else if ( f["properties"].contains( "proj:wkt2" ) )
         mCrs.createFromString( QString::fromStdString( f["properties"]["proj:wkt2"] ) );
     }
@@ -439,8 +444,18 @@ void QgsVirtualPointCloudProvider::populateAttributeCollection( QSet<QString> na
     mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "PointSourceId" ), QgsPointCloudAttribute::UShort ) );
   if ( names.contains( QLatin1String( "ScannerChannel" ) ) )
     mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "ScannerChannel" ), QgsPointCloudAttribute::Char ) );
-  if ( names.contains( QLatin1String( "ClassificationFlags" ) ) )
-    mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "ClassificationFlags" ), QgsPointCloudAttribute::Char ) );
+  if ( names.contains( QLatin1String( "Synthetic" ) ) ||
+       names.contains( QLatin1String( "ClassFlags" ) ) )
+    mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "Synthetic" ), QgsPointCloudAttribute::UChar ) );
+  if ( names.contains( QLatin1String( "KeyPoint" ) ) ||
+       names.contains( QLatin1String( "ClassFlags" ) ) )
+    mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "KeyPoint" ), QgsPointCloudAttribute::UChar ) );
+  if ( names.contains( QLatin1String( "Withheld" ) ) ||
+       names.contains( QLatin1String( "ClassFlags" ) ) )
+    mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "Withheld" ), QgsPointCloudAttribute::UChar ) );
+  if ( names.contains( QLatin1String( "Overlap" ) ) ||
+       names.contains( QLatin1String( "ClassFlags" ) ) )
+    mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "Overlap" ), QgsPointCloudAttribute::UChar ) );
   if ( names.contains( QLatin1String( "GpsTime" ) ) )
     mAttributes.push_back( QgsPointCloudAttribute( QStringLiteral( "GpsTime" ), QgsPointCloudAttribute::Double ) );
   if ( names.contains( QLatin1String( "Red" ) ) )
@@ -464,7 +479,11 @@ void QgsVirtualPointCloudProvider::populateAttributeCollection( QSet<QString> na
                     QLatin1String( "UserData" ),
                     QLatin1String( "PointSourceId" ),
                     QLatin1String( "ScannerChannel" ),
-                    QLatin1String( "ClassificationFlags" ),
+                    QLatin1String( "ClassFlags" ),
+                    QLatin1String( "Synthetic" ),
+                    QLatin1String( "KeyPoint" ),
+                    QLatin1String( "Withheld" ),
+                    QLatin1String( "Overlap" ),
                     QLatin1String( "GpsTime" ),
                     QLatin1String( "Red" ),
                     QLatin1String( "Green" ),

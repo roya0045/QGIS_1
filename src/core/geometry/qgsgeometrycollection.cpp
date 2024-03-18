@@ -73,43 +73,6 @@ QgsGeometryCollection::~QgsGeometryCollection()
   clear();
 }
 
-bool QgsGeometryCollection::operator==( const QgsAbstractGeometry &other ) const
-{
-  const QgsGeometryCollection *otherCollection = qgsgeometry_cast< const QgsGeometryCollection * >( &other );
-  if ( !otherCollection )
-    return false;
-
-  if ( mWkbType != otherCollection->mWkbType )
-    return false;
-
-  if ( mGeometries.count() != otherCollection->mGeometries.count() )
-    return false;
-
-  for ( int i = 0; i < mGeometries.count(); ++i )
-  {
-    QgsAbstractGeometry *g1 = mGeometries.at( i );
-    QgsAbstractGeometry *g2 = otherCollection->mGeometries.at( i );
-
-    // Quick check if the geometries are exactly the same
-    if ( g1 != g2 )
-    {
-      if ( !g1 || !g2 )
-        return false;
-
-      // Slower check, compare the contents of the geometries
-      if ( *g1 != *g2 )
-        return false;
-    }
-  }
-
-  return true;
-}
-
-bool QgsGeometryCollection::operator!=( const QgsAbstractGeometry &other ) const
-{
-  return !operator==( other );
-}
-
 QgsGeometryCollection *QgsGeometryCollection::createEmptyWithSameType() const
 {
   auto result = std::make_unique< QgsGeometryCollection >();
@@ -908,7 +871,7 @@ bool QgsGeometryCollection::isValid( QString &error, Qgis::GeometryValidityFlags
     return error.isEmpty();
   }
 
-  QgsGeos geos( this );
+  QgsGeos geos( this, /* tolerance = */ 0, /* allowInvalidSubGeom = */ false );
   bool res = geos.isValid( &error, flags & Qgis::GeometryValidityFlag::AllowSelfTouchingHoles, nullptr );
   if ( flags == 0 )
   {
@@ -995,6 +958,76 @@ void QgsGeometryCollection::transformVertices( const std::function<QgsPoint( con
       geom->transformVertices( transform );
   }
   clearCache();
+}
+
+QgsGeometryCollection *QgsGeometryCollection::extractPartsByType( Qgis::WkbType type, bool useFlatType ) const
+{
+  // be tolerant if caller passed a multi type as type argument
+  const Qgis::WkbType filterSinglePartType = useFlatType ? QgsWkbTypes::flatType( QgsWkbTypes::singleType( type ) ) : QgsWkbTypes::singleType( type );
+
+  std::unique_ptr< QgsGeometryCollection > res;
+  switch ( QgsWkbTypes::geometryType( type ) )
+  {
+    case Qgis::GeometryType::Point:
+    {
+      if ( useFlatType )
+      {
+        // potential shortcut if we're already a matching subclass of QgsGeometryCollection
+        if ( const QgsMultiPoint *mp = qgsgeometry_cast< const QgsMultiPoint *>( this ) )
+          return mp->clone();
+      }
+
+      res = std::make_unique< QgsMultiPoint >();
+      break;
+    }
+    case Qgis::GeometryType::Line:
+    {
+      if ( useFlatType )
+      {
+        // potential shortcut if we're already a matching subclass of QgsGeometryCollection
+        if ( const QgsMultiLineString *ml = qgsgeometry_cast< const QgsMultiLineString *>( this ) )
+          return ml->clone();
+      }
+
+      res = std::make_unique< QgsMultiLineString >();
+      break;
+    }
+    case Qgis::GeometryType::Polygon:
+    {
+      if ( useFlatType )
+      {
+        // potential shortcut if we're already a matching subclass of QgsGeometryCollection
+        if ( const QgsMultiPolygon *mp = qgsgeometry_cast< const QgsMultiPolygon *>( this ) )
+          return mp->clone();
+      }
+
+      res = std::make_unique< QgsMultiPolygon>();
+      break;
+    }
+
+    case Qgis::GeometryType::Unknown:
+    case Qgis::GeometryType::Null:
+      return nullptr;
+  }
+
+  // assume that the collection consists entirely of matching parts (ie optimize for a pessimistic scenario)
+  res->reserve( mGeometries.size() );
+
+  for ( const QgsAbstractGeometry *part : mGeometries )
+  {
+    if ( !part )
+      continue;
+
+    const QgsAbstractGeometry *simplifiedPartType = part->simplifiedTypeRef();
+
+    const Qgis::WkbType thisPartType = useFlatType ? QgsWkbTypes::flatType( simplifiedPartType->wkbType() ) : simplifiedPartType->wkbType();
+    if ( thisPartType == filterSinglePartType )
+    {
+      res->addGeometry( part->clone() );
+    }
+  }
+
+  return res.release();
 }
 
 void QgsGeometryCollection::swapXy()

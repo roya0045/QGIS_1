@@ -41,7 +41,6 @@ class QgsLocatorLineEdit;
  * \brief A special locator widget which allows searching for matching results from a QgsLocator
  * and presenting them to users for selection.
  * \see QgsLocator
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLocatorWidget : public QWidget
 {
@@ -65,6 +64,19 @@ class GUI_EXPORT QgsLocatorWidget : public QWidget
      * as prioritizing results which are near the current canvas extent.
      */
     void setMapCanvas( QgsMapCanvas *canvas );
+
+    /**
+     * \brief Set placeholder \a text for the line edit.
+     * \since QGIS 3.36
+     */
+    void setPlaceholderText( const QString  &text );
+
+    /**
+     * Sets the result container \a anchorPoint and \a anchorWidgetPoint position.
+     *
+     * \since QGIS 3.36
+     */
+    void setResultContainerAnchors( QgsFloatingWidget::AnchorPoint anchorPoint, QgsFloatingWidget::AnchorPoint anchorWidgetPoint );
 
   public slots:
 
@@ -144,7 +156,6 @@ class QgsLocatorFilterFilter : public QgsLocatorFilter
  * \class QgsLocatorResultsView
  * \ingroup gui
  * \brief Custom QTreeView designed for showing the results in a QgsLocatorWidget.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLocatorResultsView : public QTreeView
 {

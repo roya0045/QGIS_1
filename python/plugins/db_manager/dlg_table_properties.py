@@ -20,6 +20,7 @@ The content of this file is based on
  ***************************************************************************/
 """
 
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QDialog, QMessageBox, QApplication
 
@@ -33,8 +34,10 @@ from .dlg_field_properties import DlgFieldProperties
 from .dlg_add_geometry_column import DlgAddGeometryColumn
 from .dlg_create_constraint import DlgCreateConstraint
 from .dlg_create_index import DlgCreateIndex
+from .gui_utils import GuiUtils
 
-from .ui.ui_DlgTableProperties import Ui_DbManagerDlgTableProperties as Ui_Dialog
+
+Ui_Dialog, _ = uic.loadUiType(GuiUtils.get_ui_file_path('DlgTableProperties.ui'))
 
 
 class DlgTableProperties(QDialog, Ui_Dialog):
@@ -123,11 +126,11 @@ class DlgTableProperties(QDialog, Ui_Dialog):
     def addColumn(self):
         """ open dialog to set column info and add column to table """
         dlg = DlgFieldProperties(self, None, self.table)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         fld = dlg.getField()
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self.aboutToChangeTable.emit()
             try:
                 # add column to table
@@ -139,7 +142,7 @@ class DlgTableProperties(QDialog, Ui_Dialog):
     def addGeometryColumn(self):
         """ open dialog to add geometry column """
         dlg = DlgAddGeometryColumn(self, self.table)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self.refresh()
 
@@ -155,11 +158,11 @@ class DlgTableProperties(QDialog, Ui_Dialog):
         fld = m.getObject(index)
 
         dlg = DlgFieldProperties(self, fld, self.table)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         new_fld = dlg.getField(True)
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self.aboutToChangeTable.emit()
             try:
                 fld.update(new_fld.name, new_fld.type2String(), new_fld.notNull, new_fld.default2String(), new_fld.comment)
@@ -178,11 +181,11 @@ class DlgTableProperties(QDialog, Ui_Dialog):
 
         res = QMessageBox.question(self, self.tr("Delete Column"),
                                    self.tr("Are you sure you want to delete column '{0}'?").format(fld.name),
-                                   QMessageBox.Yes | QMessageBox.No)
-        if res != QMessageBox.Yes:
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if res != QMessageBox.StandardButton.Yes:
             return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self.aboutToChangeTable.emit()
             try:
                 fld.delete()
@@ -214,7 +217,7 @@ class DlgTableProperties(QDialog, Ui_Dialog):
         """Adds primary key or unique constraint """
 
         dlg = DlgCreateConstraint(self, self.table)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self.refresh()
 
@@ -230,11 +233,11 @@ class DlgTableProperties(QDialog, Ui_Dialog):
 
         res = QMessageBox.question(self, self.tr("Delete Constraint"),
                                    self.tr("Are you sure you want to delete constraint '{0}'?").format(constr.name),
-                                   QMessageBox.Yes | QMessageBox.No)
-        if res != QMessageBox.Yes:
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if res != QMessageBox.StandardButton.Yes:
             return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self.aboutToChangeTable.emit()
             try:
                 constr.delete()
@@ -274,7 +277,7 @@ class DlgTableProperties(QDialog, Ui_Dialog):
     def createIndex(self):
         """Creates an index """
         dlg = DlgCreateIndex(self, self.table)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self.refresh()
 
@@ -286,12 +289,12 @@ class DlgTableProperties(QDialog, Ui_Dialog):
 
         res = QMessageBox.question(self, self.tr("Create Spatial Index"),
                                    self.tr("Create spatial index for field {0}?").format(self.table.geomColumn),
-                                   QMessageBox.Yes | QMessageBox.No)
-        if res != QMessageBox.Yes:
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if res != QMessageBox.StandardButton.Yes:
             return
 
         # TODO: first check whether the index doesn't exist already
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self.aboutToChangeTable.emit()
 
             try:
@@ -320,11 +323,11 @@ class DlgTableProperties(QDialog, Ui_Dialog):
 
         res = QMessageBox.question(self, self.tr("Delete Index"),
                                    self.tr("Are you sure you want to delete index '{0}'?").format(idx.name),
-                                   QMessageBox.Yes | QMessageBox.No)
-        if res != QMessageBox.Yes:
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if res != QMessageBox.StandardButton.Yes:
             return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self.aboutToChangeTable.emit()
             try:
                 idx.delete()

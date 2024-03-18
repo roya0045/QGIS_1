@@ -57,10 +57,11 @@ Build-Depends:
  python3-pyqt5.qsci,
  python3-pyqt5.qtmultimedia,
  python3-pyqt5.qtpositioning,
+ python3-pyqt5.qtserialport,
  python3-pyqt5.qtsql,
  python3-pyqt5.qtsvg,
 #bullseye# python3-sip-dev, python3-sip,
-#jammy kinetic lunar bookworm sid# python3-pyqtbuild, sip-tools,
+#jammy kinetic lunar mantic noble bookworm sid# python3-pyqtbuild, sip-tools,
  python3-termcolor,
  python3-yaml,
  qt3d5-dev,
@@ -69,7 +70,7 @@ Build-Depends:
  qt3d-gltfsceneio-plugin,
  qt3d-scene2d-plugin,
 #bullseye# qt5keychain-dev,
-#jammy kinetic lunar bookworm sid# qtkeychain-qt5-dev,
+#jammy kinetic lunar mantic noble bookworm sid# qtkeychain-qt5-dev,
  qtbase5-dev,
  qtbase5-private-dev,
  qtpositioning5-dev,
@@ -391,6 +392,7 @@ Depends:
  python3-pyqt5.qtpositioning,
  python3-pyqt5.qtsvg,
  python3-pyqt5.qtwebkit,
+ python3-pyqt5.qtserialport,
  python3-sip,
  python3-yaml,
  python3-lxml,
@@ -437,7 +439,7 @@ Depends:
  libqca-qt5-2-plugins,
  libqt5sql5-sqlite,
  qt5-image-formats-plugins,
-#jammy kinetic lunar bullseye bookworm sid# qt5-image-formats-plugin-pdf,
+#jammy kinetic lunar mantic noble bullseye bookworm sid# qt5-image-formats-plugin-pdf,
  ${shlibs:Depends},
  ${misc:Depends}
 Breaks: qgis (<= 1.6)
@@ -462,7 +464,6 @@ Description: collection of data providers to QGIS - architecture-independent fil
 Package: qgis-server
 Architecture: any
 Depends:
- qgis-server-dummy (= ${binary:Version}),
  qgis-server-wms (= ${binary:Version}),
  qgis-server-wmts (= ${binary:Version}),
  qgis-server-wcs (= ${binary:Version}),
@@ -550,18 +551,6 @@ Description: QGIS server providing various OGC services
  display databases of geographic information.
  .
  This package contains the wcs service.
-
-Package: qgis-server-dummy
-Architecture: any
-Depends:
- qgis-server-common (= ${binary:Version}),
- ${shlibs:Depends},
- ${misc:Depends}
-Description: QGIS server providing various OGC services
- QGIS is a Geographic Information System (GIS) which manages, analyzes and
- display databases of geographic information.
- .
- This package contains the sample service.
 
 Package: qgis-server-landingpage
 Architecture: any

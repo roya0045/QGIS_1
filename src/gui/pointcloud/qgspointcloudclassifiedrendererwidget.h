@@ -63,6 +63,7 @@ class GUI_EXPORT QgsPointCloudClassifiedRendererModel : public QAbstractItemMode
     QgsPointCloudCategoryList categories() const { return mCategories; }
 
     void setCategoryColor( int row, const QColor &color );
+    void setCategoryPointSize( int row, double size );
     //! Updates the model with percentage of points per category
     void updateCategoriesPercentages( const QMap< int, float > &percentages ) { mPercentages = percentages; };
 
@@ -135,10 +136,12 @@ class GUI_EXPORT QgsPointCloudClassifiedRendererWidget: public QgsPointCloudRend
      * \since QGIS 3.28
      */
     void toggleSelectedSymbols( const bool state );
+    void changeCategoryColor();
+    void changeCategoryOpacity();
+    void changeCategoryPointSize();
   private:
     //! Sets default category and available classes
     void initialize();
-    void changeCategorySymbol();
     //! Returns a list of indexes for the categories under selection
     QList<int> selectedCategories();
     //! Returns row index for the currently selected category (-1 if on no selection)
@@ -148,6 +151,7 @@ class GUI_EXPORT QgsPointCloudClassifiedRendererWidget: public QgsPointCloudRend
 
     QgsPointCloudClassifiedRendererModel *mModel = nullptr;
     bool mBlockChangedSignal = false;
+    QMenu *contextMenu = nullptr;
 };
 
 ///@endcond

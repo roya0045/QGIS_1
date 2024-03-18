@@ -313,7 +313,6 @@ class CORE_EXPORT QgsLayoutItemMapItemClipPathSettings : public QObject
  * \ingroup core
  * \class QgsLayoutItemMap
  * \brief Layout graphical items for displaying a map.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRangeObject
 {
@@ -349,7 +348,7 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      * Various flags that affect drawing of map items.
      * \since QGIS 3.6
      */
-    enum MapItemFlag
+    enum MapItemFlag SIP_ENUM_BASETYPE( IntFlag )
     {
       ShowPartialLabels  = 1 << 0, //!< Whether to draw labels which are partially outside of the map view
       ShowUnplacedLabels = 1 << 1, //!< Whether to render unplaced labels in the map view
@@ -871,6 +870,56 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      */ 
     QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
 
+    /**
+     * Returns the current geometry ( from the source layer or data-defined ) in the provided crs.
+     *
+     * \since QGIS 3.32
+     */
+    QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
+
+    /**
+     * Sets whether the z range is \a enabled (i.e. whether the map will be filtered
+     * to content within the zRange().)
+     *
+     * \see zRangeEnabled()
+     * \since QGIS 3.38
+     */
+    void setZRangeEnabled( bool enabled );
+
+    /**
+     * Returns whether the z range is enabled (i.e. whether the map will be filtered
+     * to content within the zRange().)
+     *
+     * \see setZRangeEnabled()
+     * \see zRange()
+     * \since QGIS 3.38
+     */
+    bool zRangeEnabled() const;
+
+    /**
+     * Returns the map's z range, which is used to filter the map's content to only
+     * display features within the specified z range.
+     *
+     * \note This is only considered when zRangeEnabled() is TRUE.
+     *
+     * \see setZRange()
+     * \see zRangeEnabled()
+     * \since QGIS 3.38
+     */
+    QgsDoubleRange zRange() const;
+
+    /**
+     * Sets the map's z \a range, which is used to filter the map's content to only
+     * display features within the specified z range.
+     *
+     * \note This is only considered when zRangeEnabled() is TRUE.
+     *
+     * \see zRange()
+     * \see setZRangeEnabled()
+     * \since QGIS 3.38
+     */
+    void setZRange( const QgsDoubleRange &range );
+
     // Reimplement estimatedFrameBleed to take the grid frame into account
     double estimatedFrameBleed() const override;
 
@@ -956,7 +1005,7 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
     //! Updates the bounding rect of this item. Call this function before doing any changes related to annotation out of the map rectangle
     void updateBoundingRect();
 
-    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::AllProperties ) override;
+    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::DataDefinedProperty::AllProperties ) override;
 
   private slots:
     void layersAboutToBeRemoved( const QList<QgsMapLayer *> &layers );
@@ -1019,6 +1068,7 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
 
     QTimer *mBackgroundUpdateTimer = nullptr;
     double mPreviewScaleFactor = 0;
+    double mPreviewDevicePixelRatio = 1.0;
 
     bool mDrawingPreview = false;
 
@@ -1038,6 +1088,9 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      * differs from mMapRotation
     */
     double mEvaluatedMapRotation = 0;
+
+    bool mZRangeEnabled = false;
+    QgsDoubleRange mZRange;
 
     //! Flag if layers to be displayed should be read from qgis canvas (TRUE) or from stored list in mLayerSet (FALSE)
     bool mKeepLayerSet = false;

@@ -63,7 +63,6 @@ namespace QgsWms
    * \ingroup server
    * \class QgsWms::QgsRenderer
    * \brief Map renderer for WMS requests
-   * \since QGIS 3.0
    */
   class QgsRenderer
   {
@@ -139,13 +138,12 @@ namespace QgsWms
       /**
        * Returns the map as DXF data
        * \returns the map as DXF data
-       * \since QGIS 3.0
       */
       std::unique_ptr<QgsDxfExport> getDxf();
 
       /**
        * Returns a configured pdf export task
-       * \tmpFileName the name of the temporary file to store the pdf
+       * \param tmpFileName the name of the temporary file to store the pdf
        * \returns pdf export object
        * \since QGIS 3.36
        */
@@ -297,6 +295,7 @@ namespace QgsWms
       bool featureInfoFromRasterLayer( QgsRasterLayer *layer,
                                        const QgsMapSettings &mapSettings,
                                        const QgsPointXY *infoPoint,
+                                       const QgsRenderContext &renderContext,
                                        QDomDocument &infoDocument,
                                        QDomElement &layerElement,
                                        const QString &version ) const;

@@ -26,7 +26,7 @@ from .connector import VLayerRegistry, getQueryGeometryName
 from .plugin import LVectorTable
 from ..plugin import DbError, BaseError
 
-from qgis.PyQt.QtCore import QTime, QTemporaryFile
+from qgis.PyQt.QtCore import QElapsedTimer, QTemporaryFile
 from qgis.core import (QgsVectorLayer,
                        QgsWkbTypes,
                        QgsVirtualLayerDefinition,
@@ -83,7 +83,7 @@ class LSqlResultModelTask(SqlResultModelTask):
         df.setQuery(sql)
 
         self.subtask = QgsVirtualLayerTask(df)
-        self.addSubTask(self.subtask, [], QgsTask.ParentDependsOnSubTask)
+        self.addSubTask(self.subtask, [], QgsTask.SubTaskDependency.ParentDependsOnSubTask)
 
     def run(self):
         try:
@@ -119,7 +119,7 @@ class LSqlResultModelAsync(SqlResultModelAsync):
 class LSqlResultModel(BaseTableModel):
 
     def __init__(self, db, sql, parent=None, layer=None, path=None):
-        t = QTime()
+        t = QElapsedTimer()
         t.start()
 
         if not layer:
@@ -142,7 +142,7 @@ class LSqlResultModel(BaseTableModel):
         else:
             header = [f.name() for f in layer.fields()]
             has_geometry = False
-            if layer.geometryType() != QgsWkbTypes.NullGeometry:
+            if layer.geometryType() != QgsWkbTypes.GeometryType.NullGeometry:
                 gn = getQueryGeometryName(path)
                 if gn:
                     has_geometry = True

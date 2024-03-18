@@ -50,7 +50,7 @@ QgsRasterTransparencyWidget::QgsRasterTransparencyWidget( QgsRasterLayer *layer,
   connect( pbnRemoveSelectedRow, &QToolButton::clicked, this, &QgsRasterTransparencyWidget::pbnRemoveSelectedRow_clicked );
 
   mNodataColorButton->setShowNoColor( true );
-  mNodataColorButton->setColorDialogTitle( tr( "Select No Data Color" ) );
+  mNodataColorButton->setColorDialogTitle( tr( "Select NoData Color" ) );
   syncToLayer();
 
   connect( mOpacityWidget, &QgsOpacityWidget::opacityChanged, this, &QgsPanelWidget::widgetChanged );
@@ -71,7 +71,7 @@ QgsRasterTransparencyWidget::QgsRasterTransparencyWidget( QgsRasterLayer *layer,
     pbnAddValuesFromDisplay->setEnabled( false );
   }
 
-  initializeDataDefinedButton( mOpacityDDBtn, QgsRasterPipe::RendererOpacity );
+  initializeDataDefinedButton( mOpacityDDBtn, QgsRasterPipe::Property::RendererOpacity );
 }
 
 void QgsRasterTransparencyWidget::setContext( const QgsSymbolWidgetContext &context )
@@ -356,11 +356,7 @@ void QgsRasterTransparencyWidget::pbnImportTransparentPixelValues_clicked()
         {
           if ( !myInputLine.simplified().startsWith( '#' ) )
           {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-            QStringList myTokens = myInputLine.split( QRegExp( "\\s+" ), QString::SkipEmptyParts );
-#else
             QStringList myTokens = myInputLine.split( QRegularExpression( "\\s+" ), Qt::SkipEmptyParts );
-#endif
             if ( myTokens.count() != 4 )
             {
               myImportError = true;
@@ -393,11 +389,7 @@ void QgsRasterTransparencyWidget::pbnImportTransparentPixelValues_clicked()
         {
           if ( !myInputLine.simplified().startsWith( '#' ) )
           {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-            QStringList myTokens = myInputLine.split( QRegExp( "\\s+" ), QString::SkipEmptyParts );
-#else
             QStringList myTokens = myInputLine.split( QRegularExpression( "\\s+" ), Qt::SkipEmptyParts );
-#endif
             if ( myTokens.count() != 3 && myTokens.count() != 2 ) // 2 for QGIS < 1.9 compatibility
             {
               myImportError = true;
@@ -482,31 +474,33 @@ void QgsRasterTransparencyWidget::apply()
     QgsRasterTransparency *rasterTransparency = new QgsRasterTransparency();
     if ( tableTransparency->columnCount() == 4 )
     {
-      QgsRasterTransparency::TransparentThreeValuePixel myTransparentPixel;
-      QList<QgsRasterTransparency::TransparentThreeValuePixel> myTransparentThreeValuePixelList;
+      QVector<QgsRasterTransparency::TransparentThreeValuePixel> myTransparentThreeValuePixelList;
       myTransparentThreeValuePixelList.reserve( tableTransparency->rowCount() );
       for ( int myListRunner = 0; myListRunner < tableTransparency->rowCount(); myListRunner++ )
       {
-        myTransparentPixel.red = transparencyCellValue( myListRunner, 0 );
-        myTransparentPixel.green = transparencyCellValue( myListRunner, 1 );
-        myTransparentPixel.blue = transparencyCellValue( myListRunner, 2 );
-        myTransparentPixel.percentTransparent = transparencyCellValue( myListRunner, 3 );
-        myTransparentThreeValuePixelList.append( myTransparentPixel );
+        const double red = transparencyCellValue( myListRunner, 0 );
+        const double green = transparencyCellValue( myListRunner, 1 );
+        const double blue = transparencyCellValue( myListRunner, 2 );
+        const double opacity = 1.0 - transparencyCellValue( myListRunner, 3 ) / 100.0;
+        myTransparentThreeValuePixelList.append(
+          QgsRasterTransparency::TransparentThreeValuePixel( red, green, blue, opacity )
+        );
       }
       rasterTransparency->setTransparentThreeValuePixelList( myTransparentThreeValuePixelList );
     }
     else if ( tableTransparency->columnCount() == 3 )
     {
-      QgsRasterTransparency::TransparentSingleValuePixel myTransparentPixel;
-      QList<QgsRasterTransparency::TransparentSingleValuePixel> myTransparentSingleValuePixelList;
+      QVector<QgsRasterTransparency::TransparentSingleValuePixel> myTransparentSingleValuePixelList;
       myTransparentSingleValuePixelList.reserve( tableTransparency->rowCount() );
       for ( int myListRunner = 0; myListRunner < tableTransparency->rowCount(); myListRunner++ )
       {
-        myTransparentPixel.min = transparencyCellValue( myListRunner, 0 );
-        myTransparentPixel.max = transparencyCellValue( myListRunner, 1 );
-        myTransparentPixel.percentTransparent = transparencyCellValue( myListRunner, 2 );
+        const double min = transparencyCellValue( myListRunner, 0 );
+        const double max = transparencyCellValue( myListRunner, 1 );
+        const double opacity = 1.0 - transparencyCellValue( myListRunner, 2 ) / 100.0;
 
-        myTransparentSingleValuePixelList.append( myTransparentPixel );
+        myTransparentSingleValuePixelList.append(
+          QgsRasterTransparency::TransparentSingleValuePixel( min, max, opacity )
+        );
       }
       rasterTransparency->setTransparentSingleValuePixelList( myTransparentSingleValuePixelList );
     }
@@ -523,7 +517,7 @@ void QgsRasterTransparencyWidget::apply()
 void QgsRasterTransparencyWidget::initializeDataDefinedButton( QgsPropertyOverrideButton *button, QgsRasterPipe::Property key )
 {
   button->blockSignals( true );
-  button->init( key, mPropertyCollection, QgsRasterPipe::propertyDefinitions(), nullptr );
+  button->init( static_cast< int >( key ), mPropertyCollection, QgsRasterPipe::propertyDefinitions(), nullptr );
   connect( button, &QgsPropertyOverrideButton::changed, this, &QgsRasterTransparencyWidget::updateProperty );
   button->registerExpressionContextGenerator( this );
   button->blockSignals( false );
@@ -638,13 +632,13 @@ void QgsRasterTransparencyWidget::populateTransparencyTable( QgsRasterRenderer *
 
   if ( nBands == 1 )
   {
-    QList<QgsRasterTransparency::TransparentSingleValuePixel> pixelList = rasterTransparency->transparentSingleValuePixelList();
+    QVector<QgsRasterTransparency::TransparentSingleValuePixel> pixelList = rasterTransparency->transparentSingleValuePixelList();
     for ( int i = 0; i < pixelList.size(); ++i )
     {
       tableTransparency->insertRow( i );
       setTransparencyCell( i, 0, pixelList[i].min );
       setTransparencyCell( i, 1, pixelList[i].max );
-      setTransparencyCell( i, 2, pixelList[i].percentTransparent );
+      setTransparencyCell( i, 2, 100 * ( 1 - pixelList[i].opacity ) );
       // break synchronization only if values differ
       if ( pixelList[i].min != pixelList[i].max )
       {
@@ -654,14 +648,14 @@ void QgsRasterTransparencyWidget::populateTransparencyTable( QgsRasterRenderer *
   }
   else if ( nBands == 3 )
   {
-    QList<QgsRasterTransparency::TransparentThreeValuePixel> pixelList = rasterTransparency->transparentThreeValuePixelList();
+    QVector<QgsRasterTransparency::TransparentThreeValuePixel> pixelList = rasterTransparency->transparentThreeValuePixelList();
     for ( int i = 0; i < pixelList.size(); ++i )
     {
       tableTransparency->insertRow( i );
       setTransparencyCell( i, 0, pixelList[i].red );
       setTransparencyCell( i, 1, pixelList[i].green );
       setTransparencyCell( i, 2, pixelList[i].blue );
-      setTransparencyCell( i, 3, pixelList[i].percentTransparent );
+      setTransparencyCell( i, 3, 100 * ( 1 - pixelList[i].opacity ) );
     }
   }
 

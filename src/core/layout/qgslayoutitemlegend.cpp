@@ -27,7 +27,7 @@
 #include "qgslogger.h"
 #include "qgsmapsettings.h"
 #include "qgsproject.h"
-#include "qgssymbollayerutils.h"
+#include "qgscolorutils.h"
 #include "qgslayertreeutils.h"
 #include "qgslayoututils.h"
 #include "qgslayout.h"
@@ -54,8 +54,8 @@ QgsLayoutItemLegend::QgsLayoutItemLegend( QgsLayout *layout )
 
   mTitle = mSettings.title();
 
-  connect( mLegendModel.get(), &QgsLayerTreeModel::hitTestStarted, this, [ = ] { emit backgroundTaskCountChanged( 1 ); } );
-  connect( mLegendModel.get(), &QgsLayerTreeModel::hitTestCompleted, this, [ = ]
+  connect( mLegendModel.get(), &QgsLayerTreeModel::hitTestStarted, this, [this] { emit backgroundTaskCountChanged( 1 ); } );
+  connect( mLegendModel.get(), &QgsLayerTreeModel::hitTestCompleted, this, [this]
   {
     adjustBoxSize();
     emit backgroundTaskCountChanged( 0 );
@@ -66,12 +66,12 @@ QgsLayoutItemLegend::QgsLayoutItemLegend( QgsLayout *layout )
   connect( mLayout->project()->layerTreeRoot(), &QgsLayerTreeNode::customPropertyChanged, this, &QgsLayoutItemLegend::nodeCustomPropertyChanged );
 
   // If project colors change, we need to redraw legend, as legend symbols may rely on project colors
-  connect( mLayout->project(), &QgsProject::projectColorsChanged, this, [ = ]
+  connect( mLayout->project(), &QgsProject::projectColorsChanged, this, [this]
   {
     invalidateCache();
     update();
   } );
-  connect( mLegendModel.get(), &QgsLegendModel::refreshLegend, this, [ = ]
+  connect( mLegendModel.get(), &QgsLegendModel::refreshLegend, this, [this]
   {
     // NOTE -- we do NOT connect to ::refresh here, as we don't want to trigger the call to onAtlasFeature() which sets mFilterAskedForUpdate to true,
     // causing an endless loop.
@@ -637,7 +637,7 @@ bool QgsLayoutItemLegend::writePropertiesToElement( QDomElement &legendElem, QDo
   legendElem.setAttribute( QStringLiteral( "symbolAlignment" ), mSettings.symbolAlignment() );
 
   legendElem.setAttribute( QStringLiteral( "rasterBorder" ), mSettings.drawRasterStroke() );
-  legendElem.setAttribute( QStringLiteral( "rasterBorderColor" ), QgsSymbolLayerUtils::encodeColor( mSettings.rasterStrokeColor() ) );
+  legendElem.setAttribute( QStringLiteral( "rasterBorderColor" ), QgsColorUtils::colorToString( mSettings.rasterStrokeColor() ) );
   legendElem.setAttribute( QStringLiteral( "rasterBorderWidth" ), QString::number( mSettings.rasterStrokeWidth() ) );
 
   legendElem.setAttribute( QStringLiteral( "wmsLegendWidth" ), QString::number( mSettings.wmsLegendSize().width() ) );
@@ -777,7 +777,7 @@ bool QgsLayoutItemLegend::readPropertiesFromElement( const QDomElement &itemElem
   }
 
   mSettings.setDrawRasterStroke( itemElem.attribute( QStringLiteral( "rasterBorder" ), QStringLiteral( "1" ) ) != QLatin1String( "0" ) );
-  mSettings.setRasterStrokeColor( QgsSymbolLayerUtils::decodeColor( itemElem.attribute( QStringLiteral( "rasterBorderColor" ), QStringLiteral( "0,0,0" ) ) ) );
+  mSettings.setRasterStrokeColor( QgsColorUtils::colorFromString( itemElem.attribute( QStringLiteral( "rasterBorderColor" ), QStringLiteral( "0,0,0" ) ) ) );
   mSettings.setRasterStrokeWidth( itemElem.attribute( QStringLiteral( "rasterBorderWidth" ), QStringLiteral( "0" ) ).toDouble() );
 
   mSettings.setWrapChar( itemElem.attribute( QStringLiteral( "wrapChar" ) ) );
@@ -962,20 +962,20 @@ void QgsLayoutItemLegend::refreshDataDefinedProperty( const QgsLayoutObject::Dat
 
   bool forceUpdate = false;
   //updates data defined properties and redraws item to match
-  if ( property == QgsLayoutObject::LegendTitle || property == QgsLayoutObject::AllProperties )
+  if ( property == QgsLayoutObject::DataDefinedProperty::LegendTitle || property == QgsLayoutObject::DataDefinedProperty::AllProperties )
   {
     bool ok = false;
-    const QString t = mDataDefinedProperties.valueAsString( QgsLayoutObject::LegendTitle, context, mTitle, &ok );
+    const QString t = mDataDefinedProperties.valueAsString( QgsLayoutObject::DataDefinedProperty::LegendTitle, context, mTitle, &ok );
     if ( ok )
     {
       mSettings.setTitle( t );
       forceUpdate = true;
     }
   }
-  if ( property == QgsLayoutObject::LegendColumnCount || property == QgsLayoutObject::AllProperties )
+  if ( property == QgsLayoutObject::DataDefinedProperty::LegendColumnCount || property == QgsLayoutObject::DataDefinedProperty::AllProperties )
   {
     bool ok = false;
-    const int cols = mDataDefinedProperties.valueAsInt( QgsLayoutObject::LegendColumnCount, context, mColumnCount, &ok );
+    const int cols = mDataDefinedProperties.valueAsInt( QgsLayoutObject::DataDefinedProperty::LegendColumnCount, context, mColumnCount, &ok );
     if ( ok && cols >= 0 )
     {
       mSettings.setColumnCount( cols );
@@ -1288,7 +1288,7 @@ bool QgsLayoutItemLegend::accept( QgsStyleEntityVisitorInterface *visitor ) cons
 {
   std::function<bool( QgsLayerTreeGroup *group ) >visit;
 
-  visit = [ =, &visit]( QgsLayerTreeGroup * group ) -> bool
+  visit = [this, visitor, &visit]( QgsLayerTreeGroup * group ) -> bool
   {
     const QList<QgsLayerTreeNode *> childNodes = group->children();
     for ( QgsLayerTreeNode *node : childNodes )
@@ -1396,36 +1396,6 @@ QVariant QgsLegendModel::data( const QModelIndex &index, int role ) const
         name += QStringLiteral( " [%1]" ).arg( vlayer->featureCount() );
         nodeLayer->setCustomProperty( QStringLiteral( "cached_name" ), name );
         return name;
-      }
-    }
-
-    const bool evaluate = ( vlayer && !nodeLayer->labelExpression().isEmpty() ) || name.contains( "[%" );
-    if ( evaluate )
-    {
-      QgsExpressionContext expressionContext;
-      if ( vlayer )
-      {
-        connect( vlayer, &QgsVectorLayer::symbolFeatureCountMapChanged, this, &QgsLegendModel::forceRefresh, Qt::UniqueConnection );
-        // counting is done here to ensure that a valid vector layer needs to be evaluated, count is used to validate previous count or update the count if invalidated
-        vlayer->countSymbolFeatures();
-      }
-
-      if ( mLayoutLegend )
-        expressionContext = mLayoutLegend->createExpressionContext();
-
-      const QList<QgsLayerTreeModelLegendNode *> legendnodes = layerLegendNodes( nodeLayer, false );
-      if ( ! legendnodes.isEmpty() )
-      {
-        if ( legendnodes.count() > 1 ) // evaluate all existing legend nodes but leave the name for the legend evaluator
-        {
-          for ( QgsLayerTreeModelLegendNode *treenode : legendnodes )
-          {
-            if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( treenode ) )
-              symnode->evaluateLabel( expressionContext );
-          }
-        }
-        else if ( QgsSymbolLegendNode *symnode = qobject_cast<QgsSymbolLegendNode *>( legendnodes.first() ) )
-          symnode->evaluateLabel( expressionContext );
       }
     }
     node->setCustomProperty( QStringLiteral( "cached_name" ), name );

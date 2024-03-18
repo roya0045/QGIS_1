@@ -112,6 +112,7 @@ set(QGIS_APP_SRCS
   annotations/qgsannotationitempropertieswidget.cpp
   annotations/qgsannotationlayerproperties.cpp
 
+  canvas/qgsappcanvasfiltering.cpp
   canvas/qgscanvasrefreshblocker.cpp
 
   decorations/qgsdecorationitem.cpp
@@ -346,9 +347,7 @@ if (WITH_3D)
     3d/qgs3danimationexportdialog.cpp
     3d/qgs3dapputils.cpp
     3d/qgs3dicongenerator.cpp
-    3d/qgs3dmapcanvas.cpp
     3d/qgs3dmapconfigwidget.cpp
-    3d/qgs3dmaptool.cpp
     3d/qgs3dmaptoolidentify.cpp
     3d/qgs3dmaptoolmeasureline.cpp
     3d/qgs3dmeasuredialog.cpp
@@ -360,6 +359,7 @@ if (WITH_3D)
     3d/qgsline3dsymbolwidget.cpp
     3d/qgsmaterialwidget.cpp
     3d/qgsmesh3dsymbolwidget.cpp
+    3d/qgsmetalroughmaterialwidget.cpp
     3d/qgsnullmaterialwidget.cpp
     3d/qgspoint3dsymbolwidget.cpp
     3d/qgspolygon3dsymbolwidget.cpp
@@ -518,6 +518,7 @@ else()
 
   # require c++17
   target_compile_features(${QGIS_APP_NAME} PRIVATE cxx_std_17)
+  target_compile_definitions(${QGIS_APP_NAME} PRIVATE "QT_PLUGINS_DIR=\"${QT_PLUGINS_DIR}\"")
 endif()
 
 # Putting IMAGE_RCC_SRCS into qgis_app lib is causing problems when the lib is
@@ -526,6 +527,8 @@ add_library(qgis_app ${LIBRARY_TYPE} ${QGIS_APP_SRCS})
 
 # require c++17
 target_compile_features(qgis_app PRIVATE cxx_std_17)
+
+target_compile_definitions(qgis_app PRIVATE "QT_PLUGINS_DIR=\"${QT_PLUGINS_DIR}\"")
 
 target_include_directories(qgis_app PUBLIC
   ${CMAKE_SOURCE_DIR}/external/nmea

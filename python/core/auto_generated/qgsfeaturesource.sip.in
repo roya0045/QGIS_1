@@ -14,21 +14,12 @@ class QgsFeatureSource
 {
 %Docstring(signature="appended")
 An interface for objects which provide features via a getFeatures method.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
 #include "qgsfeaturesource.h"
 %End
   public:
-
-    enum FeatureAvailability
-    {
-      NoFeaturesAvailable,
-      FeaturesAvailable,
-      FeaturesMaybeAvailable
-    };
 
     virtual ~QgsFeatureSource();
 
@@ -81,7 +72,7 @@ Returns the number of features contained in the source, or -1
 if the feature count is unknown.
 %End
 
-    virtual FeatureAvailability hasFeatures() const;
+    virtual Qgis::FeatureAvailability hasFeatures() const;
 %Docstring
 Determines if there are any features available in the source.
 
@@ -165,18 +156,9 @@ before it has fully completed.
 
 The returned value is a new instance and the caller takes responsibility
 for its ownership.
-
-.. versionadded:: 3.0
 %End
 
-    enum SpatialIndexPresence
-    {
-      SpatialIndexUnknown,
-      SpatialIndexNotPresent,
-      SpatialIndexPresent,
-    };
-
-    virtual SpatialIndexPresence hasSpatialIndex() const;
+    virtual Qgis::SpatialIndexPresence hasSpatialIndex() const;
 %Docstring
 Returns an enum value representing the presence of a valid spatial index on the source,
 if it can be determined.

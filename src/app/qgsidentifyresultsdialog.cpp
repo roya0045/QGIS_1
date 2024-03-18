@@ -16,6 +16,8 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "qgsconfig.h"
+
 #include <QCloseEvent>
 #include <QLabel>
 #include <QAction>
@@ -25,8 +27,6 @@
 #include <QClipboard>
 #include <QMenuBar>
 #include <QPushButton>
-#include <QPrinter>
-#include <QPrintDialog>
 #include <QDesktopServices>
 #include <QMessageBox>
 #include <QComboBox>
@@ -40,6 +40,11 @@
 #include <QFont>
 #include <QActionGroup>
 #include <QToolButton>
+
+#if defined( HAVE_QTPRINTER )
+#include <QPrinter>
+#include <QPrintDialog>
+#endif
 
 //graph
 #include <qwt_plot.h>
@@ -166,12 +171,14 @@ void QgsIdentifyResultsWebView::handleDownload( QUrl url )
 
 void QgsIdentifyResultsWebView::print()
 {
+#if defined( HAVE_QTPRINTER )
   QPrinter printer;
   QPrintDialog *dialog = new QPrintDialog( &printer );
   if ( dialog->exec() == QDialog::Accepted )
   {
     QgsWebView::print( &printer );
   }
+#endif
 }
 
 void QgsIdentifyResultsWebView::contextMenuEvent( QContextMenuEvent *e )
@@ -180,9 +187,12 @@ void QgsIdentifyResultsWebView::contextMenuEvent( QContextMenuEvent *e )
   if ( !menu )
     return;
 
+#if defined( HAVE_QTPRINTER )
   QAction *action = new QAction( tr( "Print" ), this );
   connect( action, &QAction::triggered, this, &QgsIdentifyResultsWebView::print );
   menu->addAction( action );
+#endif
+
   menu->exec( e->globalPos() );
   delete menu;
 }
@@ -354,6 +364,8 @@ QgsIdentifyResultsDialog::QgsIdentifyResultsDialog( QgsMapCanvas *canvas, QWidge
 
   mOpenFormAction->setDisabled( true );
 
+  lstResults->setVerticalScrollMode( QListView::ScrollMode::ScrollPerPixel );
+
   QgsSettings mySettings;
   mDock = new QgsDockWidget( tr( "Identify Results" ), QgisApp::instance() );
   mDock->setObjectName( QStringLiteral( "IdentifyResultsDock" ) );
@@ -424,16 +436,17 @@ QgsIdentifyResultsDialog::QgsIdentifyResultsDialog( QgsMapCanvas *canvas, QWidge
   mPlot->setSizePolicy( sizePolicy );
   mPlot->updateGeometry();
 
-  connect( lstResults, &QTreeWidget::itemExpanded,
-           this, &QgsIdentifyResultsDialog::itemExpanded );
-
   connect( lstResults, &QTreeWidget::currentItemChanged,
            this, &QgsIdentifyResultsDialog::handleCurrentItemChanged );
 
   connect( lstResults, &QTreeWidget::itemClicked,
            this, &QgsIdentifyResultsDialog::itemClicked );
 
+#if defined( HAVE_QTPRINTER )
   connect( mActionPrint, &QAction::triggered, this, &QgsIdentifyResultsDialog::printCurrentItem );
+#else
+  mActionPrint->setVisible( false );
+#endif
   connect( mOpenFormAction, &QAction::triggered, this, &QgsIdentifyResultsDialog::featureForm );
   connect( mClearResultsAction, &QAction::triggered, this, &QgsIdentifyResultsDialog::clear );
   connect( mHelpToolAction, &QAction::triggered, this, &QgsIdentifyResultsDialog::showHelp );
@@ -749,10 +762,12 @@ QgsIdentifyResultsFeatureItem *QgsIdentifyResultsDialog::createFeatureItem( QgsV
     attrItem->setToolTip( 1, representedValue );
     attrItem->setData( 1, REPRESENTED_VALUE_ROLE, representedValue );
 
-    if ( setup.type() == QLatin1String( "JsonEdit" ) )
+    if ( !QgsVariantUtils::isNull( attrs.at( i ) ) && setup.type() == QLatin1String( "JsonEdit" ) )
     {
       QgsJsonEditWidget *jsonEditWidget = new QgsJsonEditWidget();
       jsonEditWidget->setJsonText( representedValue );
+      jsonEditWidget->jsonEditor()->setWrapMode( QsciScintilla::WrapWord );
+      jsonEditWidget->jsonEditor()->setLineNumbersVisible( false );
       jsonEditWidget->setView( static_cast<QgsJsonEditWidget::View>( setup.config().value( QStringLiteral( "DefaultView" ) ).toInt() ) );
       jsonEditWidget->setFormatJsonMode( static_cast<QgsJsonEditWidget::FormatJson>( setup.config().value( QStringLiteral( "FormatJson" ) ).toInt() ) );
       jsonEditWidget->setControlsVisible( false );
@@ -1421,7 +1436,6 @@ void QgsIdentifyResultsDialog::addFeature( QgsTiledSceneLayer *layer,
   }
 }
 
-
 void QgsIdentifyResultsDialog::editingToggled()
 {
   QTreeWidgetItem *layItem = layerItem( sender() );
@@ -1966,33 +1980,37 @@ QgsTiledSceneLayer *QgsIdentifyResultsDialog::tiledSceneLayer( QTreeWidgetItem *
   return qobject_cast<QgsTiledSceneLayer *>( item->data( 0, Qt::UserRole ).value<QObject *>() );
 }
 
-QTreeWidgetItem *QgsIdentifyResultsDialog::retrieveAttributes( QTreeWidgetItem *item, QgsAttributeMap &attributes, int &idx )
+QgsAttributeMap QgsIdentifyResultsDialog::retrieveAttributes( QTreeWidgetItem *item )
 {
   QTreeWidgetItem *featItem = featureItem( item );
   if ( !featItem )
-    return nullptr;
+    return {};
 
-  idx = -1;
-
-  attributes.clear();
+  QgsAttributeMap attributes;
   for ( int i = 0; i < featItem->childCount(); i++ )
   {
     QTreeWidgetItem *item = featItem->child( i );
     if ( item->childCount() > 0 )
       continue;
-    if ( item == lstResults->currentItem() )
-      idx = item->data( 0, Qt::UserRole + 1 ).toInt();
-    attributes.insert( item->data( 0, Qt::UserRole + 1 ).toInt(), item->data( 1, REPRESENTED_VALUE_ROLE ) );
+
+    attributes.insert( item->data( 0, Qt::UserRole + 1 ).toInt(),
+                       retrieveAttribute( item ) );
   }
 
-  return featItem;
+  return attributes;
 }
 
-void QgsIdentifyResultsDialog::itemExpanded( QTreeWidgetItem *item )
+QVariant QgsIdentifyResultsDialog::retrieveAttribute( QTreeWidgetItem *item )
 {
-  Q_UNUSED( item )
-  // column width is now stored in settings
-  //expandColumnsToFit();
+  if ( !item )
+    return QVariant();
+
+  // prefer represented values, if available.
+  const QVariant representedValue = item->data( 1, REPRESENTED_VALUE_ROLE );
+  if ( !QgsVariantUtils::isNull( representedValue ) )
+    return representedValue;
+
+  return item->data( 1, Qt::DisplayRole );
 }
 
 void QgsIdentifyResultsDialog::handleCurrentItemChanged( QTreeWidgetItem *current, QTreeWidgetItem *previous )
@@ -2362,7 +2380,8 @@ void QgsIdentifyResultsDialog::collapseAll()
 void QgsIdentifyResultsDialog::copyAttributeValue()
 {
   QClipboard *clipboard = QApplication::clipboard();
-  const QString text = lstResults->currentItem()->data( 1, REPRESENTED_VALUE_ROLE ).toString();
+  const QVariant attributeValue = retrieveAttribute( lstResults->currentItem() );
+  const QString text = attributeValue.toString();
   QgsDebugMsgLevel( QStringLiteral( "set clipboard: %1" ).arg( text ), 2 );
   clipboard->setText( text );
 }
@@ -2381,12 +2400,8 @@ void QgsIdentifyResultsDialog::copyFeatureAttributes()
 
   if ( vlayer )
   {
-    int idx;
-    QgsAttributeMap attributes;
-    retrieveAttributes( lstResults->currentItem(), attributes, idx );
-
-    const QgsFields &fields = vlayer->fields();
-
+    const QgsAttributeMap attributes = retrieveAttributes( lstResults->currentItem() );
+    const QgsFields fields = vlayer->fields();
     for ( QgsAttributeMap::const_iterator it = attributes.constBegin(); it != attributes.constEnd(); ++it )
     {
       const int attrIdx = it.key();

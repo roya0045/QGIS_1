@@ -551,7 +551,7 @@ void QgsMdalProvider::fileMeshFilters( QString &fileMeshFiltersString, QString &
   // Grind through all the drivers and their respective metadata.
   // We'll add a file filter for those drivers that have a file
   // extension defined for them; the others, well, even though
-  // theoreticaly we can open those files because there exists a
+  // theoretically we can open those files because there exists a
   // driver for them, the user will have to use the "All Files" to
   // open datasets with no explicitly defined file name extension.
 
@@ -594,19 +594,11 @@ void QgsMdalProvider::fileMeshFilters( QString &fileMeshFiltersString, QString &
   }
 
   // sort file filters alphabetically
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList filters = fileMeshFiltersString.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
   QStringList filters = fileMeshFiltersString.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
   filters.sort();
   fileMeshFiltersString = filters.join( QLatin1String( ";;" ) ) + ";;";
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  filters = fileMeshDatasetFiltersString.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
   filters = fileMeshDatasetFiltersString.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
   filters.sort();
   fileMeshDatasetFiltersString = filters.join( QLatin1String( ";;" ) ) + ";;";
 
@@ -646,11 +638,7 @@ void QgsMdalProvider::fileMeshExtensions( QStringList &fileMeshExtensions,
     }
 
     const QString driverFilters = MDAL_DR_filters( mdalDriver );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    QStringList extensions = driverFilters.split( QStringLiteral( ";;" ), QString::SkipEmptyParts );
-#else
     QStringList extensions = driverFilters.split( QStringLiteral( ";;" ), Qt::SkipEmptyParts );
-#endif
     bool isMeshDriver = MDAL_DR_meshLoadCapability( mdalDriver );
 
     if ( !extensions.isEmpty() )
@@ -1025,7 +1013,7 @@ static MDAL_MeshH createMDALMesh( const QgsMesh &mesh, const QString &driverName
     faceIndex += faceCount;
   }
 
-  MDAL_M_setProjection( mdalMesh, crs.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ).toStdString().c_str() );
+  MDAL_M_setProjection( mdalMesh, crs.toWkt( Qgis::CrsWktVariant::Preferred ).toStdString().c_str() );
 
   return mdalMesh;
 }

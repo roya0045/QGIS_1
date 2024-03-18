@@ -391,6 +391,21 @@ void QgisAppInterface::closeMapCanvas( const QString &name )
   qgis->closeMapCanvas( name );
 }
 
+QList< Qgs3DMapCanvas * > QgisAppInterface::mapCanvases3D()
+{
+  return qgis->mapCanvases3D();
+}
+
+Qgs3DMapCanvas *QgisAppInterface::createNewMapCanvas3D( const QString &name )
+{
+  return qgis->createNewMapCanvas3D( name );
+}
+
+void QgisAppInterface::closeMapCanvas3D( const QString &name )
+{
+  qgis->close3DMapView( name );
+}
+
 QSize QgisAppInterface::iconSize( bool dockedToolbar ) const
 {
   return qgis->iconSize( dockedToolbar );
@@ -736,6 +751,7 @@ QMenu *QgisAppInterface::rasterMenu() { return qgis->rasterMenu(); }
 QMenu *QgisAppInterface::vectorMenu() { return qgis->vectorMenu(); }
 QMenu *QgisAppInterface::databaseMenu() { return qgis->databaseMenu(); }
 QMenu *QgisAppInterface::webMenu() { return qgis->webMenu(); }
+QMenu *QgisAppInterface::meshMenu() { return qgis->meshMenu(); }
 QMenu *QgisAppInterface::firstRightStandardMenu() { return qgis->firstRightStandardMenu(); }
 QMenu *QgisAppInterface::windowMenu() { return qgis->windowMenu(); }
 QMenu *QgisAppInterface::helpMenu() { return qgis->helpMenu(); }
@@ -997,5 +1013,10 @@ QList<QgsMapDecoration *> QgisAppInterface::activeDecorations()
 QgsUserProfileManager *QgisAppInterface::userProfileManager()
 {
   return qgis->userProfileManager();
+}
+
+void QgisAppInterface::blockActiveLayerChanges( bool blocked )
+{
+  qgis->blockActiveLayerChanges( blocked );
 }
 

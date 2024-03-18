@@ -35,6 +35,7 @@
 #include "qgsmapmouseevent.h"
 #include "qgslayertreeview.h"
 #include "qgsmaplayeraction.h"
+#include "qgsunittypes.h"
 
 #include <QCursor>
 #include <QPixmap>
@@ -53,7 +54,6 @@ QgsMapToolIdentifyAction::QgsMapToolIdentifyAction( QgsMapCanvas *canvas )
   identifyMenu()->addCustomAction( attrTableAction );
   mSelectionHandler = new QgsMapToolSelectionHandler( canvas, QgsMapToolSelectionHandler::SelectSimple );
   connect( mSelectionHandler, &QgsMapToolSelectionHandler::geometryChanged, this, &QgsMapToolIdentifyAction::identifyFromGeometry );
-
 }
 
 QgsMapToolIdentifyAction::~QgsMapToolIdentifyAction()
@@ -103,7 +103,6 @@ void QgsMapToolIdentifyAction::showAttributeTable( QgsMapLayer *layer, const QLi
   tableDialog->show();
 }
 
-
 void QgsMapToolIdentifyAction::identifyFromGeometry()
 {
   resultsDialog()->clear();
@@ -133,6 +132,7 @@ void QgsMapToolIdentifyAction::identifyFromGeometry()
   QgsIdentifyContext identifyContext;
   if ( mCanvas->mapSettings().isTemporal() )
     identifyContext.setTemporalRange( mCanvas->temporalRange() );
+  identifyContext.setZRange( mCanvas->zRange() );
   const QList<IdentifyResult> results = QgsMapToolIdentify::identify( geometry, mode, layerList, AllLayers, identifyContext );
 
   disconnect( this, &QgsMapToolIdentifyAction::identifyMessage, QgisApp::instance(), &QgisApp::showStatusMessage );
@@ -234,12 +234,24 @@ void QgsMapToolIdentifyAction::showResultsForFeature( QgsVectorLayer *vlayer, Qg
 
 Qgis::DistanceUnit QgsMapToolIdentifyAction::displayDistanceUnits() const
 {
-  return QgsProject::instance()->distanceUnits();
+  Qgis::DistanceUnit units = QgsProject::instance()->distanceUnits();
+  // unknown units used as a placeholder for map units
+  if ( units == Qgis::DistanceUnit::Unknown )
+  {
+    return QgsProject::instance()->crs().mapUnits();
+  }
+  return units;
 }
 
 Qgis::AreaUnit QgsMapToolIdentifyAction::displayAreaUnits() const
 {
-  return QgsProject::instance()->areaUnits();
+  Qgis::AreaUnit units = QgsProject::instance()->areaUnits();
+  // unknown units used as a placeholder for map units
+  if ( units == Qgis::AreaUnit::Unknown )
+  {
+    return QgsUnitTypes::distanceToAreaUnit( QgsProject::instance()->crs().mapUnits() );
+  }
+  return units;
 }
 
 void QgsMapToolIdentifyAction::handleCopyToClipboard( QgsFeatureStore &featureStore )
@@ -262,7 +274,6 @@ void QgsMapToolIdentifyAction::setClickContextScope( const QgsPointXY &point )
   }
 }
 
-
 void QgsMapToolIdentifyAction::keyReleaseEvent( QKeyEvent *e )
 {
   if ( mSelectionHandler->keyReleaseEvent( e ) )
@@ -270,7 +281,6 @@ void QgsMapToolIdentifyAction::keyReleaseEvent( QKeyEvent *e )
 
   QgsMapTool::keyReleaseEvent( e );
 }
-
 
 void QgsMapToolIdentifyAction::showIdentifyResults( const QList<IdentifyResult> &identifyResults )
 {

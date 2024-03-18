@@ -62,7 +62,7 @@ class CORE_EXPORT QgsMeshDriverMetadata
     /**
      * Flags for the capabilities of the driver
      */
-    enum MeshDriverCapability
+    enum MeshDriverCapability SIP_ENUM_BASETYPE( IntFlag )
     {
       CanWriteFaceDatasets = 1 << 0, //!< If the driver can persist datasets defined on faces
       CanWriteVertexDatasets = 1 << 1, //!< If the driver can persist datasets defined on vertices
@@ -184,7 +184,7 @@ class CORE_EXPORT QgsProviderMetadata : public QObject
      *
      * \since QGIS 3.18
      */
-    enum ProviderMetadataCapability
+    enum ProviderMetadataCapability SIP_ENUM_BASETYPE( IntFlag )
     {
       PriorityForUri = 1 << 0, //!< Indicates that the metadata can calculate a priority for a URI
       LayerTypesForUri = 1 << 1, //!< Indicates that the metadata can determine valid layer types for a URI
@@ -198,7 +198,7 @@ class CORE_EXPORT QgsProviderMetadata : public QObject
      *
      * \since QGIS 3.18.1
      */
-    enum ProviderCapability
+    enum ProviderCapability SIP_ENUM_BASETYPE( IntFlag )
     {
       FileBasedUris = 1 << 0, //!< Indicates that the provider can utilize URIs which are based on paths to files (as opposed to database or internet paths)
       SaveLayerMetadata = 1 << 1, //!< Indicates that the provider supports saving native layer metadata (since QGIS 3.20)
@@ -208,7 +208,6 @@ class CORE_EXPORT QgsProviderMetadata : public QObject
 
     /**
      * Typedef for data provider creation function.
-     * \since QGIS 3.0
      */
     SIP_SKIP typedef std::function < QgsDataProvider*( const QString &, const QgsDataProvider::ProviderOptions &, QgsDataProvider::ReadFlags & ) > CreateDataProviderFunction;
 
@@ -223,7 +222,6 @@ class CORE_EXPORT QgsProviderMetadata : public QObject
     /**
      * Metadata for provider with direct provider creation function pointer, where
      * no library is involved.
-     * \since QGIS 3.0
      * \deprecated QGIS 3.10
      */
     SIP_SKIP Q_DECL_DEPRECATED QgsProviderMetadata( const QString &key, const QString &description, const QgsProviderMetadata::CreateDataProviderFunction &createFunc );
@@ -324,7 +322,6 @@ class CORE_EXPORT QgsProviderMetadata : public QObject
      * Returns a pointer to the direct provider creation function, if supported
      * by the provider.
      * \note not available in Python bindings
-     * \since QGIS 3.0
      * \deprecated QGIS 3.10
      */
     SIP_SKIP Q_DECL_DEPRECATED CreateDataProviderFunction createFunction() const;

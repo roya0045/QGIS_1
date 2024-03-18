@@ -293,41 +293,41 @@ void QgsWfsCapabilities::capabilitiesReplyFinished()
   QDomElement operationsMetadataElem = doc.firstChildElement( QStringLiteral( "OperationsMetadata" ) );
   if ( !operationsMetadataElem.isNull() )
   {
-    QDomNodeList contraintList = operationsMetadataElem.elementsByTagName( QStringLiteral( "Constraint" ) );
-    for ( int i = 0; i < contraintList.size(); ++i )
+    QDomNodeList constraintList = operationsMetadataElem.elementsByTagName( QStringLiteral( "Constraint" ) );
+    for ( int i = 0; i < constraintList.size(); ++i )
     {
-      QDomElement contraint = contraintList.at( i ).toElement();
-      if ( contraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "DefaultMaxFeatures" ) /* WFS 1.1 */ )
+      QDomElement constraint = constraintList.at( i ).toElement();
+      if ( constraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "DefaultMaxFeatures" ) /* WFS 1.1 */ )
       {
-        QDomElement value = contraint.firstChildElement( QStringLiteral( "Value" ) );
+        QDomElement value = constraint.firstChildElement( QStringLiteral( "Value" ) );
         if ( !value.isNull() )
         {
           mCaps.maxFeatures = value.text().toInt();
           QgsDebugMsgLevel( QStringLiteral( "maxFeatures: %1" ).arg( mCaps.maxFeatures ), 2 );
         }
       }
-      else if ( contraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "CountDefault" ) /* WFS 2.0 (e.g. MapServer) */ )
+      else if ( constraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "CountDefault" ) /* WFS 2.0 (e.g. MapServer) */ )
       {
-        QDomElement value = contraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
+        QDomElement value = constraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
         if ( !value.isNull() )
         {
           mCaps.maxFeatures = value.text().toInt();
           QgsDebugMsgLevel( QStringLiteral( "maxFeatures: %1" ).arg( mCaps.maxFeatures ), 2 );
         }
       }
-      else if ( contraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "ImplementsResultPaging" ) /* WFS 2.0 */ )
+      else if ( constraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "ImplementsResultPaging" ) /* WFS 2.0 */ )
       {
-        QDomElement value = contraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
+        QDomElement value = constraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
         if ( !value.isNull() && value.text() == QLatin1String( "TRUE" ) )
         {
           mCaps.supportsPaging = true;
           QgsDebugMsgLevel( QStringLiteral( "Supports paging" ), 2 );
         }
       }
-      else if ( contraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "ImplementsStandardJoins" ) ||
-                contraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "ImplementsSpatialJoins" ) /* WFS 2.0 */ )
+      else if ( constraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "ImplementsStandardJoins" ) ||
+                constraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "ImplementsSpatialJoins" ) /* WFS 2.0 */ )
       {
-        QDomElement value = contraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
+        QDomElement value = constraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
         if ( !value.isNull() && value.text() == QLatin1String( "TRUE" ) )
         {
           mCaps.supportsJoins = true;
@@ -365,13 +365,13 @@ void QgsWfsCapabilities::capabilitiesReplyFinished()
 
       if ( name == QLatin1String( "GetFeature" ) )
       {
-        QDomNodeList operationContraintList = operation.elementsByTagName( QStringLiteral( "Constraint" ) );
-        for ( int j = 0; j < operationContraintList.size(); ++j )
+        QDomNodeList operationConstraintList = operation.elementsByTagName( QStringLiteral( "Constraint" ) );
+        for ( int j = 0; j < operationConstraintList.size(); ++j )
         {
-          QDomElement contraint = operationContraintList.at( j ).toElement();
-          if ( contraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "CountDefault" ) )
+          QDomElement constraint = operationConstraintList.at( j ).toElement();
+          if ( constraint.attribute( QStringLiteral( "name" ) ) == QLatin1String( "CountDefault" ) )
           {
-            QDomElement value = contraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
+            QDomElement value = constraint.firstChildElement( QStringLiteral( "DefaultValue" ) );
             if ( !value.isNull() )
             {
               mCaps.maxFeatures = value.text().toInt();
@@ -580,23 +580,31 @@ void QgsWfsCapabilities::capabilitiesReplyFinished()
           QgsCoordinateReferenceSystem crsWGS84 = QgsCoordinateReferenceSystem::fromOgcWmsCrs( QStringLiteral( "CRS:84" ) );
 
           QgsCoordinateTransform ct( crsWGS84, crs, mOptions.transformContext );
-
-          QgsPointXY ptMin( featureType.bbox.xMinimum(), featureType.bbox.yMinimum() );
-          QgsPointXY ptMinBack( ct.transform( ct.transform( ptMin, Qgis::TransformDirection::Forward ), Qgis::TransformDirection::Reverse ) );
-          QgsPointXY ptMax( featureType.bbox.xMaximum(), featureType.bbox.yMaximum() );
-          QgsPointXY ptMaxBack( ct.transform( ct.transform( ptMax, Qgis::TransformDirection::Forward ), Qgis::TransformDirection::Reverse ) );
-
-          QgsDebugMsgLevel( featureType.bbox.toString(), 2 );
-          QgsDebugMsgLevel( ptMinBack.toString(), 2 );
-          QgsDebugMsgLevel( ptMaxBack.toString(), 2 );
-
-          if ( std::fabs( featureType.bbox.xMinimum() - ptMinBack.x() ) < 1e-5 &&
-               std::fabs( featureType.bbox.yMinimum() - ptMinBack.y() ) < 1e-5 &&
-               std::fabs( featureType.bbox.xMaximum() - ptMaxBack.x() ) < 1e-5 &&
-               std::fabs( featureType.bbox.yMaximum() - ptMaxBack.y() ) < 1e-5 )
+          try
           {
-            QgsDebugMsgLevel( QStringLiteral( "Values of LatLongBoundingBox are consistent with WGS84 long/lat bounds, so as the CRS is projected, assume they are indeed in WGS84 and not in the CRS units" ), 2 );
-            featureType.bboxSRSIsWGS84 = true;
+
+            QgsPointXY ptMin( featureType.bbox.xMinimum(), featureType.bbox.yMinimum() );
+            QgsPointXY ptMinBack( ct.transform( ct.transform( ptMin, Qgis::TransformDirection::Forward ), Qgis::TransformDirection::Reverse ) );
+            QgsPointXY ptMax( featureType.bbox.xMaximum(), featureType.bbox.yMaximum() );
+            QgsPointXY ptMaxBack( ct.transform( ct.transform( ptMax, Qgis::TransformDirection::Forward ), Qgis::TransformDirection::Reverse ) );
+
+            QgsDebugMsgLevel( featureType.bbox.toString(), 2 );
+            QgsDebugMsgLevel( ptMinBack.toString(), 2 );
+            QgsDebugMsgLevel( ptMaxBack.toString(), 2 );
+
+            if ( std::fabs( featureType.bbox.xMinimum() - ptMinBack.x() ) < 1e-5 &&
+                 std::fabs( featureType.bbox.yMinimum() - ptMinBack.y() ) < 1e-5 &&
+                 std::fabs( featureType.bbox.xMaximum() - ptMaxBack.x() ) < 1e-5 &&
+                 std::fabs( featureType.bbox.yMaximum() - ptMaxBack.y() ) < 1e-5 )
+            {
+              QgsDebugMsgLevel( QStringLiteral( "Values of LatLongBoundingBox are consistent with WGS84 long/lat bounds, so as the CRS is projected, assume they are indeed in WGS84 and not in the CRS units" ), 2 );
+              featureType.bboxSRSIsWGS84 = true;
+            }
+
+          }
+          catch ( const QgsCsException & )
+          {
+            // can be silently ignored
           }
         }
       }
@@ -611,13 +619,8 @@ void QgsWfsCapabilities::capabilitiesReplyFinished()
         QDomElement upperCorner = WGS84BoundingBox.firstChildElement( QStringLiteral( "UpperCorner" ) );
         if ( !lowerCorner.isNull() && !upperCorner.isNull() )
         {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-          QStringList lowerCornerList = lowerCorner.text().split( QStringLiteral( " " ), QString::SkipEmptyParts );
-          QStringList upperCornerList = upperCorner.text().split( QStringLiteral( " " ), QString::SkipEmptyParts );
-#else
           QStringList lowerCornerList = lowerCorner.text().split( QStringLiteral( " " ), Qt::SkipEmptyParts );
           QStringList upperCornerList = upperCorner.text().split( QStringLiteral( " " ), Qt::SkipEmptyParts );
-#endif
           if ( lowerCornerList.size() == 2 && upperCornerList.size() == 2 )
           {
             featureType.bbox = QgsRectangle(

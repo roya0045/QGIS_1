@@ -28,6 +28,7 @@
 #include "qgsauthconfigedit.h"
 #include "qgsmessagelog.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 
 QgsAuthOAuth2Edit::QgsAuthOAuth2Edit( QWidget *parent )
   : QgsAuthMethodEdit( parent )
@@ -1161,11 +1162,7 @@ void QgsAuthOAuth2Edit::registerSoftStatement( const QString &registrationUrl )
     registerReply = QgsNetworkAccessManager::instance()->post( registerRequest, json );
   mDownloading = true;
   connect( registerReply, &QNetworkReply::finished, this, &QgsAuthOAuth2Edit::registerReplyFinished, Qt::QueuedConnection );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  connect( registerReply, qOverload<QNetworkReply::NetworkError>( &QNetworkReply::error ), this, &QgsAuthOAuth2Edit::networkError, Qt::QueuedConnection );
-#else
   connect( registerReply, &QNetworkReply::errorOccurred, this, &QgsAuthOAuth2Edit::networkError, Qt::QueuedConnection );
-#endif
 }
 
 void QgsAuthOAuth2Edit::getSoftwareStatementConfig()
@@ -1183,11 +1180,7 @@ void QgsAuthOAuth2Edit::getSoftwareStatementConfig()
     QNetworkReply *configReply = QgsNetworkAccessManager::instance()->get( configRequest );
     mDownloading = true;
     connect( configReply, &QNetworkReply::finished, this, &QgsAuthOAuth2Edit::configReplyFinished, Qt::QueuedConnection );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    connect( configReply, qOverload<QNetworkReply::NetworkError>( &QNetworkReply::error ), this, &QgsAuthOAuth2Edit::networkError, Qt::QueuedConnection );
-#else
     connect( configReply, &QNetworkReply::errorOccurred, this, &QgsAuthOAuth2Edit::networkError, Qt::QueuedConnection );
-#endif
   }
 }
 

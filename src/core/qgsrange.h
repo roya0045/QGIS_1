@@ -40,7 +40,6 @@
  * \see QgsDoubleRange
  * \see QgsIntRange
  * \note not available in Python bindings (but class provided for template-based inheritance)
- * \since QGIS 3.0
  */
 template <typename T>
 class QgsRange
@@ -56,6 +55,19 @@ class QgsRange
       , mUpper( upper )
       , mIncludeLower( includeLower )
       , mIncludeUpper( includeUpper )
+    {}
+
+    /**
+     * Constructor for QgsRange. The \a lower and \a upper bounds are specified,
+     * and whether or not these bounds are included in the range.
+     *
+     * \since QGIS 3.38
+     */
+    QgsRange( T lower, T upper, Qgis::RangeLimits limits )
+      : mLower( lower )
+      , mUpper( upper )
+      , mIncludeLower( limits == Qgis::RangeLimits::IncludeLowerExcludeUpper || limits == Qgis::RangeLimits::IncludeBoth )
+      , mIncludeUpper( limits == Qgis::RangeLimits::ExcludeLowerIncludeUpper || limits == Qgis::RangeLimits::IncludeBoth )
     {}
 
     /**
@@ -87,6 +99,23 @@ class QgsRange
      * \see includeLower()
      */
     bool includeUpper() const { return mIncludeUpper; }
+
+    /**
+     * Returns the limit handling of the range.
+     *
+     * \since QGIS 3.38
+     */
+    Qgis::RangeLimits rangeLimits() const
+    {
+      if ( mIncludeLower && mIncludeUpper )
+        return Qgis::RangeLimits::IncludeBoth;
+      else if ( mIncludeLower && !mIncludeUpper )
+        return Qgis::RangeLimits::IncludeLowerExcludeUpper;
+      else if ( !mIncludeLower && mIncludeUpper )
+        return Qgis::RangeLimits::ExcludeLowerIncludeUpper;
+      else
+        return Qgis::RangeLimits::ExcludeBoth;
+    }
 
     /**
      * Returns TRUE if the range is empty, ie the lower bound equals (or exceeds) the upper bound
@@ -197,11 +226,20 @@ class QgsRange
  * \see QgsIntRange
  * \see QgsDateRange
  * \see QgsDateTimeRange
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsDoubleRange : public QgsRange< double >
 {
   public:
+
+    /**
+     * Constructor for QgsDoubleRange. The \a lower and \a upper bounds are specified,
+     * and whether or not these bounds are included in the range.
+     *
+     * \since QGIS 3.38
+     */
+    QgsDoubleRange( double lower, double upper, Qgis::RangeLimits limits )
+      : QgsRange( lower, upper, limits )
+    {}
 
 #ifndef SIP_RUN
 
@@ -275,6 +313,8 @@ class CORE_EXPORT QgsDoubleRange : public QgsRange< double >
 
 };
 
+Q_DECLARE_METATYPE( QgsDoubleRange )
+
 
 /**
  * \brief QgsRange which stores a range of integer values.
@@ -282,11 +322,20 @@ class CORE_EXPORT QgsDoubleRange : public QgsRange< double >
  * \see QgsDoubleRange
  * \see QgsDateRange
  * \see QgsDateTimeRange
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsIntRange : public QgsRange< int >
 {
   public:
+
+    /**
+     * Constructor for QgsIntRange. The \a lower and \a upper bounds are specified,
+     * and whether or not these bounds are included in the range.
+     *
+     * \since QGIS 3.38
+     */
+    QgsIntRange( int lower, int upper, Qgis::RangeLimits limits )
+      : QgsRange( lower, upper, limits )
+    {}
 
 #ifndef SIP_RUN
 
@@ -347,6 +396,8 @@ class CORE_EXPORT QgsIntRange : public QgsRange< int >
 
 };
 
+Q_DECLARE_METATYPE( QgsIntRange )
+
 
 /**
  * \class QgsTemporalRange
@@ -362,7 +413,6 @@ class CORE_EXPORT QgsIntRange : public QgsRange< int >
  *
  * \see QgsDateRange
  * \note not available in Python bindings (but class provided for template-based inheritance)
- * \since QGIS 3.0
  */
 template <typename T>
 class QgsTemporalRange
@@ -675,7 +725,6 @@ class QgsTemporalRange
  * is treated as a range containing all dates before 2017-1-1.
  * QgsDateRange(QDate(2017,1,1),QDate()) is treated as a range containing all dates after 2017-1-1.
  * \see QgsDateTimeRange
- * \since QGIS 3.0
  */
 typedef QgsTemporalRange< QDate > QgsDateRange SIP_DOC_TEMPLATE;
 
@@ -689,7 +738,6 @@ Q_DECLARE_METATYPE( QgsDateRange )
  * is treated as a range containing all dates before 2017-1-1.
  * QgsDateTimeRange(QDateTime(2017,1,1),QDateTime()) is treated as a range containing all dates after 2017-1-1.
  * \see QgsDateRange
- * \since QGIS 3.0
  */
 typedef QgsTemporalRange< QDateTime > QgsDateTimeRange SIP_DOC_TEMPLATE;
 

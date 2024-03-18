@@ -20,8 +20,6 @@ Base class for processing algorithm dialogs.
 .. note::
 
    This is not considered stable API and may change in future QGIS versions.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -116,7 +114,7 @@ the given ``format``.
 .. versionadded:: 3.2
 %End
 
-    QgsProcessingContext::LogLevel logLevel() const;
+    Qgis::ProcessingLogLevel logLevel() const;
 %Docstring
 Returns the logging level to use when running algorithms from the dialog.
 
@@ -125,7 +123,7 @@ Returns the logging level to use when running algorithms from the dialog.
 .. versionadded:: 3.20
 %End
 
-    void setLogLevel( QgsProcessingContext::LogLevel level );
+    void setLogLevel( Qgis::ProcessingLogLevel level );
 %Docstring
 Sets the logging ``level`` to use when running algorithms from the dialog.
 
@@ -158,6 +156,15 @@ Pushes a warning information string to the dialog's log.
     void pushInfo( const QString &info );
 %Docstring
 Pushes an information string to the dialog's log.
+%End
+
+    void pushFormattedMessage( const QString &html );
+%Docstring
+Pushes a pre-formatted message to the dialog's log
+
+This can be used to push formatted HTML messages to the dialog.
+
+.. versionadded:: 3.36
 %End
 
     void pushDebugInfo( const QString &message );
@@ -332,8 +339,6 @@ by the dialog. Ownership of ``task`` is transferred to the dialog.
     static QString formatStringForLog( const QString &string );
 %Docstring
 Formats an input ``string`` for display in the log tab.
-
-.. versionadded:: 3.0.1
 %End
 
     virtual bool isFinalized();

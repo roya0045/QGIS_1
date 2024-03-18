@@ -50,7 +50,6 @@ class QgsColorRamp;
  * or last control point. In other words, the curve will have a flat segment
  * for values outside of the control point range.
  *
- * \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsCurveTransform
@@ -165,7 +164,6 @@ class CORE_EXPORT QgsCurveTransform
  * \class QgsPropertyTransformer
  * \brief Abstract base class for objects which transform the calculated value of a property.
  * Possible uses include transformers which map a value into a scaled size or color from a gradient.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsPropertyTransformer
 {
@@ -337,7 +335,6 @@ class CORE_EXPORT QgsPropertyTransformer
  * \ingroup core
  * \class QgsGenericNumericTransformer
  * \brief QgsPropertyTransformer subclass for scaling an input numeric value into an output numeric value.
- * \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsGenericNumericTransformer : public QgsPropertyTransformer
@@ -455,7 +452,6 @@ class CORE_EXPORT QgsGenericNumericTransformer : public QgsPropertyTransformer
  * \class QgsSizeScaleTransformer
  * \brief QgsPropertyTransformer subclass for scaling a value into a size according to various
  * scaling methods.
- * \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsSizeScaleTransformer : public QgsPropertyTransformer
@@ -602,7 +598,6 @@ class CORE_EXPORT QgsSizeScaleTransformer : public QgsPropertyTransformer
  * \class QgsColorRampTransformer
  * \brief QgsPropertyTransformer subclass for transforming a numeric value into a color from a
  * color ramp.
- * \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsColorRampTransformer : public QgsPropertyTransformer
@@ -615,11 +610,13 @@ class CORE_EXPORT QgsColorRampTransformer : public QgsPropertyTransformer
      * \param maxValue maximum expected value
      * \param ramp source color ramp. Ownership is transferred to the transformer.
      * \param nullColor color to return for null values
+     * \param rampName name of the source color ramp (since QGIS 3.36)
      */
     QgsColorRampTransformer( double minValue = 0.0,
                              double maxValue = 1.0,
                              QgsColorRamp *ramp SIP_TRANSFER = nullptr,
-                             const QColor &nullColor = QColor( 0, 0, 0, 0 ) );
+                             const QColor &nullColor = QColor( 0, 0, 0, 0 ),
+                             const QString &rampName = QString() );
 
     //! Copy constructor
     QgsColorRampTransformer( const QgsColorRampTransformer &other );

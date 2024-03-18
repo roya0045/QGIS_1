@@ -111,8 +111,8 @@ void QgsMssqlConnectionItem::refresh()
   stop();
 
   // Clear all children
-  const QVector<QgsDataItem *> allChidren = children();
-  for ( QgsDataItem *item : allChidren )
+  const QVector<QgsDataItem *> allChildren = children();
+  for ( QgsDataItem *item : allChildren )
   {
     removeChildItem( item );
     delete item;
@@ -352,13 +352,8 @@ void QgsMssqlConnectionItem::setLayerType( QgsMssqlLayerProperty layerProperty )
       return; // already added
   }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList typeList = layerProperty.type.split( ',', QString::SkipEmptyParts );
-  QStringList sridList = layerProperty.srid.split( ',', QString::SkipEmptyParts );
-#else
   QStringList typeList = layerProperty.type.split( ',', Qt::SkipEmptyParts );
   QStringList sridList = layerProperty.srid.split( ',', Qt::SkipEmptyParts );
-#endif
   Q_ASSERT( typeList.size() == sridList.size() );
 
   for ( int i = 0; i < typeList.size(); i++ )
@@ -676,9 +671,9 @@ QString QgsMssqlDataItemProvider::dataProviderKey() const
   return QStringLiteral( "mssql" );
 }
 
-int QgsMssqlDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsMssqlDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Database;
+  return Qgis::DataItemProviderCapability::Databases;
 }
 
 QgsDataItem *QgsMssqlDataItemProvider::createDataItem( const QString &pathIn, QgsDataItem *parentItem )

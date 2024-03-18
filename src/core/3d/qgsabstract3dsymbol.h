@@ -41,7 +41,6 @@ namespace Qt3DCore SIP_SKIP { class QEntity; }
  *
  * \note Prior to QGIS 3.16 this was available through the QGIS 3D library.
  *
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsAbstract3DSymbol
 {
@@ -65,12 +64,14 @@ class CORE_EXPORT QgsAbstract3DSymbol
      */
     virtual QList< Qgis::GeometryType > compatibleGeometryTypes() const;
 
+    // *INDENT-OFF*
     //! Data definable properties.
-    enum Property
-    {
-      PropertyHeight = 0,       //!< Height (altitude)
-      PropertyExtrusionHeight,  //!< Extrusion height (zero means no extrusion)
+    enum class Property SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsAbstract3DSymbol, Property ) : int
+      {
+      Height SIP_MONKEYPATCH_COMPAT_NAME( PropertyHeight ) = 0, //!< Height (altitude)
+      ExtrusionHeight SIP_MONKEYPATCH_COMPAT_NAME( PropertyExtrusionHeight ), //!< Extrusion height (zero means no extrusion)
     };
+    // *INDENT-ON*
 
     //! Returns the symbol layer property definitions.
     static const QgsPropertiesDefinition &propertyDefinitions();

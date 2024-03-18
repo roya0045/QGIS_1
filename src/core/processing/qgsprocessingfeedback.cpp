@@ -18,6 +18,7 @@
 #include "qgsprocessingfeedback.h"
 #include "qgsgeos.h"
 #include "qgsprocessingprovider.h"
+#include "qgsmessagelog.h"
 #include <ogr_api.h>
 #include <gdal_version.h>
 #include <proj.h>
@@ -83,6 +84,15 @@ void QgsProcessingFeedback::pushInfo( const QString &info )
   mTextLog.append( info + '\n' );
 }
 
+void QgsProcessingFeedback::pushFormattedMessage( const QString &html, const QString &text )
+{
+  if ( mLogFeedback )
+    QgsMessageLog::logMessage( text, tr( "Processing" ), Qgis::MessageLevel::Info );
+
+  mHtmlLog.append( html + QStringLiteral( "<br/>" ) );
+  mTextLog.append( text + '\n' );
+}
+
 void QgsProcessingFeedback::pushCommandInfo( const QString &info )
 {
   if ( mLogFeedback )
@@ -136,6 +146,34 @@ void QgsProcessingFeedback::pushVersionInfo( const QgsProcessingProvider *provid
   if ( provider && !provider->versionInfo().isEmpty() )
   {
     pushDebugInfo( tr( "%1 version: %2" ).arg( provider->name(), provider->versionInfo() ) );
+  }
+}
+
+void QgsProcessingFeedback::pushFormattedResults( const QgsProcessingAlgorithm *algorithm, QgsProcessingContext &context, const QVariantMap &results )
+{
+  if ( results.empty() )
+    return;
+
+  pushInfo( tr( "Results:" ) );
+
+  const QList< const QgsProcessingOutputDefinition * > outputs = algorithm->outputDefinitions();
+  for ( const QgsProcessingOutputDefinition *output : outputs )
+  {
+    const QString outputName = output->name();
+    if ( outputName == QLatin1String( "CHILD_RESULTS" ) || outputName == QLatin1String( "CHILD_INPUTS" ) )
+      continue;
+
+    if ( !results.contains( outputName ) )
+      continue;
+
+    bool ok = false;
+    const QString textValue = output->valueAsString( results.value( output->name() ), context, ok );
+    const QString formattedValue = output->valueAsFormattedString( results.value( output->name() ), context, ok );
+    if ( ok )
+    {
+      pushFormattedMessage( QStringLiteral( "<code>&nbsp;&nbsp;%1: %2</code>" ).arg( output->name(), formattedValue ),
+                            QStringLiteral( "  %1: %2" ).arg( output->name(), textValue ) );
+    }
   }
 }
 
@@ -197,6 +235,11 @@ void QgsProcessingMultiStepFeedback::pushDebugInfo( const QString &info )
 void QgsProcessingMultiStepFeedback::pushConsoleInfo( const QString &info )
 {
   mFeedback->pushConsoleInfo( info );
+}
+
+void QgsProcessingMultiStepFeedback::pushFormattedMessage( const QString &html, const QString &text )
+{
+  mFeedback->pushFormattedMessage( html, text );
 }
 
 QString QgsProcessingMultiStepFeedback::htmlLog() const

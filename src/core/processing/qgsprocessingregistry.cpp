@@ -103,7 +103,7 @@ bool QgsProcessingRegistry::addProvider( QgsProcessingProvider *provider )
   if ( !provider )
     return false;
 
-  if ( mProviders.contains( provider->id() ) )
+  if ( providerById( provider->id() ) )
   {
     QgsLogger::warning( QStringLiteral( "Duplicate provider %1 registered" ).arg( provider->id() ) );
     delete provider;
@@ -156,9 +156,17 @@ bool QgsProcessingRegistry::removeProvider( const QString &providerId )
   return removeProvider( p );
 }
 
-QgsProcessingProvider *QgsProcessingRegistry::providerById( const QString &id )
+QgsProcessingProvider *QgsProcessingRegistry::providerById( const QString &id ) const
 {
-  return mProviders.value( id, nullptr );
+  auto it = mProviders.constFind( id );
+  if ( it != mProviders.constEnd() )
+    return it.value();
+
+  // transparently map old references to "grass7" provider to "grass" provider
+  if ( id.compare( QLatin1String( "grass7" ), Qt::CaseInsensitive ) == 0 )
+    return providerById( QStringLiteral( "grass" ) );
+
+  return nullptr;
 }
 
 QList< const QgsProcessingAlgorithm * > QgsProcessingRegistry::algorithms() const
@@ -190,26 +198,47 @@ QgsProcessingAlgorithmInformation QgsProcessingRegistry::algorithmInformation( c
 
 const QgsProcessingAlgorithm *QgsProcessingRegistry::algorithmById( const QString &constId ) const
 {
+  if ( constId.isEmpty() )
+    return nullptr;
+
   // allow mapping of algorithm via registered algorithm aliases
   const QString id = mAlgorithmAliases.value( constId, constId );
 
+  // try to match just the one target provider, if we can determine it from the id easily
+  static thread_local QRegularExpression reSplitProviderId( QStringLiteral( "^(.*?):(.*)$" ) );
+  const QRegularExpressionMatch match = reSplitProviderId.match( id );
+  if ( match.hasMatch() )
+  {
+    if ( QgsProcessingProvider *provider = providerById( match.captured( 1 ) ) )
+    {
+      if ( const QgsProcessingAlgorithm *algorithm = provider->algorithm( match.captured( 2 ) ) )
+        return algorithm;
+    }
+
+    // try mapping 'qgis' algs to 'native' algs - this allows us to freely move algorithms
+    // from the python 'qgis' provider to the c++ 'native' provider without breaking API
+    // or existing models
+    if ( match.captured( 1 ) == QLatin1String( "qgis" ) )
+    {
+      const QString algorithmName = id.mid( 5 );
+      if ( QgsProcessingProvider *provider = mProviders.value( QStringLiteral( "native" ) ) )
+      {
+        if ( const QgsProcessingAlgorithm *algorithm = provider->algorithm( algorithmName ) )
+          return algorithm;
+      }
+    }
+  }
+
+  // slow: iterate through ALL providers to find a match
   QMap<QString, QgsProcessingProvider *>::const_iterator it = mProviders.constBegin();
   for ( ; it != mProviders.constEnd(); ++it )
   {
-    const auto constAlgorithms = it.value()->algorithms();
-    for ( const QgsProcessingAlgorithm *alg : constAlgorithms )
+    const QList< const QgsProcessingAlgorithm * > algorithms = it.value()->algorithms();
+    for ( const QgsProcessingAlgorithm *alg : algorithms )
       if ( alg->id() == id )
         return alg;
   }
 
-  // try mapping 'qgis' algs to 'native' algs - this allows us to freely move algorithms
-  // from the python 'qgis' provider to the c++ 'native' provider without breaking API
-  // or existing models
-  if ( id.startsWith( QLatin1String( "qgis:" ) ) )
-  {
-    const QString newId = QStringLiteral( "native:" ) + id.mid( 5 );
-    return algorithmById( newId );
-  }
   return nullptr;
 }
 

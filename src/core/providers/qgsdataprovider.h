@@ -69,21 +69,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
 
   public:
 
-    // TODO QGIS 4: (re)move DataCapability as this enum is really meant for data items rather than data providers
-
-    /**
-     * Used in browser model to understand which items for which providers should be populated
-     */
-    enum DataCapability
-    {
-      NoDataCapabilities  = 0,
-      File                = 1,
-      Dir                 = 1 << 1,
-      Database            = 1 << 2,
-      Net                 = 1 << 3  // Internet source
-    };
-    Q_DECLARE_FLAGS( DataCapabilities, DataCapability )
-
     /**
      * Properties are used to pass custom configuration options into data providers.
      * This enum defines a list of custom properties which can be used on different
@@ -96,7 +81,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
       EvaluateDefaultValues,       //!< Evaluate default values on provider side when calling QgsVectorDataProvider::defaultValue( int index ) rather than on commit.
       CustomData   = 3000          //!< Custom properties for 3rd party providers or very provider-specific properties which are not expected to be of interest for other providers can be added starting from this value up.
     };
-
 
     /**
      * Setting options for creating vector data providers.
@@ -119,7 +103,7 @@ class CORE_EXPORT QgsDataProvider : public QObject
      * Flags which control dataprovider construction.
      * \since QGIS 3.16
      */
-    enum ReadFlag
+    enum ReadFlag SIP_ENUM_BASETYPE( IntFlag )
     {
       FlagTrustDataSource = 1 << 0, //!< Trust datasource config (primary key unicity, geometry type and srid, etc). Improves provider load time by skipping expensive checks like primary key unicity, geometry type and srid and by using estimated metadata on data load. Since QGIS 3.16
       SkipFeatureCount = 1 << 1, //!< Make featureCount() return -1 to indicate unknown, and subLayers() to return a unknown feature count as well. Since QGIS 3.18. Only implemented by OGR provider at time of writing.
@@ -199,7 +183,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
     /**
      * Set the data source specification.
      *
-     * \since QGIS 3.0
      */
     void setUri( const QgsDataSourceUri &uri )
     {
@@ -219,7 +202,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
     /**
      * Gets the data source specification.
      *
-     * \since QGIS 3.0
      */
     QgsDataSourceUri uri() const
     {
@@ -270,14 +252,23 @@ class CORE_EXPORT QgsDataProvider : public QObject
     virtual const QgsDataProviderElevationProperties *elevationProperties() const SIP_SKIP;
 
     /**
-     * Returns the extent of the layer
-     * \returns QgsRectangle containing the extent of the layer
+     * Returns the extent of the layer.
+     *
+     * \warning This may be expensive to calculate for some data providers, as it may involve
+     * additional network requests or in some cases, iterating through all the features in a layer.
+     * If the provider returns the Qgis::DataProviderFlag::FastExtent2D flag from the flags() method
+     * then the call to extent() is guaranteed to ALWAYS be fast and not involve any additional work.
      */
     virtual QgsRectangle extent() const = 0;
 
     /**
-     * Returns the 3D extent of the layer
-     * \returns QgsBox3D containing the 3D extent of the layer
+     * Returns the 3D extent of the layer.
+     *
+     * \warning This may be expensive to calculate for some data providers, as it may involve
+     * additional network requests or in some cases, iterating through all the features in a layer.
+     * If the provider returns the Qgis::DataProviderFlag::FastExtent3D flag from the flags() method
+     * then the call to extent3D() is guaranteed to ALWAYS be fast and not involve any additional work.
+     *
      * \since QGIS 3.36
      */
     virtual QgsBox3D extent3D() const
@@ -487,7 +478,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
 
     /**
      * Invalidate connections corresponding to specified name
-     * \since QGIS 2.16
      */
     virtual void invalidateConnections( const QString &connection ) { Q_UNUSED( connection ) }
 
@@ -511,7 +501,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      *
      * \returns TRUE in case of success (or no-op implementation), FALSE in case of failure.
      *
-     * \since QGIS 2.16
      */
     virtual bool enterUpdateMode() { return true; }
 
@@ -530,7 +519,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      *
      * \returns TRUE in case of success (or no-op implementation), FALSE in case of failure.
      *
-     * \since QGIS 2.16
      */
     virtual bool leaveUpdateMode() { return true; }
 
@@ -538,7 +526,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      * Allows setting arbitrary properties on the provider.
      * It depends on the provider which properties are supported.
      *
-     * \since QGIS 2.16
      */
     void setProviderProperty( ProviderProperty property, const QVariant &value );
 
@@ -546,7 +533,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      * Allows setting arbitrary properties on the provider.
      * It depends on the provider which properties are supported.
      *
-     * \since QGIS 2.16
      */
     void setProviderProperty( int property, const QVariant &value ); // SIP_SKIP
 
@@ -554,7 +540,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      * Gets the current value of a certain provider property.
      * It depends on the provider which properties are supported.
      *
-     * \since QGIS 2.16
      */
     QVariant providerProperty( ProviderProperty property, const QVariant &defaultValue = QVariant() ) const;
 
@@ -562,7 +547,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      * Gets the current value of a certain provider property.
      * It depends on the provider which properties are supported.
      *
-     * \since QGIS 2.16
      */
     QVariant providerProperty( int property, const QVariant &defaultValue ) const; // SIP_SKIP
 
@@ -574,7 +558,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      *
      * \see notify
      *
-     * \since QGIS 3.0
      */
     virtual void setListening( bool isListening );
 
@@ -583,7 +566,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
     /**
      * Stores settings related to the context in which a preview job runs.
      * \note Not available in Python bindings
-     * \since QGIS 3.0
      */
     struct PreviewContext
     {
@@ -605,7 +587,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      *
      *
      * \note not available in Python bindings
-     * \since QGIS 3.0
      */
     virtual bool renderInPreview( const QgsDataProvider::PreviewContext &context ); // SIP_SKIP
 
@@ -615,7 +596,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      * Individual data providers must implement this method if they support collecting metadata.
      *
      * \see writeLayerMetadata()
-     * \since QGIS 3.0
     */
     virtual QgsLayerMetadata layerMetadata() const { return QgsLayerMetadata(); }
 
@@ -625,7 +605,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      *
      * Returns TRUE if metadata was successfully written to the data provider.
      * \see layerMetadata()
-     * \since QGIS 3.0
     */
     virtual bool writeLayerMetadata( const QgsLayerMetadata &metadata ) { Q_UNUSED( metadata ) return false; }
 
@@ -694,7 +673,6 @@ class CORE_EXPORT QgsDataProvider : public QObject
      *
      * \see setListening
      *
-     * \since QGIS 3.0
      */
     void notify( const QString &msg );
 

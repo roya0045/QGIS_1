@@ -38,7 +38,6 @@ class QgsLayoutItemLegend;
  *
  * Overrides some functionality of QgsLayerTreeModel to better fit the needs of layout legends.
  *
- * \since QGIS 2.6
  */
 class CORE_EXPORT QgsLegendModel : public QgsLayerTreeModel
 {
@@ -114,7 +113,6 @@ class CORE_EXPORT QgsLegendModel : public QgsLayerTreeModel
 /**
  * \ingroup core
  * \brief A layout item subclass for map legends.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
 {
@@ -603,7 +601,7 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
 
     void refresh() override;
     void invalidateCache() override;
-    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::AllProperties ) override;
+    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::DataDefinedProperty::AllProperties ) override;
 
   protected:
     void draw( QgsLayoutItemRenderContext &context ) override;

@@ -288,8 +288,6 @@ class ShellScintilla(QgsCodeEditorPython):
         self.opening = ['(', '{', '[', "'", '"']
         self.closing = [')', '}', ']', "'", '"']
 
-        self.settings = QgsSettings()
-
         self.setHistoryFilePath(
             os.path.join(QgsApplication.qgisSettingsDirPath(), "console_history.txt"))
 
@@ -305,10 +303,10 @@ class ShellScintilla(QgsCodeEditorPython):
         self.SendScintilla(QsciScintilla.SCI_CLEARCMDKEY, ord('L') + ctrl + shift)
 
         # New QShortcut = ctrl+space/ctrl+alt+space for Autocomplete
-        self.newShortcutCSS = QShortcut(QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_Space), self)
-        self.newShortcutCAS = QShortcut(QKeySequence(Qt.CTRL + Qt.ALT + Qt.Key_Space), self)
-        self.newShortcutCSS.setContext(Qt.WidgetShortcut)
-        self.newShortcutCAS.setContext(Qt.WidgetShortcut)
+        self.newShortcutCSS = QShortcut(QKeySequence(Qt.Modifier.CTRL | Qt.Modifier.SHIFT | Qt.Key.Key_Space), self)
+        self.newShortcutCAS = QShortcut(QKeySequence(Qt.Modifier.CTRL | Qt.Modifier.ALT | Qt.Key.Key_Space), self)
+        self.newShortcutCSS.setContext(Qt.ShortcutContext.WidgetShortcut)
+        self.newShortcutCAS.setContext(Qt.ShortcutContext.WidgetShortcut)
         self.newShortcutCAS.activated.connect(self.autoComplete)
         self.newShortcutCSS.activated.connect(self.showHistory)
 
@@ -340,7 +338,7 @@ class ShellScintilla(QgsCodeEditorPython):
 
     def keyPressEvent(self, e):
 
-        if e.modifiers() & (Qt.ControlModifier | Qt.MetaModifier) and e.key() == Qt.Key_C and not self.hasSelectedText():
+        if e.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier) and e.key() == Qt.Key.Key_C and not self.hasSelectedText():
             if self._interpreter.sub_process:
                 sys.stderr.write("Terminate child process\n")
                 self._interpreter.sub_process.kill()
@@ -359,8 +357,8 @@ class ShellScintilla(QgsCodeEditorPython):
         e: the mouse press event (QMouseEvent)
         """
         self.setFocus()
-        if e.button() == Qt.MidButton:
-            stringSel = QApplication.clipboard().text(QClipboard.Selection)
+        if e.button() == Qt.MouseButton.MiddleButton:
+            stringSel = QApplication.clipboard().text(QClipboard.Mode.Selection)
             if not self.isCursorOnLastLine():
                 self.moveCursorToEnd()
             self.insertFromDropPaste(stringSel)
@@ -389,7 +387,7 @@ class ShellScintilla(QgsCodeEditorPython):
             stringDrag = e.mimeData().text()
             self.insertFromDropPaste(stringDrag)
             self.setFocus()
-            e.setDropAction(Qt.CopyAction)
+            e.setDropAction(Qt.DropAction.CopyAction)
             e.accept()
         else:
             QgsCodeEditorPython.dropEvent(self, e)

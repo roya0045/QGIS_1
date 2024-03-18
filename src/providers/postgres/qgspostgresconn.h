@@ -29,6 +29,7 @@
 #include "qgswkbtypes.h"
 #include "qgsconfig.h"
 #include "qgsvectordataprovider.h"
+#include "qgsdbquerylog_p.h"
 
 extern "C"
 {
@@ -318,9 +319,7 @@ class QgsPostgresConn : public QObject
 
     QString uniqueCursorName();
 
-#if 0
     PGconn *pgConnection() { return mConn; }
-#endif
 
     //
     // libpq wrapper
@@ -394,10 +393,17 @@ class QgsPostgresConn : public QObject
                           const QString &schema = QString() );
 
     /**
+     * Get the information about a supported layer
+     * \param schema
+     * \param table
+     * \returns TRUE if the table was found
+     */
+    bool supportedLayer( QgsPostgresLayerProperty &layerProperty, const QString &schema, const QString &table );
+
+    /**
      * Gets the list of database schemas
      * \param schemas list to store schemas in
      * \returns true if schemas where fetched successfully
-     * \since QGIS 2.7
      */
     bool getSchemas( QList<QgsPostgresSchemaProperty> &schemas );
 
@@ -418,10 +424,11 @@ class QgsPostgresConn : public QObject
      * \param searchPublicOnly
      * \param allowGeometrylessTables
      * \param schema restrict tables to those within specified schema
+     * \param name restrict tables to those with specified name
      * \returns true if tables were successfully queried
      */
     bool getTableInfo( bool searchGeometryColumnsOnly, bool searchPublicOnly, bool allowGeometrylessTables,
-                       const QString &schema = QString() );
+                       const QString &schema = QString(), const QString &name = QString() );
 
     qint64 getBinaryInt( QgsPostgresResult &queryResult, int row, int col );
 
@@ -440,7 +447,6 @@ class QgsPostgresConn : public QObject
     /**
      * Returns the underlying database.
      *
-     * \since QGIS 3.0
      */
     QString currentDatabase() const;
 
@@ -530,6 +536,24 @@ class QgsPostgresConn : public QObject
 
     //! Count number of spatial columns in a given relation
     void addColumnInfo( QgsPostgresLayerProperty &layerProperty, const QString &schemaName, const QString &viewName, bool fetchPkCandidates );
+
+    /**
+     * Gets the list of supported layers
+     * \param layers list to store layers in
+     * \param searchGeometryColumnsOnly only look for geometry columns which are
+     * contained in the geometry_columns metatable
+     * \param searchPublicOnly
+     * \param allowGeometrylessTables
+     * \param schema restrict layers to layers within specified schema
+     * \param table restrict tables to those with specified table
+     * \returns true if layers were fetched successfully
+     */
+    bool supportedLayersPrivate( QVector<QgsPostgresLayerProperty> &layers,
+                                 bool searchGeometryColumnsOnly = true,
+                                 bool searchPublicOnly = true,
+                                 bool allowGeometrylessTables = false,
+                                 const QString &schema = QString(),
+                                 const QString &table = QString() );
 
     //! List of the supported layers
     QVector<QgsPostgresLayerProperty> mLayersSupported;

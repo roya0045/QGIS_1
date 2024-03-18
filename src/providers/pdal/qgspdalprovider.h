@@ -22,7 +22,6 @@
 #include "qgsprovidermetadata.h"
 #include <memory>
 
-class QgsEptPointCloudIndex;
 class QgsPdalIndexingTask;
 
 class QgsPdalProvider: public QgsPointCloudDataProvider
@@ -31,9 +30,10 @@ class QgsPdalProvider: public QgsPointCloudDataProvider
   public:
     QgsPdalProvider( const QString &uri,
                      const QgsDataProvider::ProviderOptions &providerOptions,
-                     QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags(), bool generateCopc = true );
+                     QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() );
 
     ~QgsPdalProvider();
+    Qgis::DataProviderFlags flags() const override;
     QgsCoordinateReferenceSystem crs() const override;
     QgsRectangle extent() const override;
     QgsPointCloudAttributeCollection attributes() const override;
@@ -64,7 +64,6 @@ class QgsPdalProvider: public QgsPointCloudDataProvider
     QgsPointCloudAttributeCollection mDummyAttributes;
     std::unique_ptr<QgsPointCloudIndex> mIndex;
     QgsPdalIndexingTask *mRunningIndexingTask = nullptr;
-    bool mGenerateCopc = true;
     static QQueue<QgsPdalProvider *> sIndexingQueue;
 };
 

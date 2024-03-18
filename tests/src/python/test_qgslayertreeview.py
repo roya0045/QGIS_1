@@ -252,7 +252,7 @@ class TestQgsLayerTreeView(QgisTestCase):
         ])
 
         selectionMode = view.selectionMode()
-        view.setSelectionMode(QgsLayerTreeView.MultiSelection)
+        view.setSelectionMode(QgsLayerTreeView.SelectionMode.MultiSelection)
         nodeLayerIndex = view.node2index(group)
         view.setCurrentIndex(nodeLayerIndex)
         view.setCurrentLayer(self.layer5)
@@ -369,7 +369,7 @@ class TestQgsLayerTreeView(QgisTestCase):
         ])
 
         selectionMode = view.selectionMode()
-        view.setSelectionMode(QgsLayerTreeView.MultiSelection)
+        view.setSelectionMode(QgsLayerTreeView.SelectionMode.MultiSelection)
         nodeLayerIndex = view.node2index(group)
         view.setCurrentIndex(nodeLayerIndex)
         view.setCurrentLayer(self.layer4)
@@ -440,7 +440,7 @@ class TestQgsLayerTreeView(QgisTestCase):
         ])
 
         selectionMode = view.selectionMode()
-        view.setSelectionMode(QgsLayerTreeView.MultiSelection)
+        view.setSelectionMode(QgsLayerTreeView.SelectionMode.MultiSelection)
         view.setCurrentLayer(self.layer)
         view.setCurrentLayer(self.layer2)
         view.setSelectionMode(selectionMode)
@@ -516,7 +516,7 @@ class TestQgsLayerTreeView(QgisTestCase):
         ])
 
         selectionMode = view.selectionMode()
-        view.setSelectionMode(QgsLayerTreeView.MultiSelection)
+        view.setSelectionMode(QgsLayerTreeView.SelectionMode.MultiSelection)
         nodeLayerIndex = view.node2index(group)
         view.setCurrentIndex(nodeLayerIndex)
         nodeLayerIndex2 = view.node2index(group2)
@@ -626,6 +626,34 @@ class TestQgsLayerTreeView(QgisTestCase):
 
         self.assertEqual(proxy_items, ['layer2'])
 
+        # test valid layer filtering
+        broken_layer = QgsVectorLayer("xxxx", "broken", "ogr")
+        self.assertFalse(broken_layer.isValid())
+        self.project.addMapLayers([broken_layer])
+
+        proxy_model.setFilterText(None)
+
+        proxy_items = []
+        for r in range(proxy_model.rowCount()):
+            proxy_items.append(proxy_model.data(proxy_model.index(r, 0)))
+        self.assertEqual(proxy_items, ['broken', 'layer1', 'layer2'])
+
+        proxy_model.setHideValidLayers(True)
+
+        proxy_items = []
+        for r in range(proxy_model.rowCount()):
+            proxy_items.append(proxy_model.data(proxy_model.index(r, 0)))
+        self.assertEqual(proxy_items, ['broken'])
+
+        proxy_model.setHideValidLayers(False)
+
+        proxy_items = []
+        for r in range(proxy_model.rowCount()):
+            proxy_items.append(proxy_model.data(proxy_model.index(r, 0)))
+        self.assertEqual(proxy_items, ['broken', 'layer1', 'layer2'])
+
+        self.project.removeMapLayer(broken_layer)
+
     def testProxyModelCurrentIndex(self):
         """Test a crash spotted out while developing the proxy model"""
 
@@ -691,8 +719,8 @@ class TestQgsLayerTreeView(QgisTestCase):
 
         self.assertFalse(view.selectedLegendNodes())
 
-        view.selectionModel().select(view.proxyModel().mapFromSource(index), QItemSelectionModel.ClearAndSelect)
-        view.selectionModel().select(view.proxyModel().mapFromSource(index2), QItemSelectionModel.Select)
+        view.selectionModel().select(view.proxyModel().mapFromSource(index), QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        view.selectionModel().select(view.proxyModel().mapFromSource(index2), QItemSelectionModel.SelectionFlag.Select)
 
         self.assertCountEqual(view.selectedLegendNodes(), [legend_nodes[0], legend_nodes[2]])
 

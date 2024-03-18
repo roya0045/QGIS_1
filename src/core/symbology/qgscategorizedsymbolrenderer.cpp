@@ -25,7 +25,6 @@
 #include "qgspointdisplacementrenderer.h"
 #include "qgsinvertedpolygonrenderer.h"
 #include "qgspainteffect.h"
-#include "qgspainteffectregistry.h"
 #include "qgssymbollayer.h"
 #include "qgsfeature.h"
 #include "qgsvectorlayer.h"
@@ -39,6 +38,7 @@
 #include "qgsstyleentityvisitor.h"
 #include "qgsembeddedsymbolrenderer.h"
 #include "qgsmarkersymbol.h"
+#include "qgsexpressionnodeimpl.h"
 
 #include <QDomDocument>
 #include <QDomElement>
@@ -138,6 +138,22 @@ void QgsRendererCategory::toSld( QDomDocument &doc, QDomElement &element, QVaria
 
   QString attrName = props[ QStringLiteral( "attribute" )].toString();
 
+  // try to determine if attribute name is actually a field reference or expression.
+  // If it's a field reference, we need to quote it.
+  // Because we don't have access to the layer or fields here, we treat a parser error
+  // as just an unquoted field name (eg a field name with spaces)
+  const QgsExpression attrExpression = QgsExpression( attrName );
+  if ( attrExpression.hasParserError() )
+  {
+    attrName = QgsExpression::quotedColumnRef( attrName );
+  }
+  else if ( attrExpression.isField() )
+  {
+    attrName = QgsExpression::quotedColumnRef(
+                 qgis::down_cast<const QgsExpressionNodeColumnRef *>( attrExpression.rootNode() )->name()
+               );
+  }
+
   QDomElement ruleElem = doc.createElement( QStringLiteral( "se:Rule" ) );
   element.appendChild( ruleElem );
 
@@ -154,15 +170,32 @@ void QgsRendererCategory::toSld( QDomDocument &doc, QDomElement &element, QVaria
 
   // create the ogc:Filter for the range
   QString filterFunc;
-  if ( QgsVariantUtils::isNull( mValue ) || mValue.toString().isEmpty() )
+  if ( mValue.type() == QVariant::List )
+  {
+    const QVariantList list = mValue.toList();
+    if ( list.size() == 1 )
+    {
+      filterFunc = QStringLiteral( "%1 = %2" ).arg( attrName, QgsExpression::quotedValue( list.at( 0 ) ) );
+    }
+    else
+    {
+      QStringList valuesList;
+      valuesList.reserve( list.size() );
+      for ( const QVariant &v : list )
+      {
+        valuesList << QgsExpression::quotedValue( v );
+      }
+      filterFunc = QStringLiteral( "%1 IN (%2)" ).arg( attrName,
+                   valuesList.join( ',' ) );
+    }
+  }
+  else if ( QgsVariantUtils::isNull( mValue ) || mValue.toString().isEmpty() )
   {
     filterFunc = QStringLiteral( "ELSE" );
   }
   else
   {
-    filterFunc = QStringLiteral( "%1 = '%2'" )
-                 .arg( attrName.replace( '\"', QLatin1String( "\"\"" ) ).append( '"' ).prepend( '"' ),
-                       mValue.toString().replace( '\'', QLatin1String( "''" ) ) );
+    filterFunc = QStringLiteral( "%1 = %2" ).arg( attrName, QgsExpression::quotedValue( mValue ) );
   }
 
   QgsSymbolLayerUtils::createFunctionElement( doc, ruleElem, filterFunc );
@@ -558,13 +591,12 @@ QString QgsCategorizedSymbolRenderer::filter( const QgsFields &fields )
     noneActive = noneActive && !cat.renderState();
     allActive = allActive && cat.renderState();
 
-    QVariant::Type valType = isExpression ? cat.value().type() : fields.at( attrNum ).type();
     const bool isList = cat.value().type() == QVariant::List;
-    QString value = QgsExpression::quotedValue( cat.value(), valType );
+    QString value = QgsExpression::quotedValue( cat.value(), cat.value().type() );
 
     if ( !cat.renderState() )
     {
-      if ( cat.value() != "" )
+      if ( value != "" )
       {
         if ( isList )
         {
@@ -588,7 +620,7 @@ QString QgsCategorizedSymbolRenderer::filter( const QgsFields &fields )
     }
     else
     {
-      if ( cat.value() != "" )
+      if ( value != "" )
       {
         if ( isList )
         {
@@ -706,6 +738,18 @@ QgsFeatureRenderer *QgsCategorizedSymbolRenderer::create( QDomElement &element, 
         return val;
       }
     }
+    else if ( valueType == QLatin1String( "bool" ) )
+    {
+      if ( value.toLower() == QLatin1String( "false" ) )
+        return false;
+      if ( value.toLower() == QLatin1String( "true" ) )
+        return true;
+    }
+    else if ( valueType == QLatin1String( "NULL" ) )
+    {
+      // This is the default ("fallback") category
+      return QVariant();
+    }
     return value;
   };
 
@@ -719,7 +763,6 @@ QgsFeatureRenderer *QgsCategorizedSymbolRenderer::create( QDomElement &element, 
       if ( catElem.hasAttribute( QStringLiteral( "value" ) ) )
       {
         value = valueFromString( catElem.attribute( QStringLiteral( "value" ) ), catElem.attribute( QStringLiteral( "type" ), QString() ) ) ;
-
       }
       else
       {
@@ -823,7 +866,7 @@ QDomElement QgsCategorizedSymbolRenderer::save( QDomDocument &doc, const QgsRead
   rendererElem.setAttribute( QStringLiteral( "attr" ), mAttrName );
 
   // String for type
-  // We just need string and three numeric types: double, ulong and long for unsigned, signed and float/double
+  // We just need string, bool, and three numeric types: double, ulong and long for unsigned, signed and float/double
   const auto stringForType = []( const QVariant::Type type ) -> QString
   {
     if ( type == QVariant::Char || type == QVariant::Int || type == QVariant::LongLong )
@@ -837,6 +880,10 @@ QDomElement QgsCategorizedSymbolRenderer::save( QDomDocument &doc, const QgsRead
     else if ( type == QVariant::Double )
     {
       return QStringLiteral( "double" ) ;
+    }
+    else if ( type == QVariant::Bool )
+    {
+      return QStringLiteral( "bool" );
     }
     else // Default: string
     {
@@ -871,8 +918,17 @@ QDomElement QgsCategorizedSymbolRenderer::save( QDomDocument &doc, const QgsRead
       }
       else
       {
-        catElem.setAttribute( QStringLiteral( "value" ), cat.value().toString() );
-        catElem.setAttribute( QStringLiteral( "type" ), stringForType( cat.value().type() ) );
+        if ( QgsVariantUtils::isNull( cat.value() ) )
+        {
+          // We need to save NULL value as specific kind, it is the default ("fallback") category
+          catElem.setAttribute( QStringLiteral( "value" ), "NULL" );
+          catElem.setAttribute( QStringLiteral( "type" ), "NULL" );
+        }
+        else
+        {
+          catElem.setAttribute( QStringLiteral( "value" ), cat.value().toString() );
+          catElem.setAttribute( QStringLiteral( "type" ), stringForType( cat.value().type() ) );
+        }
       }
       catElem.setAttribute( QStringLiteral( "symbol" ), symbolName );
       catElem.setAttribute( QStringLiteral( "label" ), cat.label() );
@@ -1117,7 +1173,7 @@ QSet<QString> QgsCategorizedSymbolRenderer::legendKeysForFeature( const QgsFeatu
       // Numeric NULL cat value is stored as an empty string
       if ( QgsVariantUtils::isNull( value ) && ( value.type() == QVariant::Double || value.type() == QVariant::Int ||
            value.type() == QVariant::UInt || value.type() == QVariant::LongLong ||
-           value.type() == QVariant::ULongLong ) )
+           value.type() == QVariant::ULongLong || value.type() == QVariant::Bool ) )
       {
         match = cat.value().toString().isEmpty();
       }
@@ -1348,7 +1404,7 @@ QgsCategorizedSymbolRenderer *QgsCategorizedSymbolRenderer::convertFromRenderer(
     const QgsEmbeddedSymbolRenderer *embeddedRenderer = dynamic_cast<const QgsEmbeddedSymbolRenderer *>( renderer );
     QgsCategoryList categories;
     QgsFeatureRequest req;
-    req.setFlags( QgsFeatureRequest::EmbeddedSymbols | QgsFeatureRequest::NoGeometry );
+    req.setFlags( Qgis::FeatureRequestFlag::EmbeddedSymbols | Qgis::FeatureRequestFlag::NoGeometry );
     req.setNoAttributes();
     QgsFeatureIterator it = layer->getFeatures( req );
     QgsFeature feature;
@@ -1487,4 +1543,3 @@ QgsCategoryList QgsCategorizedSymbolRenderer::createCategories( const QList<QVar
 
   return cats;
 }
-

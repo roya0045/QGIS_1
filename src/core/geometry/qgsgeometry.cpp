@@ -801,6 +801,37 @@ bool QgsGeometry::insertVertex( const QgsPoint &point, int beforeVertex )
   return d->geometry->insertVertex( id, point );
 }
 
+bool QgsGeometry::addTopologicalPoint( const QgsPoint &point, double snappingTolerance, double segmentSearchEpsilon )
+{
+  if ( !d->geometry )
+  {
+    return false;
+  }
+
+  const double sqrSnappingTolerance = snappingTolerance * snappingTolerance;
+  int segmentAfterVertex;
+  QgsPointXY snappedPoint;
+  const double sqrDistSegmentSnap = closestSegmentWithContext( point, snappedPoint, segmentAfterVertex, nullptr, segmentSearchEpsilon );
+
+  if ( sqrDistSegmentSnap > sqrSnappingTolerance )
+    return false;
+
+  int atVertex, beforeVertex, afterVertex;
+  double sqrDistVertexSnap;
+  closestVertex( point, atVertex, beforeVertex, afterVertex, sqrDistVertexSnap );
+
+  if ( sqrDistVertexSnap < sqrSnappingTolerance )
+    return false;  // the vertex already exists - do not insert it
+
+  if ( !insertVertex( point, segmentAfterVertex ) )
+  {
+    QgsDebugError( QStringLiteral( "failed to insert topo point" ) );
+    return false;
+  }
+
+  return true;
+}
+
 QgsPoint QgsGeometry::vertexAt( int atVertex ) const
 {
   if ( !d->geometry )
@@ -1060,10 +1091,18 @@ Qgis::GeometryOperationResult QgsGeometry::splitGeometry( const QgsPointSequence
     return Qgis::GeometryOperationResult::InvalidBaseGeometry;
   }
 
+  // We're trying adding the split line's vertices to the geometry so that
+  // snap to segment always produces a valid split (see https://github.com/qgis/QGIS/issues/29270)
+  QgsGeometry tmpGeom( *this );
+  for ( const QgsPoint &v : splitLine )
+  {
+    tmpGeom.addTopologicalPoint( v );
+  }
+
   QVector<QgsGeometry > newGeoms;
   QgsLineString splitLineString( splitLine );
 
-  QgsGeos geos( d->geometry.get() );
+  QgsGeos geos( tmpGeom.get() );
   mLastError.clear();
   QgsGeometryEngine::EngineOperationResult result = geos.splitGeometry( splitLineString, newGeoms, topological, topologyTestPoints, &mLastError, skipIntersectionTest );
 
@@ -2641,6 +2680,20 @@ QgsGeometry QgsGeometry::delaunayTriangulation( double tolerance, bool edgesOnly
   return result;
 }
 
+QgsGeometry QgsGeometry::constrainedDelaunayTriangulation() const
+{
+  if ( !d->geometry )
+  {
+    return QgsGeometry();
+  }
+
+  QgsGeos geos( d->geometry.get() );
+  mLastError.clear();
+  QgsGeometry result( geos.constrainedDelaunayTriangulation() );
+  result.mLastError = mLastError;
+  return result;
+}
+
 QgsGeometry QgsGeometry::unionCoverage() const
 {
   if ( !d->geometry )
@@ -2850,28 +2903,28 @@ double QgsGeometry::interpolateAngle( double distance ) const
       QgsPoint p1 = segmentized.constGet()->vertexAt( v1 );
       QgsPoint p2 = segmentized.constGet()->vertexAt( v2 );
       QgsPoint p3 = segmentized.constGet()->vertexAt( v3 );
-      double angle1 = QgsGeometryUtils::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
-      double angle2 = QgsGeometryUtils::lineAngle( p2.x(), p2.y(), p3.x(), p3.y() );
-      return QgsGeometryUtils::averageAngle( angle1, angle2 );
+      double angle1 = QgsGeometryUtilsBase::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
+      double angle2 = QgsGeometryUtilsBase::lineAngle( p2.x(), p2.y(), p3.x(), p3.y() );
+      return QgsGeometryUtilsBase::averageAngle( angle1, angle2 );
     }
     else if ( v3.isValid() )
     {
       QgsPoint p1 = segmentized.constGet()->vertexAt( v2 );
       QgsPoint p2 = segmentized.constGet()->vertexAt( v3 );
-      return QgsGeometryUtils::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
+      return QgsGeometryUtilsBase::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
     }
     else
     {
       QgsPoint p1 = segmentized.constGet()->vertexAt( v1 );
       QgsPoint p2 = segmentized.constGet()->vertexAt( v2 );
-      return QgsGeometryUtils::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
+      return QgsGeometryUtilsBase::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
     }
   }
   else
   {
     QgsPoint p1 = segmentized.constGet()->vertexAt( previous );
     QgsPoint p2 = segmentized.constGet()->vertexAt( next );
-    return QgsGeometryUtils::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
+    return QgsGeometryUtilsBase::lineAngle( p1.x(), p1.y(), p2.x(), p2.y() );
   }
 }
 
@@ -2990,7 +3043,10 @@ QVector<QgsPointXY> QgsGeometry::randomPointsInPolygon( int count, const std::fu
   if ( type() != Qgis::GeometryType::Polygon )
     return QVector< QgsPointXY >();
 
-  return QgsInternalGeometryEngine::randomPointsInPolygon( *this, count, acceptPoint, seed, feedback, maxTriesPerPoint );
+  QgsInternalGeometryEngine engine( *this );
+  const QVector<QgsPointXY> res = engine.randomPointsInPolygon( count, acceptPoint, seed, feedback, maxTriesPerPoint );
+  mLastError = engine.lastError();
+  return res;
 }
 
 QVector<QgsPointXY> QgsGeometry::randomPointsInPolygon( int count, unsigned long seed, QgsFeedback *feedback ) const
@@ -2998,7 +3054,10 @@ QVector<QgsPointXY> QgsGeometry::randomPointsInPolygon( int count, unsigned long
   if ( type() != Qgis::GeometryType::Polygon )
     return QVector< QgsPointXY >();
 
-  return QgsInternalGeometryEngine::randomPointsInPolygon( *this, count, []( const QgsPointXY & ) { return true; }, seed, feedback, 0 );
+  QgsInternalGeometryEngine engine( *this );
+  const QVector<QgsPointXY> res = engine.randomPointsInPolygon( count, []( const QgsPointXY & ) { return true; }, seed, feedback, 0 );
+  mLastError = engine.lastError();
+  return res;
 }
 ///@endcond
 
@@ -3880,7 +3939,7 @@ std::unique_ptr< QgsLineString > smoothCurve( const QgsLineString &line, const u
       QgsPoint p1 = result->pointN( result->numPoints() - 2 );
       QgsPoint p2 = result->pointN( 0 );
       QgsPoint p3 = result->pointN( 1 );
-      double angle = QgsGeometryUtils::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
+      double angle = QgsGeometryUtilsBase::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
                      p3.x(), p3.y() );
       angle = std::fabs( M_PI - angle );
       skipFirst = angle > maxAngleRads;
@@ -3894,19 +3953,19 @@ std::unique_ptr< QgsLineString > smoothCurve( const QgsLineString &line, const u
       if ( i == 0 && isRing )
       {
         QgsPoint p3 = result->pointN( result->numPoints() - 2 );
-        angle = QgsGeometryUtils::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
+        angle = QgsGeometryUtilsBase::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
                 p3.x(), p3.y() );
       }
       else if ( i < result->numPoints() - 2 )
       {
         QgsPoint p3 = result->pointN( i + 2 );
-        angle = QgsGeometryUtils::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
+        angle = QgsGeometryUtilsBase::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
                 p3.x(), p3.y() );
       }
       else if ( i == result->numPoints() - 2 && isRing )
       {
         QgsPoint p3 = result->pointN( 1 );
-        angle = QgsGeometryUtils::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
+        angle = QgsGeometryUtilsBase::angleBetweenThreePoints( p1.x(), p1.y(), p2.x(), p2.y(),
                 p3.x(), p3.y() );
       }
 
@@ -4291,9 +4350,9 @@ QgsGeometry QgsGeometry::convertToPolygon( bool destMultipart ) const
   }
 }
 
-QgsGeometryEngine *QgsGeometry::createGeometryEngine( const QgsAbstractGeometry *geometry )
+QgsGeometryEngine *QgsGeometry::createGeometryEngine( const QgsAbstractGeometry *geometry, double precision )
 {
-  return new QgsGeos( geometry );
+  return new QgsGeos( geometry, precision );
 }
 
 QDataStream &operator<<( QDataStream &out, const QgsGeometry &geometry )

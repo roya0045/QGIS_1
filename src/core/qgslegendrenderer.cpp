@@ -123,7 +123,7 @@ QJsonObject QgsLegendRenderer::exportLegendToJson( const QgsRenderContext &conte
           {
             if ( vLayer->renderer() )
             {
-              const QString ruleKey { legendNodes.at( 0 )->data( QgsLayerTreeModelLegendNode::LegendNodeRoles::RuleKeyRole ).toString() };
+              const QString ruleKey { legendNodes.at( 0 )->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) ).toString() };
               if ( ! ruleKey.isEmpty() )
               {
                 bool ok;
@@ -155,7 +155,7 @@ QJsonObject QgsLegendRenderer::exportLegendToJson( const QgsRenderContext &conte
             {
               if ( vLayer->renderer() )
               {
-                const QString ruleKey { legendNode->data( QgsLayerTreeModelLegendNode::LegendNodeRoles::RuleKeyRole ).toString() };
+                const QString ruleKey { legendNode->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) ).toString() };
                 if ( ! ruleKey.isEmpty() )
                 {
                   bool ok;
@@ -927,12 +927,20 @@ QgsLegendRenderer::LegendComponent QgsLegendRenderer::drawSymbolItem( QgsLayerTr
 
   ctx.maxSiblingSymbolWidth = maxSiblingSymbolWidth;
 
+  QgsExpressionContextScope *symbolScope = nullptr;
   if ( const QgsSymbolLegendNode *symbolNode = dynamic_cast< const QgsSymbolLegendNode * >( symbolItem ) )
+  {
+    symbolScope = symbolNode->createSymbolScope();
+    context.expressionContext().appendScope( symbolScope );
     ctx.patchShape = symbolNode->patchShape();
+  }
 
   ctx.patchSize = symbolItem->userPatchSize();
 
   QgsLayerTreeModelLegendNode::ItemMetrics im = symbolItem->draw( mSettings, &ctx );
+
+  if ( symbolScope )
+    delete context.expressionContext().popScope();
 
   if ( layerScope )
     delete context.expressionContext().popScope();
