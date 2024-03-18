@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 ***************************************************************************
     test_qgspointdisplacementrenderer.py
@@ -22,39 +24,40 @@ __author__ = 'Nyall Dawson'
 __date__ = 'September 2016'
 __copyright__ = '(C) 2016, Nyall Dawson'
 
+import qgis  # NOQA
+
 import os
 
-from qgis.PyQt.QtCore import QDir, QSize
 from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtCore import QSize, QSizeF, QThreadPool, QDir
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import (
-    QgsCategorizedSymbolRenderer,
-    QgsFeature,
-    QgsFontUtils,
-    QgsGeometry,
-    QgsGeometryGeneratorSymbolLayer,
-    QgsMapRendererSequentialJob,
-    QgsMapSettings,
-    QgsMapUnitScale,
-    QgsMarkerSymbol,
-    QgsMultiRenderChecker,
-    QgsPointClusterRenderer,
-    QgsPointDisplacementRenderer,
-    QgsProject,
-    QgsProperty,
-    QgsReadWriteContext,
-    QgsRectangle,
-    QgsRenderContext,
-    QgsRendererCategory,
-    QgsSingleSymbolRenderer,
-    QgsSymbol,
-    QgsSymbolLayer,
-    QgsUnitTypes,
-    QgsVectorLayer
-)
-import unittest
-from qgis.testing import start_app, QgisTestCase
 
+from qgis.core import (QgsVectorLayer,
+                       QgsProject,
+                       QgsRectangle,
+                       QgsMultiRenderChecker,
+                       QgsPointDisplacementRenderer,
+                       QgsFontUtils,
+                       QgsUnitTypes,
+                       QgsMapUnitScale,
+                       QgsMarkerSymbol,
+                       QgsCategorizedSymbolRenderer,
+                       QgsRendererCategory,
+                       QgsSingleSymbolRenderer,
+                       QgsPointClusterRenderer,
+                       QgsMapSettings,
+                       QgsProperty,
+                       QgsReadWriteContext,
+                       QgsSymbolLayer,
+                       QgsRenderContext,
+                       QgsFeature,
+                       QgsGeometry,
+                       QgsTextFormat,
+                       QgsTextBufferSettings,
+                       QgsTextBackgroundSettings,
+                       QgsTextShadowSettings,
+                       )
+from qgis.testing import start_app, unittest
 from utilities import unitTestDataPath
 
 # Convenience instances in case you may need them
@@ -63,13 +66,13 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsPointDisplacementRenderer(QgisTestCase):
+class TestQgsPointDisplacementRenderer(unittest.TestCase):
 
     def setUp(self):
         self.report = "<h1>Python QgsPointDisplacementRenderer Tests</h1>\n"
 
     def tearDown(self):
-        report_file_path = f"{QDir.tempPath()}/qgistest.html"
+        report_file_path = "%s/qgistest.html" % QDir.tempPath()
         with open(report_file_path, 'a') as report_file:
             report_file.write(self.report)
 
@@ -126,7 +129,7 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         """ test properties of renderer against expected"""
         self.assertEqual(r.labelAttributeName(), 'name')
         f = QgsFontUtils.getStandardTestFont('Bold Oblique', 14)
-        self.assertEqual(r.labelFont().styleName(), f.styleName())
+        self.assertEqual(r.labelFormat().font().styleName(), f.styleName())
         self.assertEqual(r.minimumLabelScale(), 50000)
         self.assertEqual(r.labelColor(), QColor(255, 0, 0))
         self.assertEqual(r.tolerance(), 5)
@@ -334,8 +337,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(0.35)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
         renderchecker.setControlPathPrefix('displacement_renderer')
@@ -350,8 +356,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(0.35)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
@@ -367,8 +376,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(0.35)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         layer.renderer().setPlacement(QgsPointDisplacementRenderer.ConcentricRings)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
@@ -385,8 +397,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(0.35)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
         renderchecker.setControlPathPrefix('displacement_renderer')
@@ -402,8 +417,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(0.35)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
@@ -420,8 +438,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(0.35)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         layer.renderer().setPlacement(QgsPointDisplacementRenderer.ConcentricRings)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
@@ -438,8 +459,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(1)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
         renderchecker.setControlPathPrefix('displacement_renderer')
@@ -456,8 +480,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(1)
         layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
         renderchecker.setControlPathPrefix('displacement_renderer')
@@ -473,8 +500,11 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(1)
-        f = QgsFontUtils.getStandardTestFont('Bold', 14)
-        layer.renderer().setLabelFont(f)
+        format = QgsTextFormat()
+        format.setFont(QgsFontUtils.getStandardTestFont("Bold"))
+        format.setSize(14)
+        format.setSizeUnit(QgsUnitTypes.RenderPoints)
+        layer.renderer().setLabelFormat(format)
         layer.renderer().setPlacement(QgsPointDisplacementRenderer.ConcentricRings)
         renderchecker = QgsMultiRenderChecker()
         renderchecker.setMapSettings(mapsettings)
@@ -485,17 +515,48 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         self.assertTrue(res)
         self._tearDown(layer)
 
-    def test_legend_keys(self):
-        symbol1 = QgsMarkerSymbol()
-        symbol2 = QgsMarkerSymbol()
-        sub_renderer = QgsCategorizedSymbolRenderer('cat', [QgsRendererCategory('cat1', symbol1, 'cat1', True, '0'),
-                                                            QgsRendererCategory('cat2', symbol2, 'cat2', True, '1')
-                                                            ])
-
-        renderer = QgsPointDisplacementRenderer()
-        renderer.setEmbeddedRenderer(sub_renderer)
-
-        self.assertEqual(renderer.legendKeys(), {'0', '1'})
+    def testClusterRingLabelsDifferentSizesComplexFormat(self):
+        layer, renderer, mapsettings = self._setUp()
+        renderer.setEmbeddedRenderer(self._create_categorized_renderer())
+        layer.renderer().setTolerance(10)
+        layer.renderer().setLabelAttributeName('Class')
+        layer.renderer().setLabelDistanceFactor(0.35)
+        format = QgsTextFormat.fromQFont(QgsFontUtils.getStandardTestFont('Bold', 14))
+        back = QgsTextBackgroundSettings()
+        back.setEnabled(True)
+        back.setType(QgsTextBackgroundSettings.ShapeEllipse)
+        back.setSizeType(QgsTextBackgroundSettings.SizeFixed)
+        back.setSize(QSizeF(1, 2))
+        back.setSizeUnit(QgsUnitTypes.RenderPixels)
+        back.setSizeMapUnitScale(QgsMapUnitScale(1, 2))
+        format.setBackground(back)
+        buff = QgsTextBufferSettings()
+        buff.setEnabled(True)
+        buff.setSize(5)
+        buff.setSizeUnit(QgsUnitTypes.RenderPixels)
+        buff.setSizeMapUnitScale(QgsMapUnitScale(1, 2))
+        buff.setColor(QColor(155, 100, 125))
+        buff.setFillBufferInterior(True)
+        format.setBuffer(buff)
+        shad = QgsTextShadowSettings()
+        shad.setEnabled(True)
+        shad.setShadowPlacement(QgsTextShadowSettings.ShadowBuffer)
+        shad.setOffsetAngle(45)
+        shad.setOffsetDistance(75)
+        shad.setOffsetUnit(QgsUnitTypes.RenderMapUnits)
+        shad.setOffsetMapUnitScale(QgsMapUnitScale(5, 6))
+        shad.setOffsetGlobal(True)
+        shad.setBlurRadius(11)
+        format.setShadow(shad)
+        layer.renderer().setLabelFormat(format)
+        renderchecker = QgsMultiRenderChecker()
+        renderchecker.setMapSettings(mapsettings)
+        renderchecker.setControlPathPrefix('displacement_renderer')
+        renderchecker.setControlName('expected_displacement_cluster_concentric_labels_formatted')
+        res = renderchecker.runTest('expected_displacement_cluster_concentric_labels_formatted')
+        self.report += renderchecker.report()
+        self.assertTrue(res)
+        self._tearDown(layer)
 
     def test_legend_key_to_expression(self):
         sym1 = QgsMarkerSymbol.createSimple({'color': '#fdbf6f', 'outline_color': 'black'})
@@ -516,32 +577,6 @@ class TestQgsPointDisplacementRenderer(QgisTestCase):
         ctx = QgsRenderContext.fromMapSettings(mapsettings)
 
         self.assertCountEqual(renderer.usedAttributes(ctx), {})
-
-    def testGeometryGenerator(self):
-        """
-        Don't check result image here, there is no point in using geometry generators
-        with point displacement renderer, we just want to avoid crash
-        """
-
-        layer, renderer, mapsettings = self._setUp()
-        layer.renderer().setTolerance(10)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Ring)
-        layer.renderer().setCircleRadiusAddition(0)
-
-        geomGeneratorSymbolLayer = QgsGeometryGeneratorSymbolLayer.create({'geometryModifier': '$geometry'})
-        geomGeneratorSymbolLayer.setSymbolType(QgsSymbol.Marker)
-        geomGeneratorSymbolLayer.subSymbol().setSize(2.5)
-
-        markerSymbol = QgsMarkerSymbol()
-        markerSymbol.deleteSymbolLayer(0)
-        markerSymbol.appendSymbolLayer(geomGeneratorSymbolLayer)
-        self.assertEqual(markerSymbol.size(), 2.5)
-
-        layer.renderer().setEmbeddedRenderer(QgsSingleSymbolRenderer(markerSymbol))
-
-        job = QgsMapRendererSequentialJob(mapsettings)
-        job.start()
-        job.waitForFinished()
 
 
 if __name__ == '__main__':

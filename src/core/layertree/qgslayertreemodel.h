@@ -350,6 +350,12 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      */
     bool hitTestInProgress() const;
 
+    /**
+     * Returns a list of filtered layers in the legend.
+     * \since QGIS 3.20
+     */
+    QList<QgsLayerTreeLayer *> filteredLayers() const;
+
   signals:
 
     /**

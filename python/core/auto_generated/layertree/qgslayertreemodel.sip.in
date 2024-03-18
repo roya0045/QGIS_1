@@ -367,6 +367,7 @@ displays.
 .. versionadded:: 3.6
 %End
 
+
     void waitForHitTestBlocking();
 %Docstring
 When a current hit test for visible legend items is in progress, calling this
@@ -384,6 +385,12 @@ Returns ``True`` if a hit test for visible legend items is currently in progress
 .. seealso:: :py:func:`hitTestCompleted`
 
 .. versionadded:: 3.32
+%End
+    QList<QgsLayerTreeLayer *> filteredLayers() const;
+%Docstring
+Returns a list of filtered layers in the legend.
+
+.. versionadded:: 3.20
 %End
 
   signals:

@@ -28,6 +28,9 @@
 #include "qgsdiagramrenderer.h"
 #include "qgslabelengineconfigdialog.h"
 #include "qgsfeatureiterator.h"
+#include "qgscolordialog.h"
+#include "qgsmessagelog.h"
+#include "qgsguiutils.h"
 #include "qgssymbolselectordialog.h"
 #include "qgsmapcanvas.h"
 #include "qgsexpressionbuilderdialog.h"
@@ -45,6 +48,7 @@
 #include <QMessageBox>
 #include <QStyledItemDelegate>
 #include <QRandomGenerator>
+#include <QButtonGroup>
 
 QgsExpressionContext QgsDiagramProperties::createExpressionContext() const
 {
@@ -270,7 +274,6 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer *layer, QWidget *pare
 void QgsDiagramProperties::syncToLayer()
 {
   mDiagramAttributesTreeWidget->clear();
-
   const QgsDiagramRenderer *dr = mLayer->diagramRenderer();
   if ( !dr ) //no diagram renderer yet, insert reasonable default
   {
@@ -283,9 +286,9 @@ void QgsDiagramProperties::syncToLayer()
     mLabelPlacementComboBox->setCurrentIndex( mLabelPlacementComboBox->findText( tr( "x-height" ) ) );
     mDiagramSizeSpinBox->setEnabled( true );
     mDiagramSizeSpinBox->setValue( 15 );
-    mLinearScaleFrame->setEnabled( false );
-    mIncreaseMinimumSizeSpinBox->setEnabled( false );
-    mIncreaseMinimumSizeLabel->setEnabled( false );
+
+    mIncreaseMinimumSizeSpinBox->setEnabled( true );
+    mIncreaseMinimumSizeLabel->setEnabled( true );
     mBarWidthSpinBox->setValue( 5 );
     mScaleVisibilityGroupBox->setChecked( mLayer->hasScaleBasedVisibility() );
     mScaleRangeWidget->setScaleRange( mLayer->minimumScale(), mLayer->maximumScale() );
@@ -427,6 +430,8 @@ void QgsDiagramProperties::syncToLayer()
       QList< QString >::const_iterator labIt = categoryLabels.constBegin();
       for ( ; catIt != categoryAttributes.constEnd(); ++catIt, ++coIt, ++labIt )
       {
+        if ( QString( *catIt ).isEmpty() && QString( *labIt ).isEmpty() )
+          continue;
         QTreeWidgetItem *newItem = new QTreeWidgetItem( mDiagramAttributesTreeWidget );
         newItem->setText( 0, *catIt );
         newItem->setData( 0, RoleAttributeExpression, *catIt );
@@ -436,7 +441,6 @@ void QgsDiagramProperties::syncToLayer()
         newItem->setFlags( newItem->flags() | Qt::ItemIsEditable );
       }
     }
-
     if ( dr->rendererName() == QLatin1String( "LinearlyInterpolated" ) )
     {
       const QgsLinearlyInterpolatedDiagramRenderer *lidr = dynamic_cast<const QgsLinearlyInterpolatedDiagramRenderer *>( dr );
@@ -555,7 +559,6 @@ void QgsDiagramProperties::mDiagramTypeComboBox_currentIndexChanged( int index )
   else
   {
     mDiagramFrame->setEnabled( true );
-
     mDiagramType = mDiagramTypeComboBox->itemData( index ).toString();
 
     if ( DIAGRAM_NAME_TEXT == mDiagramType )
@@ -584,13 +587,10 @@ void QgsDiagramProperties::mDiagramTypeComboBox_currentIndexChanged( int index )
       mBarSpacingUnitComboBox->show();
       mBarOptionsFrame->show();
       mShowAxisGroupBox->show();
-      if ( DIAGRAM_NAME_HISTOGRAM == mDiagramType )
-        mAttributeBasedScalingRadio->setChecked( true );
-      mFixedSizeRadio->setEnabled( DIAGRAM_NAME_STACKED == mDiagramType );
-      mDiagramSizeSpinBox->setEnabled( DIAGRAM_NAME_STACKED == mDiagramType );
       mLinearlyScalingLabel->setText( tr( "Bar length: Scale linearly, so that the following value matches the specified bar length:" ) );
       mSizeLabel->setText( tr( "Bar length" ) );
       mFrameIncreaseSize->setVisible( false );
+
     }
     else
     {
@@ -603,7 +603,7 @@ void QgsDiagramProperties::mDiagramTypeComboBox_currentIndexChanged( int index )
       mBarOptionsFrame->hide();
       mLinearlyScalingLabel->setText( tr( "Scale linearly between 0 and the following attribute value / diagram size:" ) );
       mSizeLabel->setText( tr( "Size" ) );
-      mAttributeBasedScalingRadio->setEnabled( true );
+
       mFixedSizeRadio->setEnabled( true );
       mDiagramSizeSpinBox->setEnabled( mFixedSizeRadio->isChecked() );
       mFrameIncreaseSize->setVisible( true );
@@ -884,6 +884,8 @@ void QgsDiagramProperties::apply()
     QgsLinearlyInterpolatedDiagramRenderer *dr = new QgsLinearlyInterpolatedDiagramRenderer();
     dr->setLowerValue( 0.0 );
     dr->setLowerSize( QSizeF( 0.0, 0.0 ) );
+    if ( qgsDoubleNear( mMaxValueSpinBox->value(), 0.0 ) )
+      QgsMessageLog::logMessage( tr( "Maximum size is 0: no feature will be rendered" ), tr( "Rendering" ), Qgis::MessageLevel::Critical );
     dr->setUpperValue( mMaxValueSpinBox->value() );
     dr->setUpperSize( QSizeF( mSizeSpinBox->value(), mSizeSpinBox->value() ) );
 
@@ -1055,6 +1057,7 @@ void QgsDiagramProperties::updatePlacementWidgets()
 
 void QgsDiagramProperties::scalingTypeChanged()
 {
+  mLinearScaleFrame->setEnabled( mAttributeBasedScalingRadio->isChecked() );
   mButtonSizeLegendSettings->setEnabled( mAttributeBasedScalingRadio->isChecked() );
 }
 

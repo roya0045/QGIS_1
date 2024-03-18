@@ -161,6 +161,7 @@ class QgsGpsToolBar;
 class QgsAppGpsSettingsMenu;
 class Qgs3DMapScene;
 
+class QgsThemeManagerWidget;
 #include <QMainWindow>
 #include <QToolBar>
 #include <QAbstractSocket>
@@ -2685,6 +2686,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QMetaObject::Connection mRenderProgressBarTimerConnection;
 
     QgsBrowserGuiModel *mBrowserModel = nullptr;
+
+    QgsThemeManagerWidget *mThemeManager = nullptr;
 
     void setupDuplicateFeaturesAction();
 

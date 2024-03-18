@@ -25,6 +25,11 @@
 #include "qgsmaphittest.h"
 #include "qgsmaplayer.h"
 #include "qgsmaplayerlegend.h"
+#include "qgsmaplayerstylemanager.h"
+#include "qgsmeshlayer.h"
+#include "qgspluginlayer.h"
+#include "qgsrenderer.h"
+#include "qgssymbollayerutils.h"
 #include "qgsvectorlayer.h"
 #include "qgslayerdefinition.h"
 #include "qgsiconutils.h"
@@ -1614,6 +1619,10 @@ QModelIndex QgsLayerTreeModel::legendNodeIndex( int row, int column, QgsLayerTre
   return QModelIndex(); // have no children
 }
 
+QList<QgsLayerTreeLayer *> QgsLayerTreeModel::filteredLayers() const
+{
+  return mRootNode->findLayers();
+}
 
 QModelIndex QgsLayerTreeModel::legendParent( QgsLayerTreeModelLegendNode *legendNode ) const
 {

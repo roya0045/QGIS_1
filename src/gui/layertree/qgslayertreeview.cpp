@@ -122,6 +122,12 @@ void QgsLayerTreeView::setModel( QAbstractItemModel *model )
   //checkModel();
 }
 
+void QgsLayerTreeView::disconnectProxyModel()
+{
+  disconnect( mProxyModel, &QAbstractItemModel::rowsInserted, this, &QgsLayerTreeView::modelRowsInserted );
+  disconnect( mProxyModel, &QAbstractItemModel::rowsRemoved, this, &QgsLayerTreeView::modelRowsRemoved );
+}
+
 QgsLayerTreeModel *QgsLayerTreeView::layerTreeModel() const
 {
   return mProxyModel ? qobject_cast<QgsLayerTreeModel *>( mProxyModel->sourceModel() ) : nullptr;
@@ -196,7 +202,6 @@ void QgsLayerTreeView::modelRowsInserted( const QModelIndex &index, int start, i
   QgsLayerTreeNode *parentNode = index2node( index );
   if ( !parentNode )
     return;
-
   // Embedded widgets - replace placeholders in the model by actual widgets
   if ( layerTreeModel()->testFlag( QgsLayerTreeModel::UseEmbeddedWidgets ) && QgsLayerTree::isLayer( parentNode ) )
   {
@@ -596,6 +601,11 @@ void QgsLayerTreeView::setShowPrivateLayers( bool showPrivate )
   mProxyModel->setShowPrivateLayers( showPrivate );
 }
 
+void QgsLayerTreeView::showAllNodes( bool show )
+{
+  mProxyModel->setShowAllNodes( show );
+}
+
 bool QgsLayerTreeView::showPrivateLayers()
 {
   return mShowPrivateLayers;
@@ -620,16 +630,33 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
 {
   if ( event->key() == Qt::Key_Space )
   {
-    const QList<QgsLayerTreeNode *> constSelectedNodes = selectedNodes();
+    const QModelIndexList selected = selectionModel()->selectedIndexes();
+    if ( ! selected.isEmpty() )
+    {    
+      QModelIndex layerTreeIndex = mProxyModel->mapToSource( selected.at( 0 ) );
+      bool isFirstNodeChecked;
 
-    if ( !constSelectedNodes.isEmpty() )
-    {
-      const bool isFirstNodeChecked = constSelectedNodes[0]->itemVisibilityChecked();
-      for ( QgsLayerTreeNode *node : constSelectedNodes )
+      if ( QgsLayerTreeNode *node = layerTreeModel()->index2node( layerTreeIndex ) )
       {
-        node->setItemVisibilityChecked( ! isFirstNodeChecked );
+        isFirstNodeChecked = node->itemVisibilityChecked();
       }
-
+      else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
+      {
+         isFirstNodeChecked = legendNode->data( Qt::CheckStateRole ).toBool(); // works, use this
+      }
+ 
+      for ( const QModelIndex &index : selected )
+      {
+        layerTreeIndex = mProxyModel->mapToSource( index );
+        if ( QgsLayerTreeNode *node = layerTreeModel()->index2node( layerTreeIndex ) )
+        {
+          node->setItemVisibilityChecked( ! isFirstNodeChecked );
+        }
+        else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
+        {
+          legendNode->setData( isFirstNodeChecked ? Qt::Unchecked : Qt::Checked, Qt::CheckStateRole ); // works use this
+        }
+      }
       // if we call the original keyPress handler, the current item will be checked to the original state yet again
       return;
     }
@@ -812,6 +839,12 @@ void QgsLayerTreeProxyModel::setFilterText( const QString &filterText )
   invalidateFilter();
 }
 
+void QgsLayerTreeProxyModel::setApprovedIds( const QStringList &ids )
+{
+  mDesiredIds = ids;
+  invalidateFilter();
+}
+
 bool QgsLayerTreeProxyModel::filterAcceptsRow( int sourceRow, const QModelIndex &sourceParent ) const
 {
   QgsLayerTreeNode *node = mLayerTreeModel->index2node( mLayerTreeModel->index( sourceRow, 0, sourceParent ) );
@@ -820,18 +853,32 @@ bool QgsLayerTreeProxyModel::filterAcceptsRow( int sourceRow, const QModelIndex 
 
 bool QgsLayerTreeProxyModel::nodeShown( QgsLayerTreeNode *node ) const
 {
-  if ( !node )
+  if ( !node ) //symbol node
     return true;
 
   if ( node->nodeType() == QgsLayerTreeNode::NodeGroup )
   {
-    return true;
+    if ( !mShowAllNodes && !mDesiredIds.isEmpty() )
+    {
+      QList <QgsLayerTreeNode *> children = node->children();
+      QList <QgsLayerTreeNode *>::const_iterator i;
+      for ( i = children.constBegin(); i != children.constEnd() ; ++i )
+      {
+        if ( nodeShown( *i ) )
+          return true;
+      }
+      return false;
+    }
+    else
+      return true;
   }
   else
   {
     QgsMapLayer *layer = QgsLayerTree::toLayer( node )->layer();
     if ( !layer )
-      return true;
+      return mShowAllNodes;
+    if ( !mDesiredIds.isEmpty() && !mDesiredIds.contains( layer->id() ) )
+      return false;
     if ( !mFilterText.isEmpty() && !layer->name().contains( mFilterText, Qt::CaseInsensitive ) )
       return false;
     if ( ! mShowPrivateLayers && layer->flags().testFlag( QgsMapLayer::LayerFlag::Private ) )
@@ -850,5 +897,11 @@ bool QgsLayerTreeProxyModel::showPrivateLayers() const
 void QgsLayerTreeProxyModel::setShowPrivateLayers( bool showPrivate )
 {
   mShowPrivateLayers = showPrivate;
+  invalidateFilter();
+}
+
+void QgsLayerTreeProxyModel::setShowAllNodes( bool show )
+{
+  mShowAllNodes = show;
   invalidateFilter();
 }

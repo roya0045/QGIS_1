@@ -689,9 +689,22 @@ QSet<QString> QgsRuleBasedRenderer::Rule::legendKeysForFeature( const QgsFeature
   {
     if ( rule->isElse() )
     {
-      continue;
+      if ( rule->children().isEmpty() )
+      {
+        RuleList lst = rulesForFeature( feature, context, false );
+        lst.removeOne( rule );
+
+        if ( lst.empty() )
+        {
+          res.unite( rule->legendKeysForFeature( feature, context ) );
+        }
+      }
+      else
+      {
+        res.unite( rule->legendKeysForFeature( feature, context ) );
+      }
     }
-    if ( rule->willRenderFeature( feature, context ) )
+    else if ( rule->willRenderFeature( feature, context ) )
     {
       res.unite( rule->legendKeysForFeature( feature, context ) );
       matchedNonElseRule = true;
@@ -782,11 +795,7 @@ QgsRuleBasedRenderer::Rule *QgsRuleBasedRenderer::Rule::create( QDomElement &rul
   QString description = ruleElem.attribute( QStringLiteral( "description" ) );
   int scaleMinDenom = ruleElem.attribute( QStringLiteral( "scalemindenom" ), QStringLiteral( "0" ) ).toInt();
   int scaleMaxDenom = ruleElem.attribute( QStringLiteral( "scalemaxdenom" ), QStringLiteral( "0" ) ).toInt();
-  QString ruleKey;
-  if ( reuseId )
-    ruleKey = ruleElem.attribute( QStringLiteral( "key" ) );
-  else
-    ruleKey = QUuid::createUuid().toString();
+  QString ruleKey = ruleElem.attribute( QStringLiteral( "key" ) );
   Rule *rule = new Rule( symbol, scaleMinDenom, scaleMaxDenom, filterExp, label, description );
 
   if ( !ruleKey.isEmpty() )

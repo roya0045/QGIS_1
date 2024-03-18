@@ -863,6 +863,13 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      * \since QGIS 3.16
      */
     QgsLayoutItemMapItemClipPathSettings *itemClippingSettings() { return mItemClippingSettings; }
+    
+    /**
+     * Returns the current geometry ( from the source layer or overriden ) in the provided crs.
+     *
+     * \since QGIS 3.30
+     */ 
+    QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
 
     // Reimplement estimatedFrameBleed to take the grid frame into account
     double estimatedFrameBleed() const override;

@@ -400,7 +400,14 @@ void QgsStatisticalSummaryDockWidget::layerChanged( QgsMapLayer *layer )
   if ( mLayer )
   {
     // Get last expression
-    mFieldExpressionWidget->setExpression( mLastExpression.value( mLayer->id(), QString() ) );
+    if (mLastExpression.value( mLayer->id(), QString() ) == QString() && mFieldExpressionWidget->isValidExpression() )
+    {
+      mLastExpression.insert( mLayerComboBox->currentLayer()->id(), mFieldExpressionWidget->currentText() );
+    }
+    else
+    {
+      mFieldExpressionWidget->setExpression( mLastExpression.value( mLayer->id(), QString() ) );
+    }
     connect( mLayer, &QgsVectorLayer::selectionChanged, this, &QgsStatisticalSummaryDockWidget::layerSelectionChanged );
   }
 

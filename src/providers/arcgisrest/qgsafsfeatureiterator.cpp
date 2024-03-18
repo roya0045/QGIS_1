@@ -83,6 +83,13 @@ QgsAfsFeatureIterator::QgsAfsFeatureIterator( QgsAfsFeatureSource *source, bool 
     // firing off another request to the server)
     mDeferredFeaturesInFilterRectCheck = true;
   }
+  else if ( !mFilterRect.isNull() )
+  {
+    if ( requestIds.empty() )
+      requestIds = mSource->sharedData()->getFeatureIdsInExtent( mFilterRect, mInterruptionChecker );
+    else
+      requestIds.intersect( mSource->sharedData()->getFeatureIdsInExtent( mFilterRect, mInterruptionChecker ) );
+  }
 
   // prepare spatial filter geometries for optimal speed
   switch ( mRequest.spatialFilterType() )
@@ -128,17 +135,13 @@ bool QgsAfsFeatureIterator::fetchFeature( QgsFeature &f )
 
   if ( mDeferredFeaturesInFilterRectCheck )
   {
-    const QgsFeatureIds featuresInRect = mSource->sharedData()->getFeatureIdsInExtent( mFilterRect, mInterruptionChecker );
+  
     if ( !mFeatureIdList.isEmpty() )
     {
       QgsFeatureIds requestIds = qgis::listToSet( mFeatureIdList );
-      requestIds.intersect( featuresInRect );
       mFeatureIdList = qgis::setToList( requestIds );
     }
-    else
-    {
-      mFeatureIdList = qgis::setToList( featuresInRect );
-    }
+
     if ( mFeatureIdList.empty() )
     {
       return false;

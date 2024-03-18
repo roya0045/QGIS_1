@@ -25,6 +25,8 @@
 #include "qgsexpressioncontextutils.h"
 #include "qgsmaplayerstyle.h"
 #include "qgsvectorlayerfeatureiterator.h"
+#include "qgsmarkersymbol.h"
+#include "qgsmessagelog.h"
 
 QgsMapHitTest::QgsMapHitTest( const QgsMapSettings &settings, const QgsGeometry &polygon, const LayerFilterExpression &layerFilterExpression )
   : mSettings( QgsLayerTreeFilterSettings( settings ) )
@@ -416,3 +418,40 @@ bool QgsMapHitTestTask::run()
   return true;
 }
 
+bool QgsMapHitTest::layerVisible( QgsMapLayer *layer )
+{
+  QString mapId = layer->id();
+  const QgsMapSettings &mapSettings = mSettings.mapSettings();
+
+  if ( ! layer->dataProvider() )
+    return false;
+  if ( layer->hasScaleBasedVisibility() )
+  {
+    if ( mapSettings.scale() < layer->minimumScale() || mapSettings.scale() > layer->maximumScale() )
+      return false;
+  }
+  else if ( mMapContains.contains( mapId ) )
+    return mMapContains.value( mapId );
+
+  QgsRectangle footprint = layer->extent();
+  if ( mapSettings.destinationCrs() != layer->crs() )
+  {
+    try
+    {
+      QgsCoordinateTransform ct = QgsCoordinateTransform( layer->crs(), mapSettings.destinationCrs(), mapSettings.transformContext() );
+      footprint = ct.transformBoundingBox( footprint );
+    }
+    catch ( QgsCsException & )
+    {
+      QgsMessageLog::logMessage( QObject::tr( "Could not transform map CRS to layer CRS" ) );
+      return false;
+    }
+  }
+  bool withinExt = false;
+  if ( mapSettings.visibleExtent().intersects( footprint ) )
+  {
+    withinExt = true;
+  }
+  mMapContains.insert( mapId, withinExt );
+  return withinExt;
+}

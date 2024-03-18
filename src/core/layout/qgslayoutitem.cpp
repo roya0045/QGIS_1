@@ -485,10 +485,6 @@ void QgsLayoutItem::attemptMove( const QgsLayoutPoint &p, bool useReferencePoint
   }
 
   QgsLayoutPoint point = p;
-  if ( page >= 0 )
-  {
-    point = mLayout->pageCollection()->pagePositionToAbsolute( page, p );
-  }
 
   if ( includesFrame )
   {
@@ -505,6 +501,10 @@ void QgsLayoutItem::attemptMove( const QgsLayoutPoint &p, bool useReferencePoint
   }
 
   evaluatedPoint = applyDataDefinedPosition( evaluatedPoint );
+  if ( page >= 0 )
+  {
+    evaluatedPoint = mLayout->pageCollection()->pagePositionToAbsolute( page, evaluatedPoint );
+  }
   const QPointF evaluatedPointLayoutUnits = mLayout->convertToLayoutUnits( evaluatedPoint );
   const QPointF topLeftPointLayoutUnits = adjustPointForReferencePosition( evaluatedPointLayoutUnits, rect().size(), mReferencePoint );
   if ( topLeftPointLayoutUnits == scenePos() && point.units() == mItemPosition.units() )
@@ -1194,7 +1194,10 @@ bool QgsLayoutItem::isRefreshing() const
 QgsExpressionContext QgsLayoutItem::createExpressionContext() const
 {
   QgsExpressionContext context = QgsLayoutObject::createExpressionContext();
-  context.appendScope( QgsExpressionContextUtils::layoutItemScope( this ) );
+  QgsExpressionContextScope *scope = QgsExpressionContextUtils::layoutItemScope( this );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "layout_item_x" ), mItemPosition.x(), true ) );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "layout_item_y" ), mItemPosition.y(), true ) );
+  context.appendScope( scope );
   return context;
 }
 

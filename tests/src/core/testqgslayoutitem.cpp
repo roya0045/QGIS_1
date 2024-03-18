@@ -484,6 +484,28 @@ void TestQgsLayoutItem::dataDefinedPosition()
   QCOMPARE( item->scenePos().x(), 140.0 ); //mm
   QCOMPARE( item->scenePos().y(), 40.0 ); //mm
 
+  QgsLayoutItemPage *page1 = new QgsLayoutItemPage( &l );
+  page1->setPageSize( "A4" );
+  l.pageCollection()->addPage( page1 );
+  QgsLayoutItemPage *page2 = new QgsLayoutItemPage( &l );
+  page2->setPageSize( "A4" );
+  l.pageCollection()->addPage( page2 );
+
+  //validate that the page is accounted for even with DD variable during movement
+  item->dataDefinedProperties().setProperty( QgsLayoutObject::PositionX, QgsProperty() );
+  item->dataDefinedProperties().setProperty( QgsLayoutObject::PositionY, QgsProperty::fromExpression( QStringLiteral( "2+11" ) ) );
+  item->attemptMove( QgsLayoutPoint( 8.0, 5.90, Qgis::LayoutUnit::Centimeters ), true, false, 2 );
+  QCOMPARE( item->positionWithUnits().x(), 8.0 );
+  QCOMPARE( item->positionWithUnits().y(), 13.0 );
+  QCOMPARE( item->positionWithUnits().units(), Qgis::LayoutUnit::Centimeters );
+
+  QList<QgsLayoutItem *> items = l.pageCollection()->itemsOnPage( 2 );
+  QCOMPARE( items.length(), 2 );
+  QCOMPARE( item->page(), 2 );
+
+  l.pageCollection()->deletePage( 2 );
+  l.pageCollection()->deletePage( 1 );
+
   delete item;
 }
 

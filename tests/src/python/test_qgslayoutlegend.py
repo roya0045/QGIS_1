@@ -691,20 +691,19 @@ class TestQgsLayoutItemLegend(QgisTestCase, LayoutItemTestCase):
 
         layer = QgsProject.instance().addMapLayer(point_layer)
         legendlayer = legend.model().rootGroup().addLayer(point_layer)
-
         counterTask = point_layer.countSymbolFeatures()
         counterTask.waitForFinished()
         legend.model().refreshLayerLegend(legendlayer)
         legendnodes = legend.model().layerLegendNodes(legendlayer)
         legendnodes[0].setUserLabel('[% @symbol_id %]')
-        legendnodes[1].setUserLabel('[% @symbol_count %]')
+        legendnodes[1].setUserLabel('[% @legend_item_expression %]')
         legendnodes[2].setUserLabel('[% sum("Pilots") %]')
         label1 = legendnodes[0].evaluateLabel()
         label2 = legendnodes[1].evaluateLabel()
         label3 = legendnodes[2].evaluateLabel()
         self.assertEqual(label1, '0')
-        # self.assertEqual(label2, '5')
-        # self.assertEqual(label3, '12')
+        self.assertEqual(label2, '"Class" = \'Biplane\'')
+        self.assertEqual(label3, '34')
 
         legendlayer.setLabelExpression("Concat(@symbol_label, @symbol_id)")
 
@@ -763,7 +762,7 @@ class TestQgsLayoutItemLegend(QgisTestCase, LayoutItemTestCase):
                                            'bbbb [% 1+2 %] xx [% @layout_name %] [% @layer_name %]')
         QgsMapLayerLegendUtils.setLegendNodeUserLabel(layer_tree_layer, 0, 'xxxx')
         legend.model().refreshLayerLegend(layer_tree_layer)
-        layer_tree_layer.setLabelExpression('Concat(@symbol_id, @symbol_label, count("Class"))')
+        layer_tree_layer.setLabelExpression('Concat(@symbol_id, @symbol_label, count("Class", filter:=eval(@legend_item_expression)))')
         legend.model().layerLegendNodes(layer_tree_layer)[0].setUserLabel(' sym 1')
         legend.model().layerLegendNodes(layer_tree_layer)[1].setUserLabel('[%@symbol_count %]')
         legend.model().layerLegendNodes(layer_tree_layer)[2].setUserLabel('[% count("Class") %]')
@@ -1602,6 +1601,49 @@ class TestQgsLayoutItemLegend(QgisTestCase, LayoutItemTestCase):
         )
 
         QgsProject.instance().removeMapLayers([line_layer.id()])
+
+    def test_ruleBase_child_filter(self):
+        """Test filter by map handling of rotated map."""
+        testproject = os.path.join(TEST_DATA_DIR, 'legend_else_rule_w_child.qgs')
+
+        QgsProject.instance().clear()
+        project_read = QgsProject.instance().read(testproject)
+        self.assertTrue(project_read)
+        layout = QgsProject.instance().layoutManager().layoutByName("test layout")
+
+        checker = QgsLayoutChecker(
+            'composer_legend_elseChild', layout)
+        layout.initializeDefaults()
+        layout.setUnits(QgsUnitTypes.LayoutMillimeters)
+
+        map = QgsLayoutItemMap(layout)
+        map.attemptSetSceneRect(QRectF(20, 20, 80, 80))
+        map.setFrameEnabled(True)
+        layout.addLayoutItem(map)
+        map.setExtent(point_layer.extent())
+        legendf = QgsLayoutItemLegend(layout)
+        legendf.setTitle("Filtered Legend")
+        legendf.attemptSetSceneRect(QRectF(120, 40, 80, 80))
+        legendf.setFrameEnabled(True)
+        legendf.setFrameStrokeWidth(QgsLayoutMeasurement(2))
+        legendf.setBackgroundColor(QColor(200, 200, 200))
+        legendf.setTitle('filtered')
+        legendf.setLegendFilterByMapEnabled(True)
+        layout.addLayoutItem(legendf)
+        legendf.setLinkedMap(map)
+        map.setScale(6918946)
+        map.setExtent(QgsRectangle(-109.517, 29.424, -102.961, 48.969))
+        map.setMapRotation(60)
+        layout.loadFromTemplate(doc, QgsReadWriteContext(), False)
+
+        checker = QgsLayoutChecker(
+            'composer_legend_rotated_map', layout)
+        checker.setControlPathPrefix("composer_legend")
+        result, message = checker.testLayout()
+        TestQgsLayoutItemLegend.report += checker.report()
+        self.assertTrue(result, message)
+
+        QgsProject.instance().clear()
 
 
 if __name__ == '__main__':
