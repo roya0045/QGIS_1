@@ -153,7 +153,7 @@ class CORE_EXPORT QgsLayerTreeUtils
      * This method only works with nodes representing vector layers. For all nodes of all other layer types
      * an empty string will be returned.
      *
-     * \since QGIS 3.28
+     * \since QGIS 3.38
      */
     static QString expressionForLegendKey( QgsLayerTreeNode *node, const QString &legendKey );
 };
