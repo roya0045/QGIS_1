@@ -32,7 +32,8 @@ import tempfile
 from shutil import copytree, rmtree
 
 from qgis.core import QgsApplication, QgsVectorLayer
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from offlineditingtestbase import OfflineTestBase
 from utilities import unitTestDataPath, waitServer
@@ -45,13 +46,14 @@ except:
 qgis_app = start_app()
 
 
-class TestWFST(unittest.TestCase, OfflineTestBase):
+class TestWFST(QgisTestCase, OfflineTestBase):
     # To fake the WFS cache!
     counter = 0
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestWFST, cls).setUpClass()
         cls.port = QGIS_SERVER_OFFLINE_PORT
         # Create tmp folder
         cls.temp_path = tempfile.mkdtemp()
@@ -79,6 +81,7 @@ class TestWFST(unittest.TestCase, OfflineTestBase):
     def tearDownClass(cls):
         """Run after all tests"""
         rmtree(cls.temp_path)
+        super(TestWFST, cls).tearDownClass()
 
     def setUp(self):
         """Run before each test."""

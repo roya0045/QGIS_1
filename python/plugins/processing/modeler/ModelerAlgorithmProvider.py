@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     ModelerAlgorithmProvider.py
@@ -63,6 +61,9 @@ class ModelerAlgorithmProvider(QgsProcessingProvider):
         QgsApplication.processingRegistry().providerAdded.connect(self.onProviderAdded)
 
     def onProviderAdded(self, provider_id):
+        if provider_id == self.id():
+            return
+
         self.refreshAlgorithms()
 
     def load(self):
@@ -128,4 +129,4 @@ class ModelerAlgorithmProvider(QgsProcessingProvider):
                             self.algs.append(alg)
                     else:
                         QgsMessageLog.logMessage(self.tr('Could not load model {0}', 'ModelerAlgorithmProvider').format(descriptionFile),
-                                                 self.tr('Processing'), Qgis.Critical)
+                                                 self.tr('Processing'), Qgis.MessageLevel.Critical)

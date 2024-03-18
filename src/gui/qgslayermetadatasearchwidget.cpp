@@ -20,6 +20,7 @@
 #include "qgsmapcanvas.h"
 #include "qgsprojectviewsettings.h"
 #include "qgsiconutils.h"
+#include "qgshelp.h"
 
 
 QgsLayerMetadataSearchWidget::QgsLayerMetadataSearchWidget( QWidget *parent, Qt::WindowFlags fl, QgsProviderRegistry::WidgetMode widgetMode )
@@ -151,6 +152,8 @@ QgsLayerMetadataSearchWidget::QgsLayerMetadataSearchWidget( QWidget *parent, Qt:
     updateExtentFilter( mExtentFilterComboBox->currentIndex() );
   } );
 
+  connect( mButtonBox, &QDialogButtonBox::helpRequested, this, &QgsLayerMetadataSearchWidget::showHelp );
+
   // Start loading metadata in the model
   mSourceModel->reloadAsync();
   mIsLoading = true;
@@ -202,22 +205,31 @@ void QgsLayerMetadataSearchWidget::addButtonClicked()
   {
     for ( const auto &selectedIndex : std::as_const( selectedIndexes ) )
     {
-      const QgsLayerMetadataProviderResult metadataResult { mSourceModel->data( mProxyModel->mapToSource( selectedIndex ), QgsLayerMetadataResultsModel::Roles::Metadata ).value<QgsLayerMetadataProviderResult>() };
+      const QgsLayerMetadataProviderResult metadataResult { mSourceModel->data( mProxyModel->mapToSource( selectedIndex ), static_cast< int >( QgsLayerMetadataResultsModel::CustomRole::Metadata ) ).value<QgsLayerMetadataProviderResult>() };
       switch ( metadataResult.layerType() )
       {
         case Qgis::LayerType::Raster:
         {
+          Q_NOWARN_DEPRECATED_PUSH
           emit addRasterLayer( metadataResult.uri(), metadataResult.identifier(), metadataResult.dataProviderName() );
+          Q_NOWARN_DEPRECATED_POP
+          emit addLayer( metadataResult.layerType(), metadataResult.uri(), metadataResult.identifier(), metadataResult.dataProviderName() );
           break;
         }
         case Qgis::LayerType::Vector:
         {
+          Q_NOWARN_DEPRECATED_PUSH
           emit addVectorLayer( metadataResult.uri(), metadataResult.identifier(), metadataResult.dataProviderName() );
+          Q_NOWARN_DEPRECATED_POP
+          emit addLayer( metadataResult.layerType(), metadataResult.uri(), metadataResult.identifier(), metadataResult.dataProviderName() );
           break;
         }
         case Qgis::LayerType::Mesh:
         {
+          Q_NOWARN_DEPRECATED_PUSH
           emit addMeshLayer( metadataResult.uri(), metadataResult.identifier(), metadataResult.dataProviderName() );
+          Q_NOWARN_DEPRECATED_POP
+          emit addLayer( metadataResult.layerType(), metadataResult.uri(), metadataResult.identifier(), metadataResult.dataProviderName() );
           break;
         }
         default:  // unsupported
@@ -240,4 +252,9 @@ void QgsLayerMetadataSearchWidget::showEvent( QShowEvent *event )
 {
   QgsAbstractDataSourceWidget::showEvent( event );
   mSearchFilterLineEdit->setText( mProxyModel->filterString( ) );
+}
+
+void QgsLayerMetadataSearchWidget::showHelp()
+{
+  QgsHelp::openHelp( QStringLiteral( "managing_data_source/opening_data.html#the-layer-metadata-search-panel" ) );
 }

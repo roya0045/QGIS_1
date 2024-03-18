@@ -10,7 +10,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '17/08/2016'
 __copyright__ = 'Copyright 2016, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtGui import QColor
 from qgis.core import QgsColorRampShader, QgsGradientColorRamp, QgsGradientStop
 from qgis.testing import unittest
@@ -44,7 +43,7 @@ class TestQgsRasterColorRampShader(unittest.TestCase):
 
     def testTwoClassesDiscrete(self):
         # test for #47759
-        shader = QgsColorRampShader(0, 50, None, QgsColorRampShader.Discrete)
+        shader = QgsColorRampShader(0, 50, None, QgsColorRampShader.Type.Discrete)
 
         item1 = QgsColorRampShader.ColorRampItem(50, QColor(0, 0, 0))
         item2 = QgsColorRampShader.ColorRampItem(float("inf"), QColor(255, 255, 255))

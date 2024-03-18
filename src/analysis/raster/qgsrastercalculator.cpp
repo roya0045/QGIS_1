@@ -187,7 +187,7 @@ QgsRasterCalculator::Result QgsRasterCalculator::processCalculation( QgsFeedback
     return CreateOutputError;
   }
 
-  GDALSetProjection( outputDataset.get(), mOutputCrs.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLocal8Bit().data() );
+  GDALSetProjection( outputDataset.get(), mOutputCrs.toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLocal8Bit().data() );
   GDALRasterBandH outputRasterBand = GDALGetRasterBand( outputDataset.get(), 1 );
 
   float outputNodataValue = -FLT_MAX;
@@ -272,7 +272,7 @@ QgsRasterCalculator::Result QgsRasterCalculator::processCalculation( QgsFeedback
         std::copy( resultMatrix.data(), resultMatrix.data() + mNumOutputColumns, castedResult.begin() );
         if ( GDALRasterIO( outputRasterBand, GF_Write, 0, row, mNumOutputColumns, 1, castedResult.data(), mNumOutputColumns, 1, GDT_Float32, 0, 0 ) != CE_None )
         {
-          QgsDebugMsg( QStringLiteral( "RasterIO error!" ) );
+          QgsDebugError( QStringLiteral( "RasterIO error!" ) );
         }
       }
       else
@@ -355,7 +355,7 @@ QgsRasterCalculator::Result QgsRasterCalculator::processCalculation( QgsFeedback
         //write scanline to the dataset
         if ( GDALRasterIO( outputRasterBand, GF_Write, 0, i, mNumOutputColumns, 1, calcData, mNumOutputColumns, 1, GDT_Float32, 0, 0 ) != CE_None )
         {
-          QgsDebugMsg( QStringLiteral( "RasterIO error!" ) );
+          QgsDebugError( QStringLiteral( "RasterIO error!" ) );
         }
 
         delete[] calcData;
@@ -585,7 +585,7 @@ QgsRasterCalculator::Result QgsRasterCalculator::processCalculationGPU( std::uni
       return CreateOutputError;
     }
 
-    GDALSetProjection( outputDataset.get(), mOutputCrs.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLocal8Bit().data() );
+    GDALSetProjection( outputDataset.get(), mOutputCrs.toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLocal8Bit().data() );
 
 
     GDALRasterBandH outputRasterBand = GDALGetRasterBand( outputDataset.get(), 1 );

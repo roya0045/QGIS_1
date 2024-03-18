@@ -33,7 +33,6 @@ from qgis.core import (
     QgsMapSettings,
     QgsMapUnitScale,
     QgsMarkerSymbol,
-    QgsMultiRenderChecker,
     QgsPointClusterRenderer,
     QgsPointDisplacementRenderer,
     QgsProject,
@@ -48,7 +47,8 @@ from qgis.core import (
     QgsCategorizedSymbolRenderer,
     QgsRendererCategory
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -58,7 +58,11 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsPointClusterRenderer(unittest.TestCase):
+class TestQgsPointClusterRenderer(QgisTestCase):
+
+    @classmethod
+    def control_path_prefix(cls):
+        return 'cluster_renderer'
 
     def setUp(self):
         myShpFile = os.path.join(TEST_DATA_DIR, 'points.shp')
@@ -85,7 +89,7 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
     def _setProperties(self, r):
         """ set properties for a renderer for testing with _checkProperties"""
         r.setTolerance(5)
-        r.setToleranceUnit(QgsUnitTypes.RenderMapUnits)
+        r.setToleranceUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
         r.setToleranceMapUnitScale(QgsMapUnitScale(5, 15))
         m = QgsMarkerSymbol()
         m.setColor(QColor(0, 255, 0))
@@ -97,7 +101,7 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
     def _checkProperties(self, r):
         """ test properties of renderer against expected"""
         self.assertEqual(r.tolerance(), 5)
-        self.assertEqual(r.toleranceUnit(), QgsUnitTypes.RenderMapUnits)
+        self.assertEqual(r.toleranceUnit(), QgsUnitTypes.RenderUnit.RenderMapUnits)
         self.assertEqual(r.toleranceMapUnitScale(), QgsMapUnitScale(5, 15))
         self.assertEqual(r.clusterSymbol().color(), QColor(0, 255, 0))
         self.assertEqual(r.embeddedRenderer().symbol().color().name(), '#fdbf6f')
@@ -127,8 +131,8 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
     def test_legend_keys(self):
         symbol1 = QgsMarkerSymbol()
         symbol2 = QgsMarkerSymbol()
-        sub_renderer = QgsCategorizedSymbolRenderer('cat', [QgsRendererCategory('cat1', symbol1, 'cat1'),
-                                                            QgsRendererCategory('cat2', symbol2, 'cat2')
+        sub_renderer = QgsCategorizedSymbolRenderer('cat', [QgsRendererCategory('cat1', symbol1, 'cat1', True, '0'),
+                                                            QgsRendererCategory('cat2', symbol2, 'cat2', True, '1')
                                                             ])
 
         renderer = QgsPointClusterRenderer()
@@ -148,7 +152,7 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
         # test conversion from displacement renderer
         r = QgsPointDisplacementRenderer()
         r.setTolerance(5)
-        r.setToleranceUnit(QgsUnitTypes.RenderMapUnits)
+        r.setToleranceUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
         r.setToleranceMapUnitScale(QgsMapUnitScale(5, 15))
         m = QgsMarkerSymbol()
         m.setColor(QColor(0, 255, 0))
@@ -160,26 +164,28 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
         # want to keep as many settings as possible when converting between cluster and displacement renderer
         d = QgsPointClusterRenderer.convertFromRenderer(r)
         self.assertEqual(d.tolerance(), 5)
-        self.assertEqual(d.toleranceUnit(), QgsUnitTypes.RenderMapUnits)
+        self.assertEqual(d.toleranceUnit(), QgsUnitTypes.RenderUnit.RenderMapUnits)
         self.assertEqual(d.toleranceMapUnitScale(), QgsMapUnitScale(5, 15))
         self.assertEqual(d.clusterSymbol().color(), QColor(0, 255, 0))
         self.assertEqual(d.embeddedRenderer().symbol().color().name(), '#fdbf6f')
 
     def testRenderNoCluster(self):
         self.layer.renderer().setTolerance(1)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(self.mapsettings)
-        renderchecker.setControlPathPrefix('cluster_renderer')
-        renderchecker.setControlName('expected_cluster_no_cluster')
-        self.assertTrue(renderchecker.runTest('cluster_no_cluster'))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'cluster_no_cluster',
+                'cluster_no_cluster',
+                self.mapsettings)
+        )
 
     def testRenderWithin(self):
         self.layer.renderer().setTolerance(10)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(self.mapsettings)
-        renderchecker.setControlPathPrefix('cluster_renderer')
-        renderchecker.setControlName('expected_cluster_cluster')
-        self.assertTrue(renderchecker.runTest('expected_cluster_cluster'))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'cluster_cluster',
+                'cluster_cluster',
+                self.mapsettings)
+        )
 
     def testRenderVariables(self):
         """ test rendering with expression variables in marker """
@@ -188,14 +194,13 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
         old_marker = self.layer.renderer().clusterSymbol().clone()
 
         new_marker = QgsMarkerSymbol.createSimple({'color': '#ffff00', 'size': '3', 'outline_style': 'no'})
-        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.PropertyFillColor, QgsProperty.fromExpression('@cluster_color'))
-        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.PropertySize, QgsProperty.fromExpression('@cluster_size*2'))
+        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.Property.PropertyFillColor, QgsProperty.fromExpression('@cluster_color'))
+        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.Property.PropertySize, QgsProperty.fromExpression('@cluster_size*2'))
         self.layer.renderer().setClusterSymbol(new_marker)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(self.mapsettings)
-        renderchecker.setControlPathPrefix('cluster_renderer')
-        renderchecker.setControlName('expected_cluster_variables')
-        result = renderchecker.runTest('expected_cluster_variables')
+        result = self.render_map_settings_check(
+            'cluster_variables',
+            'cluster_variables',
+            self.mapsettings)
         self.layer.renderer().setClusterSymbol(old_marker)
         self.assertTrue(result)
 
@@ -222,7 +227,7 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
         sub_renderer = QgsSingleSymbolRenderer(sym1)
         renderer.setEmbeddedRenderer(sub_renderer)
         renderer.setClusterSymbol(QgsMarkerSymbol.createSimple({'color': '#ffff00', 'size': '3', 'outline_style': 'no'}))
-        renderer.setToleranceUnit(QgsUnitTypes.RenderMapUnits)
+        renderer.setToleranceUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
         renderer.setTolerance(2)
         layer.setRenderer(renderer)
 
@@ -233,11 +238,12 @@ class TestQgsPointClusterRenderer(unittest.TestCase):
         mapsettings.setExtent(QgsRectangle(0, 0, 10, 10))
         mapsettings.setLayers(rendered_layers)
 
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('cluster_renderer')
-        renderchecker.setControlName('expected_cluster_multipoint')
-        self.assertTrue(renderchecker.runTest('expected_cluster_multipoint'))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'cluster_multipoint',
+                'cluster_multipoint',
+                mapsettings)
+        )
 
     def testUsedAttributes(self):
         ctx = QgsRenderContext.fromMapSettings(self.mapsettings)

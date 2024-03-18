@@ -13,13 +13,13 @@ import os
 import shutil
 import tempfile
 
-import qgis  # NOQA
 from osgeo import gdal, ogr, osr
 from plugins.db_manager.db_plugins import createDbPlugin, supportedDbTypes
 from plugins.db_manager.db_plugins.plugin import TableField
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import QgsDataSourceUri, QgsSettings
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -28,11 +28,12 @@ def GDAL_COMPUTE_VERSION(maj, min, rev):
     return ((maj) * 1000000 + (min) * 10000 + (rev) * 100)
 
 
-class TestPyQgsDBManagerGpkg(unittest.TestCase):
+class TestPyQgsDBManagerGpkg(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestPyQgsDBManagerGpkg.com")
@@ -57,6 +58,7 @@ class TestPyQgsDBManagerGpkg(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Run after all tests"""
+        super().tearDownClass()
 
         QgsSettings().clear()
         shutil.rmtree(cls.basetestpath, True)
@@ -217,7 +219,11 @@ class TestPyQgsDBManagerGpkg(unittest.TestCase):
         uri = QgsDataSourceUri()
 
         test_gpkg_new = os.path.join(self.basetestpath, 'testCreateRenameDeleteFields.gpkg')
-        shutil.copy(self.test_gpkg, test_gpkg_new)
+
+        ds = ogr.GetDriverByName('GPKG').CreateDataSource(test_gpkg_new)
+        lyr = ds.CreateLayer('testLayer', geom_type=ogr.wkbLineString, options=['SPATIAL_INDEX=NO'])
+        lyr.CreateField(ogr.FieldDefn('text_field', ogr.OFTString))
+        del ds
 
         uri.setDatabase(test_gpkg_new)
         self.assertTrue(plugin.addConnection(connection_name, uri))

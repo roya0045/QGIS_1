@@ -32,7 +32,8 @@ from qgis.core import (
     QgsRectangle,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -116,7 +117,7 @@ class PythonLayerMetadataProvider(QgsAbstractLayerMetadataProvider):
 QGIS_APP = start_app()
 
 
-class TestPythonLayerMetadataProvider(unittest.TestCase):
+class TestPythonLayerMetadataProvider(QgisTestCase):
 
     def setUp(self):
 
@@ -149,7 +150,7 @@ class TestPythonLayerMetadataProvider(unittest.TestCase):
         self.assertEqual(result.title(), 'QGIS Test Title')
         self.assertEqual(result.layerType(), QgsMapLayerType.VectorLayer)
         self.assertEqual(result.authid(), 'EPSG:4326')
-        self.assertEqual(result.geometryType(), QgsWkbTypes.PointGeometry)
+        self.assertEqual(result.geometryType(), QgsWkbTypes.GeometryType.PointGeometry)
         self.assertEqual(result.dataProviderName(), 'ogr')
         self.assertEqual(result.standardUri(), 'http://mrcc.com/qgis.dtd')
 

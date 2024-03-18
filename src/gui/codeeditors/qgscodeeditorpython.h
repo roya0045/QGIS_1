@@ -46,7 +46,6 @@ class QgsQsciLexerPython : public QsciLexerPython
  * \brief A Python editor based on QScintilla2. Adds syntax highlighting and
  * code autocompletion.
  * \note may not be available in Python bindings, depending on platform support
- * \since QGIS 2.6
  */
 class GUI_EXPORT QgsCodeEditorPython : public QgsCodeEditor
 {
@@ -71,10 +70,10 @@ class GUI_EXPORT QgsCodeEditorPython : public QgsCodeEditor
      * \param parent The parent QWidget
      * \param filenames The list of apis files to load for the Python lexer
      * \param mode code editor mode (since QGIS 3.30)
-     * \since QGIS 2.6
+     * \param flags code editor flags (since QGIS 3.32)
      */
     QgsCodeEditorPython( QWidget *parent SIP_TRANSFERTHIS = nullptr, const QList<QString> &filenames = QList<QString>(),
-                         QgsCodeEditor::Mode mode = QgsCodeEditor::Mode::ScriptEditor );
+                         QgsCodeEditor::Mode mode = QgsCodeEditor::Mode::ScriptEditor, QgsCodeEditor::Flags flags = QgsCodeEditor::Flag::CodeFolding );
 
     Qgis::ScriptLanguage language() const override;
     Qgis::ScriptLanguageCapabilities languageCapabilities() const override;
@@ -105,7 +104,7 @@ class GUI_EXPORT QgsCodeEditorPython : public QgsCodeEditor
     QString characterBeforeCursor() const;
 
     /**
-     * Returns the character after the cursor, or an empty string if the cursot is set at end
+     * Returns the character after the cursor, or an empty string if the cursor is set at end
      *
      * \since QGIS 3.30
      */
@@ -141,6 +140,7 @@ class GUI_EXPORT QgsCodeEditorPython : public QgsCodeEditor
     void initializeLexer() override;
     virtual void keyPressEvent( QKeyEvent *event ) override;
     QString reformatCodeString( const QString &string ) override;
+    void populateContextMenu( QMenu *menu ) override;
 
   protected slots:
 

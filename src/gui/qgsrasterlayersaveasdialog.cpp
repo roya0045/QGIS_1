@@ -129,6 +129,7 @@ QgsRasterLayerSaveAsDialog::QgsRasterLayerSaveAsDialog( QgsRasterLayer *rasterLa
   else
   {
     mPyramidsGroupBox->setEnabled( false );
+    mPyramidsGroupBox->setCollapsed( true );
   }
 
   // restore checked state for most groupboxes (default is to restore collapsed state)
@@ -661,6 +662,7 @@ QgsRasterLayerSaveAsDialog::Mode QgsRasterLayerSaveAsDialog::mode() const
 void QgsRasterLayerSaveAsDialog::mRawModeRadioButton_toggled( bool checked )
 {
   mNoDataGroupBox->setEnabled( checked && mDataProvider->bandCount() == 1 );
+  mNoDataGroupBox->setCollapsed( !mNoDataGroupBox->isEnabled() );
 }
 
 void QgsRasterLayerSaveAsDialog::mAddNoDataManuallyToolButton_clicked()
@@ -677,7 +679,7 @@ void QgsRasterLayerSaveAsDialog::mLoadTransparentNoDataToolButton_clicked()
   const auto constTransparentSingleValuePixelList = rasterTransparency->transparentSingleValuePixelList();
   for ( const QgsRasterTransparency::TransparentSingleValuePixel &transparencyPixel : constTransparentSingleValuePixelList )
   {
-    if ( transparencyPixel.percentTransparent == 100 )
+    if ( qgsDoubleNear( transparencyPixel.opacity, 0 ) )
     {
       addNoDataRow( transparencyPixel.min, transparencyPixel.max );
       if ( transparencyPixel.min != transparencyPixel.max )
@@ -761,14 +763,14 @@ void QgsRasterLayerSaveAsDialog::noDataCellTextEdited( const QString &text )
     }
     if ( row != -1 ) break;
   }
-  QgsDebugMsg( QStringLiteral( "row = %1 column =%2" ).arg( row ).arg( column ) );
+  QgsDebugMsgLevel( QStringLiteral( "row = %1 column =%2" ).arg( row ).arg( column ), 2 );
 
   if ( column == 0 )
   {
     QLineEdit *toLineEdit = dynamic_cast<QLineEdit *>( mNoDataTableWidget->cellWidget( row, 1 ) );
     if ( !toLineEdit ) return;
     bool toChanged = mNoDataToEdited.value( row );
-    QgsDebugMsg( QStringLiteral( "toChanged = %1" ).arg( toChanged ) );
+    QgsDebugMsgLevel( QStringLiteral( "toChanged = %1" ).arg( toChanged ), 2 );
     if ( !toChanged )
     {
       toLineEdit->setText( lineEdit->text() );

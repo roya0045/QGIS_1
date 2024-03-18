@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     CheckBoxesPanel.py
@@ -40,7 +38,7 @@ from qgis.PyQt.QtGui import QCursor
 class CheckboxesPanel(QWidget):
 
     def __init__(self, options, multiple, columns=2, parent=None):
-        super(CheckboxesPanel, self).__init__(parent)
+        super().__init__(parent)
 
         self._options = []
         for i, option in enumerate(options):
@@ -65,12 +63,12 @@ class CheckboxesPanel(QWidget):
             self._buttons.append((v, button))
             self._buttonGroup.addButton(button, i)
             layout.addWidget(button, i % rows, i / rows)
-        layout.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum),
+        layout.addItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum),
                        0, columns)
         self.setLayout(layout)
 
         if multiple:
-            self.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             self.customContextMenuRequested.connect(self.showPopupMenu)
 
     def showPopupMenu(self):
@@ -81,7 +79,7 @@ class CheckboxesPanel(QWidget):
         clear_all_action.triggered.connect(self.deselectAll)
         popup_menu.addAction(select_all_action)
         popup_menu.addAction(clear_all_action)
-        popup_menu.exec_(QCursor.pos())
+        popup_menu.exec(QCursor.pos())
 
     def selectAll(self):
         for (v, button) in self._buttons:

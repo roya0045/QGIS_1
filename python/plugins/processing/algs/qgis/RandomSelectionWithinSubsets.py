@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     RandomSelectionWithinSubsets.py
@@ -66,7 +64,7 @@ class RandomSelectionWithinSubsets(QgisAlgorithm):
         super().__init__()
 
     def flags(self):
-        return super().flags() | QgsProcessingAlgorithm.FlagNoThreading | QgsProcessingAlgorithm.FlagNotAvailableInStandaloneTool
+        return super().flags() | QgsProcessingAlgorithm.Flag.FlagNoThreading | QgsProcessingAlgorithm.Flag.FlagNotAvailableInStandaloneTool
 
     def initAlgorithm(self, config=None):
         self.methods = [self.tr('Number of selected features'),
@@ -80,7 +78,7 @@ class RandomSelectionWithinSubsets(QgisAlgorithm):
                                                      self.tr('Method'), self.methods, False, 0))
         self.addParameter(QgsProcessingParameterNumber(self.NUMBER,
                                                        self.tr('Number/percentage of selected features'),
-                                                       QgsProcessingParameterNumber.Integer,
+                                                       QgsProcessingParameterNumber.Type.Integer,
                                                        10, False, 0.0))
         self.addOutput(QgsProcessingOutputVectorLayer(self.OUTPUT, self.tr('Selected (stratified random)')))
 
@@ -118,7 +116,7 @@ class RandomSelectionWithinSubsets(QgisAlgorithm):
         if len(unique) != featureCount:
             classes = defaultdict(list)
 
-            features = layer.getFeatures(QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([index]))
+            features = layer.getFeatures(QgsFeatureRequest().setFlags(QgsFeatureRequest.Flag.NoGeometry).setSubsetOfAttributes([index]))
 
             for i, feature in enumerate(features):
                 if feedback.isCanceled():
@@ -135,7 +133,7 @@ class RandomSelectionWithinSubsets(QgisAlgorithm):
                 selValue = value if method != 1 else int(round(value * len(subset), 0))
                 if selValue > len(subset):
                     selValue = len(subset)
-                    feedback.reportError(self.tr('Subset "{}" is smaller than requested number of features.'.format(k)))
+                    feedback.reportError(self.tr('Subset "{}" is smaller than requested number of features.').format(k))
                 selran.extend(random.sample(subset, selValue))
 
             layer.selectByIds(selran)

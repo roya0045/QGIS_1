@@ -222,7 +222,7 @@ QgsAppGpsSettingsMenu::QgsAppGpsSettingsMenu( QWidget *parent )
 
   addSeparator();
 
-  mActionGpkgLog = new QAction( "Log to GeoPackage/Spatialite…" );
+  mActionGpkgLog = new QAction( tr( "Log to GeoPackage/Spatialite…" ), this );
   mActionGpkgLog->setCheckable( true );
   connect( mActionGpkgLog, &QAction::toggled, this, [ = ]( bool checked )
   {
@@ -254,7 +254,7 @@ QgsAppGpsSettingsMenu::QgsAppGpsSettingsMenu( QWidget *parent )
   } );
   addAction( mActionGpkgLog );
 
-  mActionNmeaLog = new QAction( "Log NMEA Sentences…" );
+  mActionNmeaLog = new QAction( tr( "Log NMEA Sentences…" ), this );
   mActionNmeaLog->setCheckable( true );
   connect( mActionNmeaLog, &QAction::toggled, this, [ = ]( bool checked )
   {
@@ -348,7 +348,7 @@ void QgsAppGpsSettingsMenu::timeStampMenuAboutToShow()
       fieldAction->setText( tr( "Do Not Store" ) );
     }
     fieldAction->setIcon( mFieldProxyModel->data( mFieldProxyModel->index( row, 0 ), Qt::DecorationRole ).value< QIcon >() );
-    const QString fieldName = mFieldProxyModel->data( mFieldProxyModel->index( row, 0 ), QgsFieldModel::FieldNameRole ).toString();
+    const QString fieldName = mFieldProxyModel->data( mFieldProxyModel->index( row, 0 ), static_cast< int >( QgsFieldModel::CustomRole::FieldName ) ).toString();
     fieldAction->setData( fieldName );
     fieldAction->setCheckable( true );
     if ( currentTimeStampField == fieldName )

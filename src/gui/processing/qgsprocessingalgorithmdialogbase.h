@@ -25,6 +25,8 @@
 #include "qgsprocessingfeedback.h"
 #include "qgsprocessingwidgetwrapper.h"
 
+#include <QThread>
+
 ///@cond NOT_STABLE
 
 class QgsProcessingAlgorithm;
@@ -41,7 +43,6 @@ class QgsTask;
  * \ingroup gui
  * \brief QgsProcessingFeedback subclass linked to a QgsProcessingAlgorithmDialogBase
  * \note Not stable API
- * \since QGIS 3.0
  */
 class QgsProcessingAlgorithmDialogFeedback : public QgsProcessingFeedback
 {
@@ -63,6 +64,7 @@ class QgsProcessingAlgorithmDialogFeedback : public QgsProcessingFeedback
     void commandInfoPushed( const QString &text );
     void debugInfoPushed( const QString &text );
     void consoleInfoPushed( const QString &text );
+    void formattedMessagePushed( const QString &html );
 
   public slots:
 
@@ -73,6 +75,7 @@ class QgsProcessingAlgorithmDialogFeedback : public QgsProcessingFeedback
     void pushCommandInfo( const QString &info ) override;
     void pushDebugInfo( const QString &info ) override;
     void pushConsoleInfo( const QString &info ) override;
+    void pushFormattedMessage( const QString &html, const QString &text ) override;
 
 };
 #endif
@@ -81,7 +84,6 @@ class QgsProcessingAlgorithmDialogFeedback : public QgsProcessingFeedback
  * \ingroup gui
  * \brief Base class for processing algorithm dialogs.
  * \note This is not considered stable API and may change in future QGIS versions.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsProcessingParametersGenerator, public QgsProcessingContextGenerator, private Ui::QgsProcessingDialogBase
 {
@@ -183,7 +185,7 @@ class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsPr
      * \see setLogLevel()
      * \since QGIS 3.20
      */
-    QgsProcessingContext::LogLevel logLevel() const;
+    Qgis::ProcessingLogLevel logLevel() const;
 
     /**
      * Sets the logging \a level to use when running algorithms from the dialog.
@@ -191,7 +193,7 @@ class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsPr
      * \see logLevel()
      * \since QGIS 3.20
      */
-    void setLogLevel( QgsProcessingContext::LogLevel level );
+    void setLogLevel( Qgis::ProcessingLogLevel level );
 
     /**
      * Sets the parameter \a values to show in the dialog.
@@ -218,6 +220,15 @@ class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsPr
      * Pushes an information string to the dialog's log.
      */
     void pushInfo( const QString &info );
+
+    /**
+     * Pushes a pre-formatted message to the dialog's log
+     *
+     * This can be used to push formatted HTML messages to the dialog.
+     *
+     * \since QGIS 3.36
+     */
+    void pushFormattedMessage( const QString &html );
 
     /**
      * Pushes a debug info string to the dialog's log.
@@ -381,7 +392,6 @@ class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsPr
     /**
      * Formats an input \a string for display in the log tab.
      *
-     * \since QGIS 3.0.1
      */
     static QString formatStringForLog( const QString &string );
 
@@ -439,6 +449,7 @@ class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsPr
     void linkClicked( const QUrl &url );
     void taskTriggered( QgsTask *task );
     void closeClicked();
+    void urlClicked( const QUrl &url );
 
   private:
 
@@ -467,14 +478,15 @@ class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsPr
 
     int mMessageLoggedCount = 0;
 
-    QgsProcessingContext::LogLevel mLogLevel = QgsProcessingContext::DefaultLevel;
+    Qgis::ProcessingLogLevel mLogLevel = Qgis::ProcessingLogLevel::DefaultLevel;
 
     QPointer< QgsProcessingContextOptionsWidget > mContextOptionsWidget;
     bool mOverrideDefaultContextSettings = false;
-    QgsFeatureRequest::InvalidGeometryCheck mGeometryCheck = QgsFeatureRequest::InvalidGeometryCheck::GeometryAbortOnInvalid;
+    Qgis::InvalidGeometryCheck mGeometryCheck = Qgis::InvalidGeometryCheck::AbortOnInvalid;
     Qgis::DistanceUnit mDistanceUnits = Qgis::DistanceUnit::Unknown;
     Qgis::AreaUnit mAreaUnits = Qgis::AreaUnit::Unknown;
     QString mTemporaryFolderOverride;
+    int mMaximumThreads = QThread::idealThreadCount();
 
     QString formatHelp( QgsProcessingAlgorithm *algorithm );
     void scrollToBottomOfLog();
@@ -488,7 +500,6 @@ class GUI_EXPORT QgsProcessingAlgorithmDialogBase : public QDialog, public QgsPr
  * \ingroup gui
  * \brief A modal dialog for showing algorithm progress and log messages.
  * \note This is not considered stable API and may change in future QGIS versions.
- * \since QGIS 3.0
  */
 class QgsProcessingAlgorithmProgressDialog : public QDialog, private Ui::QgsProcessingProgressDialogBase
 {
@@ -547,7 +558,7 @@ class GUI_EXPORT QgsProcessingContextOptionsWidget : public QgsPanelWidget, priv
     /**
      * Returns the invalid geometry check selected in the widget.
      */
-    QgsFeatureRequest::InvalidGeometryCheck invalidGeometryCheck() const;
+    Qgis::InvalidGeometryCheck invalidGeometryCheck() const;
 
     /**
      * Returns the distance unit selected in the widget.
@@ -564,6 +575,24 @@ class GUI_EXPORT QgsProcessingContextOptionsWidget : public QgsPanelWidget, priv
      */
     QString temporaryFolder();
 
+    /**
+     * Returns the number of threads to use selected in the widget.
+     */
+    int maximumThreads() const;
+
+    /**
+     * Sets the log \a level to shown in the widget.
+     *
+     * \since QGIS 3.34
+     */
+    void setLogLevel( Qgis::ProcessingLogLevel level );
+
+    /**
+     * Returns the logging level selected in the widget.
+     *
+     * \since QGIS 3.34
+     */
+    Qgis::ProcessingLogLevel logLevel() const;
 };
 
 #endif

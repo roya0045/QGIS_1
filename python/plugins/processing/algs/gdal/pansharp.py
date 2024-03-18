@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     pansharp.py
@@ -53,10 +51,10 @@ class pansharp(GdalAlgorithm):
 
     def initAlgorithm(self, config=None):
         self.methods = ((self.tr('Nearest Neighbour'), 'nearest'),
-                        (self.tr('Bilinear'), 'bilinear'),
-                        (self.tr('Cubic'), 'cubic'),
-                        (self.tr('Cubic Spline'), 'cubicspline'),
-                        (self.tr('Lanczos Windowed Sinc'), 'lanczos'),
+                        (self.tr('Bilinear (2x2 Kernel)'), 'bilinear'),
+                        (self.tr('Cubic (4x4 Kernel)'), 'cubic'),
+                        (self.tr('Cubic B-Spline (4x4 Kernel)'), 'cubicspline'),
+                        (self.tr('Lanczos (6x6 Kernel)'), 'lanczos'),
                         (self.tr('Average'), 'average'))
 
         self.addParameter(QgsProcessingParameterRasterLayer(self.SPECTRAL,
@@ -68,14 +66,14 @@ class pansharp(GdalAlgorithm):
                                                       self.tr('Resampling algorithm'),
                                                       options=[i[0] for i in self.methods],
                                                       defaultValue=2)
-        resampling_param.setFlags(resampling_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        resampling_param.setFlags(resampling_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(resampling_param)
 
         options_param = QgsProcessingParameterString(self.OPTIONS,
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         options_param.setMetadata({
             'widget_wrapper': {
                 'class': 'processing.algs.gdal.ui.RasterOptionsWidget.RasterOptionsWidgetWrapper'}})
@@ -85,7 +83,7 @@ class pansharp(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         self.addParameter(QgsProcessingParameterRasterDestination(self.OUTPUT,
@@ -118,6 +116,10 @@ class pansharp(GdalAlgorithm):
         out = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
         self.setOutputValue(self.OUTPUT, out)
 
+        output_format = QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1])
+        if not output_format:
+            raise QgsProcessingException(self.tr('Output format is invalid'))
+
         arguments = [
             panchromatic.source(),
             spectral.source(),
@@ -125,7 +127,7 @@ class pansharp(GdalAlgorithm):
             '-r',
             self.methods[self.parameterAsEnum(parameters, self.RESAMPLING, context)][1],
             '-of',
-            QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1])
+            output_format
         ]
 
         options = self.parameterAsString(parameters, self.OPTIONS, context)

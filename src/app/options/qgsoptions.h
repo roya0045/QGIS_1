@@ -74,7 +74,6 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
 
     /**
      * Sets the page with the specified widget name as the current page
-     * \since QGIS 2.1
      */
     void setCurrentPage( const QString &pageWidgetName );
 
@@ -111,18 +110,6 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
 
     //! Slot to choose path to project to open after launch
     void selectProjectOnLaunch();
-
-    //! Slot to select the default font point size for app
-    void spinFontSize_valueChanged( int fontSize );
-
-    //! Slot to set font family for app to Qt default
-    void mFontFamilyRadioQt_released();
-
-    //! Slot to set font family for app to custom choice
-    void mFontFamilyRadioCustom_released();
-
-    //! Slot to select custom font family choice for app
-    void mFontFamilyComboBox_currentFontChanged( const QFont &font );
 
     void mProxyTypeComboBox_currentIndexChanged( int idx );
 
@@ -265,6 +252,7 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     void addLocalizedDataPath();
     void moveLocalizedDataPathUp();
     void moveLocalizedDataPathDown();
+    void alwaysUseDecimalPointChanged( bool checked );
 
   private:
     QgsSettings *mSettings = nullptr;
@@ -292,8 +280,6 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
 
   protected:
     QgisAppStyleSheet *mStyleSheetBuilder = nullptr;
-    QMap<QString, QVariant> mStyleSheetNewOpts;
-    QMap<QString, QVariant> mStyleSheetOldOpts;
 
     static const int PALETTE_COLOR_ROLE = Qt::UserRole + 1;
     static const int PALETTE_LABEL_ROLE = Qt::UserRole + 2;

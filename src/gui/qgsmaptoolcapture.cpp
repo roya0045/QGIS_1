@@ -40,6 +40,8 @@
 #include <QCursor>
 #include <QPixmap>
 #include <QStatusBar>
+#include <algorithm>
+#include <memory>
 
 
 QgsMapToolCapture::QgsMapToolCapture( QgsMapCanvas *canvas, QgsAdvancedDigitizingDockWidget *cadDockWidget, CaptureMode mode )
@@ -584,7 +586,7 @@ int QgsMapToolCapture::nextPoint( const QgsPoint &mapPoint, QgsPoint &layerPoint
     }
     catch ( QgsCsException & )
     {
-      QgsDebugMsg( QStringLiteral( "transformation to layer coordinate failed" ) );
+      QgsDebugError( QStringLiteral( "transformation to layer coordinate failed" ) );
       return 2;
     }
   }
@@ -674,7 +676,7 @@ int QgsMapToolCapture::addVertex( const QgsPointXY &point, const QgsPointLocator
 {
   if ( mode() == CaptureNone )
   {
-    QgsDebugMsg( QStringLiteral( "invalid capture mode" ) );
+    QgsDebugError( QStringLiteral( "invalid capture mode" ) );
     return 2;
   }
 
@@ -806,20 +808,29 @@ int QgsMapToolCapture::addCurve( QgsCurve *c )
     mTempRubberBand->addPoint( endPt ); //add last point of c
   }
 
-  //transform back to layer CRS in case map CRS and layer CRS are different
-  const QgsCoordinateTransform ct = mCanvas->mapSettings().layerTransform( layer() );
-  if ( ct.isValid() )
-  {
-    c->transform( ct, Qgis::TransformDirection::Reverse );
-  }
   const int countBefore = mCaptureCurve.vertexCount();
   //if there is only one point, this the first digitized point that are in the this first curve added --> remove the point
   if ( mCaptureCurve.numPoints() == 1 )
     mCaptureCurve.removeCurve( 0 );
 
-  // we set the extendPrevious option to true to avoid creating compound curves with many 2 vertex linestrings -- instead we prefer
-  // to extend linestring curves so that they continue the previous linestring wherever possible...
-  mCaptureCurve.addCurve( c, !mStartNewCurve );
+  // Transform back to layer CRS in case map CRS and layer CRS are different
+  const QgsCoordinateTransform ct = mCanvas->mapSettings().layerTransform( layer() );
+  if ( ct.isValid() && !ct.isShortCircuited() )
+  {
+    QgsLineString *segmented = c->curveToLine();
+    segmented->transform( ct, Qgis::TransformDirection::Reverse );
+    // Curve geometries will be converted to segments, so we explicitly set extentPrevious to false
+    // to be able to remove the whole curve in undo
+    mCaptureCurve.addCurve( segmented, false );
+    delete c;
+  }
+  else
+  {
+    // we set the extendPrevious option to true to avoid creating compound curves with many 2 vertex linestrings -- instead we prefer
+    // to extend linestring curves so that they continue the previous linestring wherever possible...
+    mCaptureCurve.addCurve( c, !mStartNewCurve );
+  }
+
   mStartNewCurve = false;
 
   const int countAfter = mCaptureCurve.vertexCount();
@@ -872,6 +883,13 @@ void QgsMapToolCapture::undo( bool isAutoRepeat )
     vertexToRemove.part = 0;
     vertexToRemove.ring = 0;
     vertexToRemove.vertex = size() - 1;
+
+    // If the geometry was reprojected, remove the entire last curve.
+    const QgsCoordinateTransform ct = mCanvas->mapSettings().layerTransform( layer() );
+    if ( ct.isValid() && !ct.isShortCircuited() )
+    {
+      mCaptureCurve.removeCurve( mCaptureCurve.nCurves() - 1 );
+    }
     if ( mCaptureCurve.numPoints() == 2 && mCaptureCurve.nCurves() == 1 )
     {
       // store the first vertex to restore if after deleting the curve
@@ -1365,21 +1383,42 @@ void QgsMapToolCapture::cadCanvasReleaseEvent( QgsMapMouseEvent *e )
     if ( digitizingFinished )
     {
       QgsGeometry g;
-      QgsCurve *curveToAdd = captureCurve()->clone();
+      std::unique_ptr<QgsCurve> curveToAdd( captureCurve()->clone() );
 
       if ( mode() == CaptureLine )
       {
-        g = QgsGeometry( curveToAdd );
+        g = QgsGeometry( curveToAdd->clone() );
         geometryCaptured( g );
-        lineCaptured( curveToAdd );
+        lineCaptured( curveToAdd.release() );
       }
       else
       {
-        QgsCurvePolygon *poly = new QgsCurvePolygon();
-        poly->setExteriorRing( curveToAdd );
-        g = QgsGeometry( poly );
+
+        //does compoundcurve contain circular strings?
+        //does provider support circular strings?
+        if ( QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer() ) )
+        {
+          const bool hasCurvedSegments = captureCurve()->hasCurvedSegments();
+          const bool providerSupportsCurvedSegments = vlayer->dataProvider()->capabilities() & QgsVectorDataProvider::CircularGeometries;
+
+          if ( hasCurvedSegments && providerSupportsCurvedSegments )
+          {
+            curveToAdd.reset( captureCurve()->clone() );
+          }
+          else
+          {
+            curveToAdd.reset( captureCurve()->curveToLine() );
+          }
+        }
+        else
+        {
+          curveToAdd.reset( captureCurve()->clone() );
+        }
+        std::unique_ptr<QgsCurvePolygon> poly{new QgsCurvePolygon()};
+        poly->setExteriorRing( curveToAdd.release() );
+        g = QgsGeometry( poly->clone() );
         geometryCaptured( g );
-        polygonCaptured( poly );
+        polygonCaptured( poly.get() );
       }
 
       stopCapturing();

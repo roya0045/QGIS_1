@@ -11,9 +11,8 @@ __author__ = 'Denis Rouzaud'
 __date__ = '05.06.2018'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
 
-from PyQt5.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant
 from qgis.core import (
     QgsAnnotationLayer,
     QgsBookmark,
@@ -62,12 +61,13 @@ from qgis.core import (
     QgsVectorTileLayer,
     QgsVertexId,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestPython__repr__(unittest.TestCase):
+class TestPython__repr__(QgisTestCase):
 
     def testQgsGeometryRepr(self):
 
@@ -176,6 +176,8 @@ class TestPython__repr__(unittest.TestCase):
     def testQgsRectangleRepr(self):
         r = QgsRectangle(1, 2, 3, 4)
         self.assertEqual(r.__repr__(), '<QgsRectangle: 1 2, 3 4>')
+        r = QgsRectangle()
+        self.assertEqual(r.__repr__(), '<QgsRectangle()>')
 
     def testQgsReferencedRectangleRepr(self):
         r = QgsReferencedRectangle(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('EPSG:4326'))
@@ -257,22 +259,22 @@ class TestPython__repr__(unittest.TestCase):
 
     def testQgsBookmark(self):
         b = QgsBookmark()
-        self.assertEqual(b.__repr__(), "<QgsBookmark: '' (0 0, 0 0 - )>")
+        self.assertEqual(b.__repr__(), "<QgsBookmark: '' (EMPTY)>")
         b.setName('test bookmark')
-        self.assertEqual(b.__repr__(), "<QgsBookmark: 'test bookmark' (0 0, 0 0 - )>")
+        self.assertEqual(b.__repr__(), "<QgsBookmark: 'test bookmark' (EMPTY)>")
         b.setExtent(QgsReferencedRectangle(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('EPSG:3111')))
         self.assertEqual(b.__repr__(), "<QgsBookmark: 'test bookmark' (1 2, 3 4 - EPSG:3111)>")
 
     def testQgsLayoutPoint(self):
-        b = QgsLayoutPoint(1, 2, QgsUnitTypes.LayoutInches)
+        b = QgsLayoutPoint(1, 2, QgsUnitTypes.LayoutUnit.LayoutInches)
         self.assertEqual(b.__repr__(), "<QgsLayoutPoint: 1, 2 in >")
 
     def testQgsLayoutMeasurement(self):
-        b = QgsLayoutMeasurement(3, QgsUnitTypes.LayoutPoints)
+        b = QgsLayoutMeasurement(3, QgsUnitTypes.LayoutUnit.LayoutPoints)
         self.assertEqual(b.__repr__(), "<QgsLayoutMeasurement: 3 pt >")
 
     def testQgsLayoutSize(self):
-        b = QgsLayoutSize(10, 20, QgsUnitTypes.LayoutInches)
+        b = QgsLayoutSize(10, 20, QgsUnitTypes.LayoutUnit.LayoutInches)
         self.assertEqual(b.__repr__(), "<QgsLayoutSize: 10 x 20 in >")
 
     def testQgsConditionalStyle(self):
@@ -308,7 +310,7 @@ class TestPython__repr__(unittest.TestCase):
         self.assertEqual(v.__repr__(), '<QgsVertexId: -1,-1,-1 Segment>')
         v = QgsVertexId(1, 2, 3)
         self.assertEqual(v.__repr__(), '<QgsVertexId: 1,2,3 Segment>')
-        v = QgsVertexId(1, 2, 3, _type=QgsVertexId.CurveVertex)
+        v = QgsVertexId(1, 2, 3, _type=QgsVertexId.VertexType.CurveVertex)
         self.assertEqual(v.__repr__(), '<QgsVertexId: 1,2,3 Curve>')
 
     def testProviderMetadata(self):

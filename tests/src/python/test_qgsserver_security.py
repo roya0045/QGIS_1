@@ -35,6 +35,7 @@ class TestQgsServerSecurity(QgsServerTestBase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.testdatapath = unitTestDataPath('qgis_server_security') + '/'
         cls.db = os.path.join(cls.testdatapath, 'db.sqlite')
         cls.db_clone = os.path.join(cls.testdatapath, 'db_clone.sqlite')
@@ -48,6 +49,8 @@ class TestQgsServerSecurity(QgsServerTestBase):
             os.remove(cls.db_clone)
         except OSError:
             pass
+
+        super().tearDownClass()
 
     def setUp(self):
         self.server = QgsServer()
@@ -70,7 +73,7 @@ class TestQgsServerSecurity(QgsServerTestBase):
         query = f"{filter_sql} {injection_sql}"
         d, h = self.handle_request_wms_getfeatureinfo(query)
 
-        self.assertFalse(b"name = 'b'" in d)
+        self.assertNotIn(b"name = 'b'", d)
 
     def test_wms_getfeatureinfo_filter_time_based_blind(self):
         """
@@ -148,7 +151,7 @@ class TestQgsServerSecurity(QgsServerTestBase):
         query = f"{filter_sql} {injection_sql}"
         d, h = self.handle_request_wms_getfeatureinfo(query)
 
-        self.assertFalse(b'SpatialIndex' in d)
+        self.assertNotIn(b'SpatialIndex', d)
 
     def test_wms_getfeatureinfo_filter_union_1(self):
         """
@@ -165,7 +168,7 @@ class TestQgsServerSecurity(QgsServerTestBase):
         query = f"{filter_sql} {injection_sql}"
         d, h = self.handle_request_wms_getfeatureinfo(query)
 
-        self.assertFalse(b'private_value' in d)
+        self.assertNotIn(b'private_value', d)
 
     def test_wms_getfeatureinfo_filter_unicode(self):
         """

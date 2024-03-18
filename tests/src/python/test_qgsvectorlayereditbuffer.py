@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2016, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QTemporaryDir, QVariant
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import (
@@ -25,7 +24,8 @@ from qgis.core import (
     QgsVectorFileWriter,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -56,7 +56,7 @@ def createEmptyLinestringLayer():
     return layer
 
 
-class TestQgsVectorLayerEditBuffer(unittest.TestCase):
+class TestQgsVectorLayerEditBuffer(QgisTestCase):
 
     def testAddFeatures(self):
         # test adding features to an edit buffer
@@ -443,7 +443,7 @@ class TestQgsVectorLayerEditBuffer(unittest.TestCase):
             options.layerName = 'layer_a'
             err, msg, newFileName, newLayer = QgsVectorFileWriter.writeAsVectorFormatV3(ml, os.path.join(d.path(), 'transaction_test.gpkg'), QgsCoordinateTransformContext(), options)
 
-            self.assertEqual(err, QgsVectorFileWriter.NoError)
+            self.assertEqual(err, QgsVectorFileWriter.WriterError.NoError)
             self.assertTrue(os.path.isfile(newFileName))
 
             layer_a = QgsVectorLayer(newFileName + '|layername=layer_a')
@@ -650,13 +650,13 @@ class TestQgsVectorLayerEditBuffer(unittest.TestCase):
             f.setGeometry(QgsGeometry.fromWkt('point(8 46)'))
             self.assertTrue(layer_a.addFeatures([f]))
             f = [f for f in layer_a.getFeatures() if f.attribute('int') == 555][0]
-            self.assertTrue(f.id() in buffer.addedFeatures())
+            self.assertIn(f.id(), buffer.addedFeatures())
             self.assertTrue(layer_a.deleteFeature(f.id()))
-            self.assertFalse(f.id() in buffer.addedFeatures())
-            self.assertFalse(f.id() in buffer.deletedFeatureIds())
+            self.assertNotIn(f.id(), buffer.addedFeatures())
+            self.assertNotIn(f.id(), buffer.deletedFeatureIds())
 
             layer_a.undoStack().undo()
-            self.assertTrue(f.id() in buffer.addedFeatures())
+            self.assertIn(f.id(), buffer.addedFeatures())
 
             ###########################################
             # Add attribute

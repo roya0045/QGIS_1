@@ -31,7 +31,6 @@ class QgsVectorLayer;
  * \class QgsOrganizeTableColumnsDialog
  * \ingroup gui
  * \brief Dialog for organising (hiding and reordering) columns in the attributes table.
- * \since QGIS 2.16
  */
 class GUI_EXPORT QgsOrganizeTableColumnsDialog : public QDialog, private Ui::QgsOrganizeTableColumnsDialog
 {
@@ -75,6 +74,12 @@ class GUI_EXPORT QgsOrganizeTableColumnsDialog : public QDialog, private Ui::Qgs
      * hideAll unchecks all the fields to hide them all in the attribute table
      */
     void hideAll();
+
+    /**
+     * Toggle the check state of selected fields to hide or show them in the attribute table
+     * \since QGIS 3.36
+     */
+    void toggleSelection();
 
   private:
     QgsAttributeTableConfig mConfig;

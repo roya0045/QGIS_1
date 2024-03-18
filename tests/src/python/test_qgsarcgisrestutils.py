@@ -11,7 +11,6 @@ __author__ = '(C) 2022 by Nyall Dawson'
 __date__ = '14/07/2022'
 __copyright__ = 'Copyright 2022, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime, QTimeZone, QVariant
 from qgis.core import (
     NULL,
@@ -24,7 +23,8 @@ from qgis.core import (
     QgsFields,
     QgsGeometry,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -32,7 +32,7 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsArcGisRestUtils(unittest.TestCase):
+class TestQgsArcGisRestUtils(QgisTestCase):
 
     def test_json_to_geometry(self):
         tests = [('esriGeometryPolyline',
@@ -279,7 +279,7 @@ class TestQgsArcGisRestUtils(unittest.TestCase):
         attributes.append(True)
 
         test_fields.append(QgsField('a_datetime_field', QVariant.DateTime))
-        attributes.append(QDateTime(QDate(2022, 3, 4), QTime(12, 13, 14), Qt.UTC))
+        attributes.append(QDateTime(QDate(2022, 3, 4), QTime(12, 13, 14), Qt.TimeSpec.UTC))
 
         test_fields.append(QgsField('a_date_field', QVariant.Date))
         attributes.append(QDate(2022, 3, 4))
@@ -320,7 +320,7 @@ class TestQgsArcGisRestUtils(unittest.TestCase):
 
         # with special characters
 
-        attributes[0] = 'aaa" , . - ; : ä ö ü è é à ? + &'
+        attributes[0] = 'aaa" \' , . - ; : ä ö ü è é à ? + & \\ /'
         test_feature.setAttributes(attributes)
         res = QgsArcGisRestUtils.featureToJson(test_feature, context, flags=QgsArcGisRestUtils.FeatureToJsonFlags(QgsArcGisRestUtils.FeatureToJsonFlag.IncludeNonObjectIdAttributes))
         self.assertEqual(res, {'attributes': {'a_boolean_field': True,
@@ -328,7 +328,7 @@ class TestQgsArcGisRestUtils(unittest.TestCase):
                                               'a_date_field': 1646352000000,
                                               'a_double_field': 5.5,
                                               'a_int_field': 5,
-                                              'a_string_field': 'aaa%22%20%2C%20.%20-%20%3B%20%3A%20%C3%A4%20%C3%B6%20%C3%BC%20%C3%A8%20%C3%A9%20%C3%A0%20%3F%20%2B%20%26',
+                                              'a_string_field': """aaa%5C%22%20'%20%2C%20.%20-%20%3B%20%3A%20%C3%A4%20%C3%B6%20%C3%BC%20%C3%A8%20%C3%A9%20%C3%A0%20%3F%20%2B%20%26%20%5C%5C%20%2F""",
                                               'a_null_value': None}})
 
     def test_field_to_json(self):

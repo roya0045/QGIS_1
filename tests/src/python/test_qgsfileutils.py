@@ -13,7 +13,6 @@ import os
 import shutil
 import tempfile
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QTemporaryDir
 from qgis.core import Qgis, QgsFileUtils
 from qgis.testing import unittest
@@ -33,6 +32,7 @@ class TestQgsFileUtils(unittest.TestCase):
         self.assertEqual(QgsFileUtils.extensionsFromFilter('PNG Files (*.png)'), ['png'])
         self.assertEqual(QgsFileUtils.extensionsFromFilter('PNG Files (*.PNG)'), ['PNG'])
         self.assertEqual(QgsFileUtils.extensionsFromFilter('Geotiff Files (*.tiff *.tif)'), ['tiff', 'tif'])
+        self.assertEqual(QgsFileUtils.extensionsFromFilter('TAR.GZ Files (*.tar.gz *.tgz)'), ['tar.gz', 'tgz'])
 
     def testWildcardsFromFilter(self):
         self.assertEqual(QgsFileUtils.wildcardsFromFilter(''), '')
@@ -212,7 +212,7 @@ class TestQgsFileUtils(unittest.TestCase):
                          {f'{unitTestDataPath()}/lines.shx', f'{unitTestDataPath()}/lines.dbf',
                           f'{unitTestDataPath()}/lines.prj'})
         # gpkg
-        self.assertFalse(QgsFileUtils.sidecarFilesForPath(f'{unitTestDataPath()}/mixed_layers.gpkg'))
+        self.assertFalse(QgsFileUtils.sidecarFilesForPath(f'{unitTestDataPath()}/points_gpkg.gpkg'))
 
         # MapInfo TAB file
         self.assertEqual(QgsFileUtils.sidecarFilesForPath(f'{unitTestDataPath()}/ogr_types.tab'),

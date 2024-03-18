@@ -45,7 +45,7 @@ by implementing filters called from :py:class:`QgsMapToolAdvancedDigitizing`.
     class CadConstraint
 {
 %Docstring(signature="appended")
-The CadConstraint is an abstract class for all basic constraints (angle/distance/x/y).
+The CadConstraint is a class for all basic constraints (angle/distance/x/y).
 It contains all values (locked, value, relative) and pointers to corresponding widgets.
 
 .. note::
@@ -93,8 +93,6 @@ Returns ``True`` if a repeating lock is set for the constraint. Repeating locks 
 automatically cleared after a new point is added.
 
 .. seealso:: :py:func:`setRepeatingLock`
-
-.. versionadded:: 2.16
 %End
 
         bool relative() const;
@@ -125,8 +123,6 @@ automatically cleared after a new point is added.
 :param repeating: set to ``True`` to set the lock to repeat automatically
 
 .. seealso:: :py:func:`isRepeatingLock`
-
-.. versionadded:: 2.16
 %End
 
         void setRelative( bool relative );
@@ -140,6 +136,13 @@ Set the value of the constraint
 
 :param value: new value for constraint
 :param updateWidget: set to ``False`` to prevent automatically updating the associated widget's value
+%End
+
+        QString displayValue() const;
+%Docstring
+Returns a localized formatted string representation of the value.
+
+.. versionadded:: 3.32
 %End
 
         void toggleLocked();
@@ -169,6 +172,35 @@ Sets the numeric precision (decimal places) to show in the associated widget.
 
 .. versionadded:: 3.22
 %End
+
+        Qgis::CadConstraintType cadConstraintType() const;
+%Docstring
+Returns the constraint type
+
+.. versionadded:: 3.32
+%End
+
+        void setCadConstraintType( Qgis::CadConstraintType constraintType );
+%Docstring
+Sets the constraint type to ``constraintType``
+
+.. versionadded:: 3.32
+%End
+
+        void setMapCanvas( QgsMapCanvas *mapCanvas );
+%Docstring
+Sets the map canvas to ``mapCanvas``
+
+.. versionadded:: 3.32
+%End
+
+        static QString removeSuffix( const QString &text, Qgis::CadConstraintType constraintType );
+%Docstring
+Removes unit suffix from the constraint text.
+
+.. versionadded:: 3.34
+%End
+
 
     };
 
@@ -200,8 +232,6 @@ apply the CAD constraints. The will modify the position of the map event in map 
 %Docstring
 align to segment for between line constraint.
 If between line constraints are used, this will determine the angle to be locked depending on the snapped segment.
-
-.. versionadded:: 3.0
 %End
 
     void releaseLocks( bool releaseRepeatingLocks = true );
@@ -209,8 +239,6 @@ If between line constraints are used, this will determine the angle to be locked
 unlock all constraints
 
 :param releaseRepeatingLocks: set to ``False`` to preserve the lock for any constraints set to repeating lock mode
-
-.. versionadded:: 3.0
 %End
 
     void clear();
@@ -343,22 +371,25 @@ Removes all points from the locked snap vertex list
     void clearPoints();
 %Docstring
 Removes all points from the CAD point list
-
-.. versionadded:: 3.0
 %End
 
     void addPoint( const QgsPointXY &point );
 %Docstring
 Adds point to the CAD point list
-
-.. versionadded:: 3.0
 %End
 
     void removePreviousPoint();
 %Docstring
-Remove previous point in the CAD point list
+Removes previous point in the CAD point list
 
 .. versionadded:: 3.8
+%End
+
+    void updateCurrentPoint( const QgsPoint &point );
+%Docstring
+Updates the current ``point`` in the CAD point list
+
+.. versionadded:: 3.30.2
 %End
 
     void setPoints( const QList<QgsPointXY> &points );
@@ -367,8 +398,6 @@ Configures list of current CAD points
 
 Some map tools may find it useful to override list of CAD points that is otherwise
 automatically populated when user clicks with left mouse button on map canvas.
-
-.. versionadded:: 3.0
 %End
 
     QgsPoint currentPointV2( bool *exists  = 0 ) const;
@@ -464,8 +493,6 @@ Disable the widget. Normally done automatically from :py:func:`QgsMapToolAdvance
     void updateCadPaintItem();
 %Docstring
 Updates canvas item that displays constraints on the ma
-
-.. versionadded:: 3.0
 %End
 
     void setX( const QString &value, WidgetSetMode mode );
@@ -578,6 +605,13 @@ Returns the capacities
 
 .. versionadded:: 3.26
 %End
+    QString formatCommonAngleSnapping( double angle );
+%Docstring
+Returns the formatted label for common angle snapping option.
+
+.. versionadded:: 3.32
+%End
+
   signals:
 
     void pushWarning( const QString &message );
@@ -697,6 +731,18 @@ Could be used by widgets that must reflect the current advanced digitizing state
    unstable API (will likely change)
 
 .. versionadded:: 3.8
+%End
+
+    void valueBearingChanged( const QString &value );
+%Docstring
+Emitted whenever the bearing ``value`` changes.
+Could be used by widgets that must reflect the current advanced digitizing state.
+
+.. note::
+
+   unstable API (will likely change)
+
+.. versionadded:: 3.32
 %End
 
     void lockXChanged( bool locked );
@@ -1026,6 +1072,13 @@ Could be used by widgets to capture the focus when a field is being edited.
    unstable API (will likely change)
 
 .. versionadded:: 3.8
+%End
+
+    void valueCommonAngleSnappingChanged( double angle );
+%Docstring
+Emitted whenever the snapping to common angle option changes, angle = 0 means that the functionality is disabled.
+
+.. versionadded:: 3.32
 %End
 
 

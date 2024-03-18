@@ -18,6 +18,7 @@
 
 #include "qgsnetworkcontentfetcher.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 #include "qgsmessagelog.h"
 #include "qgsapplication.h"
 #include "qgsauthmanager.h"
@@ -70,21 +71,17 @@ void QgsNetworkContentFetcher::fetchContent( const QNetworkRequest &r, const QSt
     QgsApplication::authManager()->updateNetworkReply( mReply, mAuthCfg );
   }
   mReply->setParent( nullptr ); // we don't want thread locale QgsNetworkAccessManagers to delete the reply - we want ownership of it to belong to this object
-  connect( mReply, &QNetworkReply::finished, this, [ = ] { contentLoaded(); } );
+  connect( mReply, &QNetworkReply::finished, this, [this] { contentLoaded(); } );
   connect( mReply, &QNetworkReply::downloadProgress, this, &QgsNetworkContentFetcher::downloadProgress );
 
-  auto onError = [ = ]( QNetworkReply::NetworkError code )
+  auto onError = [this]( QNetworkReply::NetworkError code )
   {
     // could have been canceled in the meantime
     if ( mReply )
       emit errorOccurred( code, mReply->errorString() );
   };
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  connect( mReply, qOverload<QNetworkReply::NetworkError>( &QNetworkReply::error ), this, onError );
-#else
   connect( mReply, &QNetworkReply::errorOccurred, this, onError );
-#endif
 }
 
 QNetworkReply *QgsNetworkContentFetcher::reply()

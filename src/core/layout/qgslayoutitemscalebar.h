@@ -30,7 +30,6 @@ class QgsLayoutItemMap;
 /**
  * \ingroup core
  * \brief A layout item subclass for scale bars.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
 {
@@ -654,7 +653,7 @@ class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
      */
     void update();
 
-    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::AllProperties ) override;
+    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::DataDefinedProperty::AllProperties ) override;
     void finalizeRestoreFromXml() override;
     bool accept( QgsStyleEntityVisitorInterface *visitor ) const override;
     ExportLayerBehavior exportLayerBehavior() const override;

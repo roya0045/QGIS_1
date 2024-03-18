@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     Buffer.py
@@ -66,7 +64,7 @@ def buffering(feedback, context, sink, distance, field, useField, source, dissol
         final_geometry = QgsGeometry.unaryUnion(buffered_geometries)
         outFeat.setGeometry(final_geometry)
         outFeat.setAttributes(attrs)
-        sink.addFeature(outFeat, QgsFeatureSink.FastInsert)
+        sink.addFeature(outFeat, QgsFeatureSink.Flag.FastInsert)
     else:
 
         features = source.getFeatures()
@@ -85,6 +83,6 @@ def buffering(feedback, context, sink, distance, field, useField, source, dissol
             outGeom = inGeom.buffer(float(value), segments, Qgis.EndCapStyle(endCapStyle), Qgis.JoinStyle(joinStyle), miterLimit)
             outFeat.setGeometry(outGeom)
             outFeat.setAttributes(attrs)
-            sink.addFeature(outFeat, QgsFeatureSink.FastInsert)
+            sink.addFeature(outFeat, QgsFeatureSink.Flag.FastInsert)
             current += 1
             feedback.setProgress(int(current * total))

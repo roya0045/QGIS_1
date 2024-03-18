@@ -40,7 +40,7 @@ class QgsCopcProvider: public QgsPointCloudDataProvider
     ~QgsCopcProvider();
 
     QgsCoordinateReferenceSystem crs() const override;
-
+    Qgis::DataProviderFlags flags() const override;
     QgsRectangle extent() const override;
     QgsPointCloudAttributeCollection attributes() const override;
     bool isValid() const override;
@@ -74,7 +74,7 @@ class QgsCopcProviderMetadata : public QgsProviderMetadata
     QList< Qgis::LayerType > validLayerTypesForUri( const QString &uri ) const override;
     QString encodeUri( const QVariantMap &parts ) const override;
     QVariantMap decodeUri( const QString &uri ) const override;
-    QString filters( FilterType type ) override;
+    QString filters( Qgis::FileFilterType type ) override;
     ProviderCapabilities providerCapabilities() const override;
     QList< Qgis::LayerType > supportedLayerTypes() const override;
 };

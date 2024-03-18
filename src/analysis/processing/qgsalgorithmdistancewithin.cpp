@@ -106,7 +106,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverTargetSource( const QgsPr
     bool onlyRequireTargetIds,
     QgsProcessingFeedback *feedback, QgsExpressionContext &expressionContext )
 {
-  if ( referenceSource->hasSpatialIndex() == QgsFeatureSource::SpatialIndexNotPresent )
+  if ( referenceSource->hasSpatialIndex() == Qgis::SpatialIndexPresence::NotPresent )
     feedback->pushWarning( QObject::tr( "No spatial index exists for intersect layer, performance will be severely degraded" ) );
 
   QgsFeatureIds foundSet;
@@ -118,6 +118,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverTargetSource( const QgsPr
 
   QgsFeatureIterator fIt = targetSource->getFeatures( request );
   const double step = targetSource->featureCount() > 0 ? 100.0 / targetSource->featureCount() : 1;
+  const QgsCoordinateReferenceSystem targetSourceCrs = targetSource->sourceCrs();
   int current = 0;
   QgsFeature f;
   while ( fIt.nextFeature( f ) )
@@ -135,7 +136,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverTargetSource( const QgsPr
       currentDistance = distanceProperty.valueAsDouble( expressionContext, currentDistance );
     }
 
-    request = QgsFeatureRequest().setDistanceWithin( f.geometry(), currentDistance ).setNoAttributes().setDestinationCrs( targetSource->sourceCrs(), context.transformContext() );
+    request = QgsFeatureRequest().setDistanceWithin( f.geometry(), currentDistance ).setNoAttributes().setDestinationCrs( targetSourceCrs, context.transformContext() );
     // we only care IF there's ANY features within the target distance here, so fetch at most 1 feature
     request.setLimit( 1 );
 
@@ -159,7 +160,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverReferenceSource( const Qg
     bool onlyRequireTargetIds,
     QgsProcessingFeedback *feedback )
 {
-  if ( targetSource->hasSpatialIndex() == QgsFeatureSource::SpatialIndexNotPresent )
+  if ( targetSource->hasSpatialIndex() == Qgis::SpatialIndexPresence::NotPresent )
     feedback->pushWarning( QObject::tr( "No spatial index exists for input layer, performance will be severely degraded" ) );
 
   QgsFeatureIds foundSet;
@@ -216,11 +217,11 @@ void QgsSelectWithinDistanceAlgorithm::initAlgorithm( const QVariantMap & )
                               << QObject::tr( "removing from current selection" );
 
   addParameter( new QgsProcessingParameterVectorLayer( QStringLiteral( "INPUT" ), QObject::tr( "Select features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
 
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "REFERENCE" ),
                 QObject::tr( "By comparing to the features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addDistanceParameter();
 
   addParameter( new QgsProcessingParameterEnum( QStringLiteral( "METHOD" ),
@@ -233,9 +234,9 @@ QString QgsSelectWithinDistanceAlgorithm::name() const
   return QStringLiteral( "selectwithindistance" );
 }
 
-QgsProcessingAlgorithm::Flags QgsSelectWithinDistanceAlgorithm::flags() const
+Qgis::ProcessingAlgorithmFlags QgsSelectWithinDistanceAlgorithm::flags() const
 {
-  return QgsProcessingAlgorithm::flags() | QgsProcessingAlgorithm::FlagNoThreading | QgsProcessingAlgorithm::FlagNotAvailableInStandaloneTool;
+  return QgsProcessingAlgorithm::flags() | Qgis::ProcessingAlgorithmFlag::NoThreading | Qgis::ProcessingAlgorithmFlag::NotAvailableInStandaloneTool;
 }
 
 QString QgsSelectWithinDistanceAlgorithm::displayName() const
@@ -310,10 +311,10 @@ void QgsExtractWithinDistanceAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ),
                 QObject::tr( "Extract features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "REFERENCE" ),
                 QObject::tr( "By comparing to the features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addDistanceParameter();
 
   addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Extracted (location)" ) ) );

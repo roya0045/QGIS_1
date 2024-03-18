@@ -32,9 +32,9 @@ jobs:
       - id: matrix
         run: |
           if [[ "${GITHUB_REF}" =~ ^refs/tags ]]; then
-            echo "::set-output name=matrix::{\"branch\":[\"${GITHUB_REF##*/}\"]}"
+            echo "matrix={\"branch\":[\"${GITHUB_REF##*/}\"]}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=matrix::{\"branch\":[\"master\", \"release-3_22\", \"release-3_28\"]}"
+            echo "matrix={\"branch\":[\"master\", \"release-3_34\", \"release-3_36\"]}" >> $GITHUB_OUTPUT
           fi
 
   build-docker:
@@ -55,6 +55,14 @@ jobs:
       matrix: ${{ fromJSON( needs.define-strategy.outputs.matrix ) }}
 
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
       - name: Free additional space
         run: |
           df -h
@@ -70,7 +78,7 @@ jobs:
 
       - name: Cache
         id: cache
-        uses: actions/cache@v3.2.6
+        uses: actions/cache@v4
         with:
           path: ~/.ccache
           key: docker-build-${{ matrix.branch }}-${{ github.sha }}
@@ -79,7 +87,7 @@ jobs:
             docker-build-master-
 
       - name: checkout ${{ matrix.branch }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
 

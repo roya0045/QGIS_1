@@ -9,7 +9,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '6/01/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
     QgsBasicNumericFormat,
@@ -25,7 +24,8 @@ from qgis.core import (
     QgsReadWriteContext,
     QgsScientificNumericFormat,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -51,7 +51,7 @@ class TestFormat(QgsNumericFormat):
         return {}
 
 
-class TestQgsNumericFormat(unittest.TestCase):
+class TestQgsNumericFormat(QgisTestCase):
 
     def testFallbackFormat(self):
         """ test fallback formatter """
@@ -147,7 +147,7 @@ class TestQgsNumericFormat(unittest.TestCase):
         self.assertEqual(f.formatDouble(5.5, context), 'w5⛹500')
 
         f.setShowPlusSign(False)
-        f.setRoundingType(QgsBasicNumericFormat.SignificantFigures)
+        f.setRoundingType(QgsBasicNumericFormat.RoundingType.SignificantFigures)
         self.assertEqual(f.formatDouble(0, context), '0⛹00')
         self.assertEqual(f.formatDouble(5, context), '5⛹00')
         self.assertEqual(f.formatDouble(-5, context), '-5⛹00')
@@ -299,7 +299,7 @@ class TestQgsNumericFormat(unittest.TestCase):
     def testBearingFormat(self):
         """ test bearing formatter """
         f = QgsBearingNumericFormat()
-        f.setDirectionFormat(QgsBearingNumericFormat.UseRange0To180WithEWDirectionalSuffix)
+        f.setDirectionFormat(QgsBearingNumericFormat.FormatDirectionOption.UseRange0To180WithEWDirectionalSuffix)
         context = QgsNumericFormatContext()
         self.assertEqual(f.formatDouble(0, context), '0°')
         self.assertEqual(f.formatDouble(90, context), '90°E')
@@ -334,7 +334,7 @@ class TestQgsNumericFormat(unittest.TestCase):
         self.assertEqual(f.formatDouble(180, context), '180.000°E')  # todo fix and avoid E
 
         f = QgsBearingNumericFormat()
-        f.setDirectionFormat(QgsBearingNumericFormat.UseRangeNegative180ToPositive180)
+        f.setDirectionFormat(QgsBearingNumericFormat.FormatDirectionOption.UseRangeNegative180ToPositive180)
         self.assertEqual(f.formatDouble(0, context), '0°')
         self.assertEqual(f.formatDouble(90, context), '90°')
         self.assertEqual(f.formatDouble(180, context), '180°')
@@ -367,7 +367,7 @@ class TestQgsNumericFormat(unittest.TestCase):
         self.assertEqual(f.formatDouble(180, context), '180.000°')
 
         f = QgsBearingNumericFormat()
-        f.setDirectionFormat(QgsBearingNumericFormat.UseRange0To360)
+        f.setDirectionFormat(QgsBearingNumericFormat.FormatDirectionOption.UseRange0To360)
         self.assertEqual(f.formatDouble(0, context), '0°')
         self.assertEqual(f.formatDouble(90, context), '90°')
         self.assertEqual(f.formatDouble(180, context), '180°')
@@ -424,7 +424,7 @@ class TestQgsNumericFormat(unittest.TestCase):
     def testPercentageFormat(self):
         """ test percentage formatter """
         f = QgsPercentageNumericFormat()
-        f.setInputValues(QgsPercentageNumericFormat.ValuesArePercentage)
+        f.setInputValues(QgsPercentageNumericFormat.InputValues.ValuesArePercentage)
         context = QgsNumericFormatContext()
         self.assertEqual(f.formatDouble(0, context), '0%')
         self.assertEqual(f.formatDouble(5, context), '5%')
@@ -477,7 +477,7 @@ class TestQgsNumericFormat(unittest.TestCase):
         self.assertEqual(f.formatDouble(-55555555.5, context), '-55555555.500%')
 
         f = QgsPercentageNumericFormat()
-        f.setInputValues(QgsPercentageNumericFormat.ValuesAreFractions)
+        f.setInputValues(QgsPercentageNumericFormat.InputValues.ValuesAreFractions)
         context = QgsNumericFormatContext()
         self.assertEqual(f.formatDouble(0, context), '0%')
         self.assertEqual(f.formatDouble(5, context), '500%')

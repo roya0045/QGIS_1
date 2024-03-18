@@ -18,9 +18,7 @@
 #include "qgsmultibandcolorrenderer.h"
 #include "qgscontrastenhancement.h"
 #include "qgsrastertransparency.h"
-#include "qgsrasterviewport.h"
 #include "qgslayertreemodellegendnode.h"
-#include "qgssymbol.h"
 
 #include <QDomDocument>
 #include <QDomElement>
@@ -197,7 +195,7 @@ QgsRasterBlock *QgsMultiBandColorRenderer::block( int bandNo, QgsRectangle  cons
     if ( !bandBlocks[*bandIt] )
     {
       // We should free the allocated mem from block().
-      QgsDebugMsg( QStringLiteral( "No input band" ) );
+      QgsDebugError( QStringLiteral( "No input band" ) );
       --bandIt;
       for ( ; bandIt != bands.constBegin(); --bandIt )
       {
@@ -366,7 +364,7 @@ QgsRasterBlock *QgsMultiBandColorRenderer::block( int bandNo, QgsRectangle  cons
     double currentOpacity = mOpacity;
     if ( mRasterTransparency )
     {
-      currentOpacity = mRasterTransparency->alphaValue( redVal, greenVal, blueVal, mOpacity * 255 ) / 255.0;
+      currentOpacity *= mRasterTransparency->opacityForRgbValues( redVal, greenVal, blueVal );
     }
     if ( mAlphaBand > 0 )
     {

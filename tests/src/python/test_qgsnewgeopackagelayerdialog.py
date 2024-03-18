@@ -24,18 +24,20 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.core import QgsProject, QgsSettings, QgsWkbTypes
 from qgis.gui import QgsFileWidget, QgsNewGeoPackageLayerDialog
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
 def GDAL_COMPUTE_VERSION(maj, min, rev):
     return ((maj) * 1000000 + (min) * 10000 + (rev) * 100)
 
 
-class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
+class TestPyQgsNewGeoPackageLayerDialog(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("QGIS_TestPyQgsNewGeoPackageLayerDialog.com")
         QCoreApplication.setApplicationName("QGIS_TestPyQgsNewGeoPackageLayerDialog")
@@ -50,6 +52,8 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
         if cls.basetestpath is not None:
             shutil.rmtree(cls.basetestpath, True)
 
+        super().tearDownClass()
+
     def test(self):
 
         # Skip if GDAL python bindings are not available
@@ -63,7 +67,7 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
 
         mDatabase = dialog.findChild(QgsFileWidget, "mDatabase")
         buttonBox = dialog.findChild(QDialogButtonBox, "buttonBox")
-        ok_button = buttonBox.button(QDialogButtonBox.Ok)
+        ok_button = buttonBox.button(QDialogButtonBox.StandardButton.Ok)
         mTableNameEdit = dialog.findChild(QLineEdit, "mTableNameEdit")
         mLayerIdentifierEdit = dialog.findChild(QLineEdit, "mLayerIdentifierEdit")
         mLayerDescriptionEdit = dialog.findChild(QLineEdit, "mLayerDescriptionEdit")
@@ -98,52 +102,52 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
         mFieldNameEdit.setText('strfield')
         self.assertTrue(mAddAttributeButton.isEnabled())
         mFieldLengthEdit.setText('10')
-        QTest.mouseClick(mAddAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mAddAttributeButton, Qt.MouseButton.LeftButton)
 
         mFieldNameEdit.setText('intfield')
         mFieldTypeBox.setCurrentIndex(mFieldTypeBox.findData('integer'))
         self.assertFalse(mFieldLengthEdit.isEnabled())
-        QTest.mouseClick(mAddAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mAddAttributeButton, Qt.MouseButton.LeftButton)
 
         mFieldNameEdit.setText('realfield')
         mFieldTypeBox.setCurrentIndex(mFieldTypeBox.findData('real'))
         self.assertFalse(mFieldLengthEdit.isEnabled())
-        QTest.mouseClick(mAddAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mAddAttributeButton, Qt.MouseButton.LeftButton)
 
         mFieldNameEdit.setText('datefield')
         mFieldTypeBox.setCurrentIndex(mFieldTypeBox.findData('date'))
         self.assertFalse(mFieldLengthEdit.isEnabled())
-        QTest.mouseClick(mAddAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mAddAttributeButton, Qt.MouseButton.LeftButton)
 
         mFieldNameEdit.setText('datetimefield')
         mFieldTypeBox.setCurrentIndex(mFieldTypeBox.findData('datetime'))
         self.assertFalse(mFieldLengthEdit.isEnabled())
-        QTest.mouseClick(mAddAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mAddAttributeButton, Qt.MouseButton.LeftButton)
 
         mFieldNameEdit.setText('int64field')
         mFieldTypeBox.setCurrentIndex(mFieldTypeBox.findData('integer64'))
         self.assertFalse(mFieldLengthEdit.isEnabled())
-        QTest.mouseClick(mAddAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mAddAttributeButton, Qt.MouseButton.LeftButton)
 
         # Add and remove field
         mFieldNameEdit.setText('dummy')
         self.assertFalse(mFieldLengthEdit.isEnabled())
-        QTest.mouseClick(mAddAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mAddAttributeButton, Qt.MouseButton.LeftButton)
 
         index = mAttributeView.model().index(mAttributeView.model().rowCount() - 1, 0)
         mAttributeView.setCurrentIndex(index)
 
-        QTest.mouseClick(mRemoveAttributeButton, Qt.LeftButton)
+        QTest.mouseClick(mRemoveAttributeButton, Qt.MouseButton.LeftButton)
 
         self.accepted = False
-        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QTest.mouseClick(ok_button, Qt.MouseButton.LeftButton)
         self.assertTrue(self.accepted)
 
         layers = QgsProject.instance().mapLayers()
         self.assertEqual(len(layers), 1)
         layer = layers[list(layers.keys())[0]]
         self.assertEqual(layer.name(), 'test')
-        self.assertEqual(layer.geometryType(), QgsWkbTypes.PointGeometry)
+        self.assertEqual(layer.geometryType(), QgsWkbTypes.GeometryType.PointGeometry)
         QgsProject.instance().removeAllMapLayers()
 
         ds = ogr.Open(dbname)
@@ -177,13 +181,13 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
         mTableNameEdit.setText('table2')
 
         self.accepted = False
-        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QTest.mouseClick(ok_button, Qt.MouseButton.LeftButton)
         self.assertFalse(self.accepted)
 
         # Retry, and ask to keep the DB
         self.accepted = False
         dialog.setProperty('question_existing_db_answer_add_new_layer', True)
-        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QTest.mouseClick(ok_button, Qt.MouseButton.LeftButton)
         dialog.setProperty('question_existing_db_answer_add_new_layer', None)
         self.assertTrue(self.accepted)
 
@@ -195,7 +199,7 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
         # Retry, and ask to overwrite the DB
         self.accepted = False
         dialog.setProperty('question_existing_db_answer_overwrite', True)
-        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QTest.mouseClick(ok_button, Qt.MouseButton.LeftButton)
         dialog.setProperty('question_existing_db_answer_overwrite', None)
         self.assertTrue(self.accepted)
 
@@ -209,7 +213,7 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
         # since it already exists with that name
         self.accepted = False
         dialog.setProperty('question_existing_db_answer_add_new_layer', True)
-        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QTest.mouseClick(ok_button, Qt.MouseButton.LeftButton)
         dialog.setProperty('question_existing_db_answer_add_new_layer', None)
         self.assertFalse(self.accepted)
 
@@ -219,7 +223,7 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
         dialog.setProperty('question_existing_db_answer_add_new_layer', True)
         dialog.setProperty('question_existing_layer_answer_overwrite', True)
         self.accepted = False
-        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QTest.mouseClick(ok_button, Qt.MouseButton.LeftButton)
         dialog.setProperty('question_existing_db_answer_add_new_layer', None)
         dialog.setProperty('question_existing_layer_answer_overwrite', None)
         self.assertTrue(self.accepted)
@@ -246,7 +250,7 @@ class TestPyQgsNewGeoPackageLayerDialog(unittest.TestCase):
         # Try invalid path
         mDatabase.setFilePath('/this/is/invalid/test.gpkg')
         self.accepted = False
-        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QTest.mouseClick(ok_button, Qt.MouseButton.LeftButton)
         self.assertFalse(self.accepted)
 
         # dialog.exec_()

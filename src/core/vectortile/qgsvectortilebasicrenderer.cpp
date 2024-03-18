@@ -169,20 +169,23 @@ void QgsVectorTileBasicRenderer::renderBackground( QgsRenderContext &context )
     if ( !layerStyle.symbol() || layerStyle.layerName() != QLatin1String( "background" ) )
       continue;
 
-    QgsSymbol *sym = layerStyle.symbol();
-    sym->startRender( context, QgsFields() );
-
-    QgsFillSymbol *fillSym = dynamic_cast<QgsFillSymbol *>( sym );
-    if ( fillSym )
+    if ( layerStyle.isEnabled() )
     {
-      QPolygon polygon;
-      polygon << QPoint( 0, 0 );
-      polygon << QPoint( 0, context.outputSize().height() );
-      polygon << QPoint( context.outputSize().width(), context.outputSize().height() );
-      polygon << QPoint( context.outputSize().width(), 0 );
-      fillSym->renderPolygon( polygon, nullptr, nullptr, context );
+      QgsSymbol *sym = layerStyle.symbol();
+      sym->startRender( context, QgsFields() );
+
+      QgsFillSymbol *fillSym = dynamic_cast<QgsFillSymbol *>( sym );
+      if ( fillSym )
+      {
+        QPolygon polygon;
+        polygon << QPoint( 0, 0 );
+        polygon << QPoint( 0, context.outputSize().height() );
+        polygon << QPoint( context.outputSize().width(), context.outputSize().height() );
+        polygon << QPoint( context.outputSize().width(), 0 );
+        fillSym->renderPolygon( polygon, nullptr, nullptr, context );
+      }
+      sym->stopRender( context );
     }
-    sym->stopRender( context );
     break;
   }
 }
@@ -190,7 +193,7 @@ void QgsVectorTileBasicRenderer::renderBackground( QgsRenderContext &context )
 void QgsVectorTileBasicRenderer::renderTile( const QgsVectorTileRendererData &tile, QgsRenderContext &context )
 {
   const QgsVectorTileFeatures tileData = tile.features();
-  int zoomLevel = tile.id().zoomLevel();
+  const int zoomLevel = tile.renderZoomLevel();
 
   for ( const QgsVectorTileBasicRendererStyle &layerStyle : std::as_const( mStyles ) )
   {
@@ -473,15 +476,15 @@ QList<QgsVectorTileBasicRendererStyle> QgsVectorTileBasicRenderer::simpleStyle(
   QgsMarkerSymbol *markerSymbol = new QgsMarkerSymbol( QgsSymbolLayerList() << markerSymbolLayer );
 
   QgsVectorTileBasicRendererStyle st1( QStringLiteral( "Polygons" ), QString(), Qgis::GeometryType::Polygon );
-  st1.setFilterExpression( QStringLiteral( "geometry_type($geometry)='Polygon'" ) );
+  st1.setFilterExpression( QStringLiteral( "geometry_type(@geometry)='Polygon'" ) );
   st1.setSymbol( fillSymbol );
 
   QgsVectorTileBasicRendererStyle st2( QStringLiteral( "Lines" ), QString(), Qgis::GeometryType::Line );
-  st2.setFilterExpression( QStringLiteral( "geometry_type($geometry)='Line'" ) );
+  st2.setFilterExpression( QStringLiteral( "geometry_type(@geometry)='Line'" ) );
   st2.setSymbol( lineSymbol );
 
   QgsVectorTileBasicRendererStyle st3( QStringLiteral( "Points" ), QString(), Qgis::GeometryType::Point );
-  st3.setFilterExpression( QStringLiteral( "geometry_type($geometry)='Point'" ) );
+  st3.setFilterExpression( QStringLiteral( "geometry_type(@geometry)='Point'" ) );
   st3.setSymbol( markerSymbol );
 
   QList<QgsVectorTileBasicRendererStyle> lst;

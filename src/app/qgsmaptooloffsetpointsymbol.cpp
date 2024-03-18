@@ -131,20 +131,20 @@ bool QgsMapToolOffsetPointSymbol::checkSymbolCompatibility( QgsMarkerSymbol *mar
   const auto constSymbolLayers = markerSymbol->symbolLayers();
   for ( QgsSymbolLayer *layer : constSymbolLayers )
   {
-    if ( !layer->dataDefinedProperties().isActive( QgsSymbolLayer::PropertyOffset ) )
+    if ( !layer->dataDefinedProperties().isActive( QgsSymbolLayer::Property::Offset ) )
       continue;
 
-    const QgsProperty p = layer->dataDefinedProperties().property( QgsSymbolLayer::PropertyOffset );
-    if ( p.propertyType() != QgsProperty::FieldBasedProperty )
+    const QgsProperty p = layer->dataDefinedProperties().property( QgsSymbolLayer::Property::Offset );
+    if ( p.propertyType() != Qgis::PropertyType::Field )
       continue;
 
     ok = true;
     if ( !mMarkerSymbol )
     {
       double symbolRotation = markerSymbol->angle();
-      if ( layer->dataDefinedProperties().isActive( QgsSymbolLayer::PropertyAngle ) )
+      if ( layer->dataDefinedProperties().isActive( QgsSymbolLayer::Property::Angle ) )
       {
-        symbolRotation = layer->dataDefinedProperties().valueAsDouble( QgsSymbolLayer::PropertyAngle, context.expressionContext(), symbolRotation );
+        symbolRotation = layer->dataDefinedProperties().valueAsDouble( QgsSymbolLayer::Property::Angle, context.expressionContext(), symbolRotation );
       }
 
       mSymbolRotation = symbolRotation;
@@ -204,11 +204,11 @@ QMap<int, QVariant> QgsMapToolOffsetPointSymbol::calculateNewOffsetAttributes( c
   const auto constSymbolLayers = mMarkerSymbol->symbolLayers();
   for ( QgsSymbolLayer *layer : constSymbolLayers )
   {
-    if ( !layer->dataDefinedProperties().isActive( QgsSymbolLayer::PropertyOffset ) )
+    if ( !layer->dataDefinedProperties().isActive( QgsSymbolLayer::Property::Offset ) )
       continue;
 
-    const QgsProperty ddOffset = layer->dataDefinedProperties().property( QgsSymbolLayer::PropertyOffset );
-    if ( ddOffset.propertyType() != QgsProperty::FieldBasedProperty )
+    const QgsProperty ddOffset = layer->dataDefinedProperties().property( QgsSymbolLayer::Property::Offset );
+    if ( ddOffset.propertyType() != Qgis::PropertyType::Field )
       continue;
 
     QgsMarkerSymbolLayer *ml = dynamic_cast< QgsMarkerSymbolLayer * >( layer );

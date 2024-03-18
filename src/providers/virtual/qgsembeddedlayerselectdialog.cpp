@@ -28,7 +28,7 @@ QgsEmbeddedLayerSelectDialog::QgsEmbeddedLayerSelectDialog( QWidget *parent )
 
   QgsGui::enableAutoGeometryRestore( this );
 
-  mLayerProxyModel->setFilters( QgsMapLayerProxyModel::Filter::VectorLayer );
+  mLayerProxyModel->setFilters( Qgis::LayerFilter::VectorLayer );
   mLayers->setModel( mLayerProxyModel );
 
   mSearchLineEdit->setShowSearchIcon( true );
@@ -44,7 +44,7 @@ QStringList QgsEmbeddedLayerSelectDialog::layers() const
   ids.reserve( selected.size() );
   for ( const QModelIndex &index : selected )
   {
-    ids << index.data( QgsMapLayerModel::LayerIdRole ).toString();
+    ids << index.data( static_cast< int >( QgsMapLayerModel::CustomRole::LayerId ) ).toString();
   }
   return ids;
 }

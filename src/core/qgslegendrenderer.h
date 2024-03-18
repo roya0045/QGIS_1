@@ -41,7 +41,6 @@ class QgsRenderContext;
  *
  * All spacing and sizes are in millimeters.
  *
- * \since QGIS 2.6
  */
 class CORE_EXPORT QgsLegendRenderer
 {
@@ -166,7 +165,7 @@ class CORE_EXPORT QgsLegendRenderer
     };
 
     /**
-     * An component group is an indivisible set of legend components (i.e. it is indivisible into more columns).
+     * A component group is an indivisible set of legend components (i.e. it is indivisible into more columns).
      *
      * A group may consist of one or more component(s), depending on the layer splitting mode:
      *

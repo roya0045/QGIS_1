@@ -29,6 +29,7 @@
 #include "qgswkbtypes.h"
 #include "qgsconfig.h"
 #include "qgsvectordataprovider.h"
+#include "qgsdbquerylog_p.h"
 
 extern "C"
 {
@@ -67,6 +68,7 @@ struct QgsPostgresSchemaProperty
   QString owner;
 };
 
+
 //! Layer Property structure
 // TODO: Fill to Postgres/PostGIS specifications
 struct QgsPostgresLayerProperty
@@ -81,10 +83,7 @@ struct QgsPostgresLayerProperty
   QList<int>                    srids;
   unsigned int                  nSpCols;
   QString                       sql;
-  QString                       relKind;
-  bool                          isView = false;
-  bool                          isMaterializedView = false;
-  bool                          isForeignTable = false;
+  Qgis::PostgresRelKind         relKind = Qgis::PostgresRelKind::Unknown;
   bool                          isRaster = false;
   QString                       tableComment;
 
@@ -114,9 +113,7 @@ struct QgsPostgresLayerProperty
     property.nSpCols            = nSpCols;
     property.sql                = sql;
     property.relKind            = relKind;
-    property.isView             = isView;
     property.isRaster           = isRaster;
-    property.isMaterializedView = isMaterializedView;
     property.tableComment       = tableComment;
 
     return property;
@@ -188,6 +185,21 @@ class QgsPostgresResult
 
 };
 
+struct PGException
+{
+    explicit PGException( QgsPostgresResult &r )
+      : mWhat( r.PQresultErrorMessage() )
+    {}
+
+    QString errorMessage() const
+    {
+      return mWhat;
+    }
+
+  private:
+    QString mWhat;
+};
+
 //! Wraps acquireConnection() and releaseConnection() from a QgsPostgresConnPool.
 // This can be used for creating std::shared_ptr<QgsPoolPostgresConn>.
 class QgsPoolPostgresConn
@@ -202,9 +214,10 @@ class QgsPoolPostgresConn
 
 #include "qgsconfig.h"
 constexpr int sPostgresConQueryLogFilePrefixLength = CMAKE_SOURCE_DIR[sizeof( CMAKE_SOURCE_DIR ) - 1] == '/' ? sizeof( CMAKE_SOURCE_DIR ) + 1 : sizeof( CMAKE_SOURCE_DIR );
-#define LoggedPQexecNR(_class, query) PQexecNR( query, _class, QString(QString( __FILE__ ).mid( sPostgresConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")") )
-#define LoggedPQexec(_class, query) PQexec( query, true, true, _class, QString(QString( __FILE__ ).mid( sPostgresConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")") )
-#define LoggedPQexecNoLogError(_class, query ) PQexec( query, false, true, _class, QString(QString( __FILE__ ).mid( sPostgresConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")") )
+#define QGS_QUERY_LOG_ORIGIN_PG_CON QString(QString( __FILE__ ).mid( sPostgresConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")")
+#define LoggedPQexecNR(_class, query) PQexecNR( query, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
+#define LoggedPQexec(_class, query) PQexec( query, true, true, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
+#define LoggedPQexecNoLogError(_class, query ) PQexec( query, false, true, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
 
 class QgsPostgresConn : public QObject
 {
@@ -217,35 +230,37 @@ class QgsPostgresConn : public QObject
      *
      * \param connInfo the QgsDataSourceUri connection info with username / password
      * \param readOnly is the connection read only ?
-     * \param shared allow using a shared connection. Should never be
-     *        called from a thread other than the main one.
-     *        An assertion guards against such programmatic error.
-     * \param transaction is the connection a transaction ?
+     * \param shared allow using a shared connection if called from the same thread as the main one.
+     * \param allowRequestCredentials allow credentials request through current QgsCredentials instance if the provided ones are not valid
      *
      * \returns the PostgreSQL connection
      */
-    static QgsPostgresConn *connectDb( const QString &connInfo, bool readOnly, bool shared = true, bool transaction = false );
+    static QgsPostgresConn *connectDb( const QString &connInfo, bool readOnly, bool shared = true, bool transaction = false, bool allowRequestCredentials = true );
 
     /**
      * Get a new PostgreSQL connection
      *
      * \param uri the QgsDataSourceUri with username / password
      * \param readOnly is the connection read only ?
-     * \param shared allow using a shared connection. Should never be
-     *        called from a thread other than the main one.
-     *        An assertion guards against such programmatic error.
+     * \param shared allow using a shared connection if called from the same thread as the main one.
      * \param transaction is the connection a transaction ?
+     * \param allowRequestCredentials allow credentials request through current QgsCredentials instance if the provided ones are not valid
      *
      * \returns the PostgreSQL connection
      */
-    static QgsPostgresConn *connectDb( const QgsDataSourceUri &uri, bool readOnly, bool shared = true, bool transaction = false );
+    static QgsPostgresConn *connectDb( const QgsDataSourceUri &uri, bool readOnly, bool shared = true, bool transaction = false, bool allowRequestCredentials = true );
 
 
-    QgsPostgresConn( const QString &conninfo, bool readOnly, bool shared, bool transaction );
+    QgsPostgresConn( const QString &conninfo, bool readOnly, bool shared, bool transaction, bool allowRequestCredentials = true );
     ~QgsPostgresConn() override;
 
     void ref();
     void unref();
+
+    /**
+     * Returns the URI associated with the connection.
+     */
+    const QgsDataSourceUri &uri() const { return mUri; }
 
     //! Gets postgis version string
     QString postgisVersion() const;
@@ -304,9 +319,7 @@ class QgsPostgresConn : public QObject
 
     QString uniqueCursorName();
 
-#if 0
     PGconn *pgConnection() { return mConn; }
-#endif
 
     //
     // libpq wrapper
@@ -358,6 +371,12 @@ class QgsPostgresConn : public QObject
     static QString quotedJsonValue( const QVariant &value );
 
     /**
+     * Returns the RelKind associated with a value from the relkind column
+     * in pg_class.
+     */
+    static Qgis::PostgresRelKind relKindFromValue( const QString &value );
+
+    /**
      * Gets the list of supported layers
      * \param layers list to store layers in
      * \param searchGeometryColumnsOnly only look for geometry columns which are
@@ -374,22 +393,29 @@ class QgsPostgresConn : public QObject
                           const QString &schema = QString() );
 
     /**
+     * Get the information about a supported layer
+     * \param schema
+     * \param table
+     * \returns TRUE if the table was found
+     */
+    bool supportedLayer( QgsPostgresLayerProperty &layerProperty, const QString &schema, const QString &table );
+
+    /**
      * Gets the list of database schemas
      * \param schemas list to store schemas in
      * \returns true if schemas where fetched successfully
-     * \since QGIS 2.7
      */
     bool getSchemas( QList<QgsPostgresSchemaProperty> &schemas );
 
     /**
      * Determine type and srid of a layer from data (possibly estimated)
      */
-    void retrieveLayerTypes( QgsPostgresLayerProperty &layerProperty, bool useEstimatedMetadata );
+    void retrieveLayerTypes( QgsPostgresLayerProperty &layerProperty, bool useEstimatedMetadata, QgsFeedback *feedback = nullptr );
 
     /**
      * Determine type and srid of a vector of layers from data (possibly estimated)
      */
-    void retrieveLayerTypes( QVector<QgsPostgresLayerProperty *> &layerProperties, bool useEstimatedMetadata );
+    void retrieveLayerTypes( QVector<QgsPostgresLayerProperty *> &layerProperties, bool useEstimatedMetadata, QgsFeedback *feedback = nullptr );
 
     /**
      * Gets information about the spatial tables
@@ -398,10 +424,11 @@ class QgsPostgresConn : public QObject
      * \param searchPublicOnly
      * \param allowGeometrylessTables
      * \param schema restrict tables to those within specified schema
+     * \param name restrict tables to those with specified name
      * \returns true if tables were successfully queried
      */
     bool getTableInfo( bool searchGeometryColumnsOnly, bool searchPublicOnly, bool allowGeometrylessTables,
-                       const QString &schema = QString() );
+                       const QString &schema = QString(), const QString &name = QString() );
 
     qint64 getBinaryInt( QgsPostgresResult &queryResult, int row, int col );
 
@@ -420,7 +447,6 @@ class QgsPostgresConn : public QObject
     /**
      * Returns the underlying database.
      *
-     * \since QGIS 3.0
      */
     QString currentDatabase() const;
 
@@ -466,6 +492,7 @@ class QgsPostgresConn : public QObject
     int mOpenCursors;
     PGconn *mConn = nullptr;
     QString mConnInfo;
+    QgsDataSourceUri mUri;
 
     //! GEOS capability
     mutable bool mGeosAvailable;
@@ -510,6 +537,24 @@ class QgsPostgresConn : public QObject
     //! Count number of spatial columns in a given relation
     void addColumnInfo( QgsPostgresLayerProperty &layerProperty, const QString &schemaName, const QString &viewName, bool fetchPkCandidates );
 
+    /**
+     * Gets the list of supported layers
+     * \param layers list to store layers in
+     * \param searchGeometryColumnsOnly only look for geometry columns which are
+     * contained in the geometry_columns metatable
+     * \param searchPublicOnly
+     * \param allowGeometrylessTables
+     * \param schema restrict layers to layers within specified schema
+     * \param table restrict tables to those with specified table
+     * \returns true if layers were fetched successfully
+     */
+    bool supportedLayersPrivate( QVector<QgsPostgresLayerProperty> &layers,
+                                 bool searchGeometryColumnsOnly = true,
+                                 bool searchPublicOnly = true,
+                                 bool allowGeometrylessTables = false,
+                                 const QString &schema = QString(),
+                                 const QString &table = QString() );
+
     //! List of the supported layers
     QVector<QgsPostgresLayerProperty> mLayersSupported;
 
@@ -526,11 +571,13 @@ class QgsPostgresConn : public QObject
     bool mSwapEndian;
     void deduceEndian();
 
-    int mNextCursorId;
+    static QAtomicInt sNextCursorId;
 
     bool mShared; //!< Whether the connection is shared by more providers (must not be if going to be used in worker threads)
 
     bool mTransaction;
+
+    QString mCurrentSessionRole;
 
     mutable QRecursiveMutex mLock;
 

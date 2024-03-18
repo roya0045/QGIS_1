@@ -51,6 +51,7 @@ class QgsDockWidget;
 class QgsMapLayerAction;
 class QgsEditorWidgetSetup;
 class QgsSettingsEntryBool;
+class QgsTiledSceneLayer;
 
 class QwtPlotCurve;
 
@@ -93,7 +94,6 @@ class APP_EXPORT QgsIdentifyResultsWebViewItem: public QObject, public QTreeWidg
     QgsIdentifyResultsWebViewItem( QTreeWidget *treeWidget = nullptr );
     QgsIdentifyResultsWebView *webView() { return mWebView; }
     void setHtml( const QString &html );
-    //! \since QGIS 2.1
     void setContent( const QByteArray &data, const QString &mimeType = QString(), const QUrl &baseUrl = QUrl() );
 
   public slots:
@@ -178,6 +178,15 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
                      const QString &label,
                      const QMap< QString, QString > &attributes );
 
+    /**
+     * Adds results from tiled scene layer
+     * \since QGIS 3.34
+     */
+    void addFeature( QgsTiledSceneLayer *layer,
+                     const QString &label,
+                     const QMap< QString, QString > &attributes,
+                     const QMap< QString, QString > &derivedAttributes );
+
     //! Adds feature from identify results
     void addFeature( const QgsMapToolIdentify::IdentifyResult &result );
 
@@ -191,7 +200,6 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
      * Sets an expression context scope to consider for resolving underlying
      * actions.
      *
-     * \since QGIS 3.0
      */
     void setExpressionContextScope( const QgsExpressionContextScope &scope );
 
@@ -199,7 +207,6 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
      * Returns an expression context scope used for resolving underlying
      * actions.
      *
-     * \since QGIS 3.0
      */
     QgsExpressionContextScope expressionContextScope() const;
 
@@ -248,18 +255,13 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     void collapseAll();
     void selectFeatureByAttribute();
 
-    /**
-     * Called when an item is expanded so that we can ensure that the
-     * column width if expanded to show it.
-     */
-    void itemExpanded( QTreeWidgetItem * );
-
     //! sends signal if current feature id has changed
     void handleCurrentItemChanged( QTreeWidgetItem *current, QTreeWidgetItem *previous );
     /* Item in tree was clicked */
     void itemClicked( QTreeWidgetItem *lvi, int column );
 
-    QTreeWidgetItem *retrieveAttributes( QTreeWidgetItem *item, QgsAttributeMap &attributes, int &currentIdx );
+    QgsAttributeMap retrieveAttributes( QTreeWidgetItem *item );
+    QVariant retrieveAttribute( QTreeWidgetItem *item );
 
     void cmbIdentifyMode_currentIndexChanged( int index );
 
@@ -309,6 +311,7 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     QgsMeshLayer *meshLayer( QTreeWidgetItem *item );
     QgsVectorTileLayer *vectorTileLayer( QTreeWidgetItem *item );
     QgsPointCloudLayer *pointCloudLayer( QTreeWidgetItem *item );
+    QgsTiledSceneLayer *tiledSceneLayer( QTreeWidgetItem *item );
     QTreeWidgetItem *featureItem( QTreeWidgetItem *item );
     QTreeWidgetItem *layerItem( QTreeWidgetItem *item );
     QTreeWidgetItem *layerItem( QObject *layer );
@@ -339,6 +342,8 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
 
     void initSelectionModes();
     QgsIdentifyResultsFeatureItem *createFeatureItem( QgsVectorLayer *vlayer, const QgsFeature &f, const QMap<QString, QString> &derivedAttributes, bool includeRelations, QTreeWidgetItem *parentItem );
+
+    friend class TestQgsMapToolIdentifyAction;
 };
 
 class QgsIdentifyResultsDialogMapLayerAction : public QAction

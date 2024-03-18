@@ -306,7 +306,7 @@ namespace QgsWfs
       {
         for ( const QgsField &field : fields )
         {
-          if ( field.configurationFlags().testFlag( QgsField::ConfigurationFlag::HideFromWfs ) )
+          if ( field.configurationFlags().testFlag( Qgis::FieldConfigurationFlag::HideFromWfs ) )
           {
             int fieldNameIdx = fields.indexOf( field.name() );
             if ( fieldNameIdx > -1 && attrIndexes.contains( fieldNameIdx ) )
@@ -334,9 +334,9 @@ namespace QgsWfs
 
       // geometry flags
       if ( vlayer->wkbType() == Qgis::WkbType::NoGeometry )
-        featureRequest.setFlags( featureRequest.flags() | QgsFeatureRequest::NoGeometry );
+        featureRequest.setFlags( featureRequest.flags() | Qgis::FeatureRequestFlag::NoGeometry );
       else
-        featureRequest.setFlags( featureRequest.flags() | ( withGeom ? QgsFeatureRequest::NoFlags : QgsFeatureRequest::NoGeometry ) );
+        featureRequest.setFlags( featureRequest.flags() | ( withGeom ? Qgis::FeatureRequestFlag::NoFlags : Qgis::FeatureRequestFlag::NoGeometry ) );
 
       // subset of attributes
       featureRequest.setSubsetOfAttributes( attrIndexes );
@@ -348,7 +348,7 @@ namespace QgsWfs
       if ( accessControl )
       {
         // Access control expression could not be combined with feature ids filter
-        if ( featureRequest.filterType() == QgsFeatureRequest::FilterFid || featureRequest.filterType() == QgsFeatureRequest::FilterFids )
+        if ( featureRequest.filterType() == Qgis::FeatureRequestFilterType::Fid || featureRequest.filterType() == Qgis::FeatureRequestFilterType::Fids )
         {
           // expression context for access control filter
           QgsExpressionContext accessControlContext;
@@ -446,7 +446,7 @@ namespace QgsWfs
       {
         while ( fit.nextFeature( feature ) && ( aRequest.maxFeatures == -1 || sentFeatures < aRequest.maxFeatures ) )
         {
-          if ( accessControlRequest.filterType() != QgsFeatureRequest::FilterNone && !accessControlRequest.acceptFeature( feature ) )
+          if ( accessControlRequest.filterType() != Qgis::FeatureRequestFilterType::NoFilter && !accessControlRequest.acceptFeature( feature ) )
           {
             continue;
           }
@@ -461,7 +461,20 @@ namespace QgsWfs
       {
 
         // For WFS 1.1 we honor requested CRS and axis order
-        const QString srsName {request.serverParameters().value( QStringLiteral( "SRSNAME" ) )};
+        // Axis is not inverted if srsName starts with EPSG
+        // It needs to be an EPSG urn, e.g. urn:ogc:def:crs:EPSG::4326
+        // This follows geoserver convention
+        // See: https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html
+        // if the crs is defined in the parameters, use it
+        // otherwise:
+        //  - geojson uses 'EPSG:4326' by default
+        //  - other formats use the default CRS (DefaultSRS, which is the layer's CRS)
+        const QString requestSrsName = request.serverParameters().value( QStringLiteral( "SRSNAME" ) );
+        const QString srsName
+        {
+          !requestSrsName.isEmpty() ? requestSrsName :
+          ( aRequest.outputFormat == QgsWfsParameters::Format::GeoJSON ? QStringLiteral( "EPSG:4326" ) : outputCrs.authid() )
+        };
         const bool invertAxis { mWfsParameters.versionAsNumber() >= QgsProjectVersion( 1, 1, 0 ) &&
                                 outputCrs.hasAxisInverted() &&
                                 ! srsName.startsWith( QLatin1String( "EPSG:" ) ) };
@@ -479,7 +492,7 @@ namespace QgsWfs
                                         };
         while ( fit.nextFeature( feature ) && ( aRequest.maxFeatures == -1 || sentFeatures < aRequest.maxFeatures ) )
         {
-          if ( accessControlRequest.filterType() != QgsFeatureRequest::FilterNone && !accessControlRequest.acceptFeature( feature ) )
+          if ( accessControlRequest.filterType() != Qgis::FeatureRequestFilterType::NoFilter && !accessControlRequest.acceptFeature( feature ) )
           {
             continue;
           }
@@ -758,7 +771,7 @@ namespace QgsWfs
             }
             if ( filter->needsGeometry() )
             {
-              query.featureRequest.setFlags( QgsFeatureRequest::NoFlags );
+              query.featureRequest.setFlags( Qgis::FeatureRequestFlag::NoFlags );
             }
             query.featureRequest.setFilterExpression( filter->expression() );
           }
@@ -824,7 +837,7 @@ namespace QgsWfs
       for ( ; qIt != request.queries.end(); ++qIt )
       {
         getFeatureQuery &query = *qIt;
-        query.featureRequest.setFilterRect( extent ).setFlags( query.featureRequest.flags() | QgsFeatureRequest::ExactIntersect );
+        query.featureRequest.setFilterRect( extent ).setFlags( query.featureRequest.flags() | Qgis::FeatureRequestFlag::ExactIntersect );
       }
       return request;
     }
@@ -1248,7 +1261,12 @@ namespace QgsWfs
         if ( format == QgsWfsParameters::Format::GML3 )
         {
           // For WFS 1.1 we honor requested CRS and axis order
-          const QString srsName {request.serverParameters().value( QStringLiteral( "SRSNAME" ) )};
+          // Axis is not inverted if srsName starts with EPSG
+          // It needs to be an EPSG urn, e.g. urn:ogc:def:crs:EPSG::4326
+          // This follows geoserver convention
+          // See: https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html
+          const QString requestSrsName = request.serverParameters().value( QStringLiteral( "SRSNAME" ) );
+          const QString srsName = !requestSrsName.isEmpty() ? requestSrsName : crs.authid();
           const bool invertAxis { mWfsParameters.versionAsNumber() >= QgsProjectVersion( 1, 1, 0 ) &&
                                   crs.hasAxisInverted() &&
                                   ! srsName.startsWith( QLatin1String( "EPSG:" ) ) };

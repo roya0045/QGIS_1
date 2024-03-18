@@ -132,7 +132,7 @@ QVariant QgsCheckableStyleModel::data( const QModelIndex &index, int role ) cons
       if ( !mCheckable || index.column() != 0 )
         return QVariant();
 
-      const QStringList tags = data( index, QgsStyleModel::TagRole ).toStringList();
+      const QStringList tags = data( index, static_cast< int >( QgsStyleModel::CustomRole::Tag ) ).toStringList();
       return tags.contains( mCheckTag ) ? Qt::Checked : Qt::Unchecked;
     }
 
@@ -158,7 +158,7 @@ bool QgsCheckableStyleModel::setData( const QModelIndex &i, const QVariant &valu
       return false;
 
     const QString name = data( index( i.row(), QgsStyleModel::Name ), Qt::DisplayRole ).toString();
-    const QgsStyle::StyleEntity entity = static_cast< QgsStyle::StyleEntity >( data( i, QgsStyleModel::TypeRole ).toInt() );
+    const QgsStyle::StyleEntity entity = static_cast< QgsStyle::StyleEntity >( data( i, static_cast< int >( QgsStyleModel::CustomRole::Type ) ).toInt() );
 
     if ( value.toInt() == Qt::Checked )
       return mStyle->tagSymbol( entity, name, QStringList() << mCheckTag );
@@ -502,6 +502,8 @@ void QgsStyleManagerDialog::setCurrentStyle( QgsStyle *style )
   }
   mModel->addDesiredIconSize( mSymbolTreeView->iconSize() );
   mModel->addDesiredIconSize( listItems->iconSize() );
+  mModel->addTargetScreenProperties( QgsScreenProperties( screen() ) );
+
   mModel->setFilterString( searchBox->text() );
 
   listItems->setModel( mModel );
@@ -707,11 +709,7 @@ void QgsStyleManagerDialog::copyItemsToDefault()
     if ( !ok )
       return;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    const QStringList parts = tags.split( ',', QString::SkipEmptyParts );
-#else
     const QStringList parts = tags.split( ',', Qt::SkipEmptyParts );
-#endif
     QStringList additionalTags;
     additionalTags.reserve( parts.count() );
     for ( const QString &tag : parts )
@@ -857,7 +855,7 @@ int QgsStyleManagerDialog::selectedItemType()
   if ( !index.isValid() )
     return 0;
 
-  const QgsStyle::StyleEntity entity = static_cast< QgsStyle::StyleEntity >( mModel->data( index, QgsStyleModel::TypeRole ).toInt() );
+  const QgsStyle::StyleEntity entity = static_cast< QgsStyle::StyleEntity >( mModel->data( index, static_cast< int >( QgsStyleModel::CustomRole::Type ) ).toInt() );
   if ( entity == QgsStyle::ColorrampEntity )
     return 3;
   else if ( entity == QgsStyle::TextFormatEntity )
@@ -869,7 +867,7 @@ int QgsStyleManagerDialog::selectedItemType()
   else if ( entity == QgsStyle::Symbol3DEntity )
     return 7;
 
-  return  mModel->data( index, QgsStyleModel::SymbolTypeRole ).toInt();
+  return  mModel->data( index, static_cast< int >( QgsStyleModel::CustomRole::SymbolType ) ).toInt();
 }
 
 bool QgsStyleManagerDialog::allTypesSelected() const
@@ -892,9 +890,9 @@ QList< QgsStyleManagerDialog::ItemDetails > QgsStyleManagerDialog::selectedItems
       continue;
 
     ItemDetails details;
-    details.entityType = static_cast< QgsStyle::StyleEntity >( mModel->data( index, QgsStyleModel::TypeRole ).toInt() );
+    details.entityType = static_cast< QgsStyle::StyleEntity >( mModel->data( index, static_cast< int >( QgsStyleModel::CustomRole::Type ) ).toInt() );
     if ( details.entityType == QgsStyle::SymbolEntity )
-      details.symbolType = static_cast< Qgis::SymbolType >( mModel->data( index, QgsStyleModel::SymbolTypeRole ).toInt() );
+      details.symbolType = static_cast< Qgis::SymbolType >( mModel->data( index, static_cast< int >( QgsStyleModel::CustomRole::SymbolType ) ).toInt() );
     details.name = mModel->data( mModel->index( index.row(), QgsStyleModel::Name, index.parent() ), Qt::DisplayRole ).toString();
 
     res << details;
@@ -1600,7 +1598,7 @@ QString QgsStyleManagerDialog::addColorRampStatic( QWidget *parent, QgsStyle *st
   {
     // Q_ASSERT( 0 && "invalid ramp type" );
     // bailing out is rather harsh!
-    QgsDebugMsg( QStringLiteral( "invalid ramp type %1" ).arg( rampType ) );
+    QgsDebugError( QStringLiteral( "invalid ramp type %1" ).arg( rampType ) );
     return QString();
   }
 
@@ -2180,6 +2178,9 @@ void QgsStyleManagerDialog::addStyleDatabase( bool createNew )
                            tr( "Add Style Database" ),
                            initialFolder,
                            tr( "Style databases" ) + " (*.db *.xml)" );
+  // return dialog focus on Mac
+  activateWindow();
+  raise();
   if ( ! databasePath.isEmpty() )
   {
     QgsStyleManagerDialog::settingLastStyleDatabaseFolder->setValue( QFileInfo( databasePath ).path() );
@@ -2655,7 +2656,7 @@ void QgsStyleManagerDialog::groupRenamed( QStandardItem *item )
   if ( isReadOnly() )
     return;
 
-  QgsDebugMsg( QStringLiteral( "Symbol group edited: data=%1 text=%2" ).arg( item->data( Qt::UserRole + 1 ).toString(), item->text() ) );
+  QgsDebugMsgLevel( QStringLiteral( "Symbol group edited: data=%1 text=%2" ).arg( item->data( Qt::UserRole + 1 ).toString(), item->text() ), 2 );
   int id = item->data( Qt::UserRole + 1 ).toInt();
   QString name = item->text();
   mBlockGroupUpdates++;
@@ -2846,7 +2847,7 @@ void QgsStyleManagerDialog::listitemsContextMenu( QPoint point )
 
   if ( !isReadOnly() )
   {
-    const QStringList currentTags = indices.count() == 1 ? indices.at( 0 ).data( QgsStyleModel::TagRole ).toStringList() : QStringList();
+    const QStringList currentTags = indices.count() == 1 ? indices.at( 0 ).data( static_cast< int >( QgsStyleModel::CustomRole::Tag ) ).toStringList() : QStringList();
     QAction *a = nullptr;
     QStringList tags = mStyle->tags();
     tags.sort();

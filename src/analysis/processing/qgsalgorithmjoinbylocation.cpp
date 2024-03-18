@@ -29,18 +29,9 @@
 void QgsJoinByLocationAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ),
-                QObject::tr( "Join to features in" ), QList< int > () << QgsProcessing::QgsProcessing::TypeVectorAnyGeometry ) );
+                QObject::tr( "Join to features in" ), QList< int > () << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
 
-  QStringList predicates;
-  predicates << QObject::tr( "intersect" )
-             << QObject::tr( "contain" )
-             << QObject::tr( "equal" )
-             << QObject::tr( "touch" )
-             << QObject::tr( "overlap" )
-             << QObject::tr( "are within" )
-             << QObject::tr( "cross" );
-
-  std::unique_ptr< QgsProcessingParameterEnum > predicateParam = std::make_unique< QgsProcessingParameterEnum >( QStringLiteral( "PREDICATE" ), QObject::tr( "Features they (geometric predicate)" ), predicates, true, 0 );
+  std::unique_ptr< QgsProcessingParameterEnum > predicateParam = std::make_unique< QgsProcessingParameterEnum >( QStringLiteral( "PREDICATE" ), QObject::tr( "Features they (geometric predicate)" ), translatedPredicates(), true, 0 );
   QVariantMap predicateMetadata;
   QVariantMap widgetMetadata;
   widgetMetadata.insert( QStringLiteral( "useCheckBoxes" ), true );
@@ -49,10 +40,10 @@ void QgsJoinByLocationAlgorithm::initAlgorithm( const QVariantMap & )
   predicateParam->setMetadata( predicateMetadata );
   addParameter( predicateParam.release() );
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "JOIN" ),
-                QObject::tr( "By comparing to" ), QList< int > () << QgsProcessing::QgsProcessing::TypeVectorAnyGeometry ) );
+                QObject::tr( "By comparing to" ), QList< int > () << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addParameter( new QgsProcessingParameterField( QStringLiteral( "JOIN_FIELDS" ),
                 QObject::tr( "Fields to add (leave empty to use all fields)" ),
-                QVariant(), QStringLiteral( "JOIN" ), QgsProcessingParameterField::Any, true, true ) );
+                QVariant(), QStringLiteral( "JOIN" ), Qgis::ProcessingFieldParameterDataType::Any, true, true ) );
 
   QStringList joinMethods;
   joinMethods << QObject::tr( "Create separate feature for each matching feature (one-to-many)" )
@@ -66,8 +57,8 @@ void QgsJoinByLocationAlgorithm::initAlgorithm( const QVariantMap & )
                 false ) );
   addParameter( new QgsProcessingParameterString( QStringLiteral( "PREFIX" ),
                 QObject::tr( "Joined field prefix" ), QVariant(), false, true ) );
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Joined layer" ), QgsProcessing::TypeVectorAnyGeometry, QVariant(), true, true ) );
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "NON_MATCHING" ), QObject::tr( "Unjoinable features from first layer" ), QgsProcessing::TypeVectorAnyGeometry, QVariant(), true, false ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Joined layer" ), Qgis::ProcessingSourceType::VectorAnyGeometry, QVariant(), true, true ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "NON_MATCHING" ), QObject::tr( "Unjoinable features from first layer" ), Qgis::ProcessingSourceType::VectorAnyGeometry, QVariant(), true, false ) );
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "JOINED_COUNT" ), QObject::tr( "Number of joined features from input table" ) ) );
 }
 
@@ -115,6 +106,16 @@ QgsJoinByLocationAlgorithm *QgsJoinByLocationAlgorithm::createInstance() const
   return new QgsJoinByLocationAlgorithm();
 }
 
+QStringList QgsJoinByLocationAlgorithm::translatedPredicates()
+{
+  return { QObject::tr( "intersect" ),
+           QObject::tr( "contain" ),
+           QObject::tr( "equal" ),
+           QObject::tr( "touch" ),
+           QObject::tr( "overlap" ),
+           QObject::tr( "are within" ),
+           QObject::tr( "cross" ) };
+}
 
 QVariantMap QgsJoinByLocationAlgorithm::processAlgorithm( const QVariantMap &parameters, QgsProcessingContext &context, QgsProcessingFeedback *feedback )
 {
@@ -128,7 +129,7 @@ QVariantMap QgsJoinByLocationAlgorithm::processAlgorithm( const QVariantMap &par
 
   mJoinMethod = static_cast< JoinMethod >( parameterAsEnum( parameters, QStringLiteral( "METHOD" ), context ) );
 
-  const QStringList joinedFieldNames = parameterAsFields( parameters, QStringLiteral( "JOIN_FIELDS" ), context );
+  const QStringList joinedFieldNames = parameterAsStrings( parameters, QStringLiteral( "JOIN_FIELDS" ), context );
 
   mPredicates = parameterAsEnums( parameters, QStringLiteral( "PREDICATE" ), context );
   sortPredicates( mPredicates );
@@ -226,11 +227,11 @@ QVariantMap QgsJoinByLocationAlgorithm::processAlgorithm( const QVariantMap &par
   return outputs;
 }
 
-bool QgsJoinByLocationAlgorithm::featureFilter( const QgsFeature &feature, QgsGeometryEngine *engine, bool comparingToJoinedFeature ) const
+bool QgsJoinByLocationAlgorithm::featureFilter( const QgsFeature &feature, QgsGeometryEngine *engine, bool comparingToJoinedFeature, const QList<int> &predicates )
 {
   const QgsAbstractGeometry *geom = feature.geometry().constGet();
   bool ok = false;
-  for ( const int predicate : mPredicates )
+  for ( const int predicate : predicates )
   {
     switch ( predicate )
     {
@@ -312,7 +313,7 @@ bool QgsJoinByLocationAlgorithm::featureFilter( const QgsFeature &feature, QgsGe
 
 void QgsJoinByLocationAlgorithm::processAlgorithmByIteratingOverJoinedSource( QgsProcessingContext &context, QgsProcessingFeedback *feedback )
 {
-  if ( mBaseSource->hasSpatialIndex() == QgsFeatureSource::SpatialIndexNotPresent )
+  if ( mBaseSource->hasSpatialIndex() == Qgis::SpatialIndexPresence::NotPresent )
     feedback->pushWarning( QObject::tr( "No spatial index exists for input layer, performance will be severely degraded" ) );
 
   QgsFeatureIterator joinIter = mJoinSource->getFeatures( QgsFeatureRequest().setDestinationCrs( mBaseSource->sourceCrs(), context.transformContext() ).setSubsetOfAttributes( mJoinedFieldIndices ) );
@@ -372,7 +373,7 @@ void QgsJoinByLocationAlgorithm::processAlgorithmByIteratingOverJoinedSource( Qg
 
 void QgsJoinByLocationAlgorithm::processAlgorithmByIteratingOverInputSource( QgsProcessingContext &context, QgsProcessingFeedback *feedback )
 {
-  if ( mJoinSource->hasSpatialIndex() == QgsFeatureSource::SpatialIndexNotPresent )
+  if ( mJoinSource->hasSpatialIndex() == Qgis::SpatialIndexPresence::NotPresent )
     feedback->pushWarning( QObject::tr( "No spatial index exists for join layer, performance will be severely degraded" ) );
 
   QgsFeatureIterator it = mBaseSource->getFeatures();
@@ -462,7 +463,7 @@ bool QgsJoinByLocationAlgorithm::processFeatureFromJoinSource( QgsFeature &joinF
         joinAttributes.append( joinFeature.attribute( ix ) );
       }
     }
-    if ( featureFilter( baseFeature, engine.get(), false ) )
+    if ( featureFilter( baseFeature, engine.get(), false, mPredicates ) )
     {
       if ( mJoinedFeatures )
       {
@@ -532,7 +533,7 @@ bool QgsJoinByLocationAlgorithm::processFeatureFromInputSource( QgsFeature &base
       engine->prepareGeometry();
     }
 
-    if ( featureFilter( joinFeature, engine.get(), true ) )
+    if ( featureFilter( joinFeature, engine.get(), true, mPredicates ) )
     {
       switch ( mJoinMethod )
       {

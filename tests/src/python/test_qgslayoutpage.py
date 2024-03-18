@@ -9,7 +9,6 @@ __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '23/10/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
@@ -20,17 +19,19 @@ from qgis.core import (
     QgsReadWriteContext,
     QgsSimpleFillSymbolLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from test_qgslayoutitem import LayoutItemTestCase
 
 start_app()
 
 
-class TestQgsLayoutPage(unittest.TestCase, LayoutItemTestCase):
+class TestQgsLayoutPage(QgisTestCase, LayoutItemTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(TestQgsLayoutPage, cls).setUpClass()
         cls.item_class = QgsLayoutItemPage
 
     def testDefaults(self):
@@ -42,8 +43,8 @@ class TestQgsLayoutPage(unittest.TestCase, LayoutItemTestCase):
         fill = QgsSimpleFillSymbolLayer()
         fill_symbol = QgsFillSymbol()
         fill_symbol.changeSymbolLayer(0, fill)
-        fill.setColor(Qt.green)
-        fill.setStrokeColor(Qt.red)
+        fill.setColor(Qt.GlobalColor.green)
+        fill.setStrokeColor(Qt.GlobalColor.red)
         fill.setStrokeWidth(6)
         p.setPageStyleSymbol(fill_symbol)
 
@@ -58,8 +59,8 @@ class TestQgsLayoutPage(unittest.TestCase, LayoutItemTestCase):
         fill = QgsSimpleFillSymbolLayer()
         fill_symbol = QgsFillSymbol()
         fill_symbol.changeSymbolLayer(0, fill)
-        fill.setColor(Qt.green)
-        fill.setStrokeColor(Qt.red)
+        fill.setColor(Qt.GlobalColor.green)
+        fill.setStrokeColor(Qt.GlobalColor.red)
         fill.setStrokeWidth(6)
 
         page = QgsLayoutItemPage(l)
@@ -71,7 +72,7 @@ class TestQgsLayoutPage(unittest.TestCase, LayoutItemTestCase):
         # add a second page
         page2 = QgsLayoutItemPage(l)
         page2.setPageSize('A5')
-        fill_symbol.setColor(Qt.blue)
+        fill_symbol.setColor(Qt.GlobalColor.blue)
         page2.setPageStyleSymbol(fill_symbol.clone())
         collection.addPage(page2)
 

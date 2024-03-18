@@ -40,7 +40,8 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from providertestbase import ProviderTestCase
 
@@ -82,7 +83,7 @@ class MessageLogger(QObject):
         return self.log
 
 
-class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
+class TestPyQgsAFSProvider(QgisTestCase, ProviderTestCase):
 
     def treat_date_as_datetime(self):
         return True
@@ -93,6 +94,7 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestPyQgsAFSProvider, cls).setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestPyQgsAFSProvider.com")
@@ -695,6 +697,7 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         QgsSettings().clear()
         # shutil.rmtree(cls.basetestpath, True)
         cls.vl = None  # so as to properly close the provider and remove any temporary file
+        super().tearDownClass()
 
     def testGetFeaturesSubsetAttributes2(self):
         """ Override and skip this test for AFS provider, as it's actually more efficient for the AFS provider to return
@@ -731,9 +734,9 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
 
     def testProviderCapabilities(self):
         # non-editable layer
-        self.assertEqual(self.vl.dataProvider().capabilities(), QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.SelectAtId
-                                                                                                   | QgsVectorDataProvider.ReadLayerMetadata
-                                                                                                   | QgsVectorDataProvider.ReloadData))
+        self.assertEqual(self.vl.dataProvider().capabilities(), QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.Capability.SelectAtId
+                                                                                                   | QgsVectorDataProvider.Capability.ReadLayerMetadata
+                                                                                                   | QgsVectorDataProvider.Capability.ReloadData))
 
         # delete capability
         endpoint = self.basetestpath + '/delete_fake_qgis_http_endpoint'
@@ -766,10 +769,10 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         # Create test layer
         vl = QgsVectorLayer("url='http://" + endpoint + "' crs='epsg:4326'", 'test', 'arcgisfeatureserver')
         self.assertTrue(vl.isValid())
-        self.assertEqual(vl.dataProvider().capabilities(), QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.SelectAtId
-                                                                                              | QgsVectorDataProvider.ReadLayerMetadata
-                                                                                              | QgsVectorDataProvider.ReloadData
-                                                                                              | QgsVectorDataProvider.DeleteFeatures))
+        self.assertEqual(vl.dataProvider().capabilities(), QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.Capability.SelectAtId
+                                                                                              | QgsVectorDataProvider.Capability.ReadLayerMetadata
+                                                                                              | QgsVectorDataProvider.Capability.ReloadData
+                                                                                              | QgsVectorDataProvider.Capability.DeleteFeatures))
 
         # add capability
         endpoint = self.basetestpath + '/delete_fake_qgis_http_endpoint'
@@ -792,10 +795,10 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         # Create test layer
         vl = QgsVectorLayer("url='http://" + endpoint + "' crs='epsg:4326'", 'test', 'arcgisfeatureserver')
         self.assertTrue(vl.isValid())
-        self.assertEqual(vl.dataProvider().capabilities(), QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.SelectAtId
-                                                                                              | QgsVectorDataProvider.ReadLayerMetadata
-                                                                                              | QgsVectorDataProvider.ReloadData
-                                                                                              | QgsVectorDataProvider.AddFeatures))
+        self.assertEqual(vl.dataProvider().capabilities(), QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.Capability.SelectAtId
+                                                                                              | QgsVectorDataProvider.Capability.ReadLayerMetadata
+                                                                                              | QgsVectorDataProvider.Capability.ReloadData
+                                                                                              | QgsVectorDataProvider.Capability.AddFeatures))
         # update capability
         endpoint = self.basetestpath + '/delete_fake_qgis_http_endpoint'
         with open(sanitize(endpoint, '?f=json'), 'wb') as f:
@@ -818,12 +821,12 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         vl = QgsVectorLayer("url='http://" + endpoint + "' crs='epsg:4326'", 'test', 'arcgisfeatureserver')
         self.assertTrue(vl.isValid())
         self.assertEqual(vl.dataProvider().capabilities(),
-                         QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.SelectAtId
-                                                            | QgsVectorDataProvider.ReadLayerMetadata
-                                                            | QgsVectorDataProvider.ReloadData
-                                                            | QgsVectorDataProvider.ChangeAttributeValues
-                                                            | QgsVectorDataProvider.ChangeFeatures
-                                                            | QgsVectorDataProvider.ChangeGeometries))
+                         QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.Capability.SelectAtId
+                                                            | QgsVectorDataProvider.Capability.ReadLayerMetadata
+                                                            | QgsVectorDataProvider.Capability.ReloadData
+                                                            | QgsVectorDataProvider.Capability.ChangeAttributeValues
+                                                            | QgsVectorDataProvider.Capability.ChangeFeatures
+                                                            | QgsVectorDataProvider.Capability.ChangeGeometries))
 
         # circular strings
         with open(sanitize(endpoint, '?f=json'), 'wb') as f:
@@ -844,25 +847,25 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         vl = QgsVectorLayer("url='http://" + endpoint + "' crs='epsg:4326'", 'test', 'arcgisfeatureserver')
         self.assertTrue(vl.isValid())
         self.assertEqual(vl.dataProvider().capabilities(),
-                         QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.SelectAtId
-                                                            | QgsVectorDataProvider.ReadLayerMetadata
-                                                            | QgsVectorDataProvider.ReloadData
-                                                            | QgsVectorDataProvider.ChangeAttributeValues
-                                                            | QgsVectorDataProvider.ChangeFeatures
-                                                            | QgsVectorDataProvider.CircularGeometries
-                                                            | QgsVectorDataProvider.ChangeGeometries))
+                         QgsVectorDataProvider.Capabilities(QgsVectorDataProvider.Capability.SelectAtId
+                                                            | QgsVectorDataProvider.Capability.ReadLayerMetadata
+                                                            | QgsVectorDataProvider.Capability.ReloadData
+                                                            | QgsVectorDataProvider.Capability.ChangeAttributeValues
+                                                            | QgsVectorDataProvider.Capability.ChangeFeatures
+                                                            | QgsVectorDataProvider.Capability.CircularGeometries
+                                                            | QgsVectorDataProvider.Capability.ChangeGeometries))
 
     def testFieldProperties(self):
         self.assertEqual(self.vl.dataProvider().pkAttributeIndexes(), [0])
         self.assertEqual(self.vl.dataProvider().fields()[0].constraints().constraints(),
-                         QgsFieldConstraints.Constraints(QgsFieldConstraints.ConstraintNotNull | QgsFieldConstraints.ConstraintUnique))
+                         QgsFieldConstraints.Constraints(QgsFieldConstraints.Constraint.ConstraintNotNull | QgsFieldConstraints.Constraint.ConstraintUnique))
         self.assertFalse(self.vl.dataProvider().fields()[1].constraints().constraints())
         self.assertEqual(self.vl.dataProvider().defaultValueClause(0), 'Autogenerate')
         self.assertFalse(self.vl.dataProvider().defaultValueClause(1))
 
-        self.assertTrue(self.vl.dataProvider().skipConstraintCheck(0, QgsFieldConstraints.ConstraintUnique, 'Autogenerate'))
-        self.assertFalse(self.vl.dataProvider().skipConstraintCheck(0, QgsFieldConstraints.ConstraintUnique, 'aa'))
-        self.assertFalse(self.vl.dataProvider().skipConstraintCheck(1, QgsFieldConstraints.ConstraintUnique, 'aa'))
+        self.assertTrue(self.vl.dataProvider().skipConstraintCheck(0, QgsFieldConstraints.Constraint.ConstraintUnique, 'Autogenerate'))
+        self.assertFalse(self.vl.dataProvider().skipConstraintCheck(0, QgsFieldConstraints.Constraint.ConstraintUnique, 'aa'))
+        self.assertFalse(self.vl.dataProvider().skipConstraintCheck(1, QgsFieldConstraints.Constraint.ConstraintUnique, 'aa'))
 
     def testObjectIdDifferentName(self):
         """ Test that object id fields not named OBJECTID work correctly """
@@ -933,10 +936,10 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
 
         # Create test layer
         vl = QgsVectorLayer("url='http://" + endpoint + "' crs='epsg:4326'", 'test', 'arcgisfeatureserver')
-        assert vl.isValid()
+        self.assertTrue(vl.isValid())
 
         f = vl.getFeature(0)
-        assert f.isValid()
+        self.assertTrue(f.isValid())
 
     def testDateTime(self):
         """ Test that datetime fields work correctly """
@@ -1024,7 +1027,7 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
 
         features = [f for f in vl.getFeatures()]
         self.assertEqual(len(features), 2)
-        self.assertEqual([f['dt'] for f in features], [QDateTime(2017, 5, 3, 0, 0, 0, 0, Qt.UTC).toLocalTime(), NULL])
+        self.assertEqual([f['dt'] for f in features], [QDateTime(QDate(2017, 5, 3), QTime(0, 0, 0, 0), Qt.TimeSpec.UTC).toLocalTime(), NULL])
 
     def testMetadata(self):
         """ Test that metadata is correctly acquired from provider """
@@ -1434,9 +1437,9 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         self.assertTrue(vl.dataProvider().temporalCapabilities().hasTemporalCapabilities())
         self.assertEqual(vl.dataProvider().temporalCapabilities().startField(), 'date_start')
         self.assertFalse(vl.dataProvider().temporalCapabilities().endField())
-        self.assertEqual(vl.dataProvider().temporalCapabilities().mode(), QgsVectorDataProviderTemporalCapabilities.ProviderStoresFeatureDateTimeInstantInField)
-        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().begin(), QDateTime(QDate(2006, 3, 10), QTime(14, 13, 20), Qt.UTC))
-        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().end(), QDateTime(QDate(2017, 2, 13), QTime(15, 33, 20), Qt.UTC))
+        self.assertEqual(vl.dataProvider().temporalCapabilities().mode(), QgsVectorDataProviderTemporalCapabilities.TemporalMode.ProviderStoresFeatureDateTimeInstantInField)
+        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().begin(), QDateTime(QDate(2006, 3, 10), QTime(14, 13, 20), Qt.TimeSpec.UTC))
+        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().end(), QDateTime(QDate(2017, 2, 13), QTime(15, 33, 20), Qt.TimeSpec.UTC))
 
     def testTemporal2(self):
         """
@@ -1488,9 +1491,9 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         self.assertTrue(vl.dataProvider().temporalCapabilities().hasTemporalCapabilities())
         self.assertEqual(vl.dataProvider().temporalCapabilities().startField(), 'date_start')
         self.assertEqual(vl.dataProvider().temporalCapabilities().endField(), 'date_end')
-        self.assertEqual(vl.dataProvider().temporalCapabilities().mode(), QgsVectorDataProviderTemporalCapabilities.ProviderStoresFeatureDateTimeStartAndEndInSeparateFields)
-        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().begin(), QDateTime(QDate(2006, 3, 10), QTime(14, 13, 20), Qt.UTC))
-        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().end(), QDateTime(QDate(2017, 2, 13), QTime(15, 33, 20), Qt.UTC))
+        self.assertEqual(vl.dataProvider().temporalCapabilities().mode(), QgsVectorDataProviderTemporalCapabilities.TemporalMode.ProviderStoresFeatureDateTimeStartAndEndInSeparateFields)
+        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().begin(), QDateTime(QDate(2006, 3, 10), QTime(14, 13, 20), Qt.TimeSpec.UTC))
+        self.assertEqual(vl.dataProvider().temporalCapabilities().availableTemporalRange().end(), QDateTime(QDate(2017, 2, 13), QTime(15, 33, 20), Qt.TimeSpec.UTC))
 
     def testImageServer(self):
         """
@@ -1710,7 +1713,7 @@ class TestPyQgsAFSProvider(unittest.TestCase, ProviderTestCase):
         vl = QgsVectorLayer("url='http://" + endpoint + "' crs='epsg:4326'", 'test', 'arcgisfeatureserver')
 
         self.assertTrue(vl.isValid())
-        self.assertEqual(vl.wkbType(), QgsWkbTypes.Polygon)
+        self.assertEqual(vl.wkbType(), QgsWkbTypes.Type.Polygon)
 
     def testDelete(self):
         # delete capability

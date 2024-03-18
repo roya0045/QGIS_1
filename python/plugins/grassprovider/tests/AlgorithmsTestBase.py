@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     AlgorithmsTest.py
@@ -21,7 +19,6 @@ __author__ = 'Matthias Kuhn'
 __date__ = 'January 2016'
 __copyright__ = '(C) 2016, Matthias Kuhn'
 
-import qgis  # NOQA switch sip api
 
 import os
 import yaml
@@ -49,8 +46,9 @@ from qgis.core import (QgsVectorLayer,
                        QgsProcessingFeedback)
 from qgis.analysis import (QgsNativeAlgorithms)
 from qgis.testing import (_UnexpectedSuccess,
-                          start_app,
-                          unittest)
+                          QgisTestCase,
+                          start_app)
+
 from utilities import unitTestDataPath
 
 import processing
@@ -60,13 +58,13 @@ def processingTestDataPath():
     return os.path.join(os.path.dirname(__file__), 'testdata')
 
 
-class AlgorithmsTest(object):
+class AlgorithmsTest:
 
     def test_algorithms(self):
         """
         This is the main test function. All others will be executed based on the definitions in testdata/algorithm_tests.yaml
         """
-        with open(os.path.join(processingTestDataPath(), self.test_definition_file()), 'r') as stream:
+        with open(os.path.join(processingTestDataPath(), self.definition_file())) as stream:
             algorithm_tests = yaml.load(stream, Loader=yaml.SafeLoader)
 
         if 'tests' in algorithm_tests and algorithm_tests['tests'] is not None:
@@ -128,7 +126,7 @@ class AlgorithmsTest(object):
         context.setProject(QgsProject.instance())
 
         if 'skipInvalid' in defs and defs['skipInvalid']:
-            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
+            context.setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid)
 
         feedback = QgsProcessingFeedback()
 
@@ -387,14 +385,14 @@ class AlgorithmsTest(object):
 
                 self.assertDirectoriesEqual(expected_dirpath, result_dirpath)
             elif 'regex' == expected_result['type']:
-                with open(results[id], 'r') as file:
+                with open(results[id]) as file:
                     data = file.read()
 
                 for rule in expected_result.get('rules', []):
                     self.assertRegex(data, rule)
 
 
-class GenericAlgorithmsTest(unittest.TestCase):
+class GenericAlgorithmsTest(QgisTestCase):
     """
     General (non-provider specific) algorithm tests
     """

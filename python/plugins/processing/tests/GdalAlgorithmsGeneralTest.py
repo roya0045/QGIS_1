@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     GdalAlgorithmTests.py
@@ -40,8 +38,8 @@ from qgis.core import (QgsProcessingContext,
                        QgsProcessingException,
                        QgsProcessingFeatureSourceDefinition)
 
-from qgis.testing import (start_app,
-                          unittest)
+from qgis.testing import (QgisTestCase,
+                          start_app)
 
 from processing.algs.gdal.GdalUtils import GdalUtils
 from processing.algs.gdal.ogr2ogr import ogr2ogr
@@ -50,7 +48,7 @@ from processing.algs.gdal.OgrToPostGis import OgrToPostGis
 testDataPath = os.path.join(os.path.dirname(__file__), 'testdata')
 
 
-class TestGdalAlgorithms(unittest.TestCase):
+class TestGdalAlgorithms(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -71,7 +69,7 @@ class TestGdalAlgorithms(unittest.TestCase):
             if a.id() in ('gdal:buildvirtualvector'):
                 # build virtual vector is an exception
                 continue
-            self.assertTrue(a.commandName(), 'Algorithm {} has no commandName!'.format(a.id()))
+            self.assertTrue(a.commandName(), f'Algorithm {a.id()} has no commandName!')
 
     def testCommandNameInTags(self):
         # Test that algorithms commandName is present in provided tags
@@ -79,7 +77,7 @@ class TestGdalAlgorithms(unittest.TestCase):
         for a in p.algorithms():
             if not a.commandName():
                 continue
-            self.assertTrue(a.commandName() in a.tags(), 'Algorithm {} commandName not found in tags!'.format(a.id()))
+            self.assertTrue(a.commandName() in a.tags(), f'Algorithm {a.id()} commandName not found in tags!')
 
     def testNoParameters(self):
         # Test that algorithms throw QgsProcessingException and not base Python

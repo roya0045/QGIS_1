@@ -64,6 +64,14 @@ QVariant QgsFieldMappingModel::headerData( int section, Qt::Orientation orientat
           {
             return tr( "Constraints" );
           }
+          case ColumnDataIndex::DestinationAlias:
+          {
+            return tr( "Alias" );
+          }
+          case ColumnDataIndex::DestinationComment:
+          {
+            return tr( "Comment" );
+          }
         }
         break;
       }
@@ -92,7 +100,7 @@ int QgsFieldMappingModel::columnCount( const QModelIndex &parent ) const
 {
   if ( parent.isValid() )
     return 0;
-  return 6;
+  return 8;
 }
 
 QVariant QgsFieldMappingModel::data( const QModelIndex &index, int role ) const
@@ -117,7 +125,7 @@ QVariant QgsFieldMappingModel::data( const QModelIndex &index, int role ) const
           }
           case ColumnDataIndex::DestinationName:
           {
-            return f.field.displayName();
+            return f.field.displayNameWithAlias();
           }
           case ColumnDataIndex::DestinationType:
           {
@@ -134,6 +142,14 @@ QVariant QgsFieldMappingModel::data( const QModelIndex &index, int role ) const
           case ColumnDataIndex::DestinationConstraints:
           {
             return constraints != 0 ? tr( "Constraints active" ) : QString();
+          }
+          case ColumnDataIndex::DestinationAlias:
+          {
+            return f.field.alias();
+          }
+          case ColumnDataIndex::DestinationComment:
+          {
+            return f.field.comment();
           }
         }
         break;
@@ -230,7 +246,19 @@ bool QgsFieldMappingModel::setData( const QModelIndex &index, const QVariant &va
         case ColumnDataIndex::DestinationConstraints:
         {
           // Not editable: do nothing
+          break;
         }
+        case ColumnDataIndex::DestinationAlias:
+        {
+          f.field.setAlias( value.toString() );
+          break;
+        }
+        case ColumnDataIndex::DestinationComment:
+        {
+          f.field.setComment( value.toString() );
+          break;
+        }
+
       }
       emit dataChanged( index, index );
     }
@@ -479,19 +507,19 @@ void QgsFieldMappingModel::setFieldPropertyMap( const QMap<QString, QgsProperty>
       const QgsProperty prop = map.value( f.field.name() );
       switch ( prop.propertyType() )
       {
-        case QgsProperty::StaticProperty:
+        case Qgis::PropertyType::Static:
           f.expression = QgsExpression::quotedValue( prop.staticValue() );
           break;
 
-        case QgsProperty::FieldBasedProperty:
+        case Qgis::PropertyType::Field:
           f.expression = prop.field();
           break;
 
-        case QgsProperty::ExpressionBasedProperty:
+        case Qgis::PropertyType::Expression:
           f.expression = prop.expressionString();
           break;
 
-        case QgsProperty::InvalidProperty:
+        case Qgis::PropertyType::Invalid:
           f.expression.clear();
           break;
       }

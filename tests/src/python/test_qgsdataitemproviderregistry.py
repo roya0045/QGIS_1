@@ -9,7 +9,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '27/10/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
 
 from qgis.core import (
     QgsApplication,
@@ -17,7 +16,8 @@ from qgis.core import (
     QgsDataItemProviderRegistry,
     QgsDataProvider,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 app = start_app()
 
@@ -32,13 +32,13 @@ class TestProvider(QgsDataItemProvider):
         return self._name
 
     def capabilities(self):
-        return QgsDataProvider.File
+        return QgsDataProvider.DataCapability.File
 
     def createDataItem(self, path, parent):
         return None
 
 
-class TestQgsDataItemProviderRegistry(unittest.TestCase):
+class TestQgsDataItemProviderRegistry(QgisTestCase):
 
     def testAppRegistry(self):
         # ensure there is an application instance

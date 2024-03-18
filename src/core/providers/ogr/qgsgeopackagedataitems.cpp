@@ -43,9 +43,9 @@ QString QgsGeoPackageDataItemProvider::dataProviderKey() const
   return QStringLiteral( "ogr" );
 }
 
-int QgsGeoPackageDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsGeoPackageDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Database;
+  return Qgis::DataItemProviderCapability::Databases;
 }
 
 QgsDataItem *QgsGeoPackageDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -152,6 +152,7 @@ QVector<QgsDataItem *> QgsGeoPackageCollectionItem::createChildren()
       case Qgis::LayerType::Annotation:
       case Qgis::LayerType::PointCloud:
       case Qgis::LayerType::Group:
+      case Qgis::LayerType::TiledScene:
         break;
     }
   }

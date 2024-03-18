@@ -52,7 +52,7 @@ QString QgsPackageAlgorithm::groupId() const
 
 void QgsPackageAlgorithm::initAlgorithm( const QVariantMap & )
 {
-  addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "LAYERS" ), QObject::tr( "Input layers" ), QgsProcessing::TypeVector ) );
+  addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "LAYERS" ), QObject::tr( "Input layers" ), Qgis::ProcessingSourceType::Vector ) );
   QgsProcessingParameterFileDestination *outputParameter = new QgsProcessingParameterFileDestination( QStringLiteral( "OUTPUT" ), QObject::tr( "Destination GeoPackage" ), QObject::tr( "GeoPackage files (*.gpkg)" ) );
   outputParameter->setMetadata( QVariantMap( {{QStringLiteral( "widget_wrapper" ), QVariantMap( {{QStringLiteral( "dontconfirmoverwrite" ), true }} ) }} ) );
   addParameter( outputParameter );
@@ -344,8 +344,7 @@ QVariantMap QgsPackageAlgorithm::processAlgorithm( const QVariantMap &parameters
       case Qgis::LayerType::Vector:
       {
         QgsVectorLayer *vectorLayer = qobject_cast<QgsVectorLayer *>( layer.get() );
-        const bool onlySaveSelected = vectorLayer->selectedFeatureCount() > 0 && selectedFeaturesOnly;
-        if ( !packageVectorLayer( vectorLayer, packagePath, context, &multiStepFeedback, saveStyles, saveMetadata, onlySaveSelected ) )
+        if ( !packageVectorLayer( vectorLayer, packagePath, context, &multiStepFeedback, saveStyles, saveMetadata, selectedFeaturesOnly ) )
           errored = true;
         else
           outputLayers.append( QStringLiteral( "%1|layername=%2" ).arg( packagePath, layer->name() ) );
@@ -393,6 +392,12 @@ QVariantMap QgsPackageAlgorithm::processAlgorithm( const QVariantMap &parameters
       case Qgis::LayerType::Group:
         //not supported
         feedback->pushDebugInfo( QObject::tr( "Packaging group layers is not supported." ) );
+        errored = true;
+        break;
+
+      case Qgis::LayerType::TiledScene:
+        //not supported
+        feedback->pushDebugInfo( QObject::tr( "Packaging tiled scene layers is not supported." ) );
         errored = true;
         break;
     }

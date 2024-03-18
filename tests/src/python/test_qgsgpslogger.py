@@ -9,7 +9,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '10/11/2022'
 __copyright__ = 'Copyright 2022, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QBuffer, QCoreApplication, QDateTime
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import (
@@ -22,7 +21,8 @@ from qgis.core import (
     QgsVectorLayerGpsLogger,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -35,7 +35,7 @@ class GpsReplay(QgsNmeaConnection):
 
     def __init__(self):
         self.buffer = QBuffer()
-        self.buffer.open(QBuffer.ReadWrite)
+        self.buffer.open(QBuffer.OpenModeFlag.ReadWrite)
 
         super().__init__(self.buffer)
         assert self.connect()
@@ -52,11 +52,12 @@ class GpsReplay(QgsNmeaConnection):
         spy.wait()
 
 
-class TestQgsGpsLogger(unittest.TestCase):
+class TestQgsGpsLogger(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestQgsGpsLogger.com")
@@ -114,74 +115,74 @@ class TestQgsGpsLogger(unittest.TestCase):
         self.assertEqual(len(spy), 1)
 
         # not enough vertices for these types yet:
-        res, err = logger.currentGeometry(QgsWkbTypes.LineString)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.LineString)
         self.assertTrue(err)
-        res, err = logger.currentGeometry(QgsWkbTypes.LineStringZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.LineStringZ)
         self.assertTrue(err)
-        res, err = logger.currentGeometry(QgsWkbTypes.Polygon)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.Polygon)
         self.assertTrue(err)
-        res, err = logger.currentGeometry(QgsWkbTypes.PolygonZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.PolygonZ)
         self.assertTrue(err)
 
         # can create points
-        res, err = logger.currentGeometry(QgsWkbTypes.Point)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.Point)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'Point (18.9475 69.6442)')
-        res, err = logger.currentGeometry(QgsWkbTypes.PointZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.PointZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'PointZ (18.9475 69.6442 0)')
 
         # make elevation available
         gps_connection.send_message("$GPGGA,084112.185,6939.6532,N,01856.8526,E,1,04,1.4,35.0,M,29.4,M,,0000*63")
-        res, err = logger.currentGeometry(QgsWkbTypes.PointZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.PointZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'PointZ (18.9475 69.6609 35)')
-        res, err = logger.currentGeometry(QgsWkbTypes.MultiPointZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.MultiPointZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'MultiPointZ ((18.9475 69.6609 35))')
 
-        res, err = logger.currentGeometry(QgsWkbTypes.LineString)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.LineString)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'LineString (18.9475 69.6442, 18.9475 69.6609)')
-        res, err = logger.currentGeometry(QgsWkbTypes.LineStringZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.LineStringZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'LineStringZ (18.9475 69.6442 0, 18.9475 69.6609 35)')
-        res, err = logger.currentGeometry(QgsWkbTypes.MultiLineStringZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.MultiLineStringZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'MultiLineStringZ ((18.9475 69.6442 0, 18.9475 69.6609 35))')
 
         # note enough vertices for polygons yet
-        res, err = logger.currentGeometry(QgsWkbTypes.Polygon)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.Polygon)
         self.assertTrue(err)
-        res, err = logger.currentGeometry(QgsWkbTypes.PolygonZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.PolygonZ)
         self.assertTrue(err)
 
         gps_connection.send_message("$GPGGA,084112.185,6939.6532,N,01866.8526,E,1,04,1.4,35.0,M,29.4,M,,0000*63")
 
-        res, err = logger.currentGeometry(QgsWkbTypes.PointZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.PointZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'PointZ (19.1142 69.6609 35)')
-        res, err = logger.currentGeometry(QgsWkbTypes.MultiPointZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.MultiPointZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'MultiPointZ ((19.1142 69.6609 35))')
 
-        res, err = logger.currentGeometry(QgsWkbTypes.LineString)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.LineString)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'LineString (18.9475 69.6442, 18.9475 69.6609, 19.1142 69.6609)')
-        res, err = logger.currentGeometry(QgsWkbTypes.LineStringZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.LineStringZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'LineStringZ (18.9475 69.6442 0, 18.9475 69.6609 35, 19.1142 69.6609 35)')
-        res, err = logger.currentGeometry(QgsWkbTypes.MultiLineStringZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.MultiLineStringZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'MultiLineStringZ ((18.9475 69.6442 0, 18.9475 69.6609 35, 19.1142 69.6609 35))')
 
-        res, err = logger.currentGeometry(QgsWkbTypes.Polygon)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.Polygon)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'Polygon ((18.9475 69.6442, 18.9475 69.6609, 19.1142 69.6609, 18.9475 69.6442))')
-        res, err = logger.currentGeometry(QgsWkbTypes.PolygonZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.PolygonZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'PolygonZ ((18.9475 69.6442 0, 18.9475 69.6609 35, 19.1142 69.6609 35, 18.9475 69.6442 0))')
-        res, err = logger.currentGeometry(QgsWkbTypes.MultiPolygonZ)
+        res, err = logger.currentGeometry(QgsWkbTypes.Type.MultiPolygonZ)
         self.assertFalse(err)
         self.assertEqual(res.asWkt(4), 'MultiPolygonZ (((18.9475 69.6442 0, 18.9475 69.6609 35, 19.1142 69.6609 35, 18.9475 69.6442 0)))')
 
@@ -442,7 +443,7 @@ class TestQgsGpsLogger(unittest.TestCase):
             'memory')
         self.assertTrue(points_layer.isValid())
         self.assertEqual(points_layer.crs().authid(), 'EPSG:28355')
-        self.assertEqual(points_layer.wkbType(), QgsWkbTypes.PointZM)
+        self.assertEqual(points_layer.wkbType(), QgsWkbTypes.Type.PointZM)
 
         QgsSettings().setValue('gps/store-attribute-in-m-values', True)
         QgsSettings().setValue('gps/m-value-attribute', 'Altitude')

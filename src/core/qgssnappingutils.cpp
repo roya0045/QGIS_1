@@ -235,15 +235,15 @@ static void _updateBestMatch( QgsPointLocator::Match &bestMatch, const QgsPointX
   }
   if ( type & QgsPointLocator::Centroid )
   {
-    _replaceIfBetter( bestMatch, loc->nearestCentroid( pointMap, tolerance, filter ), tolerance );
+    _replaceIfBetter( bestMatch, loc->nearestCentroid( pointMap, tolerance, filter, relaxed ), tolerance );
   }
   if ( type & QgsPointLocator::MiddleOfSegment )
   {
-    _replaceIfBetter( bestMatch, loc->nearestMiddleOfSegment( pointMap, tolerance, filter ), tolerance );
+    _replaceIfBetter( bestMatch, loc->nearestMiddleOfSegment( pointMap, tolerance, filter, relaxed ), tolerance );
   }
   if ( type & QgsPointLocator::LineEndpoint )
   {
-    _replaceIfBetter( bestMatch, loc->nearestLineEndpoints( pointMap, tolerance, filter ), tolerance );
+    _replaceIfBetter( bestMatch, loc->nearestLineEndpoints( pointMap, tolerance, filter, relaxed ), tolerance );
   }
 }
 
@@ -541,7 +541,7 @@ void QgsSnappingUtils::prepareIndex( const QList<LayerAndAreaOfInterest> &layers
 
     if ( !relaxed )
     {
-      QgsDebugMsg( QStringLiteral( "Prepare index total: %1 ms" ).arg( t.elapsed() ) );
+      QgsDebugMsgLevel( QStringLiteral( "Prepare index total: %1 ms" ).arg( t.elapsed() ), 2 );
     }
   }
 }
@@ -649,7 +649,7 @@ QString QgsSnappingUtils::dump()
     msg += QString( "layer : %1\n"
                     "config: %2   tolerance %3 %4\n" )
            .arg( layer.layer->name() )
-           .arg( layer.type ).arg( layer.tolerance ).arg( layer.unit );
+           .arg( layer.type ).arg( layer.tolerance ).arg( static_cast<int>( layer.unit ) );
 
     if ( mStrategy == IndexAlwaysFull || mStrategy == IndexHybrid || mStrategy == IndexExtent )
     {

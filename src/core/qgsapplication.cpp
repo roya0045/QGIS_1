@@ -57,6 +57,7 @@
 #include "qgssettings.h"
 #include "qgssettingsregistrycore.h"
 #include "qgstiledownloadmanager.h"
+#include "qgstiledscenerendererregistry.h"
 #include "qgsunittypes.h"
 #include "qgsuserprofile.h"
 #include "qgsuserprofilemanager.h"
@@ -84,6 +85,7 @@
 #include "qgscolorrampimpl.h"
 #include "qgsinterval.h"
 #include "qgsgpsconnection.h"
+#include "qgssensorregistry.h"
 
 #include "gps/qgsgpsconnectionregistry.h"
 #include "processing/qgsprocessingregistry.h"
@@ -201,61 +203,30 @@ QgsApplication::QgsApplication( int &argc, char **argv, bool GUIenabled, const Q
 {
   *sPlatformName() = platformName;
 
-  if ( *sTranslation() != QLatin1String( "C" ) )
-  {
-    mQgisTranslator = new QTranslator();
-    if ( mQgisTranslator->load( QStringLiteral( "qgis_" ) + *sTranslation(), i18nPath() ) )
-    {
-      installTranslator( mQgisTranslator );
-    }
-    else
-    {
-      QgsDebugMsgLevel( QStringLiteral( "loading of qgis translation failed %1/qgis_%2" ).arg( i18nPath(), *sTranslation() ), 2 );
-    }
-
-    /* Translation file for Qt.
-     * The strings from the QMenuBar context section are used by Qt/Mac to shift
-     * the About, Preferences and Quit items to the Mac Application menu.
-     * These items must be translated identically in both qt_ and qgis_ files.
-     */
-    QString qtTranslationsPath = QLibraryInfo::location( QLibraryInfo::TranslationsPath );
-#ifdef __MINGW32__
-    QString prefix = QDir( QString( "%1/../" ).arg( QApplication::applicationDirPath() ) ).absolutePath();
-    qtTranslationsPath = prefix + qtTranslationsPath.mid( QLibraryInfo::location( QLibraryInfo::PrefixPath ).length() );
-#endif
-
-    mQtTranslator = new QTranslator();
-    if ( mQtTranslator->load( QStringLiteral( "qt_" ) + *sTranslation(), qtTranslationsPath ) )
-    {
-      installTranslator( mQtTranslator );
-    }
-    else
-    {
-      QgsDebugMsgLevel( QStringLiteral( "loading of qt translation failed %1/qt_%2" ).arg( qtTranslationsPath, *sTranslation() ), 2 );
-    }
-
-    mQtBaseTranslator = new QTranslator();
-    if ( mQtBaseTranslator->load( QStringLiteral( "qtbase_" ) + *sTranslation(), qtTranslationsPath ) )
-    {
-      installTranslator( mQtBaseTranslator );
-    }
-    else
-    {
-      QgsDebugMsgLevel( QStringLiteral( "loading of qtbase translation failed %1/qt_%2" ).arg( qtTranslationsPath, *sTranslation() ), 2 );
-    }
-  }
-
-  mApplicationMembers = new ApplicationMembers();
-
-  *sProfilePath() = profileFolder;
-
   connect( instance(), &QgsApplication::localeChanged, &QgsDateTimeFieldFormatter::applyLocaleChange );
 
-  mApplicationMembers->mSettingsRegistryCore->migrateOldSettings();
+  // Delay application members initialization in desktop app (In desktop app, profile folder is not known at this point)
+  if ( platformName != QLatin1String( "desktop" ) )
+  {
+    mApplicationMembers = new ApplicationMembers();
+    mApplicationMembers->mSettingsRegistryCore->migrateOldSettings();
+  }
+  else
+  {
+    *sProfilePath() = profileFolder;
+  }
+
 }
 
 void QgsApplication::init( QString profileFolder )
 {
+  // Initialize application members in desktop app (at this point, profile folder is known)
+  if ( platform() == QLatin1String( "desktop" ) )
+  {
+    instance()->mApplicationMembers = new ApplicationMembers();
+    instance()->mApplicationMembers->mSettingsRegistryCore->migrateOldSettings();
+  }
+
   if ( profileFolder.isEmpty() )
   {
     if ( getenv( "QGIS_CUSTOM_CONFIG_PATH" ) )
@@ -334,6 +305,8 @@ void QgsApplication::init( QString profileFolder )
 #endif
     qRegisterMetaType<QPainter::CompositionMode>( "QPainter::CompositionMode" );
     qRegisterMetaType<QgsDateTimeRange>( "QgsDateTimeRange" );
+    qRegisterMetaType<QgsDoubleRange>( "QgsDoubleRange" );
+    qRegisterMetaType<QgsIntRange>( "QgsIntRange" );
     qRegisterMetaType<QList<QgsMapLayer *>>( "QList<QgsMapLayer*>" );
     qRegisterMetaType<QMap<QNetworkRequest::Attribute, QVariant>>( "QMap<QNetworkRequest::Attribute,QVariant>" );
     qRegisterMetaType<QMap<QNetworkRequest::KnownHeaders, QVariant>>( "QMap<QNetworkRequest::KnownHeaders,QVariant>" );
@@ -477,17 +450,87 @@ void QgsApplication::init( QString profileFolder )
     bookmarkManager()->initialize( QgsApplication::qgisSettingsDirPath() + "/bookmarks.xml" );
   }
 
-  // trigger creation of default style
-  QgsStyle *defaultStyle = QgsStyle::defaultStyle();
+  // trigger creation of default style, but defer initialization until
+  // it's actually required
+  QgsStyle *defaultStyle = QgsStyle::defaultStyle( false );
   if ( !members()->mStyleModel )
     members()->mStyleModel = new QgsStyleModel( defaultStyle );
 
   ABISYM( mInitialized ) = true;
 }
 
+
+void QgsApplication::installTranslators()
+{
+  // Remove translators if any are already installed
+  if ( mQgisTranslator )
+  {
+    removeTranslator( mQgisTranslator );
+    delete mQgisTranslator;
+    mQgisTranslator = nullptr;
+  }
+  if ( mQtTranslator )
+  {
+    removeTranslator( mQtTranslator );
+    delete mQtTranslator;
+    mQtTranslator = nullptr;
+  }
+  if ( mQtBaseTranslator )
+  {
+    removeTranslator( mQtBaseTranslator );
+    delete mQtBaseTranslator;
+    mQtBaseTranslator = nullptr;
+  }
+
+  if ( *sTranslation() != QLatin1String( "C" ) )
+  {
+    mQgisTranslator = new QTranslator( this );
+    if ( mQgisTranslator->load( QStringLiteral( "qgis_" ) + *sTranslation(), i18nPath() ) )
+    {
+      installTranslator( mQgisTranslator );
+    }
+    else
+    {
+      QgsDebugMsgLevel( QStringLiteral( "loading of qgis translation failed %1/qgis_%2" ).arg( i18nPath(), *sTranslation() ), 2 );
+    }
+
+    /* Translation file for Qt.
+     * The strings from the QMenuBar context section are used by Qt/Mac to shift
+     * the About, Preferences and Quit items to the Mac Application menu.
+     * These items must be translated identically in both qt_ and qgis_ files.
+     */
+    QString qtTranslationsPath = QLibraryInfo::location( QLibraryInfo::TranslationsPath );
+#ifdef __MINGW32__
+    QString prefix = QDir( QString( "%1/../" ).arg( QApplication::applicationDirPath() ) ).absolutePath();
+    qtTranslationsPath = prefix + qtTranslationsPath.mid( QLibraryInfo::location( QLibraryInfo::PrefixPath ).length() );
+#endif
+
+    mQtTranslator = new QTranslator( this );
+    if ( mQtTranslator->load( QStringLiteral( "qt_" ) + *sTranslation(), qtTranslationsPath ) )
+    {
+      installTranslator( mQtTranslator );
+    }
+    else
+    {
+      QgsDebugMsgLevel( QStringLiteral( "loading of qt translation failed %1/qt_%2" ).arg( qtTranslationsPath, *sTranslation() ), 2 );
+    }
+
+    mQtBaseTranslator = new QTranslator( this );
+    if ( mQtBaseTranslator->load( QStringLiteral( "qtbase_" ) + *sTranslation(), qtTranslationsPath ) )
+    {
+      installTranslator( mQtBaseTranslator );
+    }
+    else
+    {
+      QgsDebugMsgLevel( QStringLiteral( "loading of qtbase translation failed %1/qt_%2" ).arg( qtTranslationsPath, *sTranslation() ), 2 );
+    }
+  }
+}
+
 QgsApplication::~QgsApplication()
 {
-  mApplicationMembers->mSettingsRegistryCore->backwardCompatibility();
+  if ( mApplicationMembers )
+    mApplicationMembers->mSettingsRegistryCore->backwardCompatibility();
 
   delete mDataItemProviderRegistry;
   delete mApplicationMembers;
@@ -744,6 +787,11 @@ QIcon QgsApplication::getThemeIcon( const QString &name, const QColor &fillColor
     const QByteArray svgContent = QgsApplication::svgCache()->svgContent( path, 16, fillColor, strokeColor, 1, 1 );
 
     const QString iconPath = sIconCacheDir()->filePath( cacheKey + QStringLiteral( ".svg" ) );
+    if ( const QDir dir = QFileInfo( iconPath ).dir(); !dir.exists() )
+    {
+      dir.mkpath( "." );
+    }
+
     QFile f( iconPath );
     if ( f.open( QFile::WriteOnly | QFile::Truncate ) )
     {
@@ -752,7 +800,7 @@ QIcon QgsApplication::getThemeIcon( const QString &name, const QColor &fillColor
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Could not create colorized icon svg at %1" ).arg( iconPath ) );
+      QgsDebugError( QStringLiteral( "Could not create colorized icon svg at %1" ).arg( iconPath ) );
       return QIcon();
     }
 
@@ -918,11 +966,7 @@ QString QgsApplication::resolvePkgPath()
       QgsDebugMsgLevel( QStringLiteral( "- source directory: %1" ).arg( sBuildSourcePath()->toUtf8().constData() ), 4 );
       QgsDebugMsgLevel( QStringLiteral( "- output directory of the build: %1" ).arg( sBuildOutputPath()->toUtf8().constData() ), 4 );
 #if defined(_MSC_VER) && !defined(USING_NMAKE) && !defined(USING_NINJA)
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      *sCfgIntDir() = prefix.split( '/', QString::SkipEmptyParts ).last();
-#else
       *sCfgIntDir() = prefix.split( '/', Qt::SkipEmptyParts ).last();
-#endif
       qDebug( "- cfg: %s", sCfgIntDir()->toUtf8().constData() );
 #endif
     }
@@ -1490,8 +1534,8 @@ void QgsApplication::initQgis()
   // create project instance if doesn't exist
   QgsProject::instance();
 
-  // Initialize authentication manager and connect to database
-  authManager()->init( pluginPath(), qgisAuthDatabaseFilePath() );
+  // Setup authentication manager for lazy initialization
+  authManager()->setup( pluginPath(), qgisAuthDatabaseFilePath() );
 
   // Make sure we have a NAM created on the main thread.
   // Note that this might call QgsApplication::authManager to
@@ -1772,13 +1816,8 @@ QString QgsApplication::absolutePathToRelativePath( const QString &aPath, const 
   const Qt::CaseSensitivity cs = Qt::CaseSensitive;
 #endif
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList targetElems = tPathUrl.split( '/', QString::SkipEmptyParts );
-  QStringList aPathElems = aPathUrl.split( '/', QString::SkipEmptyParts );
-#else
   QStringList targetElems = tPathUrl.split( '/', Qt::SkipEmptyParts );
   QStringList aPathElems = aPathUrl.split( '/', Qt::SkipEmptyParts );
-#endif
 
   targetElems.removeAll( QStringLiteral( "." ) );
   aPathElems.removeAll( QStringLiteral( "." ) );
@@ -1836,13 +1875,8 @@ QString QgsApplication::relativePathToAbsolutePath( const QString &rpath, const 
   bool uncPath = targetPathUrl.startsWith( "//" );
 #endif
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList srcElems = rPathUrl.split( '/', QString::SkipEmptyParts );
-  QStringList targetElems = targetPathUrl.split( '/', QString::SkipEmptyParts );
-#else
   QStringList srcElems = rPathUrl.split( '/', Qt::SkipEmptyParts );
   QStringList targetElems = targetPathUrl.split( '/', Qt::SkipEmptyParts );
-#endif
 
 #if defined(Q_OS_WIN)
   if ( uncPath )
@@ -2073,6 +2107,10 @@ int QgsApplication::maxConcurrentConnectionsPerPool() const
 void QgsApplication::setTranslation( const QString &translation )
 {
   *sTranslation() = translation;
+  if ( auto app = QgsApplication::instance() )
+  {
+    app->installTranslators();
+  }
 }
 
 QString QgsApplication::translation() const
@@ -2317,7 +2355,7 @@ bool QgsApplication::createDatabase( QString *errorMessage )
 
     if ( sqlite3_exec( database.get(), "DROP VIEW vw_srs", nullptr, nullptr, &errmsg ) != SQLITE_OK )
     {
-      QgsDebugMsg( QStringLiteral( "vw_srs didn't exists in private qgis.db: %1" ).arg( errmsg ) );
+      QgsDebugError( QStringLiteral( "vw_srs didn't exists in private qgis.db: %1" ).arg( errmsg ) );
     }
 
     if ( sqlite3_exec( database.get(),
@@ -2405,6 +2443,11 @@ QgsPointCloudRendererRegistry *QgsApplication::pointCloudRendererRegistry()
   return members()->mPointCloudRendererRegistry;
 }
 
+QgsTiledSceneRendererRegistry *QgsApplication::tiledSceneRendererRegistry()
+{
+  return members()->mTiledSceneRendererRegistry;
+}
+
 QgsDataItemProviderRegistry *QgsApplication::dataItemProviderRegistry()
 {
   if ( auto *lInstance = instance() )
@@ -2473,6 +2516,11 @@ QgsLayoutItemRegistry *QgsApplication::layoutItemRegistry()
 QgsAnnotationItemRegistry *QgsApplication::annotationItemRegistry()
 {
   return members()->mAnnotationItemRegistry;
+}
+
+QgsSensorRegistry *QgsApplication::sensorRegistry()
+{
+  return members()->mSensorRegistry;
 }
 
 QgsGpsConnectionRegistry *QgsApplication::gpsConnectionRegistry()
@@ -2625,7 +2673,7 @@ QgsApplication::ApplicationMembers::ApplicationMembers()
     profiler->end();
   }
   {
-    profiler->start( tr( "Create metadata provider registry" ) );
+    profiler->start( tr( "Create layer metadata provider registry" ) );
     mLayerMetadataProviderRegistry = new QgsLayerMetadataProviderRegistry();
     profiler->end();
   }
@@ -2710,6 +2758,11 @@ QgsApplication::ApplicationMembers::ApplicationMembers()
     profiler->end();
   }
   {
+    profiler->start( tr( "Setup tiled scene renderer registry" ) );
+    mTiledSceneRendererRegistry = new QgsTiledSceneRendererRegistry();
+    profiler->end();
+  }
+  {
     profiler->start( tr( "Setup GPS registry" ) );
     mGpsConnectionRegistry = new QgsGpsConnectionRegistry();
     profiler->end();
@@ -2748,6 +2801,12 @@ QgsApplication::ApplicationMembers::ApplicationMembers()
     profiler->end();
   }
   {
+    profiler->start( tr( "Setup sensor registry" ) );
+    mSensorRegistry = new QgsSensorRegistry();
+    mSensorRegistry->populate();
+    profiler->end();
+  }
+  {
     profiler->start( tr( "Setup 3D symbol registry" ) );
     m3DSymbolRegistry = new Qgs3DSymbolRegistry();
     profiler->end();
@@ -2755,16 +2814,6 @@ QgsApplication::ApplicationMembers::ApplicationMembers()
   {
     profiler->start( tr( "Setup 3D renderer registry" ) );
     m3DRendererRegistry = new Qgs3DRendererRegistry();
-    profiler->end();
-  }
-  {
-    profiler->start( tr( "Setup project storage registry" ) );
-    mProjectStorageRegistry = new QgsProjectStorageRegistry();
-    profiler->end();
-  }
-  {
-    profiler->start( tr( "Setup layer metadata provider registry" ) );
-    mLayerMetadataProviderRegistry = new QgsLayerMetadataProviderRegistry();
     profiler->end();
   }
   {
@@ -2824,8 +2873,10 @@ QgsApplication::ApplicationMembers::~ApplicationMembers()
   delete mProcessingRegistry;
   delete mPageSizeRegistry;
   delete mAnnotationItemRegistry;
+  delete mSensorRegistry;
   delete mLayoutItemRegistry;
   delete mPointCloudRendererRegistry;
+  delete mTiledSceneRendererRegistry;
   delete mRasterRendererRegistry;
   delete mRendererRegistry;
   delete mSvgCache;

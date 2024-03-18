@@ -9,7 +9,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '09/11/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
     Qgis,
@@ -23,14 +22,15 @@ from qgis.core import (
     QgsVectorLayer,
     QgsVectorLayerElevationProperties,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsVectorLayerElevationProperties(unittest.TestCase):
+class TestQgsVectorLayerElevationProperties(QgisTestCase):
 
     def testBasic(self):
         props = QgsVectorLayerElevationProperties(None)
@@ -56,6 +56,7 @@ class TestQgsVectorLayerElevationProperties(unittest.TestCase):
         props.setType(Qgis.VectorProfileType.ContinuousSurface)
         props.setProfileSymbology(Qgis.ProfileSurfaceSymbology.FillBelow)
         props.setShowMarkerSymbolInSurfacePlots(True)
+        props.setElevationLimit(909)
 
         self.assertEqual(props.zScale(), 2)
         self.assertEqual(props.zOffset(), 0.5)
@@ -68,16 +69,17 @@ class TestQgsVectorLayerElevationProperties(unittest.TestCase):
         self.assertEqual(props.type(), Qgis.VectorProfileType.ContinuousSurface)
         self.assertEqual(props.profileSymbology(), Qgis.ProfileSurfaceSymbology.FillBelow)
         self.assertTrue(props.showMarkerSymbolInSurfacePlots())
+        self.assertEqual(props.elevationLimit(), 909)
 
-        props.dataDefinedProperties().setProperty(QgsMapLayerElevationProperties.ExtrusionHeight, QgsProperty.fromExpression('1*5'))
-        self.assertEqual(props.dataDefinedProperties().property(QgsMapLayerElevationProperties.ExtrusionHeight).asExpression(), '1*5')
+        props.dataDefinedProperties().setProperty(QgsMapLayerElevationProperties.Property.ExtrusionHeight, QgsProperty.fromExpression('1*5'))
+        self.assertEqual(props.dataDefinedProperties().property(QgsMapLayerElevationProperties.Property.ExtrusionHeight).asExpression(), '1*5')
         properties = QgsPropertyCollection()
-        properties.setProperty(QgsMapLayerElevationProperties.ZOffset, QgsProperty.fromExpression('9'))
+        properties.setProperty(QgsMapLayerElevationProperties.Property.ZOffset, QgsProperty.fromExpression('9'))
         props.setDataDefinedProperties(properties)
         self.assertFalse(
-            props.dataDefinedProperties().isActive(QgsMapLayerElevationProperties.ExtrusionHeight))
+            props.dataDefinedProperties().isActive(QgsMapLayerElevationProperties.Property.ExtrusionHeight))
         self.assertEqual(
-            props.dataDefinedProperties().property(QgsMapLayerElevationProperties.ZOffset).asExpression(),
+            props.dataDefinedProperties().property(QgsMapLayerElevationProperties.Property.ZOffset).asExpression(),
             '9')
 
         sym = QgsLineSymbol.createSimple({'outline_color': '#ff4433', 'outline_width': 0.5})
@@ -108,13 +110,14 @@ class TestQgsVectorLayerElevationProperties(unittest.TestCase):
         self.assertEqual(props2.type(), Qgis.VectorProfileType.ContinuousSurface)
         self.assertEqual(props2.profileSymbology(), Qgis.ProfileSurfaceSymbology.FillBelow)
         self.assertTrue(props2.showMarkerSymbolInSurfacePlots())
+        self.assertEqual(props2.elevationLimit(), 909)
 
         self.assertEqual(props2.profileLineSymbol().color().name(), '#ff4433')
         self.assertEqual(props2.profileFillSymbol().color().name(), '#ff4455')
         self.assertEqual(props2.profileMarkerSymbol().color().name(), '#ff1122')
 
         self.assertEqual(
-            props2.dataDefinedProperties().property(QgsMapLayerElevationProperties.ZOffset).asExpression(),
+            props2.dataDefinedProperties().property(QgsMapLayerElevationProperties.Property.ZOffset).asExpression(),
             '9')
 
         props_clone = props.clone()
@@ -128,13 +131,14 @@ class TestQgsVectorLayerElevationProperties(unittest.TestCase):
         self.assertEqual(props_clone.type(), Qgis.VectorProfileType.ContinuousSurface)
         self.assertEqual(props_clone.profileSymbology(), Qgis.ProfileSurfaceSymbology.FillBelow)
         self.assertTrue(props_clone.showMarkerSymbolInSurfacePlots())
+        self.assertEqual(props2.elevationLimit(), 909)
 
         self.assertEqual(props_clone.profileLineSymbol().color().name(), '#ff4433')
         self.assertEqual(props_clone.profileFillSymbol().color().name(), '#ff4455')
         self.assertEqual(props_clone.profileMarkerSymbol().color().name(), '#ff1122')
 
         self.assertEqual(
-            props_clone.dataDefinedProperties().property(QgsMapLayerElevationProperties.ZOffset).asExpression(),
+            props_clone.dataDefinedProperties().property(QgsMapLayerElevationProperties.Property.ZOffset).asExpression(),
             '9')
 
     def test_defaults(self):

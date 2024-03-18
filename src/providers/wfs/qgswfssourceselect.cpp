@@ -26,7 +26,6 @@
 #include "qgsprojectionselectiondialog.h"
 #include "qgsproject.h"
 #include "qgscoordinatereferencesystem.h"
-#include "qgscoordinatetransform.h"
 #include "qgslogger.h"
 #include "qgsmanageconnectionsdialog.h"
 #include "qgsoapifprovider.h"
@@ -110,6 +109,8 @@ QgsWFSSourceSelect::QgsWFSSourceSelect( QWidget *parent, Qt::WindowFlags fl, Qgs
   mModelProxy->setSortCaseSensitivity( Qt::CaseInsensitive );
   treeView->setModel( mModelProxy );
 
+  treeView->sortByColumn( MODEL_IDX_TITLE, Qt::AscendingOrder );
+
   connect( treeView, &QAbstractItemView::doubleClicked, this, &QgsWFSSourceSelect::treeWidgetItemDoubleClicked );
   connect( treeView->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &QgsWFSSourceSelect::treeWidgetCurrentRowChanged );
 }
@@ -176,35 +177,33 @@ void QgsWFSSourceSelect::populateConnectionList()
   changeConnection();
 }
 
-QString QgsWFSSourceSelect::getPreferredCrs( const QSet<QString> &crsSet ) const
+QString QgsWFSSourceSelect::getPreferredCrs( const QList<QString> &crsList ) const
 {
-  if ( crsSet.size() < 1 )
+  if ( crsList.size() < 1 )
   {
     return QString();
   }
 
-  //first: project CRS
-  QgsCoordinateReferenceSystem projectRefSys = QgsProject::instance()->crs();
-  //convert to EPSG
-  QString ProjectCRS;
-  if ( projectRefSys.isValid() )
+  //first: project CRS (if the project is not empty)
+  QgsProject *project = QgsProject::instance();
+  if ( !project->mapLayers().isEmpty() )
   {
-    ProjectCRS = projectRefSys.authid();
+    QgsCoordinateReferenceSystem projectRefSys = QgsProject::instance()->crs();
+    //convert to EPSG
+    QString projectCRS;
+    if ( projectRefSys.isValid() )
+    {
+      projectCRS = projectRefSys.authid();
+    }
+
+    if ( !projectCRS.isEmpty() && crsList.contains( projectCRS ) )
+    {
+      return projectCRS;
+    }
   }
 
-  if ( !ProjectCRS.isEmpty() && crsSet.contains( ProjectCRS ) )
-  {
-    return ProjectCRS;
-  }
-
-  //second: WGS84
-  if ( crsSet.contains( geoEpsgCrsAuthId() ) )
-  {
-    return geoEpsgCrsAuthId();
-  }
-
-  //third: first entry in set
-  return *( crsSet.constBegin() );
+  //otherwise: first entry in set
+  return crsList[0];
 }
 
 void QgsWFSSourceSelect::refresh()
@@ -380,6 +379,7 @@ void QgsWFSSourceSelect::oapifCollectionsReplyFinished()
     return;
   }
 
+  mAvailableCRS.clear();
   for ( const auto &collection : mOAPIFCollections->collections() )
   {
     // insert the typenames, titles and abstracts into the tree view
@@ -393,8 +393,8 @@ void QgsWFSSourceSelect::oapifCollectionsReplyFinished()
     typedef QList< QStandardItem * > StandardItemList;
     mModel->appendRow( StandardItemList() << titleItem << nameItem << abstractItem << filterItem );
 
-    gbCRS->setEnabled( false );
-    labelCoordRefSys->setText( collection.mLayerMetadata.crs().authid() );
+    // insert the available CRS into mAvailableCRS
+    mAvailableCRS.insert( collection.mId, collection.mCrsList );
   }
 
   if ( !mOAPIFCollections->nextUrl().isEmpty() )
@@ -544,7 +544,10 @@ void QgsWFSSourceSelect::addButtonClicked()
                                        isOapif() ? sql : QString(),
                                        cbxFeatureCurrentViewExtent->isChecked() );
 
+    Q_NOWARN_DEPRECATED_PUSH
     emit addVectorLayer( mUri, layerName, isOapif() ? QgsOapifProvider::OAPIF_PROVIDER_KEY : QgsWFSProvider::WFS_PROVIDER_KEY );
+    Q_NOWARN_DEPRECATED_POP
+    emit addLayer( Qgis::LayerType::Vector, mUri, layerName, isOapif() ? QgsOapifProvider::OAPIF_PROVIDER_KEY : QgsWFSProvider::WFS_PROVIDER_KEY );
   }
 
   if ( ! mHoldDialogOpen->isChecked() && widgetMode() == QgsProviderRegistry::WidgetMode::None )
@@ -566,6 +569,11 @@ void QgsWFSSourceSelect::buildQuery( const QModelIndex &index )
   QgsWfsConnection connection( cmbConnections->currentText() );
   QgsWFSDataSourceURI uri( connection.uri().uri( false ) );
   uri.setTypeName( typeName );
+  if ( gbCRS->isEnabled() )
+  {
+    QString crsString = labelCoordRefSys->text();
+    uri.setSRSName( crsString );
+  }
 
   QModelIndex filterIndex = index.sibling( index.row(), MODEL_IDX_SQL );
   QString sql( filterIndex.data().toString() );
@@ -596,8 +604,16 @@ void QgsWFSSourceSelect::buildQuery( const QModelIndex &index )
       }
       else if ( provider->filterTranslatedState() == QgsOapifProvider::FilterTranslationState::PARTIAL )
       {
-        QMessageBox::information( nullptr, tr( "Filter" ),
-                                  tr( "The following part of the filter will be evaluated on client side : %1" ).arg( provider->clientSideFilterExpression() ) );
+        if ( provider->clientSideFilterExpression().isEmpty() )
+        {
+          QMessageBox::information( nullptr, tr( "Filter" ),
+                                    tr( "The filter will partially evaluated on client side." ) );
+        }
+        else
+        {
+          QMessageBox::information( nullptr, tr( "Filter" ),
+                                    tr( "The following part of the filter will be evaluated on client side : %1" ).arg( provider->clientSideFilterExpression() ) );
+        }
       }
       mModelProxy->setData( filterIndex, QVariant( gb.sql() ) );
     }
@@ -704,7 +720,7 @@ void QgsWFSSourceSelect::changeCRSFilter()
       mProjectionSelector = new QgsProjectionSelectionDialog( this );
 
       mProjectionSelector->setOgcWmsCrsFilter( crsNames );
-      QString preferredCRS = getPreferredCrs( crsNames ); //get preferred EPSG system
+      QString preferredCRS = getPreferredCrs( *crsIterator ); //get preferred EPSG system
       if ( !preferredCRS.isEmpty() )
       {
         QgsCoordinateReferenceSystem refSys = QgsCoordinateReferenceSystem::fromOgcWmsCrs( preferredCRS );

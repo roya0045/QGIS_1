@@ -38,11 +38,12 @@ target_include_directories(provider_spatialite_a PUBLIC
 
 target_link_libraries(provider_spatialite_a
   qgis_core
-  ${SPATIALITE_LIBRARY}
+  spatialite::spatialite
 )
 
 # require c++17
 target_compile_features(provider_spatialite_a PRIVATE cxx_std_17)
+target_compile_definitions(provider_spatialite_a PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
 target_compile_definitions(provider_spatialite_a PRIVATE "-DQT_NO_FOREACH")
 
@@ -68,6 +69,7 @@ if (WITH_GUI)
 
   # require c++17
   target_compile_features(provider_spatialite_gui_a PRIVATE cxx_std_17)
+  target_compile_definitions(provider_spatialite_gui_a PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
   target_compile_definitions(provider_spatialite_gui_a PRIVATE "-DQT_NO_FOREACH")
 
@@ -90,12 +92,13 @@ else()
 
   # require c++17
   target_compile_features(provider_spatialite PRIVATE cxx_std_17)
+  target_compile_definitions(provider_spatialite PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
   target_compile_definitions(provider_spatialite PRIVATE "-DQT_NO_FOREACH")
   
   target_link_libraries(provider_spatialite
     qgis_core
-    ${SPATIALITE_LIBRARY}
+    spatialite::spatialite
   )
 
   if (WITH_GUI)

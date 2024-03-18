@@ -30,17 +30,19 @@
 #include "qgsmodelcomponentgraphicitem.h"
 #include "processing/models/qgsprocessingmodelgroupbox.h"
 #include "processing/models/qgsmodelinputreorderwidget.h"
+#include "processing/models/qgsmodeloutputreorderwidget.h"
 #include "qgsmessageviewer.h"
 #include "qgsmessagebaritem.h"
 #include "qgspanelwidget.h"
 #include "qgsprocessingmultipleselectiondialog.h"
 #include "qgsprocessinghelpeditorwidget.h"
 #include "qgsscreenhelper.h"
+#include "qgsmessagelog.h"
 
 #include <QShortcut>
 #include <QKeySequence>
 #include <QFileDialog>
-#include <QPrinter>
+#include <QPdfWriter>
 #include <QSvgGenerator>
 #include <QToolButton>
 #include <QCloseEvent>
@@ -152,6 +154,7 @@ QgsModelDesignerDialog::QgsModelDesignerDialog( QWidget *parent, Qt::WindowFlags
   connect( mActionSnapSelected, &QAction::triggered, mView, &QgsModelGraphicsView::snapSelected );
   connect( mActionValidate, &QAction::triggered, this, &QgsModelDesignerDialog::validate );
   connect( mActionReorderInputs, &QAction::triggered, this, &QgsModelDesignerDialog::reorderInputs );
+  connect( mActionReorderOutputs, &QAction::triggered, this, &QgsModelDesignerDialog::reorderOutputs );
   connect( mActionEditHelp, &QAction::triggered, this, &QgsModelDesignerDialog::editHelp );
   connect( mReorderInputsButton, &QPushButton::clicked, this, &QgsModelDesignerDialog::reorderInputs );
 
@@ -234,10 +237,10 @@ QgsModelDesignerDialog::QgsModelDesignerDialog( QWidget *parent, Qt::WindowFlags
   mAlgorithmsModel = new QgsModelerToolboxModel( this );
   mAlgorithmsTree->setToolboxProxyModel( mAlgorithmsModel );
 
-  QgsProcessingToolboxProxyModel::Filters filters = QgsProcessingToolboxProxyModel::FilterModeler;
+  QgsProcessingToolboxProxyModel::Filters filters = QgsProcessingToolboxProxyModel::Filter::Modeler;
   if ( settings.value( QStringLiteral( "Processing/Configuration/SHOW_ALGORITHMS_KNOWN_ISSUES" ), false ).toBool() )
   {
-    filters |= QgsProcessingToolboxProxyModel::FilterShowKnownIssues;
+    filters |= QgsProcessingToolboxProxyModel::Filter::ShowKnownIssues;
   }
   mAlgorithmsTree->setFilters( filters );
   mAlgorithmsTree->setDragDropMode( QTreeWidget::DragOnly );
@@ -659,6 +662,9 @@ void QgsModelDesignerDialog::exportToImage()
   QString filename = QFileDialog::getSaveFileName( this, tr( "Save Model as Image" ),
                      lastExportDir,
                      tr( "PNG files (*.png *.PNG)" ) );
+  // return dialog focus on Mac
+  activateWindow();
+  raise();
   if ( filename.isEmpty() )
     return;
 
@@ -696,6 +702,9 @@ void QgsModelDesignerDialog::exportToPdf()
   QString filename = QFileDialog::getSaveFileName( this, tr( "Save Model as PDF" ),
                      lastExportDir,
                      tr( "PDF files (*.pdf *.PDF)" ) );
+  // return dialog focus on Mac
+  activateWindow();
+  raise();
   if ( filename.isEmpty() )
     return;
 
@@ -710,9 +719,7 @@ void QgsModelDesignerDialog::exportToPdf()
   totalRect.adjust( -10, -10, 10, 10 );
   const QRectF printerRect = QRectF( 0, 0, totalRect.width(), totalRect.height() );
 
-  QPrinter printer;
-  printer.setOutputFormat( QPrinter::PdfFormat );
-  printer.setOutputFileName( filename );
+  QPdfWriter pdfWriter( filename );
 
   const double scaleFactor = 96 / 25.4; // based on 96 dpi sizes
 
@@ -720,11 +727,9 @@ void QgsModelDesignerDialog::exportToPdf()
                           QPageLayout::Portrait,
                           QMarginsF( 0, 0, 0, 0 ) );
   pageLayout.setMode( QPageLayout::FullPageMode );
-  printer.setPageLayout( pageLayout );
+  pdfWriter.setPageLayout( pageLayout );
 
-  printer.setFullPage( true );
-
-  QPainter painter( &printer );
+  QPainter painter( &pdfWriter );
   mView->scene()->render( &painter, printerRect, totalRect );
   painter.end();
 
@@ -741,6 +746,9 @@ void QgsModelDesignerDialog::exportToSvg()
   QString filename = QFileDialog::getSaveFileName( this, tr( "Save Model as SVG" ),
                      lastExportDir,
                      tr( "SVG files (*.svg *.SVG)" ) );
+  // return dialog focus on Mac
+  activateWindow();
+  raise();
   if ( filename.isEmpty() )
     return;
 
@@ -777,6 +785,9 @@ void QgsModelDesignerDialog::exportAsPython()
   QString filename = QFileDialog::getSaveFileName( this, tr( "Save Model as Python Script" ),
                      lastExportDir,
                      tr( "Processing scripts (*.py *.PY)" ) );
+  // return dialog focus on Mac
+  activateWindow();
+  raise();
   if ( filename.isEmpty() )
     return;
 
@@ -785,7 +796,7 @@ void QgsModelDesignerDialog::exportAsPython()
   const QFileInfo saveFileInfo( filename );
   settings.setValue( QStringLiteral( "lastModelDesignerExportDir" ), saveFileInfo.absolutePath(), QgsSettings::App );
 
-  const QString text = mModel->asPythonCode( QgsProcessing::PythonQgsProcessingAlgorithmSubclass, 4 ).join( '\n' );
+  const QString text = mModel->asPythonCode( QgsProcessing::PythonOutputType::PythonQgsProcessingAlgorithmSubclass, 4 ).join( '\n' );
 
   QFile outFile( filename );
   if ( !outFile.open( QIODevice::WriteOnly | QIODevice::Truncate ) )
@@ -1028,6 +1039,20 @@ void QgsModelDesignerDialog::reorderInputs()
   }
 }
 
+void QgsModelDesignerDialog::reorderOutputs()
+{
+  QgsModelOutputReorderDialog dlg( this );
+  dlg.setModel( mModel.get() );
+  if ( dlg.exec() )
+  {
+    const QStringList outputOrder = dlg.outputOrder();
+    beginUndoCommand( tr( "Reorder Outputs" ) );
+    mModel->setOutputOrder( outputOrder );
+    mModel->setOutputGroup( dlg.outputGroup() );
+    endUndoCommand();
+  }
+}
+
 bool QgsModelDesignerDialog::isDirty() const
 {
   return mHasChanged && mUndoStack->index() != -1;
@@ -1046,7 +1071,7 @@ void QgsModelDesignerDialog::fillInputsTree()
 
   for ( QgsProcessingParameterType *param : std::as_const( available ) )
   {
-    if ( param->flags() & QgsProcessingParameterType::ExposeToModeler )
+    if ( param->flags() & Qgis::ProcessingParameterTypeFlag::ExposeToModeler )
     {
       std::unique_ptr< QTreeWidgetItem > paramItem = std::make_unique< QTreeWidgetItem >();
       paramItem->setText( 0, param->name() );

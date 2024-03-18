@@ -27,7 +27,7 @@
 // version without notice, or even be removed.
 //
 
-#include <Qt3DCore/QEntity>
+#include "qgs3dmapsceneentity_p.h"
 #include <numeric>
 
 #define SIP_NO_FILE
@@ -59,9 +59,8 @@ namespace QgsRayCastingUtils
  * \ingroup 3d
  * \brief Implementation of entity that handles chunks of data organized in quadtree with loading data when necessary
  * based on data error and unloading of data when data are not necessary anymore
- * \since QGIS 3.0
  */
-class QgsChunkedEntity : public Qt3DCore::QEntity
+class QgsChunkedEntity : public Qgs3DMapSceneEntity
 {
     Q_OBJECT
   public:
@@ -71,20 +70,16 @@ class QgsChunkedEntity : public Qt3DCore::QEntity
                       Qt3DCore::QNode *parent = nullptr );
     ~QgsChunkedEntity() override;
 
-    //! Records some bits about the scene (context for update() method)
-    struct SceneState
-    {
-      QVector3D cameraPos;   //!< Camera position
-      float cameraFov;       //!< Field of view (in degrees)
-      int screenSizePx;      //!< Size of the viewport in pixels
-      QMatrix4x4 viewProjectionMatrix; //!< For frustum culling
-    };
-
     //! Called when e.g. camera changes and entity may need updated
-    void update( const SceneState &state );
+    void handleSceneUpdate( const SceneContext &sceneContext ) override;
+
+    //! Returns number of jobs pending for this entity until it is fully loaded/updated in the current view
+    int pendingJobsCount() const override;
 
     //! Returns whether the entity needs update of active nodes
-    bool needsUpdate() const { return mNeedsUpdate; }
+    bool needsUpdate() const override { return mNeedsUpdate; }
+
+    QgsRange<float> getNearFarPlaneRange( const QMatrix4x4 &viewMatrix ) const override;
 
     //! Determines whether bounding boxes of tiles should be shown (for debugging)
     void setShowBoundingBoxes( bool enabled );
@@ -96,33 +91,6 @@ class QgsChunkedEntity : public Qt3DCore::QEntity
     QList<QgsChunkNode *> activeNodes() const { return mActiveNodes; }
     //! Returns the root node of the whole quadtree hierarchy of nodes
     QgsChunkNode *rootNode() const { return mRootNode; }
-
-    //! Returns number of jobs pending for this entity until it is fully loaded/updated in the current view
-    int pendingJobsCount() const;
-
-    //! Sets whether additive strategy is enabled - see usingAditiveStrategy()
-    void setUsingAdditiveStrategy( bool additive ) { mAdditiveStrategy = additive; }
-
-    /**
-     * Returns whether additive strategy is enabled.
-     * With additive strategy enabled, also all parent nodes are added to active nodes.
-     * This is desired when child nodes add more detailed data rather than just replace coarser data in parents.
-     */
-    bool usingAditiveStrategy() const { return mAdditiveStrategy; }
-
-    /**
-     * Sets the limit of the GPU memory used to render the entity
-     * \since QGIS 3.26
-     */
-    void setGpuMemoryLimit( double gpuMemoryLimit ) { mGpuMemoryLimit = gpuMemoryLimit; }
-
-    /**
-     * Returns the limit of the GPU memory used to render the entity in megabytes
-     * \since QGIS 3.26
-     */
-    double gpuMemoryLimit() const { return mGpuMemoryLimit; }
-
-    static double calculateEntityGpuMemorySize( Qt3DCore::QEntity *entity );
 
     /**
      * Checks if \a ray intersects the entity by using the specified parameters in \a context and returns information about the hits.
@@ -143,10 +111,10 @@ class QgsChunkedEntity : public Qt3DCore::QEntity
     void setNeedsUpdate( bool needsUpdate ) { mNeedsUpdate = needsUpdate; }
 
   private:
-    void update( QgsChunkNode *node, const SceneState &state );
+    void update( QgsChunkNode *node, const SceneContext &sceneContext );
 
     //! Removes chunks for loading queue that are currently not needed
-    void pruneLoaderQueue( const SceneState &state );
+    void pruneLoaderQueue( const SceneContext &sceneContext );
 
     //! make sure that the chunk will be loaded soon (if not loaded yet) and not unloaded anytime soon (if loaded already)
     void requestResidency( QgsChunkNode *node );
@@ -154,15 +122,10 @@ class QgsChunkedEntity : public Qt3DCore::QEntity
     void startJobs();
     QgsChunkQueueJob *startJob( QgsChunkNode *node );
 
+    int unloadNodes();
+
   private slots:
     void onActiveJobFinished();
-
-  signals:
-    //! Emitted when the number of pending jobs changes (some jobs have finished or some jobs have been just created)
-    void pendingJobsCountChanged();
-
-    //! Emitted when a new 3D entity has been created. Other components can use that to do extra work
-    void newEntityCreated( Qt3DCore::QEntity *entity );
 
   protected:
     //! root node of the quadtree hierarchy
@@ -201,16 +164,9 @@ class QgsChunkedEntity : public Qt3DCore::QEntity
     //! jobs that are currently being processed (asynchronously in worker threads)
     QList<QgsChunkQueueJob *> mActiveJobs;
 
-    /**
-     * With additive strategy enabled, also all parent nodes are added to active nodes.
-     * This is desired when child nodes add more detailed data rather than just replace coarser data in parents.
-     */
-    bool mAdditiveStrategy = false;
-
     bool mIsValid = true;
 
     int mPrimitivesBudget = std::numeric_limits<int>::max();
-    double mGpuMemoryLimit = 500.0; // in megabytes
 };
 
 /// @endcond

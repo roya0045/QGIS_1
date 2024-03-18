@@ -20,9 +20,6 @@
 #include "qgsapplication.h"
 #include "qgsstyle.h"
 #include "qgssymbol.h"
-#include "qgssymbollayerutils.h"
-#include "qgscolorramp.h"
-#include "qgslogger.h"
 #include "qgsnetworkcontentfetchertask.h"
 #include "qgsstylegroupselectiondialog.h"
 #include "qgsguiutils.h"
@@ -128,6 +125,7 @@ QgsStyleExportImportDialog::QgsStyleExportImportDialog( QgsStyle *style, QWidget
   mModel = new QgsStyleProxyModel( dialogStyle, this );
 
   mModel->addDesiredIconSize( listItems->iconSize() );
+  mModel->addTargetScreenProperties( QgsScreenProperties( screen() ) );
 
   listItems->setModel( mModel );
 
@@ -158,6 +156,9 @@ void QgsStyleExportImportDialog::doExportImport()
     const QString lastUsedDir = settings.value( QStringLiteral( "StyleManager/lastExportDir" ), QDir::homePath(), QgsSettings::Gui ).toString();
     QString fileName = QFileDialog::getSaveFileName( this, tr( "Save Styles" ), lastUsedDir,
                        tr( "XML files (*.xml *.XML)" ) );
+    // return dialog focus on Mac
+    activateWindow();
+    raise();
     if ( fileName.isEmpty() )
     {
       return;
@@ -229,9 +230,9 @@ void QgsStyleExportImportDialog::moveStyles( QModelIndexList *selection, QgsStyl
     const QModelIndex index = selection->at( i );
 
     QgsStyleManagerDialog::ItemDetails details;
-    details.entityType = static_cast< QgsStyle::StyleEntity >( mModel->data( index, QgsStyleModel::TypeRole ).toInt() );
+    details.entityType = static_cast< QgsStyle::StyleEntity >( mModel->data( index, static_cast< int >( QgsStyleModel::CustomRole::Type ) ).toInt() );
     if ( details.entityType == QgsStyle::SymbolEntity )
-      details.symbolType = static_cast< Qgis::SymbolType >( mModel->data( index, QgsStyleModel::SymbolTypeRole ).toInt() );
+      details.symbolType = static_cast< Qgis::SymbolType >( mModel->data( index, static_cast< int >( QgsStyleModel::CustomRole::SymbolType ) ).toInt() );
     details.name = mModel->data( mModel->index( index.row(), QgsStyleModel::Name, index.parent() ), Qt::DisplayRole ).toString();
 
     items << details;
@@ -266,7 +267,7 @@ void QgsStyleExportImportDialog::selectFavorites()
   for ( int row = 0; row < listItems->model()->rowCount(); ++row )
   {
     const QModelIndex index = listItems->model()->index( row, 0 );
-    if ( index.data( QgsStyleModel::IsFavoriteRole ).toBool() )
+    if ( index.data( static_cast< int >( QgsStyleModel::CustomRole::IsFavorite ) ).toBool() )
     {
       listItems->selectionModel()->select( index, QItemSelectionModel::Select );
     }
@@ -278,7 +279,7 @@ void QgsStyleExportImportDialog::deselectFavorites()
   for ( int row = 0; row < listItems->model()->rowCount(); ++row )
   {
     const QModelIndex index = listItems->model()->index( row, 0 );
-    if ( index.data( QgsStyleModel::IsFavoriteRole ).toBool() )
+    if ( index.data( static_cast< int >( QgsStyleModel::CustomRole::IsFavorite ) ).toBool() )
     {
       const QItemSelection deselection( index, index );
       listItems->selectionModel()->select( deselection, QItemSelectionModel::Deselect );
@@ -320,7 +321,7 @@ void QgsStyleExportImportDialog::selectTag( const QString &tagName )
   for ( int row = 0; row < listItems->model()->rowCount(); ++row )
   {
     const QModelIndex index = listItems->model()->index( row, 0 );
-    if ( index.data( QgsStyleModel::TagRole ).toStringList().contains( tagName, Qt::CaseInsensitive ) )
+    if ( index.data( static_cast< int >( QgsStyleModel::CustomRole::Tag ) ).toStringList().contains( tagName, Qt::CaseInsensitive ) )
     {
       listItems->selectionModel()->select( index, QItemSelectionModel::Select );
     }
@@ -332,7 +333,7 @@ void QgsStyleExportImportDialog::deselectTag( const QString &tagName )
   for ( int row = 0; row < listItems->model()->rowCount(); ++row )
   {
     const QModelIndex index = listItems->model()->index( row, 0 );
-    if ( index.data( QgsStyleModel::TagRole ).toStringList().contains( tagName, Qt::CaseInsensitive ) )
+    if ( index.data( static_cast< int >( QgsStyleModel::CustomRole::Tag ) ).toStringList().contains( tagName, Qt::CaseInsensitive ) )
     {
       const QItemSelection deselection( index, index );
       listItems->selectionModel()->select( deselection, QItemSelectionModel::Deselect );

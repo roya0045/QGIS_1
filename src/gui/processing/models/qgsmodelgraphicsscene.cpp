@@ -22,7 +22,7 @@
 #include "qgsmessagebar.h"
 #include "qgsmessagebaritem.h"
 #include "qgsmessageviewer.h"
-#include "qgsapplication.h"
+#include "qgsmessagelog.h"
 #include <QGraphicsSceneMouseEvent>
 #include <QPushButton>
 
@@ -159,7 +159,7 @@ void QgsModelGraphicsScene::createItems( QgsProcessingModelAlgorithm *model, Qgs
     const QgsProcessingParameterDefinitions parameters = it.value().algorithm()->parameterDefinitions();
     for ( const QgsProcessingParameterDefinition *parameter : parameters )
     {
-      if ( !( parameter->flags() & QgsProcessingParameterDefinition::FlagHidden ) )
+      if ( !( parameter->flags() & Qgis::ProcessingParameterFlag::Hidden ) )
       {
         QList< QgsProcessingModelChildParameterSource > sources;
         if ( it.value().parameterSources().contains( parameter->name() ) )
@@ -265,6 +265,7 @@ void QgsModelGraphicsScene::createItems( QgsProcessingModelAlgorithm *model, Qgs
       }
 
       item->setPos( pos );
+      item->component()->setPosition( pos );
       outputItems.insert( outputIt.key(), item );
       addItem( new QgsModelArrowItem( mChildAlgorithmItems[it.value().childId()], Qt::BottomEdge, idx, QgsModelArrowItem::Marker::Circle, item, QgsModelArrowItem::Marker::Circle ) );
 
@@ -399,14 +400,14 @@ QList<QgsModelGraphicsScene::LinkSource> QgsModelGraphicsScene::linkSourcesForPa
     const QgsProcessingModelChildParameterSource source = value.value< QgsProcessingModelChildParameterSource >();
     switch ( source.source() )
     {
-      case QgsProcessingModelChildParameterSource::ModelParameter:
+      case Qgis::ProcessingModelChildParameterSource::ModelParameter:
       {
         LinkSource l;
         l.item = mParameterItems.value( source.parameterName() );
         res.append( l );
         break;
       }
-      case QgsProcessingModelChildParameterSource::ChildOutput:
+      case Qgis::ProcessingModelChildParameterSource::ChildOutput:
       {
         if ( !model->childAlgorithm( source.outputChildId() ).algorithm() )
           break;
@@ -445,9 +446,9 @@ QList<QgsModelGraphicsScene::LinkSource> QgsModelGraphicsScene::linkSourcesForPa
         break;
       }
 
-      case QgsProcessingModelChildParameterSource::Expression:
+      case Qgis::ProcessingModelChildParameterSource::Expression:
       {
-        const QMap<QString, QgsProcessingModelAlgorithm::VariableDefinition> variables = model->variablesForChildAlgorithm( childId, context );
+        const QMap<QString, QgsProcessingModelAlgorithm::VariableDefinition> variables = model->variablesForChildAlgorithm( childId, &context );
         const QgsExpression exp( source.expression() );
         const QSet<QString> vars = exp.referencedVariables();
         for ( const QString &v : vars )
@@ -460,9 +461,9 @@ QList<QgsModelGraphicsScene::LinkSource> QgsModelGraphicsScene::linkSourcesForPa
         break;
       }
 
-      case QgsProcessingModelChildParameterSource::StaticValue:
-      case QgsProcessingModelChildParameterSource::ExpressionText:
-      case QgsProcessingModelChildParameterSource::ModelOutput:
+      case Qgis::ProcessingModelChildParameterSource::StaticValue:
+      case Qgis::ProcessingModelChildParameterSource::ExpressionText:
+      case Qgis::ProcessingModelChildParameterSource::ModelOutput:
         break;
     }
   }

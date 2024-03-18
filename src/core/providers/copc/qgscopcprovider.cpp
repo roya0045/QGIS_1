@@ -16,8 +16,6 @@
  ***************************************************************************/
 
 #include "qgis.h"
-#include "qgslogger.h"
-#include "qgsproviderregistry.h"
 #include "qgscopcprovider.h"
 #include "qgscopcpointcloudindex.h"
 #include "qgsremotecopcpointcloudindex.h"
@@ -64,6 +62,11 @@ QgsCoordinateReferenceSystem QgsCopcProvider::crs() const
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
   return mIndex->crs();
+}
+
+Qgis::DataProviderFlags QgsCopcProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D;
 }
 
 QgsRectangle QgsCopcProvider::extent() const
@@ -204,17 +207,19 @@ QVariantMap QgsCopcProviderMetadata::decodeUri( const QString &uri ) const
   return uriComponents;
 }
 
-QString QgsCopcProviderMetadata::filters( QgsProviderMetadata::FilterType type )
+QString QgsCopcProviderMetadata::filters( Qgis::FileFilterType type )
 {
   switch ( type )
   {
-    case QgsProviderMetadata::FilterType::FilterVector:
-    case QgsProviderMetadata::FilterType::FilterRaster:
-    case QgsProviderMetadata::FilterType::FilterMesh:
-    case QgsProviderMetadata::FilterType::FilterMeshDataset:
+    case Qgis::FileFilterType::Vector:
+    case Qgis::FileFilterType::Raster:
+    case Qgis::FileFilterType::Mesh:
+    case Qgis::FileFilterType::MeshDataset:
+    case Qgis::FileFilterType::VectorTile:
+    case Qgis::FileFilterType::TiledScene:
       return QString();
 
-    case QgsProviderMetadata::FilterType::FilterPointCloud:
+    case Qgis::FileFilterType::PointCloud:
       return QObject::tr( "COPC Point Clouds" ) + QStringLiteral( " (*.copc.laz *.COPC.LAZ)" );
   }
   return QString();

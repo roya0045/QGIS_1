@@ -29,7 +29,8 @@ from qgis.core import (
     QgsSettingsTree,
     QgsUnitTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 __author__ = 'Damiano Lombardi'
 __date__ = '02/04/2021'
@@ -39,7 +40,7 @@ __copyright__ = 'Copyright 2021, The QGIS Project'
 start_app()
 
 
-class TestQgsSettingsEntry(unittest.TestCase):
+class TestQgsSettingsEntry(QgisTestCase):
 
     cnt = 0
 
@@ -99,7 +100,7 @@ class TestQgsSettingsEntry(unittest.TestCase):
             'QgsSettingsEntryBool': True,
             'QgsSettingsEntryColor': QColor(),
             'QgsSettingsEntryDouble': 0.0,
-            'QgsSettingsEntryEnumFlag': QgsUnitTypes.LayoutMeters,
+            'QgsSettingsEntryEnumFlag': QgsUnitTypes.LayoutUnit.LayoutMeters,
             'QgsSettingsEntryInteger': 1,
             'QgsSettingsEntryString': 'Hello',
             'QgsSettingsEntryStringList': [],
@@ -264,7 +265,7 @@ class TestQgsSettingsEntry(unittest.TestCase):
         settingsEntryVariantMap = QgsSettingsEntryVariantMap(settingsKey, self.pluginName, defaultValue)
         self.assertEqual(settingsEntryVariantMap.value(), defaultValue)
 
-        newValue = {"number": 123, "text": "hi there", "color": QColor(Qt.yellow)}
+        newValue = {"number": 123, "text": "hi there", "color": QColor(Qt.GlobalColor.yellow)}
         settingsEntryVariantMap.setValue(newValue)
         self.assertEqual(newValue, settingsEntryVariantMap.value())
 
@@ -356,14 +357,14 @@ class TestQgsSettingsEntry(unittest.TestCase):
         # Make sure settings does not exists
         QgsSettings().remove(settingsKeyComplete)
 
-        defaultValue = QColor(Qt.darkGreen)
+        defaultValue = QColor(Qt.GlobalColor.darkGreen)
         settingsEntry = QgsSettingsEntryColor(settingsKey, self.pluginName, defaultValue, None, Qgis.SettingsOptions(), False)
 
         # Check default value
         self.assertEqual(settingsEntry.defaultValue(), defaultValue)
 
         # Check alpha option
-        self.assertTrue(settingsEntry.setValue(QColor(Qt.yellow)))
+        self.assertTrue(settingsEntry.setValue(QColor(Qt.GlobalColor.yellow)))
         self.assertFalse(settingsEntry.setValue(QColor(100, 100, 100, 100)))
 
     def test_settings_entry_enum(self):
@@ -373,22 +374,22 @@ class TestQgsSettingsEntry(unittest.TestCase):
         # Make sure settings does not exists
         QgsSettings().remove(settingsKeyComplete)
 
-        defaultValue = QgsUnitTypes.LayoutMeters
+        defaultValue = QgsUnitTypes.LayoutUnit.LayoutMeters
         description = "Enum value functionality test"
         settingsEntryEnum = QgsSettingsEntryEnumFlag(settingsKey, self.pluginName, defaultValue, description)
 
         # Check default value
-        self.assertEqual(settingsEntryEnum.defaultValue(), QgsUnitTypes.LayoutMeters)
+        self.assertEqual(settingsEntryEnum.defaultValue(), QgsUnitTypes.LayoutUnit.LayoutMeters)
 
         # Check set value
-        success = settingsEntryEnum.setValue(QgsUnitTypes.LayoutFeet)
+        success = settingsEntryEnum.setValue(QgsUnitTypes.LayoutUnit.LayoutFeet)
         self.assertEqual(success, True)
-        qgsSettingsValue = QgsSettings().enumValue(settingsKeyComplete, QgsUnitTypes.LayoutMeters)
-        self.assertEqual(qgsSettingsValue, QgsUnitTypes.LayoutFeet)
+        qgsSettingsValue = QgsSettings().enumValue(settingsKeyComplete, QgsUnitTypes.LayoutUnit.LayoutMeters)
+        self.assertEqual(qgsSettingsValue, QgsUnitTypes.LayoutUnit.LayoutFeet)
 
         # Check get value
-        QgsSettings().setEnumValue(settingsKeyComplete, QgsUnitTypes.LayoutPicas)
-        self.assertEqual(settingsEntryEnum.value(), QgsUnitTypes.LayoutPicas)
+        QgsSettings().setEnumValue(settingsKeyComplete, QgsUnitTypes.LayoutUnit.LayoutPicas)
+        self.assertEqual(settingsEntryEnum.value(), QgsUnitTypes.LayoutUnit.LayoutPicas)
 
         # Check settings type
         self.assertEqual(settingsEntryEnum.settingsType(), Qgis.SettingsType.EnumFlag)
@@ -398,25 +399,25 @@ class TestQgsSettingsEntry(unittest.TestCase):
         self.assertEqual(success, False)
 
         # Current value should not have changed
-        qgsSettingsValue = QgsSettings().enumValue(settingsKeyComplete, QgsUnitTypes.LayoutMeters)
-        self.assertEqual(qgsSettingsValue, QgsUnitTypes.LayoutPicas)
+        qgsSettingsValue = QgsSettings().enumValue(settingsKeyComplete, QgsUnitTypes.LayoutUnit.LayoutMeters)
+        self.assertEqual(qgsSettingsValue, QgsUnitTypes.LayoutUnit.LayoutPicas)
 
         # With save as integer option
         settingsEntryEnumAsInteger = QgsSettingsEntryEnumFlag("enum-value-2", self.pluginName, defaultValue, description, Qgis.SettingsOption.SaveEnumFlagAsInt)
         settingsEntryEnumAsInteger.remove()
         self.assertEqual(settingsEntryEnumAsInteger.value(), defaultValue)
-        success = settingsEntryEnumAsInteger.setValue(QgsUnitTypes.LayoutFeet)
+        success = settingsEntryEnumAsInteger.setValue(QgsUnitTypes.LayoutUnit.LayoutFeet)
         self.assertEqual(success, True)
-        qgsSettingsValue = QgsSettings().value(f"plugins/{self.pluginName}/enum-value-2", int(QgsUnitTypes.LayoutMeters))
-        self.assertEqual(qgsSettingsValue, int(QgsUnitTypes.LayoutFeet))
+        qgsSettingsValue = QgsSettings().value(f"plugins/{self.pluginName}/enum-value-2", int(QgsUnitTypes.LayoutUnit.LayoutMeters))
+        self.assertEqual(qgsSettingsValue, int(QgsUnitTypes.LayoutUnit.LayoutFeet))
 
     def test_settings_entry_flag(self):
         settingsKey = "settingsEntryFlag/flagValue"
         settingsKeyComplete = f"plugins/{self.pluginName}/{settingsKey}"
 
-        pointAndLine = QgsMapLayerProxyModel.Filters(QgsMapLayerProxyModel.PointLayer | QgsMapLayerProxyModel.LineLayer)
-        pointAndPolygon = QgsMapLayerProxyModel.Filters(QgsMapLayerProxyModel.PointLayer | QgsMapLayerProxyModel.PolygonLayer)
-        hasGeometry = QgsMapLayerProxyModel.Filters(QgsMapLayerProxyModel.HasGeometry)
+        pointAndLine = Qgis.LayerFilters(Qgis.LayerFilter.PointLayer | Qgis.LayerFilter.LineLayer)
+        pointAndPolygon = Qgis.LayerFilters(Qgis.LayerFilter.PointLayer | Qgis.LayerFilter.PolygonLayer)
+        hasGeometry = Qgis.LayerFilters(Qgis.LayerFilter.HasGeometry)
 
         # Make sure settings does not exists
         QgsSettings().remove(settingsKeyComplete)

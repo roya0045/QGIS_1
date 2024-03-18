@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2015, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -37,12 +36,13 @@ from qgis.gui import (
     QgsMapCanvas,
     QgsRelationWidgetWrapper,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsRelationEditWidget(unittest.TestCase):
+class TestQgsRelationEditWidget(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -50,6 +50,7 @@ class TestQgsRelationEditWidget(unittest.TestCase):
         Setup the involved layers and relations for a n:m relation
         :return:
         """
+        super().setUpClass()
         cls.mapCanvas = QgsMapCanvas()
         QgsGui.editorWidgetRegistry().initEditors(cls.mapCanvas)
         cls.dbconn = 'service=\'qgis_test\''
@@ -88,6 +89,8 @@ class TestQgsRelationEditWidget(unittest.TestCase):
         cls.mapCanvas = None
         cls.vltools = None
         cls.relMgr = None
+
+        super().tearDownClass()
 
     def setUp(self):
         self.rel_a = QgsRelation()
@@ -157,7 +160,7 @@ class TestQgsRelationEditWidget(unittest.TestCase):
             # box
             widget = self.widget.findChild(QMessageBox)
             buttonBox = widget.findChild(QDialogButtonBox)
-            deleteButton = next(b for b in buttonBox.buttons() if buttonBox.buttonRole(b) == QDialogButtonBox.AcceptRole)
+            deleteButton = next(b for b in buttonBox.buttons() if buttonBox.buttonRole(b) == QDialogButtonBox.ButtonRole.AcceptRole)
             deleteButton.click()
 
         QTimer.singleShot(1, clickOk)

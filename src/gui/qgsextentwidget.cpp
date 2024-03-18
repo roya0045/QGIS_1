@@ -16,7 +16,6 @@
 #include "qgsextentwidget.h"
 
 #include "qgsapplication.h"
-#include "qgslogger.h"
 #include "qgscoordinatetransform.h"
 #include "qgsmapcanvas.h"
 #include "qgsmaplayerproxymodel.h"
@@ -53,7 +52,7 @@ QgsExtentWidget::QgsExtentWidget( QWidget *parent, WidgetStyle style )
   mButtonCalcFromLayer->setMenu( mLayerMenu );
   connect( mLayerMenu, &QMenu::aboutToShow, this, &QgsExtentWidget::layerMenuAboutToShow );
   mMapLayerModel = new QgsMapLayerProxyModel( this );
-  mMapLayerModel->setFilters( QgsMapLayerProxyModel::Filter::SpatialLayer );
+  mMapLayerModel->setFilters( Qgis::LayerFilter::SpatialLayer );
 
   mLayoutMenu = new QMenu( tr( "Calculate from Layout Map" ), this );
   mButtonCalcFromLayout->setMenu( mLayoutMenu );
@@ -239,6 +238,7 @@ void QgsExtentWidget::setOutputExtent( const QgsRectangle &r, const QgsCoordinat
     case Qgis::DistanceUnit::Miles:
     case Qgis::DistanceUnit::Centimeters:
     case Qgis::DistanceUnit::Millimeters:
+    case Qgis::DistanceUnit::Inches:
       decimals = 4;
       break;
   }
@@ -251,7 +251,7 @@ void QgsExtentWidget::setOutputExtent( const QgsRectangle &r, const QgsCoordinat
                       QString::number( extent.xMaximum(), 'f', decimals ),
                       QString::number( extent.yMinimum(), 'f', decimals ),
                       QString::number( extent.yMaximum(), 'f', decimals ) );
-  condensed += QStringLiteral( " [%1]" ).arg( mOutputCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ) );
+  condensed += QStringLiteral( " [%1]" ).arg( mOutputCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ) );
   mCondensedLineEdit->setText( condensed );
 
   mExtentState = state;
@@ -349,7 +349,7 @@ void QgsExtentWidget::layerMenuAboutToShow()
     const QString text = mMapLayerModel->data( index, Qt::DisplayRole ).toString();
     QAction *act = new QAction( icon, text, mLayerMenu );
     act->setToolTip( mMapLayerModel->data( index, Qt::ToolTipRole ).toString() );
-    const QString layerId = mMapLayerModel->data( index, QgsMapLayerModel::LayerIdRole ).toString();
+    const QString layerId = mMapLayerModel->data( index, static_cast< int >( QgsMapLayerModel::CustomRole::LayerId ) ).toString();
     if ( mExtentState == ProjectLayerExtent && mExtentLayer && mExtentLayer->id() == layerId )
     {
       act->setCheckable( true );
@@ -402,7 +402,7 @@ void QgsExtentWidget::bookmarkMenuAboutToShow()
   QMap< QString, QMenu * > groupMenus;
   for ( int i = 0; i < mBookmarkModel->rowCount(); ++i )
   {
-    const QString group = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), QgsBookmarkManagerModel::RoleGroup ).toString();
+    const QString group = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Group ) ).toString();
     QMenu *destMenu = mBookmarkMenu;
     if ( !group.isEmpty() )
     {
@@ -413,8 +413,8 @@ void QgsExtentWidget::bookmarkMenuAboutToShow()
         groupMenus[ group ] = destMenu;
       }
     }
-    QAction *action = new QAction( mBookmarkModel->data( mBookmarkModel->index( i, 0 ), QgsBookmarkManagerModel::RoleName ).toString(), mBookmarkMenu );
-    const QgsReferencedRectangle extent = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), QgsBookmarkManagerModel::RoleExtent ).value< QgsReferencedRectangle >();
+    QAction *action = new QAction( mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Name ) ).toString(), mBookmarkMenu );
+    const QgsReferencedRectangle extent = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Extent ) ).value< QgsReferencedRectangle >();
     connect( action, &QAction::triggered, this, [ = ] { setOutputExtentFromUser( extent, extent.crs() ); } );
     destMenu->addAction( action );
   }
@@ -524,8 +524,17 @@ void QgsExtentWidget::mapToolDeactivated()
 
 QgsRectangle QgsExtentWidget::outputExtent() const
 {
-  return QgsRectangle( QgsDoubleValidator::toDouble( mXMinLineEdit->text() ), QgsDoubleValidator::toDouble( mYMinLineEdit->text() ),
-                       QgsDoubleValidator::toDouble( mXMaxLineEdit->text() ), QgsDoubleValidator::toDouble( mYMaxLineEdit->text() ) );
+  bool ok;
+  const double xmin = QgsDoubleValidator::toDouble( mXMinLineEdit->text(), &ok );
+  if ( ! ok ) return QgsRectangle();
+  const double ymin = QgsDoubleValidator::toDouble( mYMinLineEdit->text(), &ok );
+  if ( ! ok ) return QgsRectangle();
+  const double xmax = QgsDoubleValidator::toDouble( mXMaxLineEdit->text(), &ok );
+  if ( ! ok ) return QgsRectangle();
+  const double ymax = QgsDoubleValidator::toDouble( mYMaxLineEdit->text(), &ok );
+  if ( ! ok ) return QgsRectangle();
+
+  return QgsRectangle( xmin, ymin, xmax, ymax );
 }
 
 void QgsExtentWidget::setMapCanvas( QgsMapCanvas *canvas, bool drawOnCanvasOption )

@@ -9,9 +9,11 @@ __author__ = 'Nyall Dawson'
 __date__ = '07/05/2016'
 __copyright__ = 'Copyright 2016, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.core import QgsStringStatisticalSummary
+from qgis.core import (
+    NULL,
+    QgsStringStatisticalSummary
+)
 from qgis.testing import unittest
 
 
@@ -21,8 +23,8 @@ class PyQgsStringStatisticalSummary(unittest.TestCase):
         # we test twice, once with values added as a list and once using values
         # added one-at-a-time
         s = QgsStringStatisticalSummary()
-        self.assertEqual(s.statistics(), QgsStringStatisticalSummary.All)
-        strings = ['cc', 'aaaa', 'bbbbbbbb', 'aaaa', 'eeee', '', 'eeee', 'aaaa', '', 'dddd']
+        self.assertEqual(s.statistics(), QgsStringStatisticalSummary.Statistic.All)
+        strings = ['cc', 'aaaa', 'bbbbbbbb', 'aaaa', 'eeee', '', 'eeee', 'aaaa', None, 'dddd']
         s.calculate(strings)
         s2 = QgsStringStatisticalSummary()
         for string in strings:
@@ -58,16 +60,16 @@ class PyQgsStringStatisticalSummary(unittest.TestCase):
     def testIndividualStats(self):
         # tests calculation of statistics one at a time, to make sure statistic calculations are not
         # dependent on each other
-        tests = [{'stat': QgsStringStatisticalSummary.Count, 'expected': 10},
-                 {'stat': QgsStringStatisticalSummary.CountDistinct, 'expected': 6},
-                 {'stat': QgsStringStatisticalSummary.CountMissing, 'expected': 2},
-                 {'stat': QgsStringStatisticalSummary.Min, 'expected': 'aaaa'},
-                 {'stat': QgsStringStatisticalSummary.Max, 'expected': 'eeee'},
-                 {'stat': QgsStringStatisticalSummary.MinimumLength, 'expected': 0},
-                 {'stat': QgsStringStatisticalSummary.MaximumLength, 'expected': 8},
-                 {'stat': QgsStringStatisticalSummary.MeanLength, 'expected': 3.4},
-                 {'stat': QgsStringStatisticalSummary.Minority, 'expected': 'bbbbbbbb'},
-                 {'stat': QgsStringStatisticalSummary.Majority, 'expected': 'aaaa'},
+        tests = [{'stat': QgsStringStatisticalSummary.Statistic.Count, 'expected': 10},
+                 {'stat': QgsStringStatisticalSummary.Statistic.CountDistinct, 'expected': 6},
+                 {'stat': QgsStringStatisticalSummary.Statistic.CountMissing, 'expected': 2},
+                 {'stat': QgsStringStatisticalSummary.Statistic.Min, 'expected': 'aaaa'},
+                 {'stat': QgsStringStatisticalSummary.Statistic.Max, 'expected': 'eeee'},
+                 {'stat': QgsStringStatisticalSummary.Statistic.MinimumLength, 'expected': 0},
+                 {'stat': QgsStringStatisticalSummary.Statistic.MaximumLength, 'expected': 8},
+                 {'stat': QgsStringStatisticalSummary.Statistic.MeanLength, 'expected': 3.4},
+                 {'stat': QgsStringStatisticalSummary.Statistic.Minority, 'expected': 'bbbbbbbb'},
+                 {'stat': QgsStringStatisticalSummary.Statistic.Majority, 'expected': 'aaaa'},
                  ]
 
         s = QgsStringStatisticalSummary()
@@ -92,12 +94,23 @@ class PyQgsStringStatisticalSummary(unittest.TestCase):
             self.assertEqual(s3.statistic(t['stat']), t['expected'])
 
             # display name
-            self.assertTrue(len(QgsStringStatisticalSummary.displayName(t['stat'])) > 0)
+            self.assertGreater(len(QgsStringStatisticalSummary.displayName(t['stat'])), 0)
 
     def testVariantStats(self):
         s = QgsStringStatisticalSummary()
-        self.assertEqual(s.statistics(), QgsStringStatisticalSummary.All)
-        s.calculateFromVariants(['cc', 5, 'bbbb', 'aaaa', 'eeee', 6, 9, '9', ''])
+        self.assertEqual(s.statistics(), QgsStringStatisticalSummary.Statistic.All)
+        s.calculateFromVariants(['cc', 5, 'bbbb', 'aaaa', 'eeee', 6, 9, '9', None])
+        self.assertEqual(s.count(), 6)
+        self.assertEqual(set(s.distinctValues()), {'cc', 'aaaa', 'bbbb', 'eeee', '', '9'})
+        self.assertEqual(s.countMissing(), 1)
+        self.assertEqual(s.min(), '9')
+        self.assertEqual(s.max(), 'eeee')
+
+    def testAddVariantStats(self):
+        s = QgsStringStatisticalSummary()
+        self.assertEqual(s.statistics(), QgsStringStatisticalSummary.Statistic.All)
+        for v in ['cc', 5, 'bbbb', 'aaaa', 'eeee', 6, 9, '9', None]:
+            s.addValue(v)
         self.assertEqual(s.count(), 6)
         self.assertEqual(set(s.distinctValues()), {'cc', 'aaaa', 'bbbb', 'eeee', '', '9'})
         self.assertEqual(s.countMissing(), 1)

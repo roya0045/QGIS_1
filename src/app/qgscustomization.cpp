@@ -568,7 +568,7 @@ bool QgsCustomizationDialog::catchOn()
 
 void QgsCustomizationDialog::showHelp()
 {
-  QgsHelp::openHelp( QStringLiteral( "introduction/qgis_configuration.html#customization" ) );
+  QgsHelp::openHelp( QStringLiteral( "introduction/qgis_configuration.html#sec-customization" ) );
 }
 
 
@@ -739,8 +739,8 @@ void QgsCustomization::createTreeItemBrowser()
   const auto constProviders = QgsApplication::dataItemProviderRegistry()->providers();
   for ( QgsDataItemProvider *pr : constProviders )
   {
-    int capabilities = pr->capabilities();
-    if ( capabilities != QgsDataProvider::NoDataCapabilities )
+    const Qgis::DataItemProviderCapabilities capabilities = pr->capabilities();
+    if ( capabilities != Qgis::DataItemProviderCapabilities( Qgis::DataItemProviderCapability::NoCapabilities ) )
     {
       QStringList item;
       item << pr->name() << QObject::tr( "Data Item Provider: %1" ).arg( pr->name() );
@@ -994,7 +994,7 @@ void QgsCustomization::customizeWidget( const QString &path, QWidget *widget, QS
     QString p = myPath + '/' + w->objectName();
 
     bool on = settings->value( p, true ).toBool();
-    //QgsDebugMsg( QStringLiteral( "p = %1 on = %2" ).arg( p ).arg( on ) );
+    //QgsDebugMsgLevel( QStringLiteral( "p = %1 on = %2" ).arg( p ).arg( on ), 2 );
     if ( on )
     {
       QgsCustomization::customizeWidget( myPath, w, settings );
@@ -1079,7 +1079,7 @@ void QgsCustomization::preNotify( QObject *receiver, QEvent *event, bool *done )
     }
     else if ( widget && event->type() == QEvent::MouseButtonPress )
     {
-      //QgsDebugMsg( QStringLiteral( "click" ) );
+      //QgsDebugMsgLevel( QStringLiteral( "click" ), 2 );
       if ( pDialog && pDialog->isVisible() )
       {
         QMouseEvent *e = static_cast<QMouseEvent *>( event );
@@ -1095,7 +1095,7 @@ void QgsCustomization::preNotify( QObject *receiver, QEvent *event, bool *done )
     if ( pDialog && pDialog->isVisible() )
     {
       QKeyEvent *e = static_cast<QKeyEvent *>( event );
-      //QgsDebugMsg( QStringLiteral( "key = %1 modifiers = %2" ).arg( e->key() ).arg( e->modifiers() ) );
+      //QgsDebugMsgLevel( QStringLiteral( "key = %1 modifiers = %2" ).arg( e->key() ).arg( e->modifiers() ), 2 );
       if ( e->key() == Qt::Key_M && e->modifiers() == Qt::ControlModifier )
       {
         pDialog->setCatch( !pDialog->catchOn() );

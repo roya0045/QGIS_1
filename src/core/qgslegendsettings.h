@@ -33,7 +33,6 @@ class QgsExpressionContext;
  * for legend drawing with QgsLegendRenderer. The content of the legend is given
  * in QgsLegendModel class.
  *
- * \since QGIS 2.6
  */
 class CORE_EXPORT QgsLegendSettings
 {
@@ -297,7 +296,6 @@ class CORE_EXPORT QgsLegendSettings
      * \see setDrawRasterStroke()
      * \see rasterStrokeColor()
      * \see rasterStrokeWidth()
-     * \since QGIS 2.12
      */
     bool drawRasterStroke() const { return mRasterSymbolStroke; }
 
@@ -307,7 +305,6 @@ class CORE_EXPORT QgsLegendSettings
      * \see drawRasterStroke()
      * \see setRasterStrokeColor()
      * \see setRasterStrokeWidth()
-     * \since QGIS 2.12
      */
     void setDrawRasterStroke( bool enabled ) { mRasterSymbolStroke = enabled; }
 
@@ -317,7 +314,6 @@ class CORE_EXPORT QgsLegendSettings
      * \see setRasterStrokeColor()
      * \see drawRasterStroke()
      * \see rasterStrokeWidth()
-     * \since QGIS 2.12
      */
     QColor rasterStrokeColor() const { return mRasterStrokeColor; }
 
@@ -328,7 +324,6 @@ class CORE_EXPORT QgsLegendSettings
      * \see rasterStrokeColor()
      * \see setDrawRasterStroke()
      * \see setRasterStrokeWidth()
-     * \since QGIS 2.12
      */
     void setRasterStrokeColor( const QColor &color ) { mRasterStrokeColor = color; }
 
@@ -338,7 +333,6 @@ class CORE_EXPORT QgsLegendSettings
      * \see setRasterStrokeWidth()
      * \see drawRasterStroke()
      * \see rasterStrokeColor()
-     * \since QGIS 2.12
      */
     double rasterStrokeWidth() const { return mRasterStrokeWidth; }
 
@@ -349,7 +343,6 @@ class CORE_EXPORT QgsLegendSettings
      * \see rasterStrokeWidth()
      * \see setDrawRasterStroke()
      * \see setRasterStrokeColor()
-     * \since QGIS 2.12
      */
     void setRasterStrokeWidth( double width ) { mRasterStrokeWidth = width; }
 
@@ -366,6 +359,24 @@ class CORE_EXPORT QgsLegendSettings
      * \see wmsLegendSize()
      */
     void setWmsLegendSize( QSizeF s ) {mWmsLegendSize = s;}
+
+    /**
+     * Sets whether to request legend graphics synchronously.
+     *
+     * \see synchronousLegendRequests()
+     *
+     * \since QGIS 3.34
+     */
+    void setSynchronousLegendRequests( bool b ) {mSynchronousLegendRequests = b;}
+
+    /**
+     * Returns whether to request legend graphics synchronously.
+     *
+     * \see setSynchronousLegendRequests()
+     *
+     * \since QGIS 3.34
+     */
+    bool synchronousLegendRequests() const {return mSynchronousLegendRequests;}
 
     /**
      * Returns the line spacing to use between lines of legend text.
@@ -502,6 +513,18 @@ class CORE_EXPORT QgsLegendSettings
     //! Returns the font descent in Millimeters (considers upscaling and downscaling with FONT_WORKAROUND_SCALE
     double fontDescentMillimeters( const QFont &font ) const;
 
+    /**
+     * Returns the JSON export flags.
+     * \since QGIS 3.36
+     */
+    Qgis::LegendJsonRenderFlags jsonRenderFlags() const;
+
+    /**
+     * Sets the  the JSON export flags to \a jsonRenderFlags.
+     * \since QGIS 3.36
+     */
+    void setJsonRenderFlags( const Qgis::LegendJsonRenderFlags &jsonRenderFlags );
+
   private:
 
     QString mTitle;
@@ -525,6 +548,9 @@ class CORE_EXPORT QgsLegendSettings
 
     //! Width and height of WMS legendGraphic pixmap
     QSizeF mWmsLegendSize;
+
+    //! Whether to request legend graphics synchronously
+    bool mSynchronousLegendRequests = false;
 
     //! Spacing between lines when wrapped
     double mLineSpacing = 1;
@@ -561,6 +587,9 @@ class CORE_EXPORT QgsLegendSettings
 
     //! Symbol alignment
     Qt::AlignmentFlag mSymbolAlignment = Qt::AlignLeft;
+
+    //! JSON export flags
+    Qgis::LegendJsonRenderFlags mJsonRenderFlags;
 };
 
 

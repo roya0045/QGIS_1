@@ -60,6 +60,7 @@ class QgsVectorLayer;
 class QgsVectorLayerTools;
 class QgsVectorTileLayer;
 class QgsPointCloudLayer;
+class QgsTiledSceneLayer;
 class QgsOptionsWidgetFactory;
 class QgsLocatorFilter;
 class QgsStatusBar;
@@ -71,6 +72,13 @@ class QgsApplicationExitBlockerInterface;
 class QgsAbstractMapToolHandler;
 class QgsUserProfileManager;
 class QgsDataSourceManagerDialog;
+class Qgs3DMapCanvas SIP_EXTERNAL;
+
+#ifdef SIP_RUN
+% ModuleHeaderCode
+class Qgs3DMapCanvas;
+% End
+#endif
 
 /**
  * \ingroup gui
@@ -130,23 +138,40 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Returns a list of all map canvases open in the app.
-     * \since QGIS 3.0
      */
     virtual QList< QgsMapCanvas * > mapCanvases() = 0;
 
     /**
      * Create a new map canvas with the specified unique \a name.
      * \see closeMapCanvas()
-     * \since QGIS 3.0
      */
     virtual QgsMapCanvas *createNewMapCanvas( const QString &name ) = 0;
 
     /**
      * Closes the additional map canvas with matching \a name.
      * \see createNewMapCanvas()
-     * \since QGIS 3.0
      */
     virtual void closeMapCanvas( const QString &name ) = 0;
+
+    /**
+     * Returns a list of all 3D map canvases open in the app.
+     * \since QGIS 3.36
+     */
+    virtual QList< Qgs3DMapCanvas * > mapCanvases3D() = 0;
+
+    /**
+     * Create a new 3D map canvas with the specified unique \a name.
+     * \see closeMapCanvas3D()
+     * \since QGIS 3.36
+     */
+    virtual Qgs3DMapCanvas *createNewMapCanvas3D( const QString &name ) = 0;
+
+    /**
+     * Closes the additional map canvas with matching \a name.
+     * \see createNewMapCanvas3D()
+     * \since QGIS 3.36
+     */
+    virtual void closeMapCanvas3D( const QString &name ) = 0;
 
     /**
      * Returns the toolbar icon size. If \a dockedToolbar is TRUE, the icon size
@@ -176,7 +201,6 @@ class GUI_EXPORT QgisInterface : public QObject
     /**
      * Returns a pointer to the layer tree canvas bridge
      *
-     * \since QGIS 2.12
      */
     virtual QgsLayerTreeMapCanvasBridge *layerTreeCanvasBridge() = 0;
 
@@ -188,7 +212,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Returns all currently open layout designers.
-     * \since QGIS 3.0
      */
     virtual QList<QgsLayoutDesignerInterface *> openLayoutDesigners() = 0;
 
@@ -201,7 +224,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Advanced digitizing dock widget
-     * \since QGIS 2.12
      */
     virtual QgsAdvancedDigitizingDockWidget *cadDockWidget() = 0;
 
@@ -282,7 +304,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Returns a reference to the main window "Add Layer" menu.
-     * \since QGIS 2.5
      */
     virtual QMenu *addLayerMenu() = 0;
 
@@ -325,6 +346,13 @@ class GUI_EXPORT QgisInterface : public QObject
      * Returns a reference to the main window "Web" menu.
      */
     virtual QMenu *webMenu() = 0;
+
+    /**
+     * Returns a reference to the main window "Mesh" menu.
+     *
+     * \since QGIS 3.34
+     */
+    virtual QMenu *meshMenu() = 0;
 
     /**
      * Returns a reference to the right most standard menu, which is
@@ -389,7 +417,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Returns a reference to the main window "Shape Digitizing" toolbar.
-     * \since QGIS 3.0
      */
     virtual QToolBar *shapeDigitizeToolBar() = 0;
 
@@ -606,7 +633,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Statistical summary action.
-     * \since QGIS 3.0
      */
     virtual QAction *actionOpenStatisticalSummary() = 0;
 
@@ -643,7 +669,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Returns the Hide Deselected Layers action.
-     * \since QGIS 3.0
      */
     virtual QAction *actionHideDeselectedLayers() = 0;
     virtual QAction *actionShowSelectedLayers() = 0;
@@ -778,7 +803,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * Returns a pointer to the app's status bar interface. This should be
      * used for interacting and adding widgets and messages to the app's
      * status bar (do not use the native Qt statusBar() method).
-     * \since QGIS 3.0
      */
     virtual QgsStatusBar *statusBarIface() = 0;
 
@@ -829,36 +853,61 @@ class GUI_EXPORT QgisInterface : public QObject
     virtual void zoomToActiveLayer() = 0;
 
     /**
-     * Adds a vector layer to the current project.
+     * Adds a vector layer to the current project, using the specified data provider and source url.
+     *
+     * The \a baseName parameter will be used as the layer name (and shown in the map legend).
+     *
      */
     virtual QgsVectorLayer *addVectorLayer( const QString &vectorLayerPath, const QString &baseName, const QString &providerKey ) = 0;
 
     /**
      * Adds a raster layer to the current project, given a raster layer file name.
+     *
+     * The \a baseName parameter will be used as the layer name (and shown in the map legend).
+     *
      */
     virtual QgsRasterLayer *addRasterLayer( const QString &rasterLayerPath, const QString &baseName = QString() ) = 0;
 
     /**
-     * Adds a raster layer to the current project, from the specified raster data provider.
+     * Adds a raster layer to the current project, from the specified raster data provider and source \a url.
+     *
+     * The \a layerName parameter will be used as the layer name (and shown in the map legend).
      */
     virtual QgsRasterLayer *addRasterLayer( const QString &url, const QString &layerName, const QString &providerKey ) = 0;
 
     /**
-     * Adds a mesh layer to the current project.
+     * Adds a mesh layer to the current project, using the specified data provider and source \a url.
+     *
+     * The \a baseName parameter will be used as the layer name (and shown in the map legend).
      */
     virtual QgsMeshLayer *addMeshLayer( const QString &url, const QString &baseName, const QString &providerKey ) = 0;
 
     /**
-     * Adds a vector tile layer to the current project.
+     * Adds a vector tile layer to the current project, using the specified source \a url.
+     *
+     * The \a baseName parameter will be used as the layer name (and shown in the map legend).
+     *
      * \since QGIS 3.14
      */
     virtual QgsVectorTileLayer *addVectorTileLayer( const QString &url, const QString &baseName ) = 0;
 
     /**
-     * Adds a point cloud layer to the current project.
+     * Adds a point cloud layer to the current project, using the specified data provider and source \a url.
+     *
+     * The \a baseName parameter will be used as the layer name (and shown in the map legend).
+     *
      * \since QGIS 3.18
      */
     virtual QgsPointCloudLayer *addPointCloudLayer( const QString &url, const QString &baseName, const QString &providerKey ) = 0;
+
+    /**
+     * Adds a tiled scene layer to the current project, using the specified data provider and source \a url.
+     *
+     * The \a baseName parameter will be used as the layer name (and shown in the map legend).
+     *
+     * \since QGIS 3.34
+     */
+    virtual QgsTiledSceneLayer *addTiledSceneLayer( const QString &url, const QString &baseName, const QString &providerKey ) = 0;
 
     //! Adds (opens) a project
     virtual bool addProject( const QString &project ) = 0;
@@ -880,7 +929,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * This calls reloadConnections in the main application and triggers a signal that is
      * forwarded to the GUI elements that needs to be updated (i.e. the source
      * select dialogs and the browser widgets)
-     * \since QGIS 3.0
      */
     virtual void reloadConnections( ) = 0;
 
@@ -892,13 +940,11 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Copy selected features from the layer to clipboard
-     * \since QGIS 3.0
      */
     virtual void copySelectionToClipboard( QgsMapLayer * ) = 0;
 
     /**
      * Paste features from clipboard to the layer
-     * \since QGIS 3.0
      */
     virtual void pasteFromClipboard( QgsMapLayer * ) = 0;
 
@@ -987,7 +1033,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Add a toolbar
-     * \since QGIS 2.3
      */
     virtual void addToolBar( QToolBar *toolbar SIP_TRANSFER, Qt::ToolBarArea area = Qt::TopToolBarArea ) = 0;
 
@@ -1001,7 +1046,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Opens the layout manager dialog.
-     * \since QGIS 3.0
      */
     virtual void showLayoutManager() = 0;
 
@@ -1009,14 +1053,12 @@ class GUI_EXPORT QgisInterface : public QObject
      * Opens a new layout designer dialog for the specified \a layout, or
      * brings an already open designer window to the foreground if one
      * is already created for the layout.
-     * \since QGIS 3.0
      */
     virtual QgsLayoutDesignerInterface *openLayoutDesigner( QgsMasterLayoutInterface *layout ) = 0;
 
     /**
      * Opens the options dialog. The \a currentPage argument can be used to force
      * the dialog to open at a specific page.
-     * \since QGIS 3.0
      */
     virtual void showOptionsDialog( QWidget *parent = nullptr, const QString &currentPage = QString() ) = 0;
 
@@ -1179,7 +1221,6 @@ class GUI_EXPORT QgisInterface : public QObject
      *       be unregistered when plugin is unloaded.
      * \see QgsMapLayerConfigWidgetFactory
      * \see unregisterMapLayerConfigWidgetFactory()
-     * \since QGIS 2.16
      */
     virtual void registerMapLayerConfigWidgetFactory( QgsMapLayerConfigWidgetFactory *factory ) = 0;
 
@@ -1187,7 +1228,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * Unregister a previously registered tab in the map layer properties dialog.
      * \see QgsMapLayerConfigWidgetFactory
      * \see registerMapLayerConfigWidgetFactory()
-     * \since QGIS 2.16
     */
     virtual void unregisterMapLayerConfigWidgetFactory( QgsMapLayerConfigWidgetFactory *factory ) = 0;
 
@@ -1197,7 +1237,6 @@ class GUI_EXPORT QgisInterface : public QObject
      *       be unregistered when plugin is unloaded.
      * \see QgsOptionsWidgetFactory
      * \see unregisterOptionsWidgetFactory()
-     * \since QGIS 3.0
      */
     virtual void registerOptionsWidgetFactory( QgsOptionsWidgetFactory *factory ) = 0;
 
@@ -1205,7 +1244,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * Unregister a previously registered tab in the options dialog.
      * \see QgsOptionsWidgetFactory
      * \see registerOptionsWidgetFactory()
-     * \since QGIS 3.0
     */
     virtual void unregisterOptionsWidgetFactory( QgsOptionsWidgetFactory *factory ) = 0;
 
@@ -1289,7 +1327,6 @@ class GUI_EXPORT QgisInterface : public QObject
      *       be unregistered when plugin is unloaded.
      * \see QgsCustomDropHandler
      * \see unregisterCustomDropHandler()
-     * \since QGIS 3.0
      */
     virtual void registerCustomDropHandler( QgsCustomDropHandler *handler ) = 0;
 
@@ -1297,7 +1334,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * Unregister a previously registered custom drop \a handler.
      * \see QgsCustomDropHandler
      * \see registerCustomDropHandler()
-     * \since QGIS 3.0
      */
     virtual void unregisterCustomDropHandler( QgsCustomDropHandler *handler ) = 0;
 
@@ -1325,7 +1361,6 @@ class GUI_EXPORT QgisInterface : public QObject
      *       be unregistered when plugin is unloaded.
      * \see QgsLayoutCustomDropHandler
      * \see unregisterCustomLayoutDropHandler()
-     * \since QGIS 3.0
      */
     virtual void registerCustomLayoutDropHandler( QgsLayoutCustomDropHandler *handler ) = 0;
 
@@ -1333,7 +1368,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * Unregister a previously registered custom drop \a handler for layout windows.
      * \see QgsLayoutCustomDropHandler
      * \see registerCustomLayoutDropHandler()
-     * \since QGIS 3.0
      */
     virtual void unregisterCustomLayoutDropHandler( QgsLayoutCustomDropHandler *handler ) = 0;
 
@@ -1401,7 +1435,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * \warning Plugins which register filters to the locator bar must take care to correctly call
      * deregisterLocatorFilter() and deregister their filters upon plugin unload to avoid crashes.
      * \see deregisterLocatorFilter()
-     * \since QGIS 3.0
      */
     virtual void registerLocatorFilter( QgsLocatorFilter *filter SIP_TRANSFER ) = 0;
 
@@ -1413,7 +1446,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * deregisterLocatorFilter() to deregister their filters upon plugin unload to avoid crashes.
      *
      * \see registerLocatorFilter()
-     * \since QGIS 3.0
      */
     virtual void deregisterLocatorFilter( QgsLocatorFilter *filter ) = 0;
 
@@ -1430,7 +1462,6 @@ class GUI_EXPORT QgisInterface : public QObject
       * Checks available datum transforms and ask user if several are available and none
       * is chosen. Dialog is shown only if global option is set accordingly.
       * \returns TRUE if a datum transform has been specifically chosen by user or only one is available.
-      * \since 3.0
       */
     virtual bool askForDatumTransform( QgsCoordinateReferenceSystem sourceCrs, QgsCoordinateReferenceSystem destinationCrs ) = 0;
 
@@ -1451,6 +1482,22 @@ class GUI_EXPORT QgisInterface : public QObject
      */
     virtual void setGpsPanelConnection( QgsGpsConnection *connection SIP_TRANSFER ) = 0;
 
+    /**
+     * Sets whether changes to the active layer should be temporarily
+     * blocked.
+     *
+     * This is a low-level method, designed to avoid unnecessary work when adding lots
+     * of layers at once. Clients which will be adding many layers may call blockActiveLayerChanges( TRUE ) upfront,
+     * add all the layers, and then follow up with a call to blockActiveLayerChanges( FALSE ). This will defer emitting
+     * the active layer changed signal until they've added all layers, and only emit the signal once for
+     * the final layer added.
+     *
+     * \warning This must be accompanied by a subsequent call with \a blocked as FALSE.
+     *
+     * \since QGIS 3.36
+     */
+    virtual void blockActiveLayerChanges( bool blocked ) = 0;
+
   signals:
 
     /**
@@ -1462,14 +1509,12 @@ class GUI_EXPORT QgisInterface : public QObject
     /**
      * Emitted when the current \a theme is changed so plugins
      * can change their tool button icons.
-     * \since QGIS 3.0
     */
     void currentThemeChanged( const QString &theme );
 
     /**
      * Emitted when a new layout \a designer has been opened.
      * \see layoutDesignerWillBeClosed()
-     * \since QGIS 3.0
      */
     void layoutDesignerOpened( QgsLayoutDesignerInterface *designer );
 
@@ -1478,7 +1523,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * and deleted.
      * \see layoutDesignerClosed()
      * \see layoutDesignerOpened()
-     * \since QGIS 3.0
      */
     void layoutDesignerWillBeClosed( QgsLayoutDesignerInterface *designer );
 
@@ -1486,7 +1530,6 @@ class GUI_EXPORT QgisInterface : public QObject
      * Emitted after a layout designer window is closed.
      * \see layoutDesignerWillBeClosed()
      * \see layoutDesignerOpened()
-     * \since QGIS 3.0
      */
     void layoutDesignerClosed();
 
@@ -1515,7 +1558,6 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Emitted when a layer has been saved using save as.
-     * \since QGIS 2.7
      */
     void layerSavedAs( QgsMapLayer *l, const QString &path );
 

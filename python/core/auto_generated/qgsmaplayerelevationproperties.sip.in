@@ -11,6 +11,8 @@
 
 
 
+
+
 class QgsMapLayerElevationProperties : QObject
 {
 %Docstring(signature="appended")
@@ -28,6 +30,7 @@ how an individual :py:class:`QgsMapLayer` behaves with relation to z values or e
 #include "qgsrasterlayerelevationproperties.h"
 #include "qgsvectorlayerelevationproperties.h"
 #include "qgsmeshlayerelevationproperties.h"
+#include "qgstiledscenelayerelevationproperties.h"
 %End
 %ConvertToSubClassCode
     if ( qobject_cast<QgsPointCloudLayerElevationProperties *>( sipCpp ) )
@@ -46,6 +49,10 @@ how an individual :py:class:`QgsMapLayer` behaves with relation to z values or e
     {
       sipType = sipType_QgsMeshLayerElevationProperties;
     }
+    else if ( qobject_cast<QgsTiledSceneLayerElevationProperties *>( sipCpp ) )
+    {
+      sipType = sipType_QgsTiledSceneLayerElevationProperties;
+    }
     else
     {
       sipType = 0;
@@ -53,8 +60,9 @@ how an individual :py:class:`QgsMapLayer` behaves with relation to z values or e
 %End
   public:
 
-    enum Property
-    {
+
+    enum class Property
+      {
       ZOffset,
       ExtrusionHeight,
     };

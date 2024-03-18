@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1277</width>
+    <width>1368</width>
     <height>506</height>
    </rect>
   </property>
@@ -16,8 +16,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1277</width>
-     <height>22</height>
+     <width>1368</width>
+     <height>27</height>
     </rect>
    </property>
    <property name="toolTip">
@@ -142,6 +142,13 @@
      <addaction name="mActionToggleSelectedLayersIndependently"/>
      <addaction name="mActionHideDeselectedLayers"/>
     </widget>
+    <widget class="QMenu" name="menuData_Filtering">
+     <property name="title">
+      <string>Data Filtering</string>
+     </property>
+     <addaction name="mActionTemporalController"/>
+     <addaction name="mActionElevationController"/>
+    </widget>
     <addaction name="mActionNewMapCanvas"/>
     <addaction name="m3DMapViewsMenu"/>
     <addaction name="mActionPan"/>
@@ -149,6 +156,7 @@
     <addaction name="mActionZoomIn"/>
     <addaction name="mActionZoomOut"/>
     <addaction name="separator"/>
+    <addaction name="menuData_Filtering"/>
     <addaction name="mActionIdentify"/>
     <addaction name="mMenuMeasure"/>
     <addaction name="mActionStatisticalSummary"/>
@@ -280,12 +288,12 @@
     <addaction name="mActionDonate"/>
     <addaction name="mActionGetInvolved"/>
     <addaction name="mActionNeedSupport"/>
+    <addaction name="mActionSponsors"/>
     <addaction name="separator"/>
     <addaction name="mActionQgisHomePage"/>
     <addaction name="mActionCheckQgisVersion"/>
     <addaction name="separator"/>
     <addaction name="mActionAbout"/>
-    <addaction name="mActionSponsors"/>
    </widget>
    <widget class="QMenu" name="mSettingsMenu">
     <property name="title">
@@ -304,7 +312,6 @@
      <string>&amp;Raster</string>
     </property>
     <addaction name="mActionShowRasterCalculator"/>
-    <addaction name="mActionShowAlignRasterTool"/>
    </widget>
    <widget class="QMenu" name="mVectorMenu">
     <property name="title">
@@ -1110,7 +1117,8 @@ Click and drag to select vertices by rectangle.
 Alt+click to select vertices by polygon.
 Shift+click/drag to add vertices to selection.
 Ctrl+click/drag to remove vertices from selection.
-Shift+R to enable range selection.</string>
+Shift+R to enable range selection.
+Shift+O to turn segments into straight or curve lines.</string>
    </property>
   </action>
   <action name="mActionRotatePointSymbols">
@@ -1521,18 +1529,6 @@ Shift+R to enable range selection.</string>
    </property>
    <property name="text">
     <string>Form Annotation</string>
-   </property>
-  </action>
-  <action name="mActionAnnotation">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../../images/images.qrc">
-     <normaloff>:/images/themes/default/mActionAnnotation.svg</normaloff>:/images/themes/default/mActionAnnotation.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Move Annotation</string>
    </property>
   </action>
   <action name="mActionLabeling">
@@ -2208,10 +2204,10 @@ Acts on all layers.</string>
      <normaloff>:/images/themes/default/mActionAddWfsLayer.svg</normaloff>:/images/themes/default/mActionAddWfsLayer.svg</iconset>
    </property>
    <property name="text">
-    <string>Add WFS Layer…</string>
+    <string>Add WFS / OGC API - Features Layer…</string>
    </property>
    <property name="toolTip">
-    <string>Add WFS Layer</string>
+    <string>Add WFS / OGC API - Features Layer</string>
    </property>
   </action>
   <action name="mActionFeatureAction">
@@ -2854,11 +2850,6 @@ Shift+click to snap rotation to 45 degree steps.</string>
     <string>Show Statistical Summary</string>
    </property>
   </action>
-  <action name="mActionShowAlignRasterTool">
-   <property name="text">
-    <string>Align Rasters…</string>
-   </property>
-  </action>
   <action name="mActionReportaBug">
    <property name="text">
     <string>Report an Issue</string>
@@ -3161,7 +3152,7 @@ Shows placeholders for labels which could not be placed, e.g. due to overlaps wi
   <action name="mActionShowGeoreferencer">
    <property name="icon">
     <iconset resource="../../images/images.qrc">
-     <normaloff>:/images/themes/default/georeferencer/mGeorefRun.png</normaloff>:/images/themes/default/georeferencer/mGeorefRun.png</iconset>
+     <normaloff>:/images/themes/default/georeferencer/mGeorefRun.svg</normaloff>:/images/themes/default/georeferencer/mGeorefRun.svg</iconset>
    </property>
    <property name="text">
     <string>Georeferencer…</string>
@@ -3363,7 +3354,7 @@ Shows placeholders for labels which could not be placed, e.g. due to overlaps wi
   <action name="mActionElevationProfile">
    <property name="icon">
     <iconset resource="../../images/images.qrc">
-     <normaloff>:/images/themes/default/mLayoutItem3DMap.svg</normaloff>:/images/themes/default/mLayoutItem3DMap.svg</iconset>
+     <normaloff>:/images/themes/default/mActionNewElevationProfile.svg</normaloff>:/images/themes/default/mActionNewElevationProfile.svg</iconset>
    </property>
    <property name="text">
     <string>Elevation Profile</string>
@@ -3382,8 +3373,22 @@ Shows placeholders for labels which could not be placed, e.g. due to overlaps wi
     <string>Get Involved</string>
    </property>
   </action>
+  <action name="mActionElevationController">
+   <property name="icon">
+    <iconset resource="../../images/images.qrc">
+     <normaloff>:/images/themes/default/mesh/Elevation.svg</normaloff>
+     <normalon>:/images/themes/default/mesh/Elevation.svg</normalon>:/images/themes/default/mesh/Elevation.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Elevation Controller</string>
+   </property>
+   <property name="toolTip">
+    <string>Elevation Controller Panel</string>
+   </property>
+  </action>
  </widget>
  <resources>
+  <include location="../../images/images.qrc"/>
   <include location="../../images/images.qrc"/>
  </resources>
  <connections/>

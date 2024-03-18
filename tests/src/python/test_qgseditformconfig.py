@@ -14,7 +14,6 @@ import os
 import socketserver
 import threading
 
-import qgis  # NOQA
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
@@ -30,17 +29,19 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.gui import QgsGui
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
 app = start_app()
 
 
-class TestQgsEditFormConfig(unittest.TestCase):
+class TestQgsEditFormConfig(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         QgsGui.editorWidgetRegistry().initEditors()
         QgsSettings().clear()
 
@@ -93,32 +94,32 @@ class TestQgsEditFormConfig(unittest.TestCase):
         layer = self.createLayer()
         config = layer.editFormConfig()
 
-        config.setLayout(QgsEditFormConfig.GeneratedLayout)
-        self.assertEqual(config.layout(), QgsEditFormConfig.GeneratedLayout)
+        config.setLayout(QgsEditFormConfig.EditorLayout.GeneratedLayout)
+        self.assertEqual(config.layout(), QgsEditFormConfig.EditorLayout.GeneratedLayout)
 
         uiLocal = os.path.join(
             unitTestDataPath(), '/qgis_local_server/layer_attribute_form.ui')
         config.setUiForm(uiLocal)
-        self.assertEqual(config.layout(), QgsEditFormConfig.UiFileLayout)
+        self.assertEqual(config.layout(), QgsEditFormConfig.EditorLayout.UiFileLayout)
 
-        config.setLayout(QgsEditFormConfig.GeneratedLayout)
-        self.assertEqual(config.layout(), QgsEditFormConfig.GeneratedLayout)
+        config.setLayout(QgsEditFormConfig.EditorLayout.GeneratedLayout)
+        self.assertEqual(config.layout(), QgsEditFormConfig.EditorLayout.GeneratedLayout)
 
         uiUrl = 'http://localhost:' + \
             str(self.port) + '/qgis_local_server/layer_attribute_form.ui'
         config.setUiForm(uiUrl)
-        self.assertEqual(config.layout(), QgsEditFormConfig.UiFileLayout)
-        content = QgsApplication.networkContentFetcherRegistry().fetch(uiUrl, QgsNetworkContentFetcherRegistry.DownloadImmediately)
+        self.assertEqual(config.layout(), QgsEditFormConfig.EditorLayout.UiFileLayout)
+        content = QgsApplication.networkContentFetcherRegistry().fetch(uiUrl, QgsNetworkContentFetcherRegistry.FetchingMode.DownloadImmediately)
         self.assertTrue(content is not None)
         while True:
-            if content.status() in (QgsFetchedContent.Finished, QgsFetchedContent.Failed):
+            if content.status() in (QgsFetchedContent.ContentStatus.Finished, QgsFetchedContent.ContentStatus.Failed):
                 break
             app.processEvents()
-        self.assertEqual(content.status(), QgsFetchedContent.Finished)
+        self.assertEqual(content.status(), QgsFetchedContent.ContentStatus.Finished)
 
     # Failing on Travis, seg fault in event loop, no idea why
     """
-    @unittest.expectedFailure
+    @QgisTestCase.expectedFailure
     def testFormPy(self):
         layer = self.createLayer()
         config = layer.editFormConfig()

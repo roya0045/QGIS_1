@@ -10,7 +10,6 @@ __author__ = 'Denis Rouzaud'
 __date__ = '28.02.2018'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 
 from qgis.core import Qgis, QgsReadWriteContext
 from qgis.testing import unittest
@@ -20,9 +19,9 @@ class TestQgsReadWriteContext(unittest.TestCase):
 
     def testEnterCategory(self):
         context = QgsReadWriteContext()
-        context.pushMessage('msg0', Qgis.Critical)
+        context.pushMessage('msg0', Qgis.MessageLevel.Critical)
         with QgsReadWriteContext.enterCategory(context, 'cat1'):
-            context.pushMessage('msg1', Qgis.Warning)
+            context.pushMessage('msg1', Qgis.MessageLevel.Warning)
             with QgsReadWriteContext.enterCategory(context, 'cat2', "detail2"):
                 context.pushMessage('msg2')
             context.pushMessage('msg3')
@@ -31,11 +30,11 @@ class TestQgsReadWriteContext(unittest.TestCase):
         messages = context.takeMessages()
 
         self.assertEqual(messages[0].message(), 'msg0')
-        self.assertEqual(messages[0].level(), Qgis.Critical)
+        self.assertEqual(messages[0].level(), Qgis.MessageLevel.Critical)
         self.assertEqual(messages[0].categories(), [])
 
         self.assertEqual(messages[1].message(), 'msg1')
-        self.assertEqual(messages[1].level(), Qgis.Warning)
+        self.assertEqual(messages[1].level(), Qgis.MessageLevel.Warning)
         self.assertEqual(messages[1].categories(), ['cat1'])
 
         self.assertEqual(messages[2].message(), 'msg2')
@@ -51,11 +50,11 @@ class TestQgsReadWriteContext(unittest.TestCase):
         """
         Test QgsReadWriteContext.ReadWriteMessage equality operator
         """
-        m1 = QgsReadWriteContext.ReadWriteMessage('m1', Qgis.Info, ['cat1', 'cat2'])
-        self.assertEqual(m1, QgsReadWriteContext.ReadWriteMessage('m1', Qgis.Info, ['cat1', 'cat2']))
-        self.assertNotEqual(m1, QgsReadWriteContext.ReadWriteMessage('m2', Qgis.Info, ['cat1', 'cat2']))
-        self.assertNotEqual(m1, QgsReadWriteContext.ReadWriteMessage('m1', Qgis.Warning, ['cat1', 'cat2']))
-        self.assertNotEqual(m1, QgsReadWriteContext.ReadWriteMessage('m1', Qgis.Info, ['cat3', 'cat2']))
+        m1 = QgsReadWriteContext.ReadWriteMessage('m1', Qgis.MessageLevel.Info, ['cat1', 'cat2'])
+        self.assertEqual(m1, QgsReadWriteContext.ReadWriteMessage('m1', Qgis.MessageLevel.Info, ['cat1', 'cat2']))
+        self.assertNotEqual(m1, QgsReadWriteContext.ReadWriteMessage('m2', Qgis.MessageLevel.Info, ['cat1', 'cat2']))
+        self.assertNotEqual(m1, QgsReadWriteContext.ReadWriteMessage('m1', Qgis.MessageLevel.Warning, ['cat1', 'cat2']))
+        self.assertNotEqual(m1, QgsReadWriteContext.ReadWriteMessage('m1', Qgis.MessageLevel.Info, ['cat3', 'cat2']))
 
 
 if __name__ == '__main__':

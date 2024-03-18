@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     menus.py
@@ -85,8 +83,8 @@ def initMenusAndToolbars():
     defaultMenuEntries.update({'qgis:checkvalidity': geometryToolsMenu,
                                'qgis:exportaddgeometrycolumns': geometryToolsMenu,
                                'native:centroids': geometryToolsMenu,
-                               'qgis:delaunaytriangulation': geometryToolsMenu,
-                               'qgis:voronoipolygons': geometryToolsMenu,
+                               'native:delaunaytriangulation': geometryToolsMenu,
+                               'native:voronoipolygons': geometryToolsMenu,
                                'native:simplifygeometries': geometryToolsMenu,
                                'native:densifygeometries': geometryToolsMenu,
                                'native:multiparttosingleparts': geometryToolsMenu,
@@ -102,6 +100,7 @@ def initMenusAndToolbars():
                                'native:createspatialindex': managementToolsMenu})
 
     rasterMenu = iface.rasterMenu().title()
+    defaultMenuEntries.update({'native:alignrasters': rasterMenu})
     projectionsMenu = rasterMenu + "/" + Processing.tr('Projections')
     defaultMenuEntries.update({'gdal:warpreproject': projectionsMenu,
                                'gdal:extractprojection': projectionsMenu,
@@ -142,7 +141,7 @@ def initMenusAndToolbars():
 
     toolbar = iface.selectionToolBar()
     toolButton = QToolButton(toolbar)
-    toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+    toolButton.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
     toolButtonAction = toolbar.addWidget(toolButton)
 
 
@@ -190,7 +189,8 @@ def createMenus():
             icon = None
         if menuPath:
             paths = menuPath.split("/")
-            addAlgorithmEntry(alg, paths[0], paths[-1], addButton=addButton, icon=icon)
+            subMenuName = paths[-1] if len(paths) > 1 else ""
+            addAlgorithmEntry(alg, paths[0], subMenuName, addButton=addButton, icon=icon)
 
 
 def removeMenus():
@@ -203,9 +203,9 @@ def removeMenus():
 
 def addAlgorithmEntry(alg, menuName, submenuName, actionText=None, icon=None, addButton=False):
     if actionText is None:
-        if (QgsGui.higFlags() & QgsGui.HigMenuTextIsTitleCase) and not (
-                alg.flags() & QgsProcessingAlgorithm.FlagDisplayNameIsLiteral):
-            alg_title = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.TitleCase)
+        if (QgsGui.higFlags() & QgsGui.HigFlag.HigMenuTextIsTitleCase) and not (
+                alg.flags() & QgsProcessingAlgorithm.Flag.FlagDisplayNameIsLiteral):
+            alg_title = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.Capitalization.TitleCase)
         else:
             alg_title = alg.displayName()
         actionText = alg_title + QCoreApplication.translate('Processing', '…')
@@ -217,8 +217,11 @@ def addAlgorithmEntry(alg, menuName, submenuName, actionText=None, icon=None, ad
 
     if menuName:
         menu = getMenu(menuName, iface.mainWindow().menuBar())
-        submenu = getMenu(submenuName, menu)
-        submenu.addAction(action)
+        if submenuName:
+            submenu = getMenu(submenuName, menu)
+            submenu.addAction(action)
+        else:
+            menu.addAction(action)
 
     if addButton:
         global algorithmsToolbar
@@ -256,7 +259,7 @@ def _executeAlgorithm(alg_id):
         dlg.setMessage(
             Processing.tr('The algorithm "{}" is no longer available. (Perhaps a plugin was uninstalled?)').format(
                 alg_id))
-        dlg.exec_()
+        dlg.exec()
         return
 
     ok, message = alg.canExecute()
@@ -266,7 +269,7 @@ def _executeAlgorithm(alg_id):
         dlg.setMessage(
             Processing.tr('<h3>Missing dependency. This algorithm cannot '
                           'be run :-( </h3>\n{0}').format(message))
-        dlg.exec_()
+        dlg.exec()
         return
 
     if (alg.countVisibleParameters()) > 0:
@@ -276,7 +279,7 @@ def _executeAlgorithm(alg_id):
         canvas = iface.mapCanvas()
         prevMapTool = canvas.mapTool()
         dlg.show()
-        dlg.exec_()
+        dlg.exec()
         if canvas.mapTool() != prevMapTool:
             try:
                 canvas.mapTool().reset()
@@ -314,9 +317,9 @@ def addToolBarButton(index, algId, icon=None, tooltip=None):
         assert False, algId
 
     if tooltip is None:
-        if (QgsGui.higFlags() & QgsGui.HigMenuTextIsTitleCase) and not (
-                alg.flags() & QgsProcessingAlgorithm.FlagDisplayNameIsLiteral):
-            tooltip = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.TitleCase)
+        if (QgsGui.higFlags() & QgsGui.HigFlag.HigMenuTextIsTitleCase) and not (
+                alg.flags() & QgsProcessingAlgorithm.Flag.FlagDisplayNameIsLiteral):
+            tooltip = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.Capitalization.TitleCase)
         else:
             tooltip = alg.displayName()
 

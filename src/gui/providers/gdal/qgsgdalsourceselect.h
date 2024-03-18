@@ -43,12 +43,17 @@ class QgsGdalSourceSelect : public QgsAbstractDataSourceWidget, private Ui::QgsG
   public slots:
     //! Determines the tables the user selected and closes the dialog
     void addButtonClicked() override;
+    bool configureFromUri( const QString &uri ) override;
     //! Sets protocol-related widget visibility
     void setProtocolWidgetsVisibility();
 
     void radioSrcFile_toggled( bool checked );
+    void radioSrcOgcApi_toggled( bool checked );
     void radioSrcProtocol_toggled( bool checked );
     void cmbProtocolTypes_currentIndexChanged( const QString &text );
+
+  private slots:
+    void showHelp();
 
   private:
 
@@ -59,7 +64,7 @@ class QgsGdalSourceSelect : public QgsAbstractDataSourceWidget, private Ui::QgsG
 
     QString mRasterPath;
     QStringList mDataSources;
-
+    bool mIsOgcApi = false;
 };
 
 ///@endcond

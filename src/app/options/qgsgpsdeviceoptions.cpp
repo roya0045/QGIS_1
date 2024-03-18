@@ -89,6 +89,11 @@ QgsGpsDeviceOptionsWidget::QgsGpsDeviceOptionsWidget( QWidget *parent )
   mGpsBabelFileWidget->setFilePath( QgsSettingsRegistryCore::settingsGpsBabelPath->value() );
 }
 
+QString QgsGpsDeviceOptionsWidget::helpKey() const
+{
+  return QStringLiteral( "introduction/qgis_configuration.html#defining-new-device" );
+}
+
 void QgsGpsDeviceOptionsWidget::apply()
 {
   QgsBabelFormatRegistry::sTreeBabelDevices->deleteAllItems();
@@ -231,7 +236,7 @@ void QgsGpsDeviceOptionsWidget::renameCurrentDevice()
 // QgsGpsDeviceOptionsFactory
 //
 QgsGpsDeviceOptionsFactory::QgsGpsDeviceOptionsFactory()
-  : QgsOptionsWidgetFactory( tr( "GPSBabel" ), QIcon() )
+  : QgsOptionsWidgetFactory( tr( "GPSBabel" ), QIcon(), QStringLiteral( "gpsbabel" ) )
 {
 
 }

@@ -9,15 +9,15 @@ __author__ = 'Nyall Dawson'
 __date__ = '18/4/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 
 from qgis.core import QgsEllipsoidUtils, QgsProjUtils
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 app = start_app()
 
 
-class TestQgsEllipsoidUtils(unittest.TestCase):
+class TestQgsEllipsoidUtils(QgisTestCase):
 
     def testParams(self):
         """
@@ -86,8 +86,8 @@ class TestQgsEllipsoidUtils(unittest.TestCase):
             self.assertFalse(params.valid)
 
     def testAcronyms(self):
-        self.assertTrue('EPSG:7030' in QgsEllipsoidUtils.acronyms())
-        self.assertTrue('ESRI:107916' in QgsEllipsoidUtils.acronyms())
+        self.assertIn('EPSG:7030', QgsEllipsoidUtils.acronyms())
+        self.assertIn('ESRI:107916', QgsEllipsoidUtils.acronyms())
 
     def testDefinitions(self):
         defs = QgsEllipsoidUtils.definitions()

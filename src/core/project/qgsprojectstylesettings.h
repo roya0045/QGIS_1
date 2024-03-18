@@ -16,6 +16,7 @@
 #define QGSPROJECTSTYLESETTINGS_H
 
 #include "qgis_core.h"
+#include "qgis_sip.h"
 #include "qgstextformat.h"
 #include "qgswkbtypes.h"
 
@@ -121,6 +122,13 @@ class CORE_EXPORT QgsProjectStyleSettings : public QObject
      * Resets the settings to a default state.
      */
     void reset();
+
+    /**
+     * Removes and deletes the project style database.
+     *
+     * \since QGIS 3.32
+     */
+    void removeProjectStyle();
 
     /**
      * Sets the style database to use for the project style.
@@ -295,12 +303,21 @@ class CORE_EXPORT QgsProjectStyleDatabaseModel : public QAbstractListModel
 
   public:
 
-    //! Custom model roles
-    enum Role
+    // *INDENT-OFF*
+
+    /**
+     * Custom model roles.
+     *
+     * \note Prior to QGIS 3.36 this was available as QgsProjectStyleDatabaseModel::Role
+     * \since QGIS 3.36
+     */
+    enum class CustomRole SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsProjectStyleDatabaseModel, Role ) : int
     {
-      StyleRole = Qt::UserRole + 1, //!< Style object
-      PathRole, //!< Style path
+      Style SIP_MONKEYPATCH_COMPAT_NAME( StyleRole ) = Qt::UserRole + 1, //!< Style object
+      Path SIP_MONKEYPATCH_COMPAT_NAME(PathRole) //!< Style path
     };
+    Q_ENUM( CustomRole )
+    // *INDENT-ON*
 
     /**
      * Constructor for QgsProjectStyleDatabaseModel, showing the styles from the specified \a settings.
@@ -368,7 +385,7 @@ class CORE_EXPORT QgsProjectStyleDatabaseProxyModel : public QSortFilterProxyMod
   public:
 
     //! Available filter flags for filtering the model
-    enum class Filter
+    enum class Filter : int SIP_ENUM_BASETYPE( IntFlag )
     {
       FilterHideReadOnly = 1 << 0, //!< Hide read-only style databases
     };

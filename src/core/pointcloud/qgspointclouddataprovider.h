@@ -21,8 +21,8 @@
 #include "qgis_core.h"
 #include "qgsdataprovider.h"
 #include "qgspointcloudattribute.h"
-#include "qgsstatisticalsummary.h"
 #include "qgspointcloudindex.h"
+#include "qgspointcloudsubindex.h"
 #include "qgspoint.h"
 #include "qgsray3d.h"
 #include <memory>
@@ -51,12 +51,13 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
     /**
      * Capabilities that providers may implement.
      */
-    enum Capability
+    enum Capability SIP_ENUM_BASETYPE( IntFlag )
     {
       NoCapabilities = 0,       //!< Provider has no capabilities
       ReadLayerMetadata = 1 << 0, //!< Provider can read layer metadata from data store.
       WriteLayerMetadata = 1 << 1, //!< Provider can write layer metadata to the data store. See QgsDataProvider::writeLayerMetadata()
       CreateRenderer = 1 << 2, //!< Provider can create 2D renderers using backend-specific formatting information. See QgsPointCloudDataProvider::createRenderer().
+      ContainSubIndexes = 1 << 3, //!< Provider can contain multiple indexes. Virtual point cloud files for example (since QGIS 3.32)
     };
 
     Q_DECLARE_FLAGS( Capabilities, Capability )
@@ -64,7 +65,7 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
     /**
      * Point cloud index state
      */
-    enum PointCloudIndexGenerationState
+    enum PointCloudIndexGenerationState SIP_ENUM_BASETYPE( IntFlag )
     {
       NotIndexed = 0, //!< Provider has no index available
       Indexing = 1 << 0, //!< Provider try to index the source data
@@ -164,6 +165,26 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
     virtual QgsPointCloudIndex *index() const SIP_SKIP {return nullptr;}
 
     /**
+     * Returns a list of sub indexes available if the provider supports multiple indexes, empty list otherwise.
+     *
+     * The sub indexes contain a pointer to the individual indexes which may be nullptr if not yet loaded.
+     *
+     * \note Not available in Python bindings
+     * \since QGIS 3.32
+     */
+    virtual QVector<QgsPointCloudSubIndex> subIndexes() SIP_SKIP { return QVector<QgsPointCloudSubIndex>(); }
+
+    /**
+     * Triggers loading of the point cloud index for the \a n th sub index
+     *
+     * Only applies to providers that support multiple indexes
+     *
+     * \note Not available in Python bindings
+     * \since QGIS 3.32
+     */
+    virtual void loadSubIndex( int n ) SIP_SKIP { Q_UNUSED( n ) return; }
+
+    /**
      * Returns whether provider has index which is valid
      */
     bool hasValidIndex() const;
@@ -228,7 +249,7 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
      *
      * If no matching precalculated statistic is available then an invalid variant will be returned.
      */
-    virtual QVariant metadataStatistic( const QString &attribute, QgsStatisticalSummary::Statistic statistic ) const;
+    virtual QVariant metadataStatistic( const QString &attribute, Qgis::Statistic statistic ) const;
 #else
 
     /**
@@ -241,7 +262,7 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
      *
      * \throws ValueError if no matching precalculated statistic is available for the attribute.
      */
-    SIP_PYOBJECT metadataStatistic( const QString &attribute, QgsStatisticalSummary::Statistic statistic ) const;
+    SIP_PYOBJECT metadataStatistic( const QString &attribute, Qgis::Statistic statistic ) const;
     % MethodCode
     {
       const QVariant res = sipCpp->metadataStatistic( *a0, a1 );
@@ -282,7 +303,7 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
      *
      * If no matching precalculated statistic is available then an invalid variant will be returned.
      */
-    virtual QVariant metadataClassStatistic( const QString &attribute, const QVariant &value, QgsStatisticalSummary::Statistic statistic ) const;
+    virtual QVariant metadataClassStatistic( const QString &attribute, const QVariant &value, Qgis::Statistic statistic ) const;
 
 #else
 
@@ -295,7 +316,7 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
      *
      * \throws ValueError if no matching precalculated statistic is available for the attribute.
      */
-    SIP_PYOBJECT metadataClassStatistic( const QString &attribute, const QVariant &value, QgsStatisticalSummary::Statistic statistic ) const;
+    SIP_PYOBJECT metadataClassStatistic( const QString &attribute, const QVariant &value, Qgis::Statistic statistic ) const;
     % MethodCode
     {
       const QVariant res = sipCpp->metadataClassStatistic( *a0, *a1, a2 );
@@ -315,7 +336,7 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
 
 
     /**
-     * Returns the object containings the statistics metadata extracted from the dataset
+     * Returns the object containing the statistics metadata extracted from the dataset
      * \since QGIS 3.26
      */
     QgsPointCloudStatistics metadataStatistics();
@@ -361,11 +382,13 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
      */
     void indexGenerationStateChanged( QgsPointCloudDataProvider::PointCloudIndexGenerationState state );
 
+  protected:
+    //! String used to define a subset of the layer
+    QString mSubsetString;
+
   private:
     QVector<IndexedPointCloudNode> traverseTree( const QgsPointCloudIndex *pc, IndexedPointCloudNode n, double maxError, double nodeError, const QgsGeometry &extentGeometry, const QgsDoubleRange &extentZRange );
 
-    //! String used to define a subset of the layer
-    QString mSubsetString;
 };
 
 #endif // QGSMESHDATAPROVIDER_H

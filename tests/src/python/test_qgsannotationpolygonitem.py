@@ -11,8 +11,7 @@ __author__ = '(C) 2020 by Nyall Dawson'
 __date__ = '29/07/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-from qgis.PyQt.QtCore import QDir, QSize
+from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor, QImage, QPainter
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
@@ -36,11 +35,11 @@ from qgis.core import (
     QgsProject,
     QgsReadWriteContext,
     QgsRectangle,
-    QgsRenderChecker,
     QgsRenderContext,
     QgsVertexId,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -48,17 +47,11 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsAnnotationPolygonItem(unittest.TestCase):
+class TestQgsAnnotationPolygonItem(QgisTestCase):
 
     @classmethod
-    def setUpClass(cls):
-        cls.report = "<h1>Python QgsAnnotationPolygonItem Tests</h1>\n"
-
-    @classmethod
-    def tearDownClass(cls):
-        report_file_path = f"{QDir.tempPath()}/qgistest.html"
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(cls.report)
+    def control_path_prefix(cls):
+        return "annotation_layer"
 
     def testBasic(self):
         item = QgsAnnotationPolygonItem(QgsPolygon(QgsLineString([QgsPoint(12, 13), QgsPoint(14, 13), QgsPoint(14, 15), QgsPoint(12, 13)])))
@@ -185,10 +178,10 @@ class TestQgsAnnotationPolygonItem(unittest.TestCase):
         settings.setExtent(QgsRectangle(10, 10, 18, 18))
         settings.setOutputSize(QSize(300, 300))
 
-        settings.setFlag(QgsMapSettings.Antialiasing, False)
+        settings.setFlag(QgsMapSettings.Flag.Antialiasing, False)
 
         rc = QgsRenderContext.fromMapSettings(settings)
-        image = QImage(200, 200, QImage.Format_ARGB32)
+        image = QImage(200, 200, QImage.Format.Format_ARGB32)
         image.setDotsPerMeterX(int(96 / 25.4 * 1000))
         image.setDotsPerMeterY(int(96 / 25.4 * 1000))
         image.fill(QColor(255, 255, 255))
@@ -200,7 +193,7 @@ class TestQgsAnnotationPolygonItem(unittest.TestCase):
         finally:
             painter.end()
 
-        self.assertTrue(self.imageCheck('polygon_item', 'polygon_item', image))
+        self.assertTrue(self.image_check('polygon_item', 'polygon_item', image))
 
     def testRenderCurvePolygon(self):
         cs = QgsCircularString()
@@ -215,10 +208,10 @@ class TestQgsAnnotationPolygonItem(unittest.TestCase):
         settings.setExtent(QgsRectangle(10, 10, 18, 18))
         settings.setOutputSize(QSize(300, 300))
 
-        settings.setFlag(QgsMapSettings.Antialiasing, False)
+        settings.setFlag(QgsMapSettings.Flag.Antialiasing, False)
 
         rc = QgsRenderContext.fromMapSettings(settings)
-        image = QImage(200, 200, QImage.Format_ARGB32)
+        image = QImage(200, 200, QImage.Format.Format_ARGB32)
         image.setDotsPerMeterX(int(96 / 25.4 * 1000))
         image.setDotsPerMeterY(int(96 / 25.4 * 1000))
         image.fill(QColor(255, 255, 255))
@@ -230,7 +223,7 @@ class TestQgsAnnotationPolygonItem(unittest.TestCase):
         finally:
             painter.end()
 
-        self.assertTrue(self.imageCheck('curvepolygon_item', 'curvepolygon_item', image))
+        self.assertTrue(self.image_check('curvepolygon_item', 'curvepolygon_item', image))
 
     def testRenderWithTransform(self):
         item = QgsAnnotationPolygonItem(QgsPolygon(QgsLineString([QgsPoint(11.5, 13), QgsPoint(12, 13), QgsPoint(12, 13.5), QgsPoint(11.5, 13)])))
@@ -241,11 +234,11 @@ class TestQgsAnnotationPolygonItem(unittest.TestCase):
         settings.setExtent(QgsRectangle(1250958, 1386945, 1420709, 1532518))
         settings.setOutputSize(QSize(300, 300))
 
-        settings.setFlag(QgsMapSettings.Antialiasing, False)
+        settings.setFlag(QgsMapSettings.Flag.Antialiasing, False)
 
         rc = QgsRenderContext.fromMapSettings(settings)
         rc.setCoordinateTransform(QgsCoordinateTransform(QgsCoordinateReferenceSystem('EPSG:4326'), settings.destinationCrs(), QgsProject.instance()))
-        image = QImage(200, 200, QImage.Format_ARGB32)
+        image = QImage(200, 200, QImage.Format.Format_ARGB32)
         image.setDotsPerMeterX(int(96 / 25.4 * 1000))
         image.setDotsPerMeterY(int(96 / 25.4 * 1000))
         image.fill(QColor(255, 255, 255))
@@ -257,21 +250,7 @@ class TestQgsAnnotationPolygonItem(unittest.TestCase):
         finally:
             painter.end()
 
-        self.assertTrue(self.imageCheck('polygon_item_transform', 'polygon_item_transform', image))
-
-    def imageCheck(self, name, reference_image, image):
-        TestQgsAnnotationPolygonItem.report += f"<h2>Render {name}</h2>\n"
-        temp_dir = QDir.tempPath() + '/'
-        file_name = temp_dir + 'patch_' + name + ".png"
-        image.save(file_name, "PNG")
-        checker = QgsRenderChecker()
-        checker.setControlPathPrefix("annotation_layer")
-        checker.setControlName("expected_" + reference_image)
-        checker.setRenderedImage(file_name)
-        checker.setColorTolerance(2)
-        result = checker.compareImages(name, 20)
-        TestQgsAnnotationPolygonItem.report += checker.report()
-        return result
+        self.assertTrue(self.image_check('polygon_item_transform', 'polygon_item_transform', image))
 
 
 if __name__ == '__main__':

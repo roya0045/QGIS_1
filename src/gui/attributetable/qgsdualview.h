@@ -115,7 +115,6 @@ class GUI_EXPORT QgsDualView : public QStackedWidget, private Ui::QgsDualViewBas
     /**
      * Returns the current view mode.
      * \see setView()
-     * \since QGIS 2.16
      */
     ViewMode view() const;
 
@@ -228,6 +227,13 @@ class GUI_EXPORT QgsDualView : public QStackedWidget, private Ui::QgsDualViewBas
      */
     QgsAttributeTableConfig attributeTableConfig() const;
 
+    /**
+     * Returns the list of required attributes according to the attribute table configuration of the \a layer,
+     * only visible attributes and virtual fields referenced fields are returned.
+     * \since QGIS 3.32
+     */
+    static QgsAttributeList requiredAttributes( const QgsVectorLayer *layer );
+
   public slots:
 
     /**
@@ -249,26 +255,22 @@ class GUI_EXPORT QgsDualView : public QStackedWidget, private Ui::QgsDualViewBas
 
     /**
      * Sets whether multi edit mode is enabled.
-     * \since QGIS 2.16
      */
     void setMultiEditEnabled( bool enabled );
 
     /**
      * Toggles whether search mode should be enabled in the form.
      * \param enabled set to TRUE to switch on search mode
-     * \since QGIS 2.16
      */
     void toggleSearchMode( bool enabled );
 
     /**
      * Copy the content of the selected cell in the clipboard.
-     * \since QGIS 1.16
      */
     void copyCellContent() const;
 
     /**
      * Cancel the progress dialog (if any)
-     * \since QGIS 3.0
      */
     void cancelProgress( );
 
@@ -299,7 +301,6 @@ class GUI_EXPORT QgsDualView : public QStackedWidget, private Ui::QgsDualViewBas
      * Emitted when a filter expression is set using the view.
      * \param expression filter expression
      * \param type filter type
-     * \since QGIS 2.16
      */
     void filterExpressionSet( const QString &expression, QgsAttributeForm::FilterType type );
 
@@ -426,7 +427,6 @@ class GUI_EXPORT QgsDualView : public QStackedWidget, private Ui::QgsDualViewBas
     //! Returns TRUE if the expression dialog has been accepted
     bool modifySort();
 
-
     QgsFieldConditionalFormatWidget *mConditionalFormatWidget = nullptr;
     QgsAttributeEditorContext mEditorContext;
     QgsAttributeTableModel *mMasterModel = nullptr;
@@ -465,7 +465,6 @@ class GUI_EXPORT QgsAttributeTableAction : public QAction
     /**
      * Create a new attribute table action.
      *
-     * \since QGIS 3.0
      */
     QgsAttributeTableAction( const QString &name, QgsDualView *dualView, QUuid action, const QModelIndex &fieldIdx )
       : QAction( name, dualView )

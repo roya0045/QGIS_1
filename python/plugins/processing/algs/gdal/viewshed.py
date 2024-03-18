@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     viewshed.py
@@ -68,12 +66,12 @@ class viewshed(GdalAlgorithm):
                                                       self.tr('Observer location')))
         self.addParameter(QgsProcessingParameterNumber(self.OBSERVER_HEIGHT,
                                                        self.tr('Observer height, DEM units'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        minValue=0.0,
                                                        defaultValue=1.0))
         self.addParameter(QgsProcessingParameterNumber(self.TARGET_HEIGHT,
                                                        self.tr('Target height, DEM units'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        minValue=0.0,
                                                        defaultValue=1.0))
         self.addParameter(QgsProcessingParameterDistance(self.MAX_DISTANCE,
@@ -86,7 +84,7 @@ class viewshed(GdalAlgorithm):
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         options_param.setMetadata({
             'widget_wrapper': {
                 'class': 'processing.algs.gdal.ui.RasterOptionsWidget.RasterOptionsWidgetWrapper'}})
@@ -96,7 +94,7 @@ class viewshed(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         self.addParameter(QgsProcessingParameterRasterDestination(self.OUTPUT,
@@ -129,17 +127,17 @@ class viewshed(GdalAlgorithm):
 
         arguments = [
             '-b',
-            '{}'.format(self.parameterAsInt(parameters, self.BAND, context)),
+            f'{self.parameterAsInt(parameters, self.BAND, context)}',
             '-ox',
-            '{}'.format(observer.x()),
+            f'{observer.x()}',
             '-oy',
-            '{}'.format(observer.y()),
+            f'{observer.y()}',
             '-oz',
-            '{}'.format(self.parameterAsDouble(parameters, self.OBSERVER_HEIGHT, context)),
+            f'{self.parameterAsDouble(parameters, self.OBSERVER_HEIGHT, context)}',
             '-tz',
-            '{}'.format(self.parameterAsDouble(parameters, self.TARGET_HEIGHT, context)),
+            f'{self.parameterAsDouble(parameters, self.TARGET_HEIGHT, context)}',
             '-md',
-            '{}'.format(self.parameterAsDouble(parameters, self.MAX_DISTANCE, context)),
+            f'{self.parameterAsDouble(parameters, self.MAX_DISTANCE, context)}',
 
             '-f',
             QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1])

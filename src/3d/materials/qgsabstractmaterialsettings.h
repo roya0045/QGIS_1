@@ -116,7 +116,6 @@ class _3D_EXPORT QgsMaterialContext
  * \warning This is not considered stable API, and may change in future QGIS releases. It is
  * exposed to the Python bindings as a tech preview only.
  *
- * \since QGIS 3.0
  */
 class _3D_EXPORT QgsAbstractMaterialSettings SIP_ABSTRACT
 {
@@ -192,8 +191,9 @@ class _3D_EXPORT QgsAbstractMaterialSettings SIP_ABSTRACT
      */
     virtual void addParametersToEffect( Qt3DRender::QEffect *effect ) const = 0;
 
+    // *INDENT-OFF*
     //! Data definable properties.
-    enum Property
+    enum class Property SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsAbstractMaterialSettings, Property ) : int
     {
       Diffuse, //!< Diffuse color
       Ambient, //!< Ambient color (phong material)
@@ -201,6 +201,7 @@ class _3D_EXPORT QgsAbstractMaterialSettings SIP_ABSTRACT
       Cool,//!< Cool color (gooch material)
       Specular //!< Specular color
     };
+    // *INDENT-ON*
 
     /**
      * Sets the material property collection, used for data defined overrides.
@@ -218,7 +219,7 @@ class _3D_EXPORT QgsAbstractMaterialSettings SIP_ABSTRACT
     * Returns a reference to the material properties definition, used for data defined overrides.
     * \since QGIS 3.18
     */
-    const QgsPropertiesDefinition  &propertyDefinitions() const;
+    const QgsPropertiesDefinition   &propertyDefinitions() const;
 
     /**
      * Applies the data defined bytes, \a dataDefinedBytes, on the \a geometry by filling a specific vertex buffer that will be used by the shader.

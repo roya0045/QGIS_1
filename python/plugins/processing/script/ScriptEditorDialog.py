@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     EditScriptDialog.py
@@ -61,10 +59,25 @@ with warnings.catch_warnings():
 class ScriptEditorDialog(BASE, WIDGET):
     hasChanged = False
 
+    DIALOG_STORE = []
+
     def __init__(self, filePath=None, parent=None):
-        super(ScriptEditorDialog, self).__init__(parent)
+        super().__init__(parent)
+        # SIP is totally messed up here -- the dialog wrapper or something
+        # is always prematurely cleaned which results in broken QObject
+        # connections throughout.
+        # Hack around this by storing dialog instances in a global list to
+        # prevent too early wrapper garbage collection
+        ScriptEditorDialog.DIALOG_STORE.append(self)
+
+        def clean_up_store():
+            ScriptEditorDialog.DIALOG_STORE =\
+                [d for d in ScriptEditorDialog.DIALOG_STORE if d != self]
+
+        self.destroyed.connect(clean_up_store)
+
         self.setupUi(self)
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
         QgsGui.instance().enableAutoGeometryRestore(self)
 
@@ -159,12 +172,12 @@ class ScriptEditorDialog(BASE, WIDGET):
             ret = QMessageBox.question(
                 self, self.tr('Save Script?'),
                 self.tr('There are unsaved changes in this script. Do you want to keep those?'),
-                QMessageBox.Save | QMessageBox.Cancel | QMessageBox.Discard, QMessageBox.Cancel)
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Discard, QMessageBox.StandardButton.Cancel)
 
-            if ret == QMessageBox.Save:
+            if ret == QMessageBox.StandardButton.Save:
                 self.saveScript(False)
                 event.accept()
-            elif ret == QMessageBox.Discard:
+            elif ret == QMessageBox.StandardButton.Discard:
                 event.accept()
             else:
                 event.ignore()
@@ -176,8 +189,8 @@ class ScriptEditorDialog(BASE, WIDGET):
             ret = QMessageBox.warning(self,
                                       self.tr("Unsaved changes"),
                                       self.tr("There are unsaved changes in the script. Continue?"),
-                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if ret == QMessageBox.No:
+                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if ret == QMessageBox.StandardButton.No:
                 return
 
         scriptDir = ScriptUtils.scriptsFolders()[0]
@@ -189,7 +202,7 @@ class ScriptEditorDialog(BASE, WIDGET):
         if fileName == "":
             return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self._loadFile(fileName)
 
     def save(self):
@@ -218,7 +231,7 @@ class ScriptEditorDialog(BASE, WIDGET):
             try:
                 with codecs.open(self.filePath, "w", encoding="utf-8") as f:
                     f.write(text)
-            except IOError as e:
+            except OSError as e:
                 QMessageBox.warning(self,
                                     self.tr("I/O error"),
                                     self.tr("Unable to save edits:\n{}").format(str(e))

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     Dissolve.py
@@ -55,7 +53,7 @@ class Dissolve(GdalAlgorithm):
                                                       self.tr('Dissolve field'),
                                                       None,
                                                       self.INPUT,
-                                                      QgsProcessingParameterField.Any, optional=True))
+                                                      QgsProcessingParameterField.DataType.Any, optional=True))
         self.addParameter(QgsProcessingParameterString(self.GEOMETRY,
                                                        self.tr('Geometry column name'),
                                                        defaultValue='geometry'))
@@ -79,7 +77,7 @@ class Dissolve(GdalAlgorithm):
                                         self.tr('Numeric attribute to calculate statistics on'),
                                         None,
                                         self.INPUT,
-                                        QgsProcessingParameterField.Numeric,
+                                        QgsProcessingParameterField.DataType.Numeric,
                                         optional=True),
             QgsProcessingParameterString(self.OPTIONS,
                                          self.tr('Additional creation options'),
@@ -87,7 +85,7 @@ class Dissolve(GdalAlgorithm):
                                          optional=True)
         ]
         for param in params:
-            param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            param.setFlags(param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             self.addParameter(param)
 
         self.addParameter(QgsProcessingParameterVectorDestination(self.OUTPUT,
@@ -142,7 +140,7 @@ class Dissolve(GdalAlgorithm):
 
         tokens = []
         if self.parameterAsBoolean(parameters, self.COUNT_FEATURES, context):
-            tokens.append('COUNT({}) AS count'.format(geometry))
+            tokens.append(f'COUNT({geometry}) AS count')
 
         if self.parameterAsBoolean(parameters, self.COMPUTE_AREA, context):
             tokens.append('SUM(ST_Area({0})) AS area, ST_Perimeter(ST_Union({0})) AS perimeter'.format(geometry))
@@ -157,12 +155,12 @@ class Dissolve(GdalAlgorithm):
 
         group_by = ''
         if fieldName:
-            group_by = ' GROUP BY "{}"'.format(fieldName)
+            group_by = f' GROUP BY "{fieldName}"'
 
         if self.parameterAsBoolean(parameters, self.KEEP_ATTRIBUTES, context):
-            sql = 'SELECT ST_Union({}) AS {}{}{} FROM "{}"{}'.format(geometry, geometry, other_fields, params, layerName, group_by)
+            sql = f'SELECT ST_Union({geometry}) AS {geometry}{other_fields}{params} FROM "{layerName}"{group_by}'
         else:
-            sql = 'SELECT ST_Union({}) AS {}{}{} FROM "{}"{}'.format(geometry, geometry, ', "{}"'.format(fieldName) if fieldName else '',
+            sql = 'SELECT ST_Union({}) AS {}{}{} FROM "{}"{}'.format(geometry, geometry, f', "{fieldName}"' if fieldName else '',
                                                                      params, layerName, group_by)
 
         arguments.append(sql)
@@ -174,6 +172,6 @@ class Dissolve(GdalAlgorithm):
             arguments.append(options)
 
         if outputFormat:
-            arguments.append('-f {}'.format(outputFormat))
+            arguments.append(f'-f {outputFormat}')
 
         return [self.commandName(), GdalUtils.escapeAndJoin(arguments)]

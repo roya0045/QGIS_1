@@ -45,6 +45,7 @@
 #include "qgslocator.h"
 #include "qgsmessagebar.h"
 #include "qgsappmaptools.h"
+#include "qgspointcloudlayer.h"
 
 QgisAppInterface::QgisAppInterface( QgisApp *_qgis )
   : qgis( _qgis )
@@ -162,12 +163,17 @@ QgsMeshLayer *QgisAppInterface::addMeshLayer( const QString &url, const QString 
 
 QgsVectorTileLayer *QgisAppInterface::addVectorTileLayer( const QString &url, const QString &baseName )
 {
-  return qgis->addVectorTileLayer( url, baseName );
+  return qgis->addLayer<QgsVectorTileLayer>( url, baseName, QString() );
 }
 
 QgsPointCloudLayer *QgisAppInterface::addPointCloudLayer( const QString &url, const QString &baseName, const QString &providerKey )
 {
-  return qgis->addPointCloudLayer( url, baseName, providerKey );
+  return qgis->addLayer<QgsPointCloudLayer>( url, baseName, providerKey );
+}
+
+QgsTiledSceneLayer *QgisAppInterface::addTiledSceneLayer( const QString &url, const QString &baseName, const QString &providerKey )
+{
+  return qgis->addLayer<QgsTiledSceneLayer>( url, baseName, providerKey );
 }
 
 bool QgisAppInterface::addProject( const QString &projectName )
@@ -385,6 +391,21 @@ void QgisAppInterface::closeMapCanvas( const QString &name )
   qgis->closeMapCanvas( name );
 }
 
+QList< Qgs3DMapCanvas * > QgisAppInterface::mapCanvases3D()
+{
+  return qgis->mapCanvases3D();
+}
+
+Qgs3DMapCanvas *QgisAppInterface::createNewMapCanvas3D( const QString &name )
+{
+  return qgis->createNewMapCanvas3D( name );
+}
+
+void QgisAppInterface::closeMapCanvas3D( const QString &name )
+{
+  qgis->close3DMapView( name );
+}
+
 QSize QgisAppInterface::iconSize( bool dockedToolbar ) const
 {
   return qgis->iconSize( dockedToolbar );
@@ -465,16 +486,51 @@ void QgisAppInterface::showProjectPropertiesDialog( const QString &currentPage )
 
 QMap<QString, QVariant> QgisAppInterface::defaultStyleSheetOptions()
 {
-  return qgis->styleSheetBuilder()->defaultOptions();
+  QMap<QString, QVariant> res = qgis->styleSheetBuilder()->defaultOptions();
+
+  // for compatibility with older code, re-add the fontPointSize and fontFamily values which are
+  // no longer handled by the styleSheetBuilder method.
+  res.insert( QStringLiteral( "fontPointSize" ), qgis->styleSheetBuilder()->fontSize() );
+  res.insert( QStringLiteral( "fontFamily" ), qgis->styleSheetBuilder()->fontFamily() );
+
+  return res;
 }
 
 void QgisAppInterface::buildStyleSheet( const QMap<QString, QVariant> &opts )
 {
-  qgis->styleSheetBuilder()->buildStyleSheet( opts );
+  // remove unwanted fontPointSize / fontFamily keys, which may be present from older code
+  QMap< QString, QVariant> newOpts = opts;
+  if ( newOpts.contains( QStringLiteral( "fontPointSize" ) ) && (
+         newOpts.value( QStringLiteral( "fontPointSize" ) ).toDouble() == qgis->styleSheetBuilder()->defaultFont().pointSizeF()
+         || newOpts.value( QStringLiteral( "fontPointSize" ) ).toString() == QString::number( qgis->styleSheetBuilder()->defaultFont().pointSizeF() ) ) )
+  {
+    newOpts.remove( QStringLiteral( "fontPointSize" ) );
+  }
+  if ( newOpts.contains( QStringLiteral( "fontFamily" ) ) &&
+       newOpts.value( QStringLiteral( "fontFamily" ) ).toString() == qgis->styleSheetBuilder()->defaultFont().family() )
+  {
+    newOpts.remove( QStringLiteral( "fontFamily" ) );
+  }
+
+  qgis->styleSheetBuilder()->applyStyleSheet( newOpts );
 }
 
 void QgisAppInterface::saveStyleSheetOptions( const QMap<QString, QVariant> &opts )
 {
+  // remove unwanted fontPointSize / fontFamily keys, which may be present from older code
+  QMap< QString, QVariant> newOpts = opts;
+  if ( newOpts.contains( QStringLiteral( "fontPointSize" ) ) && (
+         newOpts.value( QStringLiteral( "fontPointSize" ) ).toDouble() == qgis->styleSheetBuilder()->defaultFont().pointSizeF()
+         || newOpts.value( QStringLiteral( "fontPointSize" ) ).toString() == QString::number( qgis->styleSheetBuilder()->defaultFont().pointSizeF() ) ) )
+  {
+    newOpts.remove( QStringLiteral( "fontPointSize" ) );
+  }
+  if ( newOpts.contains( QStringLiteral( "fontFamily" ) ) &&
+       newOpts.value( QStringLiteral( "fontFamily" ) ).toString() == qgis->styleSheetBuilder()->defaultFont().family() )
+  {
+    newOpts.remove( QStringLiteral( "fontFamily" ) );
+  }
+
   qgis->styleSheetBuilder()->saveToSettings( opts );
 }
 
@@ -695,6 +751,7 @@ QMenu *QgisAppInterface::rasterMenu() { return qgis->rasterMenu(); }
 QMenu *QgisAppInterface::vectorMenu() { return qgis->vectorMenu(); }
 QMenu *QgisAppInterface::databaseMenu() { return qgis->databaseMenu(); }
 QMenu *QgisAppInterface::webMenu() { return qgis->webMenu(); }
+QMenu *QgisAppInterface::meshMenu() { return qgis->meshMenu(); }
 QMenu *QgisAppInterface::firstRightStandardMenu() { return qgis->firstRightStandardMenu(); }
 QMenu *QgisAppInterface::windowMenu() { return qgis->windowMenu(); }
 QMenu *QgisAppInterface::helpMenu() { return qgis->helpMenu(); }
@@ -956,5 +1013,10 @@ QList<QgsMapDecoration *> QgisAppInterface::activeDecorations()
 QgsUserProfileManager *QgisAppInterface::userProfileManager()
 {
   return qgis->userProfileManager();
+}
+
+void QgisAppInterface::blockActiveLayerChanges( bool blocked )
+{
+  qgis->blockActiveLayerChanges( blocked );
 }
 

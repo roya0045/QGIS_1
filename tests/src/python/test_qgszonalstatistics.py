@@ -12,7 +12,6 @@ __copyright__ = 'Copyright 2013, The QGIS Project'
 import os
 import shutil
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QDir, QFile, QTemporaryDir
 from qgis.analysis import QgsZonalStatistics
 from qgis.core import (
@@ -22,7 +21,8 @@ from qgis.core import (
     QgsRasterLayer,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -31,7 +31,7 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsZonalStatistics(unittest.TestCase):
+class TestQgsZonalStatistics(QgisTestCase):
 
     """Tests for zonal stats class."""
 
@@ -40,13 +40,13 @@ class TestQgsZonalStatistics(unittest.TestCase):
         TEST_DATA_DIR = unitTestDataPath() + "/zonalstatistics/"
         myTempPath = QDir.tempPath() + "/"
         testDir = QDir(TEST_DATA_DIR)
-        for f in testDir.entryList(QDir.Files):
+        for f in testDir.entryList(QDir.Filter.Files):
             QFile.remove(myTempPath + f)
             QFile.copy(TEST_DATA_DIR + f, myTempPath + f)
 
         myVector = QgsVectorLayer(myTempPath + "polys.shp", "poly", "ogr")
         myRaster = QgsRasterLayer(myTempPath + "edge_problem.asc", "raster", "gdal")
-        zs = QgsZonalStatistics(myVector, myRaster, "", 1, QgsZonalStatistics.All)
+        zs = QgsZonalStatistics(myVector, myRaster, "", 1, QgsZonalStatistics.Statistic.All)
         zs.calculateStatistics(None)
 
         feat = QgsFeature()

@@ -350,7 +350,7 @@ void QgsServerSettings::initSettings()
   // the default config cache check interval
   const Setting sConfigCacheCheckInterval = { QgsServerSettingsEnv::QGIS_SERVER_PROJECT_CACHE_CHECK_INTERVAL,
                                               QgsServerSettingsEnv::DEFAULT_VALUE,
-                                              QStringLiteral( "The default project cache check interval" ),
+                                              QStringLiteral( "The default project cache check interval (in ms)" ),
                                               QStringLiteral( "/qgis/server_project_cache_check_interval" ),
                                               QVariant::Int,
                                               QVariant( 0 ),
@@ -389,6 +389,15 @@ void QgsServerSettings::initSettings()
                                    };
   mSettings[ sApplicationName.envVar ] = sApplicationName;
 
+  const Setting sCapabilitiesCacheSize = { QgsServerSettingsEnv::QGIS_SERVER_CAPABILITIES_CACHE_SIZE,
+                                           QgsServerSettingsEnv::DEFAULT_VALUE,
+                                           QStringLiteral( "The QGIS Server capabilities cache size" ),
+                                           QStringLiteral( "/qgis/capabilities_cache_size" ),
+                                           QVariant::Int,
+                                           QVariant( 40 ),
+                                           QVariant()
+                                         };
+  mSettings[ sCapabilitiesCacheSize.envVar ] = sCapabilitiesCacheSize;
 }
 
 void QgsServerSettings::load()
@@ -708,4 +717,15 @@ QStringList QgsServerSettings::allowedExtraSqlTokens() const
 QString QgsServerSettings::applicationName() const
 {
   return value( QgsServerSettingsEnv::QGIS_SERVER_APPLICATION_NAME ).toString().trimmed();
+}
+
+int QgsServerSettings::capabilitiesCacheSize() const
+{
+  bool ok;
+  int size = value( QgsServerSettingsEnv::QGIS_SERVER_CAPABILITIES_CACHE_SIZE ).toInt( &ok );
+  if ( ok && size >= 1 )
+    return size;
+
+  QgsMessageLog::logMessage( QStringLiteral( "Invalid capabilities cache size, expecting integer - defaulting to 40" ), "Server", Qgis::MessageLevel::Warning );
+  return 40;
 }

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     rasterize_over_fixed_value.py
@@ -60,7 +58,7 @@ class rasterize_over_fixed_value(GdalAlgorithm):
                                                             self.tr('Input raster layer')))
         self.addParameter(QgsProcessingParameterNumber(self.BURN,
                                                        self.tr('A fixed value to burn'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        defaultValue=0.0))
 
         params = [
@@ -73,7 +71,7 @@ class rasterize_over_fixed_value(GdalAlgorithm):
                                          optional=True)
         ]
         for p in params:
-            p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             self.addParameter(p)
 
         self.addOutput(QgsProcessingOutputRasterLayer(self.OUTPUT,

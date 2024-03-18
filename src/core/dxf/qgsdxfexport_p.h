@@ -43,14 +43,14 @@ struct DxfLayerJob
       , splitLayerAttribute( splitLayerAttribute )
       , layerTitle( vl->title().isEmpty() ? vl->name() : vl->title() )
     {
-      fields = vl->fields();
-      renderer.reset( vl->renderer()->clone() );
-      renderContext.expressionContext().appendScope( QgsExpressionContextUtils::layerScope( vl ) );
-
       if ( !layerStyleOverride.isNull() )
       {
         styleOverride.setOverrideStyle( layerStyleOverride );
       }
+      fields = vl->fields();
+      selectedFeatureIds = vl->selectedFeatureIds();
+      renderer.reset( vl->renderer()->clone() );
+      renderContext.expressionContext().appendScope( QgsExpressionContextUtils::layerScope( vl ) );
 
       labeling.reset( vl->labelsEnabled() ? vl->labeling()->clone() : nullptr );
 
@@ -94,6 +94,7 @@ struct DxfLayerJob
 
     QgsRenderContext renderContext;
     QgsFields fields;
+    QgsFeatureIds selectedFeatureIds;
     QgsMapLayerStyleOverride styleOverride;
     QgsVectorLayerFeatureSource featureSource;
     std::unique_ptr< QgsFeatureRenderer > renderer;

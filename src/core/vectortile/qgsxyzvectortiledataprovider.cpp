@@ -19,6 +19,7 @@
 #include "qgsvectortileloader.h"
 #include "qgsvectortileutils.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 #include "qgsapplication.h"
 #include "qgsauthmanager.h"
 #include "qgsmessagelog.h"
@@ -32,73 +33,37 @@
 QString QgsXyzVectorTileDataProvider::XYZ_DATA_PROVIDER_KEY = QStringLiteral( "xyzvectortiles" );
 QString QgsXyzVectorTileDataProvider::XYZ_DATA_PROVIDER_DESCRIPTION = QObject::tr( "XYZ Vector Tiles data provider" );
 
-QgsXyzVectorTileDataProvider::QgsXyzVectorTileDataProvider( const QString &uri, const ProviderOptions &providerOptions, ReadFlags flags )
+//
+// QgsXyzVectorTileDataProviderBase
+//
+
+QgsXyzVectorTileDataProviderBase::QgsXyzVectorTileDataProviderBase( const QString &uri, const ProviderOptions &providerOptions, ReadFlags flags )
   : QgsVectorTileDataProvider( uri, providerOptions, flags )
 {
   QgsDataSourceUri dsUri;
   dsUri.setEncodedUri( uri );
-
   mAuthCfg = dsUri.authConfigId();
   mHeaders = dsUri.httpHeaders();
 }
 
-QString QgsXyzVectorTileDataProvider::name() const
+QgsXyzVectorTileDataProviderBase::QgsXyzVectorTileDataProviderBase( const QgsXyzVectorTileDataProviderBase &other )
+  : QgsVectorTileDataProvider( other )
 {
-  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
-
-  return XYZ_DATA_PROVIDER_KEY;
+  mAuthCfg = other.mAuthCfg;
+  mHeaders = other.mHeaders;
 }
 
-QString QgsXyzVectorTileDataProvider::description() const
-{
-  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
-
-  return XYZ_DATA_PROVIDER_DESCRIPTION;
-}
-
-QgsVectorTileDataProvider *QgsXyzVectorTileDataProvider::clone() const
-{
-  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
-
-  ProviderOptions options;
-  options.transformContext = transformContext();
-  return new QgsXyzVectorTileDataProvider( dataSourceUri(), options, mReadFlags );
-}
-
-QString QgsXyzVectorTileDataProvider::sourcePath() const
-{
-  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
-
-  QgsDataSourceUri dsUri;
-  dsUri.setEncodedUri( dataSourceUri() );
-  return dsUri.param( QStringLiteral( "url" ) );
-}
-
-bool QgsXyzVectorTileDataProvider::isValid() const
-{
-  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
-
-  return true;
-}
-
-QgsCoordinateReferenceSystem QgsXyzVectorTileDataProvider::crs() const
-{
-  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
-
-  return QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3857" ) );
-}
-
-bool QgsXyzVectorTileDataProvider::supportsAsync() const
+bool QgsXyzVectorTileDataProviderBase::supportsAsync() const
 {
   return true;
 }
 
-QByteArray QgsXyzVectorTileDataProvider::readTile( const QgsTileMatrix &tileMatrix, const QgsTileXYZ &id, QgsFeedback *feedback ) const
+QgsVectorTileRawData QgsXyzVectorTileDataProviderBase::readTile( const QgsTileMatrixSet &set, const QgsTileXYZ &id, QgsFeedback *feedback ) const
 {
-  return loadFromNetwork( id, tileMatrix, sourcePath(), mAuthCfg, mHeaders, feedback );
+  return QgsVectorTileRawData( id, loadFromNetwork( id, set.tileMatrix( id.zoomLevel() ), sourcePath(), mAuthCfg, mHeaders, feedback ) );
 }
 
-QList<QgsVectorTileRawData> QgsXyzVectorTileDataProvider::readTiles( const QgsTileMatrix &tileMatrix, const QVector<QgsTileXYZ> &tiles, QgsFeedback *feedback ) const
+QList<QgsVectorTileRawData> QgsXyzVectorTileDataProviderBase::readTiles( const QgsTileMatrixSet &set, const QVector<QgsTileXYZ> &tiles, QgsFeedback *feedback, Qgis::RendererUsage usage ) const
 {
   QList<QgsVectorTileRawData> rawTiles;
   rawTiles.reserve( tiles.size() );
@@ -108,7 +73,7 @@ QList<QgsVectorTileRawData> QgsXyzVectorTileDataProvider::readTiles( const QgsTi
     if ( feedback && feedback->isCanceled() )
       break;
 
-    const QByteArray rawData = loadFromNetwork( id, tileMatrix, source, mAuthCfg, mHeaders, feedback );
+    const QByteArray rawData = loadFromNetwork( id, set.tileMatrix( id.zoomLevel() ), source, mAuthCfg, mHeaders, feedback, usage );
     if ( !rawData.isEmpty() )
     {
       rawTiles.append( QgsVectorTileRawData( id, rawData ) );
@@ -117,7 +82,7 @@ QList<QgsVectorTileRawData> QgsXyzVectorTileDataProvider::readTiles( const QgsTi
   return rawTiles;
 }
 
-QNetworkRequest QgsXyzVectorTileDataProvider::tileRequest( const QgsTileMatrix &tileMatrix, const QgsTileXYZ &id, Qgis::RendererUsage usage ) const
+QNetworkRequest QgsXyzVectorTileDataProviderBase::tileRequest( const QgsTileMatrixSet &set, const QgsTileXYZ &id, Qgis::RendererUsage usage ) const
 {
   QString urlTemplate = sourcePath();
 
@@ -137,7 +102,7 @@ QNetworkRequest QgsXyzVectorTileDataProvider::tileRequest( const QgsTileMatrix &
     }
   }
 
-  const QString url = QgsVectorTileUtils::formatXYZUrlTemplate( urlTemplate, id, tileMatrix );
+  const QString url = QgsVectorTileUtils::formatXYZUrlTemplate( urlTemplate, id, set.tileMatrix( id.zoomLevel() ) );
 
   QNetworkRequest request( url );
   QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsXyzVectorTileDataProvider" ) );
@@ -160,9 +125,26 @@ QNetworkRequest QgsXyzVectorTileDataProvider::tileRequest( const QgsTileMatrix &
   return request;
 }
 
-QByteArray QgsXyzVectorTileDataProvider::loadFromNetwork( const QgsTileXYZ &id, const QgsTileMatrix &tileMatrix, const QString &requestUrl, const QString &authid, const QgsHttpHeaders &headers, QgsFeedback *feedback )
+QByteArray QgsXyzVectorTileDataProviderBase::loadFromNetwork( const QgsTileXYZ &id, const QgsTileMatrix &tileMatrix, const QString &requestUrl, const QString &authid, const QgsHttpHeaders &headers, QgsFeedback *feedback, Qgis::RendererUsage usage )
 {
   QString url = QgsVectorTileUtils::formatXYZUrlTemplate( requestUrl, id, tileMatrix );
+
+  if ( url.contains( QLatin1String( "{usage}" ) ) )
+  {
+    switch ( usage )
+    {
+      case Qgis::RendererUsage::View:
+        url.replace( QLatin1String( "{usage}" ), QLatin1String( "view" ) );
+        break;
+      case Qgis::RendererUsage::Export:
+        url.replace( QLatin1String( "{usage}" ), QLatin1String( "export" ) );
+        break;
+      case Qgis::RendererUsage::Unknown:
+        url.replace( QLatin1String( "{usage}" ), QString() );
+        break;
+    }
+  }
+
   QNetworkRequest nr;
   nr.setUrl( QUrl( url ) );
 
@@ -174,7 +156,7 @@ QByteArray QgsXyzVectorTileDataProvider::loadFromNetwork( const QgsTileXYZ &id, 
   QgsBlockingNetworkRequest::ErrorCode errCode = req.get( nr, false, feedback );
   if ( errCode != QgsBlockingNetworkRequest::NoError )
   {
-    QgsDebugMsg( QStringLiteral( "Request failed: " ) + url );
+    QgsDebugError( QStringLiteral( "Request failed: " ) + url );
     return QByteArray();
   }
   QgsNetworkReplyContent reply = req.reply();
@@ -210,15 +192,11 @@ QgsProviderMetadata::ProviderCapabilities QgsXyzVectorTileDataProviderMetadata::
 
 QVariantMap QgsXyzVectorTileDataProviderMetadata::decodeUri( const QString &uri ) const
 {
-  // TODO -- carefully thin out options which don't apply to xyz vector tile services
-
   QgsDataSourceUri dsUri;
   dsUri.setEncodedUri( uri );
 
   QVariantMap uriComponents;
-  uriComponents.insert( QStringLiteral( "type" ), dsUri.param( QStringLiteral( "type" ) ) );
-  if ( dsUri.hasParam( QStringLiteral( "serviceType" ) ) )
-    uriComponents.insert( QStringLiteral( "serviceType" ), dsUri.param( QStringLiteral( "serviceType" ) ) );
+  uriComponents.insert( QStringLiteral( "type" ), QStringLiteral( "xyz" ) );
 
   if ( uriComponents[ QStringLiteral( "type" ) ] == QLatin1String( "mbtiles" ) ||
        ( uriComponents[ QStringLiteral( "type" ) ] == QLatin1String( "xyz" ) &&
@@ -250,12 +228,8 @@ QVariantMap QgsXyzVectorTileDataProviderMetadata::decodeUri( const QString &uri 
 
 QString QgsXyzVectorTileDataProviderMetadata::encodeUri( const QVariantMap &parts ) const
 {
-  // TODO -- carefully thin out options which don't apply to xyz vector tile services
-
   QgsDataSourceUri dsUri;
-  dsUri.setParam( QStringLiteral( "type" ), parts.value( QStringLiteral( "type" ) ).toString() );
-  if ( parts.contains( QStringLiteral( "serviceType" ) ) )
-    dsUri.setParam( QStringLiteral( "serviceType" ), parts[ QStringLiteral( "serviceType" ) ].toString() );
+  dsUri.setParam( QStringLiteral( "type" ), QStringLiteral( "xyz" ) );
   dsUri.setParam( QStringLiteral( "url" ), parts.value( parts.contains( QStringLiteral( "path" ) ) ? QStringLiteral( "path" ) : QStringLiteral( "url" ) ).toString() );
 
   if ( parts.contains( QStringLiteral( "zmin" ) ) )
@@ -317,6 +291,112 @@ QList<Qgis::LayerType> QgsXyzVectorTileDataProviderMetadata::supportedLayerTypes
 {
   return { Qgis::LayerType::VectorTile };
 }
+
+
+//
+// QgsXyzVectorTileDataProvider
+//
+
+QgsXyzVectorTileDataProvider::QgsXyzVectorTileDataProvider( const QString &uri, const ProviderOptions &providerOptions, ReadFlags flags )
+  : QgsXyzVectorTileDataProviderBase( uri, providerOptions, flags )
+{
+  QgsDataSourceUri dsUri;
+  dsUri.setEncodedUri( uri );
+
+  const QString sourcePath = dsUri.param( QStringLiteral( "url" ) );
+  if ( !QgsVectorTileUtils::checkXYZUrlTemplate( sourcePath ) )
+  {
+    QgsDebugError( QStringLiteral( "Invalid format of URL for XYZ source: " ) + sourcePath );
+    mIsValid = false;
+    return;
+  }
+
+  int zMin = 0;
+  if ( dsUri.hasParam( QStringLiteral( "zmin" ) ) )
+    zMin = dsUri.param( QStringLiteral( "zmin" ) ).toInt();
+
+  int zMax = 14;
+  if ( dsUri.hasParam( QStringLiteral( "zmax" ) ) )
+    zMax = dsUri.param( QStringLiteral( "zmax" ) ).toInt();
+
+  mMatrixSet = QgsVectorTileMatrixSet::fromWebMercator( zMin, zMax );
+  mExtent = QgsRectangle( -20037508.3427892, -20037508.3427892, 20037508.3427892, 20037508.3427892 );
+
+  mIsValid = true;
+}
+
+QgsXyzVectorTileDataProvider::QgsXyzVectorTileDataProvider( const QgsXyzVectorTileDataProvider &other )
+  : QgsXyzVectorTileDataProviderBase( other )
+{
+  mIsValid = other.mIsValid;
+  mExtent = other.mExtent;
+  mMatrixSet = other.mMatrixSet;
+}
+
+Qgis::DataProviderFlags QgsXyzVectorTileDataProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D;
+}
+
+QString QgsXyzVectorTileDataProvider::name() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return XYZ_DATA_PROVIDER_KEY;
+}
+
+QString QgsXyzVectorTileDataProvider::description() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return XYZ_DATA_PROVIDER_DESCRIPTION;
+}
+
+QgsVectorTileDataProvider *QgsXyzVectorTileDataProvider::clone() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return new QgsXyzVectorTileDataProvider( *this );
+}
+
+bool QgsXyzVectorTileDataProvider::isValid() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return mIsValid;
+}
+
+QgsRectangle QgsXyzVectorTileDataProvider::extent() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return mExtent;
+}
+
+QgsCoordinateReferenceSystem QgsXyzVectorTileDataProvider::crs() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3857" ) );
+}
+
+const QgsVectorTileMatrixSet &QgsXyzVectorTileDataProvider::tileMatrixSet() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return mMatrixSet;
+}
+
+QString QgsXyzVectorTileDataProvider::sourcePath() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  QgsDataSourceUri dsUri;
+  dsUri.setEncodedUri( dataSourceUri() );
+  return dsUri.param( QStringLiteral( "url" ) );
+}
+
 ///@endcond
+
 
 

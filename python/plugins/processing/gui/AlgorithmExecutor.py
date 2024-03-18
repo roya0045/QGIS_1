@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     AlgorithmExecutor.py
@@ -64,7 +62,7 @@ def execute(alg, parameters, context=None, feedback=None, catch_exceptions=True)
             results, ok = alg.run(parameters, context, feedback)
             return ok, results
         except QgsProcessingException as e:
-            QgsMessageLog.logMessage(str(sys.exc_info()[0]), 'Processing', Qgis.Critical)
+            QgsMessageLog.logMessage(str(sys.exc_info()[0]), 'Processing', Qgis.MessageLevel.Critical)
             if feedback is not None:
                 feedback.reportError(e.msg)
             return False, {}
@@ -98,8 +96,8 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
 
     # Only feature based algs have sourceFlags
     try:
-        if alg.sourceFlags() & QgsProcessingFeatureSource.FlagSkipGeometryValidityChecks:
-            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
+        if alg.sourceFlags() & QgsProcessingFeatureSource.Flag.FlagSkipGeometryValidityChecks:
+            context.setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometryNoCheck)
     except AttributeError:
         pass
 
@@ -138,7 +136,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
     except QgsProcessingException as e:
         if raise_exceptions:
             raise e
-        QgsMessageLog.logMessage(str(sys.exc_info()[0]), 'Processing', Qgis.Critical)
+        QgsMessageLog.logMessage(str(sys.exc_info()[0]), 'Processing', Qgis.MessageLevel.Critical)
         if feedback is not None:
             feedback.reportError(getattr(e, 'msg', str(e)), fatalError=True)
         return False, {}
@@ -151,7 +149,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
     parameters['OUTPUT'] = 'memory:'
 
     req = QgsFeatureRequest(QgsExpression(r"$id < 0"))
-    req.setFlags(QgsFeatureRequest.NoGeometry)
+    req.setFlags(QgsFeatureRequest.Flag.NoGeometry)
     req.setSubsetOfAttributes([])
 
     # Start the execution
@@ -211,7 +209,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
                 else:
                     active_layer.deleteFeature(f.id())
                     # Get the new ids
-                    old_ids = set([f.id() for f in active_layer.getFeatures(req)])
+                    old_ids = {f.id() for f in active_layer.getFeatures(req)}
                     # If multiple new features were created, we need to pass
                     # them to createFeatures to manage constraints correctly
                     features_data = []
@@ -220,7 +218,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
                     new_features = QgsVectorLayerUtils.createFeatures(active_layer, features_data, context.expressionContext())
                     if not active_layer.addFeatures(new_features):
                         raise QgsProcessingException(tr("Error adding processed features back into the layer."))
-                    new_ids = set([f.id() for f in active_layer.getFeatures(req)])
+                    new_ids = {f.id() for f in active_layer.getFeatures(req)}
                     new_feature_ids += list(new_ids - old_ids)
 
                 feedback.setProgress(int((current + 1) * step))
@@ -231,7 +229,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
 
             # There is no way to know if some features have been skipped
             # due to invalid geometries
-            if context.invalidGeometryCheck() == QgsFeatureRequest.GeometrySkipInvalid:
+            if context.invalidGeometryCheck() == QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid:
                 selected_ids = active_layer.selectedFeatureIds()
             else:
                 selected_ids = []
@@ -245,7 +243,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
                 new_features = []
 
                 # Check if there are any skipped features
-                if context.invalidGeometryCheck() == QgsFeatureRequest.GeometrySkipInvalid:
+                if context.invalidGeometryCheck() == QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid:
                     missing_ids = list(set(selected_ids) - set(result_layer.allFeatureIds()))
                     if missing_ids:
                         for f in active_layer.getFeatures(QgsFeatureRequest(missing_ids)):
@@ -255,7 +253,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
                 active_layer.deleteFeatures(active_layer.selectedFeatureIds())
 
                 regenerate_primary_key = result_layer.customProperty('OnConvertFormatRegeneratePrimaryKey', False)
-                sink_flags = QgsFeatureSink.SinkFlags(QgsFeatureSink.RegeneratePrimaryKey) if regenerate_primary_key \
+                sink_flags = QgsFeatureSink.SinkFlags(QgsFeatureSink.SinkFlag.RegeneratePrimaryKey) if regenerate_primary_key \
                     else QgsFeatureSink.SinkFlags()
 
                 for f in result_layer.getFeatures():
@@ -263,10 +261,10 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
                                         makeFeaturesCompatible([f], active_layer, sink_flags))
 
                 # Get the new ids
-                old_ids = set([f.id() for f in active_layer.getFeatures(req)])
+                old_ids = {f.id() for f in active_layer.getFeatures(req)}
                 if not active_layer.addFeatures(new_features):
                     raise QgsProcessingException(tr("Error adding processed features back into the layer."))
-                new_ids = set([f.id() for f in active_layer.getFeatures(req)])
+                new_ids = {f.id() for f in active_layer.getFeatures(req)}
                 new_feature_ids += list(new_ids - old_ids)
                 results['__count'] = len(new_feature_ids)
 
@@ -284,7 +282,7 @@ def execute_in_place_run(alg, parameters, context=None, feedback=None, raise_exc
         active_layer.rollBack()
         if raise_exceptions:
             raise e
-        QgsMessageLog.logMessage(str(sys.exc_info()[0]), 'Processing', Qgis.Critical)
+        QgsMessageLog.logMessage(str(sys.exc_info()[0]), 'Processing', Qgis.MessageLevel.Critical)
         if feedback is not None:
             feedback.reportError(getattr(e, 'msg', str(e)), fatalError=True)
 
@@ -352,7 +350,7 @@ def executeIterating(alg, parameters, paramToIter, context, feedback):
 
         sink, sink_id = QgsProcessingUtils.createFeatureSink('memory:', context, iter_source.fields(), iter_source.wkbType(), iter_source.sourceCrs())
         sink_list.append(sink_id)
-        sink.addFeature(feat, QgsFeatureSink.FastInsert)
+        sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
         del sink
 
         feedback.setProgress(int((current + 1) * step))
@@ -381,7 +379,7 @@ def executeIterating(alg, parameters, paramToIter, context, feedback):
         if not ret:
             return False
 
-    handleAlgorithmResults(alg, context, feedback, False)
+    handleAlgorithmResults(alg, context, feedback)
     return True
 
 

@@ -78,7 +78,7 @@ bool QgsAbstractGeoPdfExporter::finalize( const QList<ComponentLayerDetail> &com
     return false;
 
   const QString composition = createCompositionXml( components, details );
-  QgsDebugMsg( composition );
+  QgsDebugMsgLevel( composition, 2 );
   if ( composition.isEmpty() )
     return false;
 
@@ -110,7 +110,7 @@ bool QgsAbstractGeoPdfExporter::finalize( const QList<ComponentLayerDetail> &com
 
   // return a non-null (fake) dataset in case of success, nullptr otherwise.
   gdal::dataset_unique_ptr outputDataset( GDALCreate( driver, destinationFile.toUtf8().constData(), 0, 0, 0, GDT_Unknown, papszOptions ) );
-  bool res = outputDataset.get();
+  const bool res = outputDataset.get() != nullptr;
   outputDataset.reset();
 
   CSLDestroy( papszOptions );
@@ -176,12 +176,12 @@ bool QgsAbstractGeoPdfExporter::saveTemporaryLayers()
       QString layerName;
       QgsVectorFileWriter::SaveVectorOptions saveOptions;
       saveOptions.driverName = QStringLiteral( "GPKG" );
-      saveOptions.symbologyExport = QgsVectorFileWriter::NoSymbology;
+      saveOptions.symbologyExport = Qgis::FeatureSymbologyExport::NoSymbology;
       std::unique_ptr< QgsVectorFileWriter > writer( QgsVectorFileWriter::create( filePath, features.first().fields(), features.first().geometry().wkbType(), QgsCoordinateReferenceSystem(), QgsCoordinateTransformContext(), saveOptions, QgsFeatureSink::RegeneratePrimaryKey, nullptr, &layerName ) );
       if ( writer->hasError() )
       {
         mErrorMessage = writer->errorMessage();
-        QgsDebugMsg( mErrorMessage );
+        QgsDebugError( mErrorMessage );
         return false;
       }
       for ( const QgsFeature &feature : features )
@@ -190,7 +190,7 @@ bool QgsAbstractGeoPdfExporter::saveTemporaryLayers()
         if ( !writer->addFeature( f, QgsFeatureSink::FastInsert ) )
         {
           mErrorMessage = writer->errorMessage();
-          QgsDebugMsg( mErrorMessage );
+          QgsDebugError( mErrorMessage );
           return false;
         }
       }
@@ -429,7 +429,7 @@ QString QgsAbstractGeoPdfExporter::createCompositionXml( const QList<ComponentLa
       }
       else
       {
-        srs.appendChild( doc.createTextNode( section.crs.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ) ) );
+        srs.appendChild( doc.createTextNode( section.crs.toWkt( Qgis::CrsWktVariant::PreferredGdal ) ) );
       }
       georeferencing.appendChild( srs );
     }
@@ -619,7 +619,7 @@ QString QgsAbstractGeoPdfExporter::compositionModeToString( QPainter::Compositio
       break;
   }
 
-  QgsDebugMsg( QStringLiteral( "Unsupported PDF blend mode %1" ).arg( mode ) );
+  QgsDebugError( QStringLiteral( "Unsupported PDF blend mode %1" ).arg( mode ) );
   return QStringLiteral( "Normal" );
 }
 

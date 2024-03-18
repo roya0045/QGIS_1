@@ -95,8 +95,24 @@ class LayerRenderJob
      */
     QgsElevationMap *elevationMap = nullptr;
 
+    /**
+     * Pointer to destination image for in-progress preview renders.
+     *
+     * May be NULLPTR if it is not necessary to draw in-progress preview renders.
+     *
+     * \since QGIS 3.34
+     */
+    QImage *previewRenderImage = nullptr;
+
     //! TRUE when img has been initialized (filled with transparent pixels)
     bool imageInitialized = false;
+
+    /**
+     * TRUE when previewRenderImage has been initialized (filled with transparent pixels).
+     *
+     * \since QGIS 3.34
+     */
+    bool previewRenderImageInitialized = false;
 
     bool imageCanBeComposed() const;
 
@@ -278,7 +294,6 @@ struct LabelRenderJob
  * - QgsMapRendererParallelJob - renders map in multiple background threads to an image
  * - QgsMapRendererCustomPainterJob - renders map with given QPainter in one background thread
  *
- * \since QGIS 2.4
  */
 class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
 {
@@ -319,7 +334,6 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
      * If so, any previously stored labeling results (see takeLabelingResults())
      * should be retained.
      * \see takeLabelingResults()
-     * \since QGIS 3.0
      */
     virtual bool usedCachedLabels() const = 0;
 
@@ -354,14 +368,12 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
      * each LayerRenderJob.
      * Ownership is not transferred and the provider must not be deleted
      * before the render job.
-     * \since QGIS 3.0
      */
     void setFeatureFilterProvider( const QgsFeatureFilterProvider *f ) { mFeatureFilterProvider = f; }
 
     /**
      * Returns the feature filter provider used by the QgsRenderContext of
      * each LayerRenderJob.
-     * \since QGIS 3.0
      */
     const QgsFeatureFilterProvider *featureFilterProvider() const { return mFeatureFilterProvider; }
 
@@ -423,7 +435,6 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
     /**
      * Returns the render time (in ms) per layer.
      * \note Not available in Python bindings.
-     * \since QGIS 3.0
      */
     QHash< QgsMapLayer *, int > perLayerRenderingTime() const SIP_SKIP;
 
@@ -444,7 +455,6 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
     /**
      * Returns map settings with which this job was started.
      * \returns A QgsMapSettings instance with render settings
-     * \since QGIS 2.8
      */
     const QgsMapSettings &mapSettings() const;
 
@@ -480,7 +490,6 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
      * Rendering labels is not yet done. If the fully rendered layer including labels is required use
      * finished() instead.
      *
-     * \since QGIS 3.0
      */
     void renderingLayersFinished();
 
@@ -560,7 +569,6 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
     /**
      * Prepares a labeling job.
      * \note not available in Python bindings
-     * \since QGIS 3.0
      */
     LabelRenderJob prepareLabelingJob( QPainter *painter, QgsLabelingEngine *labelingEngine2, bool canUseLabelCache = true ) SIP_SKIP;
 
@@ -613,7 +621,6 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
      * Handles clean up tasks for a label job, including deletion of images and storing cached
      * label results.
      * \note not available in Python bindings
-     * \since QGIS 3.0
      */
     void cleanupLabelJob( LabelRenderJob &job ) SIP_SKIP;
 
@@ -675,7 +682,6 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
  *
  * The image can be queried even while the rendering is still in progress to get intermediate result
  *
- * \since QGIS 2.4
  */
 class CORE_EXPORT QgsMapRendererQImageJob : public QgsMapRendererJob SIP_ABSTRACT
 {

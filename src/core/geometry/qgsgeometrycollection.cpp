@@ -15,6 +15,7 @@ email                : marco.hugentobler at sourcepole dot com
 
 #include "qgsgeometrycollection.h"
 #include "qgsapplication.h"
+#include "qgsbox3d.h"
 #include "qgsgeometryfactory.h"
 #include "qgsgeometryutils.h"
 #include "qgscircularstring.h"
@@ -70,43 +71,6 @@ QgsGeometryCollection &QgsGeometryCollection::operator=( const QgsGeometryCollec
 QgsGeometryCollection::~QgsGeometryCollection()
 {
   clear();
-}
-
-bool QgsGeometryCollection::operator==( const QgsAbstractGeometry &other ) const
-{
-  const QgsGeometryCollection *otherCollection = qgsgeometry_cast< const QgsGeometryCollection * >( &other );
-  if ( !otherCollection )
-    return false;
-
-  if ( mWkbType != otherCollection->mWkbType )
-    return false;
-
-  if ( mGeometries.count() != otherCollection->mGeometries.count() )
-    return false;
-
-  for ( int i = 0; i < mGeometries.count(); ++i )
-  {
-    QgsAbstractGeometry *g1 = mGeometries.at( i );
-    QgsAbstractGeometry *g2 = otherCollection->mGeometries.at( i );
-
-    // Quick check if the geometries are exactly the same
-    if ( g1 != g2 )
-    {
-      if ( !g1 || !g2 )
-        return false;
-
-      // Slower check, compare the contents of the geometries
-      if ( *g1 != *g2 )
-        return false;
-    }
-  }
-
-  return true;
-}
-
-bool QgsGeometryCollection::operator!=( const QgsAbstractGeometry &other ) const
-{
-  return !operator==( other );
 }
 
 QgsGeometryCollection *QgsGeometryCollection::createEmptyWithSameType() const
@@ -200,7 +164,7 @@ int QgsGeometryCollection::vertexNumberFromVertexId( QgsVertexId id ) const
   return -1; // should not happen
 }
 
-bool QgsGeometryCollection::boundingBoxIntersects( const QgsRectangle &rectangle ) const
+bool QgsGeometryCollection::boundingBoxIntersects( const QgsBox3D &box3d ) const
 {
   if ( mGeometries.empty() )
     return false;
@@ -208,7 +172,7 @@ bool QgsGeometryCollection::boundingBoxIntersects( const QgsRectangle &rectangle
   // if we already have the bounding box calculated, then this check is trivial!
   if ( !mBoundingBox.isNull() )
   {
-    return mBoundingBox.intersects( rectangle );
+    return mBoundingBox.intersects( box3d );
   }
 
   // otherwise loop through each member geometry and test the bounding box intersection.
@@ -218,7 +182,7 @@ bool QgsGeometryCollection::boundingBoxIntersects( const QgsRectangle &rectangle
   // bounding boxes are cached, so would be reused without additional expense)
   for ( const QgsAbstractGeometry *geometry : mGeometries )
   {
-    if ( geometry->boundingBoxIntersects( rectangle ) )
+    if ( geometry->boundingBoxIntersects( box3d ) )
       return true;
   }
 
@@ -226,7 +190,7 @@ bool QgsGeometryCollection::boundingBoxIntersects( const QgsRectangle &rectangle
   // bounding box of the overall collection.
   // so here we fall back to the non-optimised base class check which has to first calculate
   // the overall bounding box of the collection..
-  return QgsAbstractGeometry::boundingBoxIntersects( rectangle );
+  return QgsAbstractGeometry::boundingBoxIntersects( box3d );
 }
 
 void QgsGeometryCollection::reserve( int size )
@@ -530,54 +494,37 @@ QString QgsGeometryCollection::asKml( int precision ) const
   return kml;
 }
 
-QgsRectangle QgsGeometryCollection::boundingBox() const
+QgsBox3D QgsGeometryCollection::boundingBox3D() const
 {
   if ( mBoundingBox.isNull() )
   {
-    mBoundingBox = calculateBoundingBox();
+    mBoundingBox = calculateBoundingBox3D();
   }
   return mBoundingBox;
 }
 
-QgsRectangle QgsGeometryCollection::calculateBoundingBox() const
+QgsBox3D QgsGeometryCollection::calculateBoundingBox3D() const
 {
   if ( mGeometries.empty() )
   {
-    return QgsRectangle();
+    return QgsBox3D();
   }
 
-  QgsRectangle bbox = mGeometries.at( 0 )->boundingBox();
+  QgsBox3D bbox = mGeometries.at( 0 )->boundingBox3D();
   for ( int i = 1; i < mGeometries.size(); ++i )
   {
     if ( mGeometries.at( i )->isEmpty() )
       continue;
 
-    QgsRectangle geomBox = mGeometries.at( i )->boundingBox();
-    if ( bbox.isNull() )
-    {
-      // workaround treatment of a QgsRectangle(0,0,0,0) as a "null"/invalid rectangle
-      // if bbox is null, then the first geometry must have returned a bounding box of (0,0,0,0)
-      // so just manually include that as a point... ew.
-      geomBox.combineExtentWith( QPointF( 0, 0 ) );
-      bbox = geomBox;
-    }
-    else if ( geomBox.isNull() )
-    {
-      // ...as above... this part must have a bounding box of (0,0,0,0).
-      // if we try to combine the extent with this "null" box it will just be ignored.
-      bbox.combineExtentWith( QPointF( 0, 0 ) );
-    }
-    else
-    {
-      bbox.combineExtentWith( geomBox );
-    }
+    QgsBox3D geomBox = mGeometries.at( i )->boundingBox3D();
+    bbox.combineWith( geomBox );
   }
   return bbox;
 }
 
 void QgsGeometryCollection::clearCache() const
 {
-  mBoundingBox = QgsRectangle();
+  mBoundingBox = QgsBox3D();
   mHasCachedValidity = false;
   mValidityFailureReason.clear();
   QgsAbstractGeometry::clearCache();
@@ -758,7 +705,10 @@ bool QgsGeometryCollection::fromCollectionWkt( const QString &wkt, const QVector
   secondWithoutParentheses = secondWithoutParentheses.remove( '(' ).remove( ')' ).simplified().remove( ' ' );
   if ( ( parts.second.compare( QLatin1String( "EMPTY" ), Qt::CaseInsensitive ) == 0 ) ||
        secondWithoutParentheses.isEmpty() )
+  {
+    qDeleteAll( subtypes );
     return true;
+  }
 
   QString defChildWkbType = QStringLiteral( "%1%2%3 " ).arg( defaultChildWkbType, is3D() ? QStringLiteral( "Z" ) : QString(), isMeasure() ? QStringLiteral( "M" ) : QString() );
 
@@ -898,7 +848,18 @@ int QgsGeometryCollection::partCount() const
 
 QgsPoint QgsGeometryCollection::vertexAt( QgsVertexId id ) const
 {
-  return mGeometries[id.part]->vertexAt( id );
+  if ( id.part < 0 || id.part >= mGeometries.size() )
+  {
+    return QgsPoint();
+  }
+
+  const QgsAbstractGeometry *geom = mGeometries[id.part];
+  if ( !geom )
+  {
+    return QgsPoint();
+  }
+
+  return geom->vertexAt( id );
 }
 
 bool QgsGeometryCollection::isValid( QString &error, Qgis::GeometryValidityFlags flags ) const
@@ -910,7 +871,7 @@ bool QgsGeometryCollection::isValid( QString &error, Qgis::GeometryValidityFlags
     return error.isEmpty();
   }
 
-  QgsGeos geos( this );
+  QgsGeos geos( this, /* tolerance = */ 0, /* allowInvalidSubGeom = */ false );
   bool res = geos.isValid( &error, flags & Qgis::GeometryValidityFlag::AllowSelfTouchingHoles, nullptr );
   if ( flags == 0 )
   {
@@ -999,6 +960,76 @@ void QgsGeometryCollection::transformVertices( const std::function<QgsPoint( con
   clearCache();
 }
 
+QgsGeometryCollection *QgsGeometryCollection::extractPartsByType( Qgis::WkbType type, bool useFlatType ) const
+{
+  // be tolerant if caller passed a multi type as type argument
+  const Qgis::WkbType filterSinglePartType = useFlatType ? QgsWkbTypes::flatType( QgsWkbTypes::singleType( type ) ) : QgsWkbTypes::singleType( type );
+
+  std::unique_ptr< QgsGeometryCollection > res;
+  switch ( QgsWkbTypes::geometryType( type ) )
+  {
+    case Qgis::GeometryType::Point:
+    {
+      if ( useFlatType )
+      {
+        // potential shortcut if we're already a matching subclass of QgsGeometryCollection
+        if ( const QgsMultiPoint *mp = qgsgeometry_cast< const QgsMultiPoint *>( this ) )
+          return mp->clone();
+      }
+
+      res = std::make_unique< QgsMultiPoint >();
+      break;
+    }
+    case Qgis::GeometryType::Line:
+    {
+      if ( useFlatType )
+      {
+        // potential shortcut if we're already a matching subclass of QgsGeometryCollection
+        if ( const QgsMultiLineString *ml = qgsgeometry_cast< const QgsMultiLineString *>( this ) )
+          return ml->clone();
+      }
+
+      res = std::make_unique< QgsMultiLineString >();
+      break;
+    }
+    case Qgis::GeometryType::Polygon:
+    {
+      if ( useFlatType )
+      {
+        // potential shortcut if we're already a matching subclass of QgsGeometryCollection
+        if ( const QgsMultiPolygon *mp = qgsgeometry_cast< const QgsMultiPolygon *>( this ) )
+          return mp->clone();
+      }
+
+      res = std::make_unique< QgsMultiPolygon>();
+      break;
+    }
+
+    case Qgis::GeometryType::Unknown:
+    case Qgis::GeometryType::Null:
+      return nullptr;
+  }
+
+  // assume that the collection consists entirely of matching parts (ie optimize for a pessimistic scenario)
+  res->reserve( mGeometries.size() );
+
+  for ( const QgsAbstractGeometry *part : mGeometries )
+  {
+    if ( !part )
+      continue;
+
+    const QgsAbstractGeometry *simplifiedPartType = part->simplifiedTypeRef();
+
+    const Qgis::WkbType thisPartType = useFlatType ? QgsWkbTypes::flatType( simplifiedPartType->wkbType() ) : simplifiedPartType->wkbType();
+    if ( thisPartType == filterSinglePartType )
+    {
+      res->addGeometry( part->clone() );
+    }
+  }
+
+  return res.release();
+}
+
 void QgsGeometryCollection::swapXy()
 {
   for ( QgsAbstractGeometry *geom : std::as_const( mGeometries ) )
@@ -1061,8 +1092,9 @@ int QgsGeometryCollection::childCount() const
 
 QgsAbstractGeometry *QgsGeometryCollection::childGeometry( int index ) const
 {
-  if ( index < 0 || index > mGeometries.count() )
+  if ( index < 0 || index >= mGeometries.count() )
     return nullptr;
+
   return mGeometries.at( index );
 }
 

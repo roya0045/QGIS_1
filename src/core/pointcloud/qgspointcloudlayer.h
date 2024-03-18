@@ -98,7 +98,7 @@ class CORE_EXPORT QgsPointCloudLayer : public QgsMapLayer, public QgsAbstractPro
      * Point cloud statistics calculation task
      * \since QGIS 3.26
      */
-    enum class PointCloudStatisticsCalculationState : int
+    enum class PointCloudStatisticsCalculationState : int SIP_ENUM_BASETYPE( IntFlag )
     {
       NotStarted = 0, //!< The statistics calculation task has not been started
       Calculating = 1 << 0, //!< The statistics calculation task is running
@@ -279,6 +279,8 @@ class CORE_EXPORT QgsPointCloudLayer : public QgsMapLayer, public QgsAbstractPro
 
     void resetRenderer();
 
+    void loadIndexesForRenderContext( QgsRenderContext &rendererContext ) const;
+
 #ifdef SIP_RUN
     QgsPointCloudLayer( const QgsPointCloudLayer &rhs );
 #endif
@@ -295,6 +297,8 @@ class CORE_EXPORT QgsPointCloudLayer : public QgsMapLayer, public QgsAbstractPro
     QgsPointCloudStatistics mStatistics;
     PointCloudStatisticsCalculationState mStatisticsCalculationState = PointCloudStatisticsCalculationState::NotStarted;
     long mStatsCalculationTask = 0;
+
+    friend class TestQgsVirtualPointCloudProvider;
 };
 
 

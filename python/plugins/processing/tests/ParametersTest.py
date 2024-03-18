@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     ParametersTest
@@ -28,7 +26,8 @@ from qgis.core import (QgsProcessingParameterDefinition,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterFile,
                        QgsProcessing)
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from processing.core.parameters import getParameterFromString
 
@@ -37,7 +36,7 @@ testDataPath = os.path.join(os.path.dirname(__file__), 'testdata')
 start_app()
 
 
-class ParametersTest(unittest.TestCase):
+class ParametersTest(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -55,7 +54,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'string')
         self.assertEqual(param.name(), 'in_string')
         self.assertEqual(param.description(), 'Input String')
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterString|in_string|Input String|default value'
         param = getParameterFromString(desc)
@@ -64,7 +63,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_string')
         self.assertEqual(param.description(), 'Input String')
         self.assertEqual(param.defaultValue(), 'default value')
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterString|in_string|Input String|default value|True'
         param = getParameterFromString(desc)
@@ -74,7 +73,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.description(), 'Input String')
         self.assertEqual(param.defaultValue(), 'default value')
         self.assertTrue(param.multiLine())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterString|in_string|Input String||False|True'
         param = getParameterFromString(desc)
@@ -84,7 +83,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.description(), 'Input String')
         self.assertEqual(param.defaultValue(), '')
         self.assertFalse(param.multiLine())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
     def testParameterNumberDesc(self):
         desc = 'QgsProcessingParameterNumber|in_number|Input Number'
@@ -93,8 +92,8 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'number')
         self.assertEqual(param.name(), 'in_number')
         self.assertEqual(param.description(), 'Input Number')
-        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Integer)
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Type.Integer)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterNumber|in_number|Input Number|QgsProcessingParameterNumber.Double'
         param = getParameterFromString(desc)
@@ -102,8 +101,8 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'number')
         self.assertEqual(param.name(), 'in_number')
         self.assertEqual(param.description(), 'Input Number')
-        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Double)
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Type.Double)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterNumber|in_number|Input Number|QgsProcessingParameterNumber.Integer|10'
         param = getParameterFromString(desc)
@@ -111,9 +110,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'number')
         self.assertEqual(param.name(), 'in_number')
         self.assertEqual(param.description(), 'Input Number')
-        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Integer)
+        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Type.Integer)
         self.assertEqual(param.defaultValue(), 10)
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterNumber|in_number|Input Number|QgsProcessingParameterNumber.Integer|None|True'
         param = getParameterFromString(desc)
@@ -121,9 +120,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'number')
         self.assertEqual(param.name(), 'in_number')
         self.assertEqual(param.description(), 'Input Number')
-        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Integer)
+        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Type.Integer)
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterNumber|in_number|Input Number|QgsProcessingParameterNumber.Integer|10|False|0'
         param = getParameterFromString(desc)
@@ -131,9 +130,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'number')
         self.assertEqual(param.name(), 'in_number')
         self.assertEqual(param.description(), 'Input Number')
-        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Integer)
+        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Type.Integer)
         self.assertEqual(param.defaultValue(), 10)
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertEqual(param.minimum(), 0)
 
         desc = 'QgsProcessingParameterNumber|in_number|Input Number|QgsProcessingParameterNumber.Integer|10|False|0|20'
@@ -142,9 +141,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'number')
         self.assertEqual(param.name(), 'in_number')
         self.assertEqual(param.description(), 'Input Number')
-        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Integer)
+        self.assertEqual(param.dataType(), QgsProcessingParameterNumber.Type.Integer)
         self.assertEqual(param.defaultValue(), 10)
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertEqual(param.minimum(), 0)
         self.assertEqual(param.maximum(), 20)
 
@@ -156,7 +155,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_bool')
         self.assertEqual(param.description(), 'Input Boolean')
         self.assertFalse(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterBoolean|in_bool|Input Boolean|True'
         param = getParameterFromString(desc)
@@ -165,7 +164,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_bool')
         self.assertEqual(param.description(), 'Input Boolean')
         self.assertTrue(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterBoolean|in_bool|Input Boolean|False|True'
         param = getParameterFromString(desc)
@@ -174,7 +173,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_bool')
         self.assertEqual(param.description(), 'Input Boolean')
         self.assertFalse(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
     def testParameterCrsDesc(self):
         desc = 'QgsProcessingParameterCrs|in_crs|Input CRS'
@@ -184,7 +183,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_crs')
         self.assertEqual(param.description(), 'Input CRS')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterCrs|in_crs|Input CRS|EPSG:2154'
         param = getParameterFromString(desc)
@@ -193,7 +192,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_crs')
         self.assertEqual(param.description(), 'Input CRS')
         self.assertEqual(param.defaultValue(), 'EPSG:2154')
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterCrs|in_crs|Input CRS|None|True'
         param = getParameterFromString(desc)
@@ -202,7 +201,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_crs')
         self.assertEqual(param.description(), 'Input CRS')
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
     def testParameterExtentDesc(self):
         desc = 'QgsProcessingParameterExtent|in_extent|Input Extent'
@@ -212,7 +211,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_extent')
         self.assertEqual(param.description(), 'Input Extent')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterExtent|in_extent|Input Extent|None|True'
         param = getParameterFromString(desc)
@@ -221,7 +220,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_extent')
         self.assertEqual(param.description(), 'Input Extent')
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
     def testParameterFileDesc(self):
         desc = 'QgsProcessingParameterFile|in_file|Input File'
@@ -230,9 +229,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'file')
         self.assertEqual(param.name(), 'in_file')
         self.assertEqual(param.description(), 'Input File')
-        self.assertEqual(param.behavior(), QgsProcessingParameterFile.File)
+        self.assertEqual(param.behavior(), QgsProcessingParameterFile.Behavior.File)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFile|in_folder|Input Folder|1'
         param = getParameterFromString(desc)
@@ -240,9 +239,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'file')
         self.assertEqual(param.name(), 'in_folder')
         self.assertEqual(param.description(), 'Input Folder')
-        self.assertEqual(param.behavior(), QgsProcessingParameterFile.Folder)
+        self.assertEqual(param.behavior(), QgsProcessingParameterFile.Behavior.Folder)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFile|in_folder|Input Folder|QgsProcessingParameterFile.Folder'
         param = getParameterFromString(desc)
@@ -250,9 +249,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'file')
         self.assertEqual(param.name(), 'in_folder')
         self.assertEqual(param.description(), 'Input Folder')
-        self.assertEqual(param.behavior(), QgsProcessingParameterFile.Folder)
+        self.assertEqual(param.behavior(), QgsProcessingParameterFile.Behavior.Folder)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFile|in_file|Input File|0|gpkg'
         param = getParameterFromString(desc)
@@ -260,10 +259,10 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'file')
         self.assertEqual(param.name(), 'in_file')
         self.assertEqual(param.description(), 'Input File')
-        self.assertEqual(param.behavior(), QgsProcessingParameterFile.File)
+        self.assertEqual(param.behavior(), QgsProcessingParameterFile.Behavior.File)
         self.assertEqual(param.extension(), 'gpkg')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFile|in_file|Input File|0|png|None|False|PNG Files (*.png);; JPG Files (*.jpg *.jpeg)'
         param = getParameterFromString(desc)
@@ -271,10 +270,10 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'file')
         self.assertEqual(param.name(), 'in_file')
         self.assertEqual(param.description(), 'Input File')
-        self.assertEqual(param.behavior(), QgsProcessingParameterFile.File)
+        self.assertEqual(param.behavior(), QgsProcessingParameterFile.Behavior.File)
         self.assertEqual(param.extension(), '')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertEqual(param.fileFilter(), 'PNG Files (*.png);; JPG Files (*.jpg *.jpeg)')
 
     def testParameterVectorDestDesc(self):
@@ -284,9 +283,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorAnyGeometry)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorAnyGeometry)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Point|0'
@@ -295,9 +294,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Point')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorPoint)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorPoint)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Point|QgsProcessing.TypeVectorPoint'
@@ -306,9 +305,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Point')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorPoint)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorPoint)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Line|1'
@@ -317,9 +316,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Line')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorLine)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorLine)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Line|QgsProcessing.TypeVectorLine'
@@ -328,9 +327,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Line')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorLine)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorLine)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Polygon|2'
@@ -339,9 +338,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Polygon')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorPolygon)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorPolygon)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Polygon|QgsProcessing.TypeVectorPolygon'
@@ -350,9 +349,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Polygon')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorPolygon)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorPolygon)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Table|5'
@@ -361,9 +360,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Table')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVector)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVector)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination Table|QgsProcessing.TypeVector'
@@ -372,9 +371,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination Table')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVector)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVector)
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterVectorDestination|param_vector_dest|Vector Destination|-1|None|True|False'
@@ -383,9 +382,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vectorDestination')
         self.assertEqual(param.name(), 'param_vector_dest')
         self.assertEqual(param.description(), 'Vector Destination')
-        self.assertEqual(param.dataType(), QgsProcessing.TypeVectorAnyGeometry)
+        self.assertEqual(param.dataType(), QgsProcessing.SourceType.TypeVectorAnyGeometry)
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertFalse(param.createByDefault())
 
     def testParameterRasterDestDesc(self):
@@ -396,7 +395,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'param_raster_dest')
         self.assertEqual(param.description(), 'Raster Destination')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterRasterDestination|param_raster_dest|Raster Destination|None|True|False'
@@ -406,7 +405,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'param_raster_dest')
         self.assertEqual(param.description(), 'Raster Destination')
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertFalse(param.createByDefault())
 
     def testParameterFolderDestDesc(self):
@@ -417,7 +416,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'param_folder_dest')
         self.assertEqual(param.description(), 'Folder Destination')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterFolderDestination|param_folder_dest|Folder Destination|None|True|False'
@@ -427,7 +426,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'param_folder_dest')
         self.assertEqual(param.description(), 'Folder Destination')
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertFalse(param.createByDefault())
 
     def testParameterFileDestDesc(self):
@@ -438,7 +437,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'param_file_dest')
         self.assertEqual(param.description(), 'File Destination')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterFileDestination|param_html_dest|HTML File Destination|HTML Files (*.html)'
@@ -450,7 +449,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.fileFilter(), 'HTML Files (*.html)')
         self.assertEqual(param.defaultFileExtension(), 'html')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterFileDestination|param_img_dest|Img File Destination|PNG Files (*.png);; JPG Files (*.jpg *.jpeg)'
@@ -462,7 +461,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.fileFilter(), 'PNG Files (*.png);; JPG Files (*.jpg *.jpeg)')
         self.assertEqual(param.defaultFileExtension(), 'png')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertTrue(param.createByDefault())
 
         desc = 'QgsProcessingParameterFileDestination|param_csv_dest|CSV File Destination|CSV Files (*.csv)|None|True|False'
@@ -474,7 +473,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.fileFilter(), 'CSV Files (*.csv)')
         self.assertEqual(param.defaultFileExtension(), 'csv')
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.assertFalse(param.createByDefault())
 
     def testParameterFeatureSourceDesc(self):
@@ -486,7 +485,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.description(), 'Input Vector')
         self.assertListEqual(param.dataTypes(), [])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|0'
         param = getParameterFromString(desc)
@@ -494,9 +493,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPoint])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPoint])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|QgsProcessing.TypeVectorPoint'
         param = getParameterFromString(desc)
@@ -504,9 +503,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPoint])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPoint])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|1'
         param = getParameterFromString(desc)
@@ -514,9 +513,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|QgsProcessing.TypeVectorLine'
         param = getParameterFromString(desc)
@@ -524,9 +523,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|2'
         param = getParameterFromString(desc)
@@ -534,9 +533,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|QgsProcessing.TypeVectorPolygon'
         param = getParameterFromString(desc)
@@ -544,9 +543,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|5'
         param = getParameterFromString(desc)
@@ -554,9 +553,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVector])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVector])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|QgsProcessing.TypeVector'
         param = getParameterFromString(desc)
@@ -564,9 +563,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVector])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVector])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|1;2'
         param = getParameterFromString(desc)
@@ -574,9 +573,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine, QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|QgsProcessing.TypeVectorLine;QgsProcessing.TypeVectorPolygon'
         param = getParameterFromString(desc)
@@ -584,9 +583,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine, QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterFeatureSource|in_vector|Input Vector|-1|None|True'
         param = getParameterFromString(desc)
@@ -594,9 +593,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'source')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorAnyGeometry])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorAnyGeometry])
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
     def testParameterVectorLayerDesc(self):
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector'
@@ -607,7 +606,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.description(), 'Input Vector')
         self.assertListEqual(param.dataTypes(), [])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|0'
         param = getParameterFromString(desc)
@@ -615,9 +614,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPoint])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPoint])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|QgsProcessing.TypeVectorPoint'
         param = getParameterFromString(desc)
@@ -625,9 +624,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPoint])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPoint])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|1'
         param = getParameterFromString(desc)
@@ -635,9 +634,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|QgsProcessing.TypeVectorLine'
         param = getParameterFromString(desc)
@@ -645,9 +644,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|2'
         param = getParameterFromString(desc)
@@ -655,9 +654,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|QgsProcessing.TypeVectorPolygon'
         param = getParameterFromString(desc)
@@ -665,9 +664,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|5'
         param = getParameterFromString(desc)
@@ -675,9 +674,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVector])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVector])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|QgsProcessing.TypeVector'
         param = getParameterFromString(desc)
@@ -685,9 +684,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVector])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVector])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|1;2'
         param = getParameterFromString(desc)
@@ -695,9 +694,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine, QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|QgsProcessing.TypeVectorLine;QgsProcessing.TypeVectorPolygon'
         param = getParameterFromString(desc)
@@ -705,9 +704,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPolygon])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorLine, QgsProcessing.SourceType.TypeVectorPolygon])
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterVectorLayer|in_vector|Input Vector|-1|None|True'
         param = getParameterFromString(desc)
@@ -715,9 +714,9 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.type(), 'vector')
         self.assertEqual(param.name(), 'in_vector')
         self.assertEqual(param.description(), 'Input Vector')
-        self.assertListEqual(param.dataTypes(), [QgsProcessing.TypeVectorAnyGeometry])
+        self.assertListEqual(param.dataTypes(), [QgsProcessing.SourceType.TypeVectorAnyGeometry])
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
     def testParameterRasterLayerDesc(self):
         desc = 'QgsProcessingParameterRasterLayer|in_raster|Input Raster'
@@ -727,7 +726,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_raster')
         self.assertEqual(param.description(), 'Input Raster')
         self.assertIsNone(param.defaultValue())
-        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertFalse(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         desc = 'QgsProcessingParameterRasterLayer|in_raster|Input Raster|None|True'
         param = getParameterFromString(desc)
@@ -736,7 +735,7 @@ class ParametersTest(unittest.TestCase):
         self.assertEqual(param.name(), 'in_raster')
         self.assertEqual(param.description(), 'Input Raster')
         self.assertIsNone(param.defaultValue())
-        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.assertTrue(param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
 
 
 if __name__ == '__main__':

@@ -46,7 +46,8 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath, waitServer
 
@@ -56,13 +57,14 @@ QGIS_SERVER_PORT = os.environ.get('QGIS_SERVER_PORT', '0')
 qgis_app = start_app()
 
 
-class TestWFST(unittest.TestCase):
+class TestWFST(QgisTestCase):
 
     VERSION = '1.0.0'
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         cls.port = QGIS_SERVER_PORT
         # Create tmp folder
@@ -106,6 +108,8 @@ class TestWFST(unittest.TestCase):
         for ln in ['test_point', 'test_polygon', 'test_linestring']:
             cls._clearLayer(ln)
         rmtree(cls.temp_path)
+
+        super().tearDownClass()
 
     def setUp(self):
         """Run before each test."""

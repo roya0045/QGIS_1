@@ -1,17 +1,17 @@
 /***************************************************************************
-    qgsarcgisrestutils.cpp
-    ----------------------
-    begin                : Nov 25, 2015
-    copyright            : (C) 2015 by Sandro Mani
-    email                : manisandro@gmail.com
- ***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
+   qgsarcgisrestutils.cpp
+   ----------------------
+   begin                : Nov 25, 2015
+   copyright            : (C) 2015 by Sandro Mani
+   email                : manisandro@gmail.com
+***************************************************************************
+*                                                                         *
+*   This program is free software; you can redistribute it and/or modify  *
+*   it under the terms of the GNU General Public License as published by  *
+*   the Free Software Foundation; either version 2 of the License, or     *
+*   (at your option) any later version.                                   *
+*                                                                         *
+***************************************************************************/
 
 #include "qgsarcgisrestutils.h"
 #include "qgsfields.h"
@@ -637,7 +637,7 @@ std::unique_ptr<QgsFillSymbol> QgsArcGisRestUtils::parseEsriPictureFillSymbolJso
   std::unique_ptr< QgsRasterFillSymbolLayer > fillLayer = std::make_unique< QgsRasterFillSymbolLayer >( symbolPath );
   fillLayer->setWidth( widthInPixels );
   fillLayer->setAngle( angleCW );
-  fillLayer->setWidthUnit( Qgis::RenderUnit::Points );
+  fillLayer->setSizeUnit( Qgis::RenderUnit::Points );
   fillLayer->setOffset( QPointF( xOffset, yOffset ) );
   fillLayer->setOffsetUnit( Qgis::RenderUnit::Points );
   layers.append( fillLayer.release() );
@@ -815,21 +815,21 @@ QgsAbstractVectorLayerLabeling *QgsArcGisRestUtils::convertLabeling( const QVari
               placement == QLatin1String( "esriServerLinePlacementAboveAlong" ) )
     {
       settings->placement = Qgis::LabelPlacement::Line;
-      settings->lineSettings().setPlacementFlags( QgsLabeling::LinePlacementFlag::AboveLine | QgsLabeling::LinePlacementFlag::MapOrientation );
+      settings->lineSettings().setPlacementFlags( Qgis::LabelLinePlacementFlag::AboveLine | Qgis::LabelLinePlacementFlag::MapOrientation );
     }
     else if ( placement == QLatin1String( "esriServerLinePlacementBelowAfter" ) ||
               placement == QLatin1String( "esriServerLinePlacementBelowStart" ) ||
               placement == QLatin1String( "esriServerLinePlacementBelowAlong" ) )
     {
       settings->placement = Qgis::LabelPlacement::Line;
-      settings->lineSettings().setPlacementFlags( QgsLabeling::LinePlacementFlag::BelowLine | QgsLabeling::LinePlacementFlag::MapOrientation );
+      settings->lineSettings().setPlacementFlags( Qgis::LabelLinePlacementFlag::BelowLine | Qgis::LabelLinePlacementFlag::MapOrientation );
     }
     else if ( placement == QLatin1String( "esriServerLinePlacementCenterAfter" ) ||
               placement == QLatin1String( "esriServerLinePlacementCenterStart" ) ||
               placement == QLatin1String( "esriServerLinePlacementCenterAlong" ) )
     {
       settings->placement = Qgis::LabelPlacement::Line;
-      settings->lineSettings().setPlacementFlags( QgsLabeling::LinePlacementFlag::OnLine | QgsLabeling::LinePlacementFlag::MapOrientation );
+      settings->lineSettings().setPlacementFlags( Qgis::LabelLinePlacementFlag::OnLine | Qgis::LabelLinePlacementFlag::MapOrientation );
     }
     else if ( placement == QLatin1String( "esriServerPolygonPlacementAlwaysHorizontal" ) )
     {
@@ -1046,12 +1046,39 @@ QDateTime QgsArcGisRestUtils::convertDateTime( const QVariant &value )
   QDateTime dt = QDateTime::fromMSecsSinceEpoch( value.toLongLong( &ok ) );
   if ( !ok )
   {
-    QgsDebugMsg( QStringLiteral( "Invalid value %1 for datetime" ).arg( value.toString() ) );
+    QgsDebugError( QStringLiteral( "Invalid value %1 for datetime" ).arg( value.toString() ) );
     return QDateTime();
   }
   else
     return dt;
 }
+
+QgsRectangle QgsArcGisRestUtils::convertRectangle( const QVariant &value )
+{
+  if ( QgsVariantUtils::isNull( value ) )
+    return QgsRectangle();
+
+  const QVariantMap coords = value.toMap();
+  if ( coords.isEmpty() ) return QgsRectangle();
+
+  bool ok;
+
+  const double xmin = coords.value( QStringLiteral( "xmin" ) ).toDouble( &ok );
+  if ( ! ok ) return QgsRectangle();
+
+  const double ymin = coords.value( QStringLiteral( "ymin" ) ).toDouble( &ok );
+  if ( ! ok ) return QgsRectangle();
+
+  const double xmax = coords.value( QStringLiteral( "xmax" ) ).toDouble( &ok );
+  if ( ! ok ) return QgsRectangle();
+
+  const double ymax = coords.value( QStringLiteral( "ymax" ) ).toDouble( &ok );
+  if ( ! ok ) return QgsRectangle();
+
+  return QgsRectangle( xmin, ymin, xmax, ymax );
+
+}
+
 
 QVariantMap QgsArcGisRestUtils::geometryToJson( const QgsGeometry &geometry, const QgsArcGisRestContext &, const QgsCoordinateReferenceSystem &crs )
 {
@@ -1385,6 +1412,8 @@ QVariantList QgsArcGisRestUtils::polygonToJsonRings( const QgsPolygon *polygon )
         rings.push_back( lineStringToJsonPath( reversed.get() ) );
         break;
       }
+      case Qgis::AngularDirection::NoOrientation:
+        break;
     }
   }
 
@@ -1404,6 +1433,8 @@ QVariantList QgsArcGisRestUtils::polygonToJsonRings( const QgsPolygon *polygon )
         rings.push_back( lineStringToJsonPath( reversed.get() ) );
         break;
       }
+      case Qgis::AngularDirection::NoOrientation:
+        break;
     }
   }
   return rings;
@@ -1430,6 +1461,8 @@ QVariantList QgsArcGisRestUtils::curvePolygonToJsonRings( const QgsCurvePolygon 
         rings.push_back( curveToJsonCurve( reversed.get(), true ) );
         break;
       }
+      case Qgis::AngularDirection::NoOrientation:
+        break;
     }
   }
 
@@ -1449,6 +1482,8 @@ QVariantList QgsArcGisRestUtils::curvePolygonToJsonRings( const QgsCurvePolygon 
         rings.push_back( curveToJsonCurve( reversed.get(), true ) );
         break;
       }
+      case Qgis::AngularDirection::NoOrientation:
+        break;
     }
   }
   return rings;
@@ -1544,7 +1579,7 @@ QVariantMap QgsArcGisRestUtils::crsToJson( const QgsCoordinateReferenceSystem &c
   }
 
   // docs don't mention the WKT version support, so let's hope for 2.0...
-  res.insert( QStringLiteral( "wkt" ), crs.toWkt( QgsCoordinateReferenceSystem::WKT2_2019_SIMPLIFIED ) );
+  res.insert( QStringLiteral( "wkt" ), crs.toWkt( Qgis::CrsWktVariant::Wkt2_2019Simplified ) );
 
   return res;
 }
@@ -1579,7 +1614,10 @@ QVariant QgsArcGisRestUtils::variantToAttributeValue( const QVariant &variant, Q
   switch ( expectedType )
   {
     case QVariant::String:
-      return QString( QUrl::toPercentEncoding( variant.toString() ) );
+    {
+      const QString escaped = variant.toString().replace( '\\', QLatin1String( "\\\\" ) ).replace( '"', QLatin1String( "\\\"" ) );
+      return QString( QUrl::toPercentEncoding( escaped, "'" ) );
+    }
 
     case QVariant::DateTime:
     case QVariant::Date:

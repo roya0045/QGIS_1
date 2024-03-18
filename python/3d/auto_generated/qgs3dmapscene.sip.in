@@ -22,8 +22,6 @@ Entity that encapsulates our 3D scene - contains all other entities (such as ter
 .. note::
 
    Not available in Python bindings
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -31,7 +29,7 @@ Entity that encapsulates our 3D scene - contains all other entities (such as ter
 %End
   public:
 
-    QgsCameraController *cameraController();
+    QgsCameraController *cameraController() const;
 %Docstring
 Returns camera controller
 %End
@@ -49,7 +47,7 @@ Resets camera view to show the extent ``extent`` (top view)
 .. versionadded:: 3.26
 %End
 
-    QVector<QgsPointXY> viewFrustum2DExtent();
+    QVector<QgsPointXY> viewFrustum2DExtent() const;
 %Docstring
 Calculates the 2D extent viewed by the 3D camera as the vertices of the viewed trapezoid
 
@@ -79,7 +77,7 @@ Returns number of pending jobs for all chunked entities
 Returns the current state of the scene
 %End
 
-    float worldSpaceError( float epsilon, float distance );
+    float worldSpaceError( float epsilon, float distance ) const;
 %Docstring
 Given screen error (in pixels) and distance from camera (in 3D world coordinates), this function
 estimates the error in world space. Takes into account camera's field of view and the screen (3D view) size.
@@ -93,7 +91,7 @@ Exports the scene according to the scene export settings
 
 
 
-    QgsRectangle sceneExtent();
+    QgsRectangle sceneExtent() const;
 %Docstring
 Returns the scene extent in the map's CRS
 
@@ -106,7 +104,7 @@ Returns the scene's elevation range
 
 .. note::
 
-   Only terrain and point cloud layers are taken into account
+   Only some layer types are considered by this method (eg terrain, point cloud and mesh layers)
 
 .. versionadded:: 3.30
 %End
@@ -120,13 +118,16 @@ Returns the 3D map settings.
 .. versionadded:: 3.30
 %End
 
-    static QMap< QString, Qgs3DMapScene * > openScenes();
+ static QMap< QString, Qgs3DMapScene * > openScenes() /Deprecated/;
 %Docstring
 Returns a map of 3D map scenes (by name) open in the QGIS application.
 
 .. note::
 
    Only available from the QGIS desktop application.
+
+.. deprecated:: QGIS 3.36
+  use QgisAppInterface.mapCanvases3D() instead.
 
 .. versionadded:: 3.30
 %End
@@ -167,6 +168,13 @@ Emitted when the FPS counter is activated or deactivated
 Emitted when the viewed 2D extent seen by the 3D camera has changed
 
 .. versionadded:: 3.26
+%End
+
+    void gpuMemoryLimitReached();
+%Docstring
+Emitted when one of the entities reaches its GPU memory limit
+and it is not possible to lower the GPU memory use by unloading
+data that's not currently needed.
 %End
 
   public slots:

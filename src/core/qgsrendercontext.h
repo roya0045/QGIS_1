@@ -68,31 +68,26 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
 
     /**
      * Set combination of flags that will be used for rendering.
-     * \since QGIS 2.14
      */
     void setFlags( Qgis::RenderContextFlags flags );
 
     /**
      * Enable or disable a particular flag (other flags are not affected)
-     * \since QGIS 2.14
      */
     void setFlag( Qgis::RenderContextFlag flag, bool on = true );
 
     /**
      * Returns combination of flags used for rendering.
-     * \since QGIS 2.14
      */
     Qgis::RenderContextFlags flags() const;
 
     /**
      * Check whether a particular flag is enabled.
-     * \since QGIS 2.14
      */
     bool testFlag( Qgis::RenderContextFlag flag ) const;
 
     /**
      * create initialized QgsRenderContext instance from given QgsMapSettings
-     * \since QGIS 2.4
      */
     static QgsRenderContext fromMapSettings( const QgsMapSettings &mapSettings );
 
@@ -100,7 +95,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * Creates a default render context given a pixel based QPainter destination.
      * If no painter is specified or the painter has no device, then a default
      * DPI of 88 will be assumed.
-     * \since QGIS 3.0
      */
     static QgsRenderContext fromQPainter( QPainter *painter );
 
@@ -120,6 +114,29 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
     * \since QGIS 3.12
     */
     const QPainter *painter() const { return mPainter; }
+#endif
+
+    /**
+     * Returns the const destination QPainter for temporary in-progress preview renders.
+     *
+     * May be NULLPTR if temporary in-progress preview renders are not required.
+     *
+     * \see setPreviewRenderPainter()
+     * \since QGIS 3.34
+    */
+    QPainter *previewRenderPainter() {return mPreviewRenderPainter;}
+
+#ifndef SIP_RUN
+
+    /**
+     * Returns the const destination QPainter for temporary in-progress preview renders.
+     *
+     * May be NULLPTR if temporary in-progress preview renders are not required.
+     *
+     * \see setPreviewRenderPainter()
+     * \since QGIS 3.34
+    */
+    const QPainter *previewRenderPainter() const { return mPreviewRenderPainter; }
 #endif
 
     /**
@@ -217,7 +234,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
 
     /**
      * A general purpose distance and area calculator, capable of performing ellipsoid based calculations.
-     * \since QGIS 3.0
      */
     const QgsDistanceArea &distanceArea() const { return mDistanceArea; }
 
@@ -227,7 +243,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * from a source to destination coordinate reference system.
      *
      * \see setTransformContext()
-     * \since QGIS 3.0
      */
     QgsCoordinateTransformContext transformContext() const;
 
@@ -237,7 +252,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * from a source to destination coordinate reference system.
      *
      * \see transformContext()
-     * \since QGIS 3.0
      */
     void setTransformContext( const QgsCoordinateTransformContext &context );
 
@@ -246,7 +260,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * during rendering operations, e.g. for resolving relative symbol paths.
      *
      * \see setPathResolver()
-     * \since QGIS 3.0
      */
     const QgsPathResolver &pathResolver() const { return mPathResolver; }
 
@@ -255,7 +268,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * during rendering operations, e.g. for resolving relative symbol paths.
      *
      * \see pathResolver()
-     * \since QGIS 3.0
      */
     void setPathResolver( const QgsPathResolver &resolver ) { mPathResolver = resolver; }
 
@@ -497,7 +509,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
     /**
      * A general purpose distance and area calculator, capable of performing ellipsoid based calculations.
      * Will be used to convert meter distances to active MapUnit values for QgsUnitTypes::RenderMetersInMapUnits
-     * \since QGIS 3.0
      */
     void setDistanceArea( const QgsDistanceArea &distanceArea ) {mDistanceArea = distanceArea ;}
 
@@ -548,6 +559,18 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * \see painter()
      */
     void setPainter( QPainter *p ) {mPainter = p;}
+
+    /**
+     * Sets the destination \a painter for temporary in-progress preview renders.
+     * Ownership of \a painter is not transferred and the QPainter destination must
+     * stay alive for the duration of any rendering operations.
+     *
+     * \a painter may be NULLPTR if temporary in-progress preview renders are not required.
+     *
+     * \see previewRenderPainter()
+     * \since QGIS 3.34
+    */
+    void setPreviewRenderPainter( QPainter *painter ) { mPreviewRenderPainter = painter; }
 
     /**
      * Sets a mask QPainter for the render operation. Ownership of the painter
@@ -616,7 +639,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * The default is to use no simplification.
      *
      * \see setVectorSimplifyMethod()
-     * \since QGIS 2.4
      */
     const QgsVectorSimplifyMethod &vectorSimplifyMethod() const { return mVectorSimplifyMethod; }
 
@@ -631,7 +653,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      *
      * \see vectorSimplifyMethod()
      *
-     * \since QGIS 2.4
      */
     void setVectorSimplifyMethod( const QgsVectorSimplifyMethod &simplifyMethod ) { mVectorSimplifyMethod = simplifyMethod; }
 
@@ -639,7 +660,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * Sets the expression context. This context is used for all expression evaluation
      * associated with this render context.
      * \see expressionContext()
-     * \since QGIS 2.12
      */
     void setExpressionContext( const QgsExpressionContext &context ) { mExpressionContext = context; }
 
@@ -647,7 +667,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * Gets the expression context. This context should be used for all expression evaluation
      * associated with this render context.
      * \see setExpressionContext()
-     * \since QGIS 2.12
      */
     QgsExpressionContext &expressionContext() { return mExpressionContext; }
 
@@ -656,7 +675,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * associated with this render context.
      * \see setExpressionContext()
      * \note not available in Python bindings
-     * \since QGIS 2.12
      */
     const QgsExpressionContext &expressionContext() const { return mExpressionContext; } SIP_SKIP
 
@@ -669,7 +687,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * Set a filter feature provider used for additional filtering of rendered features.
      * \param ffp the filter feature provider
      * \see featureFilterProvider()
-     * \since QGIS 2.14
      */
     void setFeatureFilterProvider( const QgsFeatureFilterProvider *ffp );
 
@@ -677,7 +694,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * Gets the filter feature provider used for additional filtering of rendered features.
      * \returns the filter feature provider
      * \see setFeatureFilterProvider()
-     * \since QGIS 2.14
      */
     const QgsFeatureFilterProvider *featureFilterProvider() const;
 
@@ -720,7 +736,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * property will be limited to a suitably fast range when the render context has the Qgis::RenderContextFlag::RenderSymbolPreview set.
      *
      * \see convertToMapUnits()
-     * \since QGIS 3.0
      */
     double convertToPainterUnits( double size, Qgis::RenderUnit unit, const QgsMapUnitScale &scale = QgsMapUnitScale(), Qgis::RenderSubcomponentProperty property = Qgis::RenderSubcomponentProperty::Generic ) const;
 
@@ -728,14 +743,12 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * Converts a size from the specified units to map units. The conversion respects the limits
      * specified by the optional scale parameter.
      * \see convertToPainterUnits()
-     * \since QGIS 3.0
      */
     double convertToMapUnits( double size, Qgis::RenderUnit unit, const QgsMapUnitScale &scale = QgsMapUnitScale() ) const;
 
     /**
      * Converts a size from map units to the specified units.
      * \see convertToMapUnits()
-     * \since QGIS 3.0
      */
     double convertFromMapUnits( double sizeInMapUnits, Qgis::RenderUnit outputUnit ) const;
 
@@ -743,7 +756,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
      * Convert meter distances to active MapUnit values for QgsUnitTypes::RenderMetersInMapUnits
      * \note
       * When the sourceCrs() is geographic, the center of the Extent will be used
-     * \since QGIS 3.0
      */
     double convertMetersToMapUnits( double meters ) const;
 
@@ -1099,6 +1111,9 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
     //! Painter for rendering operations
     QPainter *mPainter = nullptr;
 
+    //! Painter for in-progress rendering operations
+    QPainter *mPreviewRenderPainter = nullptr;
+
     /**
      * Mask painters for selective masking.
      * Multiple mask painters can be defined for a rendering. The map key is a unique identifier for each mask painter.
@@ -1132,7 +1147,6 @@ class CORE_EXPORT QgsRenderContext : public QgsTemporalRangeObject
     /**
      * A general purpose distance and area calculator, capable of performing ellipsoid based calculations.
      * Will be used to convert meter distances to active MapUnit values for QgsUnitTypes::RenderMetersInMapUnits
-     * \since QGIS 3.0
      */
     QgsDistanceArea mDistanceArea;
 

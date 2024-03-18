@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2012, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.core import (
     NULL,
     QgsFeature,
@@ -23,14 +22,15 @@ from qgis.core import (
     QgsUnsetAttributeValue,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsFeature(unittest.TestCase):
+class TestQgsFeature(QgisTestCase):
 
     def test_CreateFeature(self):
         feat = QgsFeature(0)
@@ -48,11 +48,11 @@ class TestQgsFeature(unittest.TestCase):
         # it should be FID_NULL std::numeric_limits<QgsFeatureId>::min(),
         # not sure if I can test the exact value in python
         self.assertNotEqual(feat.id(), 0)
-        self.assertTrue(feat.id() < 0)
+        self.assertLess(feat.id(), 0)
 
         feat = QgsFeature(QgsFields())
         self.assertNotEqual(feat.id(), 0)
-        self.assertTrue(feat.id() < 0)
+        self.assertLess(feat.id(), 0)
 
         feat = QgsFeature(1234)
         self.assertEqual(feat.id(), 1234)

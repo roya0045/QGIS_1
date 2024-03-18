@@ -193,7 +193,7 @@ class GRASS_LIB_EXPORT QgsGrassRasterProvider : public QgsRasterDataProvider
     bool readBlock( int bandNo, QgsRectangle  const &viewExtent, int width, int height, void *data, QgsRasterBlockFeedback *feedback = nullptr ) override;
 
     QgsRasterBandStats bandStatistics( int bandNo,
-                                       int stats = QgsRasterBandStats::All,
+                                       Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
                                        const QgsRectangle &boundingBox = QgsRectangle(),
                                        int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) override;
 
@@ -201,12 +201,7 @@ class GRASS_LIB_EXPORT QgsGrassRasterProvider : public QgsRasterDataProvider
 
     // void buildSupportedRasterFileFilter( QString & fileFiltersString );
 
-    /**
-     * Gets metadata in a format suitable for feeding directly
-     * into a subset of the GUI raster properties "Metadata" tab.
-     */
-    QString htmlMetadata() override;
-
+    QString htmlMetadata() const override;
     QDateTime dataTimestamp() const override;
 
     // used by GRASS tools

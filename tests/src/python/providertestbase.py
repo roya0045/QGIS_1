@@ -79,14 +79,14 @@ class ProviderTestCase(FeatureSourceTestCase):
 
         if self.compiled:
             # Check compilation status
-            it = source.getFeatures(QgsFeatureRequest().setFilterExpression(expression).setFlags(QgsFeatureRequest.IgnoreStaticNodesDuringExpressionCompilation))
+            it = source.getFeatures(QgsFeatureRequest().setFilterExpression(expression).setFlags(QgsFeatureRequest.Flag.IgnoreStaticNodesDuringExpressionCompilation))
 
             if expression in self.uncompiledFilters():
-                self.assertEqual(it.compileStatus(), QgsAbstractFeatureIterator.NoCompilation)
+                self.assertEqual(it.compileStatus(), QgsAbstractFeatureIterator.CompileStatus.NoCompilation)
             elif expression in self.partiallyCompiledFilters():
-                self.assertEqual(it.compileStatus(), QgsAbstractFeatureIterator.PartiallyCompiled)
+                self.assertEqual(it.compileStatus(), QgsAbstractFeatureIterator.CompileStatus.PartiallyCompiled)
             else:
-                self.assertEqual(it.compileStatus(), QgsAbstractFeatureIterator.Compiled, expression)
+                self.assertEqual(it.compileStatus(), QgsAbstractFeatureIterator.CompileStatus.Compiled, expression)
 
     def runGetFeatureTests(self, source):
         FeatureSourceTestCase.runGetFeatureTests(self, source)
@@ -100,7 +100,7 @@ class ProviderTestCase(FeatureSourceTestCase):
 
         request = QgsFeatureRequest()
         request.setExpressionContext(context)
-        request.setFilterExpression('"pk" = attribute(@parent, \'pk\')').setFlags(QgsFeatureRequest.IgnoreStaticNodesDuringExpressionCompilation)
+        request.setFilterExpression('"pk" = attribute(@parent, \'pk\')').setFlags(QgsFeatureRequest.Flag.IgnoreStaticNodesDuringExpressionCompilation)
         request.setLimit(1)
 
         values = [f[self.pk_name] for f in self.vl.getFeatures(request)]
@@ -249,6 +249,10 @@ class ProviderTestCase(FeatureSourceTestCase):
             The WFS provider might not always be able to have that guarantee. """
         return True
 
+    def referenceExtent(self):
+        """ Extent of the reference dataset """
+        return QgsRectangle(-71.123, 66.33, -65.32, 78.3)
+
     def getSubsetString(self):
         """Individual providers may need to override this depending on their subset string formats"""
         return '"cnt" > 100 and "cnt" < 410'
@@ -256,6 +260,10 @@ class ProviderTestCase(FeatureSourceTestCase):
     def getSubsetString2(self):
         """Individual providers may need to override this depending on their subset string formats"""
         return '"cnt" > 100 and "cnt" < 400'
+
+    def referenceSubsetString3Extent(self):
+        """ Extent of the data selected by subset string 3 """
+        return QgsRectangle(-68.2, 70.8, -68.2, 70.8)
 
     def getSubsetString3(self):
         """Individual providers may need to override this depending on their subset string formats"""
@@ -345,7 +353,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         self.assertTrue(all_valid)
 
         # Test with exact intersection
-        request = QgsFeatureRequest().setFilterRect(extent).setFlags(QgsFeatureRequest.ExactIntersect)
+        request = QgsFeatureRequest().setFilterRect(extent).setFlags(QgsFeatureRequest.Flag.ExactIntersect)
         features = [f[self.pk_name] for f in self.poly_provider.getFeatures(request)]
         all_valid = (all(f.isValid() for f in self.source.getFeatures(request)))
         assert set(features) == {2, 3}, f'Got {features} instead'
@@ -422,13 +430,12 @@ class ProviderTestCase(FeatureSourceTestCase):
             self.assertEqual(max_value, 300)
 
     def testExtent(self):
-        reference = QgsGeometry.fromRect(
-            QgsRectangle(-71.123, 66.33, -65.32, 78.3))
+        reference_extent = self.referenceExtent()
         provider_extent = self.source.extent()
-        self.assertAlmostEqual(provider_extent.xMinimum(), -71.123, 3)
-        self.assertAlmostEqual(provider_extent.xMaximum(), -65.32, 3)
-        self.assertAlmostEqual(provider_extent.yMinimum(), 66.33, 3)
-        self.assertAlmostEqual(provider_extent.yMaximum(), 78.3, 3)
+        self.assertAlmostEqual(provider_extent.xMinimum(), reference_extent.xMinimum())
+        self.assertAlmostEqual(provider_extent.xMaximum(), reference_extent.xMaximum())
+        self.assertAlmostEqual(provider_extent.yMinimum(), reference_extent.yMinimum())
+        self.assertAlmostEqual(provider_extent.yMaximum(), reference_extent.yMaximum())
 
     def testExtentSubsetString(self):
         if self.source.supportsSubsetString():
@@ -437,12 +444,13 @@ class ProviderTestCase(FeatureSourceTestCase):
             self.source.setSubsetString(subset)
             count = self.source.featureCount()
             provider_extent = self.source.extent()
+            subset_extent = self.referenceSubsetString3Extent()
             self.source.setSubsetString(None)
             self.assertEqual(count, 1)
-            self.assertAlmostEqual(provider_extent.xMinimum(), -68.2, 3)
-            self.assertAlmostEqual(provider_extent.xMaximum(), -68.2, 3)
-            self.assertAlmostEqual(provider_extent.yMinimum(), 70.8, 3)
-            self.assertAlmostEqual(provider_extent.yMaximum(), 70.8, 3)
+            self.assertAlmostEqual(provider_extent.xMinimum(), subset_extent.xMinimum(), 3)
+            self.assertAlmostEqual(provider_extent.xMaximum(), subset_extent.xMaximum(), 3)
+            self.assertAlmostEqual(provider_extent.yMinimum(), subset_extent.yMinimum(), 3)
+            self.assertAlmostEqual(provider_extent.yMaximum(), subset_extent.yMaximum(), 3)
 
             # with no points
             subset = self.getSubsetStringNoMatching()
@@ -451,7 +459,7 @@ class ProviderTestCase(FeatureSourceTestCase):
             provider_extent = self.source.extent()
             self.source.setSubsetString(None)
             self.assertEqual(count, 0)
-            self.assertTrue(provider_extent.isNull())
+            self.assertEqual(provider_extent, QgsRectangle())
             self.assertEqual(self.source.featureCount(), 5)
 
     def testUnique(self):
@@ -471,8 +479,8 @@ class ProviderTestCase(FeatureSourceTestCase):
         else:
             if self.treat_datetime_tz_as_utc():
                 self.assertEqual(set(self.source.uniqueValues(self.source.fields().lookupField('dt'))),
-                                 {QDateTime(2021, 5, 4, 13, 13, 14, 0, Qt.UTC), QDateTime(2020, 5, 4, 12, 14, 14, 0, Qt.UTC),
-                                  QDateTime(2020, 5, 4, 12, 13, 14, 0, Qt.UTC), QDateTime(2020, 5, 3, 12, 13, 14, 0, Qt.UTC), NULL})
+                                 {QDateTime(QDate(2021, 5, 4), QTime(13, 13, 14, 0), Qt.TimeSpec.UTC), QDateTime(QDate(2020, 5, 4), QTime(12, 14, 14, 0), Qt.TimeSpec.UTC),
+                                  QDateTime(QDate(2020, 5, 4), QTime(12, 13, 14, 0), Qt.TimeSpec.UTC), QDateTime(QDate(2020, 5, 3), QTime(12, 13, 14, 0), Qt.TimeSpec.UTC), NULL})
             else:
                 self.assertEqual(set(self.source.uniqueValues(self.source.fields().lookupField('dt'))),
                                  {QDateTime(2021, 5, 4, 13, 13, 14), QDateTime(2020, 5, 4, 12, 14, 14),
@@ -557,7 +565,7 @@ class ProviderTestCase(FeatureSourceTestCase):
 
     def testEmpty(self):
         self.assertFalse(self.source.empty())
-        self.assertEqual(self.source.hasFeatures(), QgsFeatureSource.FeaturesAvailable)
+        self.assertEqual(self.source.hasFeatures(), QgsFeatureSource.FeatureAvailability.FeaturesAvailable)
 
         if self.source.supportsSubsetString():
             try:
@@ -566,11 +574,11 @@ class ProviderTestCase(FeatureSourceTestCase):
                 subset = self.getSubsetString()
                 self.source.setSubsetString(subset)
                 self.assertFalse(self.source.empty())
-                self.assertEqual(self.source.hasFeatures(), QgsFeatureSource.FeaturesAvailable)
+                self.assertEqual(self.source.hasFeatures(), QgsFeatureSource.FeatureAvailability.FeaturesAvailable)
                 subsetNoMatching = self.getSubsetStringNoMatching()
                 self.source.setSubsetString(subsetNoMatching)
                 self.assertTrue(self.source.empty())
-                self.assertEqual(self.source.hasFeatures(), QgsFeatureSource.NoFeaturesAvailable)
+                self.assertEqual(self.source.hasFeatures(), QgsFeatureSource.FeatureAvailability.NoFeaturesAvailable)
             finally:
                 self.source.setSubsetString(None)
             self.assertFalse(self.source.empty())
@@ -580,25 +588,25 @@ class ProviderTestCase(FeatureSourceTestCase):
             l = self.getEditableLayer()
             self.assertTrue(l.isValid())
 
-            self.assertEqual(l.hasFeatures(), QgsFeatureSource.FeaturesAvailable)
+            self.assertEqual(l.hasFeatures(), QgsFeatureSource.FeatureAvailability.FeaturesAvailable)
 
             # Test that deleting some features in the edit buffer does not
             # return empty, we accept FeaturesAvailable as well as
             # MaybeAvailable
             l.startEditing()
             l.deleteFeature(next(l.getFeatures()).id())
-            self.assertNotEqual(l.hasFeatures(), QgsFeatureSource.NoFeaturesAvailable)
+            self.assertNotEqual(l.hasFeatures(), QgsFeatureSource.FeatureAvailability.NoFeaturesAvailable)
             l.rollBack()
 
             # Call truncate(), we need an empty set now
             l.dataProvider().truncate()
             self.assertTrue(l.dataProvider().empty())
-            self.assertEqual(l.dataProvider().hasFeatures(), QgsFeatureSource.NoFeaturesAvailable)
+            self.assertEqual(l.dataProvider().hasFeatures(), QgsFeatureSource.FeatureAvailability.NoFeaturesAvailable)
 
     def testGetFeaturesNoGeometry(self):
         """ Test that no geometry is present when fetching features without geometry"""
 
-        for f in self.source.getFeatures(QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)):
+        for f in self.source.getFeatures(QgsFeatureRequest().setFlags(QgsFeatureRequest.Flag.NoGeometry)):
             self.assertFalse(f.hasGeometry(), 'Expected no geometry, got one')
             self.assertTrue(f.isValid())
 
@@ -626,7 +634,7 @@ class ProviderTestCase(FeatureSourceTestCase):
                               2018, 5, 6),
                           '07:08:09' if self.treat_time_as_string() else QTime(7, 8, 9)])
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.AddFeatures:
             # expect success
             result, added = l.dataProvider().addFeatures([f1, f2])
             self.assertTrue(result, 'Provider reported AddFeatures capability, but returned False to addFeatures')
@@ -673,9 +681,9 @@ class ProviderTestCase(FeatureSourceTestCase):
                           '2019-01-02' if self.treat_date_as_string() else QDateTime(2019, 1, 2, 0, 0, 0) if self.treat_date_as_datetime() else QDate(2019, 1, 2),
                           '03:04:05' if self.treat_time_as_string() else QTime(3, 4, 5)])
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.AddFeatures:
             # expect success
-            result, added = l.dataProvider().addFeatures([f1, f2], QgsFeatureSink.FastInsert)
+            result, added = l.dataProvider().addFeatures([f1, f2], QgsFeatureSink.Flag.FastInsert)
             self.assertTrue(result, 'Provider reported AddFeatures capability, but returned False to addFeatures')
             self.assertEqual(l.dataProvider().featureCount(), 7)
 
@@ -686,7 +694,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         l = self.getEditableLayer()
         self.assertTrue(l.isValid())
 
-        if not l.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures:
+        if not l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.AddFeatures:
             return
 
         # test that adding features with missing attributes pads out these
@@ -714,7 +722,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         l = self.getEditableLayer()
         self.assertTrue(l.isValid())
 
-        if not l.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures:
+        if not l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.AddFeatures:
             return
 
         # test that adding features with too many attributes drops these attributes
@@ -749,7 +757,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         l = self.getEditableLayer()
         self.assertTrue(l.isValid())
 
-        if not l.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures:
+        if not l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.AddFeatures:
             return
 
         # test that adding features with incorrect geometry type rejects the feature
@@ -789,7 +797,7 @@ class ProviderTestCase(FeatureSourceTestCase):
 
         self.assertEqual(l.dataProvider().extent().toString(1), '-71.1,66.3 : -65.3,78.3')
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.AddFeatures:
             f1 = QgsFeature()
             f1.setAttributes([6, -220, NULL, 'String', '15'])
             f1.setGeometry(QgsGeometry.fromWkt('Point (-50 90)'))
@@ -809,7 +817,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         features = [f for f in l.dataProvider().getFeatures()]
         to_delete = [f.id() for f in features if f.attributes()[0] in [1, 3]]
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.DeleteFeatures:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.DeleteFeatures:
             # expect success
             result = l.dataProvider().deleteFeatures(to_delete)
             self.assertTrue(result, 'Provider reported DeleteFeatures capability, but returned False to deleteFeatures')
@@ -836,7 +844,7 @@ class ProviderTestCase(FeatureSourceTestCase):
 
         to_delete = [f.id() for f in l.dataProvider().getFeatures() if f.attributes()[0] in [5, 4]]
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.DeleteFeatures:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.DeleteFeatures:
             l.dataProvider().deleteFeatures(to_delete)
 
             l.dataProvider().updateExtents()
@@ -851,7 +859,7 @@ class ProviderTestCase(FeatureSourceTestCase):
 
         features = [f[self.pk_name] for f in l.dataProvider().getFeatures()]
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.FastTruncate or l.dataProvider().capabilities() & QgsVectorDataProvider.DeleteFeatures:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.FastTruncate or l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.DeleteFeatures:
             # expect success
             result = l.dataProvider().truncate()
             self.assertTrue(result,
@@ -882,7 +890,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         # changes by pk, for testing after retrieving changed features
         new_attr_map = {1: {1: 501, 3: 'new string'}, 3: {1: 502, 4: 'NEW'}}
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.ChangeAttributeValues:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.ChangeAttributeValues:
             # expect success
             result = l.dataProvider().changeAttributeValues(changes)
             self.assertTrue(result,
@@ -912,13 +920,13 @@ class ProviderTestCase(FeatureSourceTestCase):
         l = self.getEditableLayerWithCheckConstraint()
         self.assertTrue(l.isValid())
 
-        assert l.dataProvider().capabilities() & QgsVectorDataProvider.ChangeAttributeValues
+        assert l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.ChangeAttributeValues
 
         # find the featurea to change
         feature0 = [f for f in l.dataProvider().getFeatures()][0]
         feature1 = [f for f in l.dataProvider().getFeatures()][1]
         field_idx = l.fields().indexFromName('i_will_fail_on_no_name')
-        self.assertTrue(field_idx >= 0)
+        self.assertGreaterEqual(field_idx, 0)
         # changes by feature id, for changeAttributeValues call
         changes = {
             feature0.id(): {field_idx: 'no name'},
@@ -950,14 +958,14 @@ class ProviderTestCase(FeatureSourceTestCase):
         self.assertTrue(vl.isValid())
         unique_field_idx = vl.fields().indexFromName('unique')
         not_null_field_idx = vl.fields().indexFromName('not_null')
-        self.assertTrue(unique_field_idx > 0)
-        self.assertTrue(not_null_field_idx > 0)
+        self.assertGreater(unique_field_idx, 0)
+        self.assertGreater(not_null_field_idx, 0)
         # Not null
-        self.assertFalse(bool(vl.fieldConstraints(unique_field_idx) & QgsFieldConstraints.ConstraintNotNull))
-        self.assertTrue(bool(vl.fieldConstraints(not_null_field_idx) & QgsFieldConstraints.ConstraintNotNull))
+        self.assertFalse(bool(vl.fieldConstraints(unique_field_idx) & QgsFieldConstraints.Constraint.ConstraintNotNull))
+        self.assertTrue(bool(vl.fieldConstraints(not_null_field_idx) & QgsFieldConstraints.Constraint.ConstraintNotNull))
         # Unique
-        self.assertTrue(bool(vl.fieldConstraints(unique_field_idx) & QgsFieldConstraints.ConstraintUnique))
-        self.assertFalse(bool(vl.fieldConstraints(not_null_field_idx) & QgsFieldConstraints.ConstraintUnique))
+        self.assertTrue(bool(vl.fieldConstraints(unique_field_idx) & QgsFieldConstraints.Constraint.ConstraintUnique))
+        self.assertFalse(bool(vl.fieldConstraints(not_null_field_idx) & QgsFieldConstraints.Constraint.ConstraintUnique))
 
     def testChangeGeometries(self):
         if not getattr(self, 'getEditableLayer', None):
@@ -975,7 +983,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         # changes by pk, for testing after retrieving changed features
         new_geom_map = {1: QgsGeometry.fromWkt('Point ( 10 20 )'), 3: QgsGeometry()}
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.ChangeGeometries:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.ChangeGeometries:
             # expect success
             result = l.dataProvider().changeGeometryValues(changes)
             self.assertTrue(result,
@@ -1019,7 +1027,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         # changes by pk, for testing after retrieving changed features
         new_geom_map = {1: QgsGeometry.fromWkt('Point ( 10 20 )'), 3: QgsGeometry()}
 
-        if l.dataProvider().capabilities() & QgsVectorDataProvider.ChangeGeometries and l.dataProvider().capabilities() & QgsVectorDataProvider.ChangeAttributeValues:
+        if l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.ChangeGeometries and l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.ChangeAttributeValues:
             # expect success
             result = l.dataProvider().changeFeatures(attribute_changes, geometry_changes)
             self.assertTrue(result,
@@ -1031,11 +1039,11 @@ class ProviderTestCase(FeatureSourceTestCase):
             # change empty list, should return true for consistency
             self.assertTrue(l.dataProvider().changeFeatures({}, {}))
 
-        elif not l.dataProvider().capabilities() & QgsVectorDataProvider.ChangeGeometries:
+        elif not l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.ChangeGeometries:
             # expect fail
             self.assertFalse(l.dataProvider().changeFeatures(attribute_changes, geometry_changes),
                              'Provider reported no ChangeGeometries capability, but returned true to changeFeatures')
-        elif not l.dataProvider().capabilities() & QgsVectorDataProvider.ChangeAttributeValues:
+        elif not l.dataProvider().capabilities() & QgsVectorDataProvider.Capability.ChangeAttributeValues:
             # expect fail
             self.assertFalse(l.dataProvider().changeFeatures(attribute_changes, geometry_changes),
                              'Provider reported no ChangeAttributeValues capability, but returned true to changeFeatures')
@@ -1087,7 +1095,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         self.assertEqual(vl.dataProvider().maximumValue(0), 5)
         self.assertEqual(vl.dataProvider().maximumValue(1), 400)
 
-        if vl.dataProvider().capabilities() & QgsVectorDataProvider.DeleteAttributes:
+        if vl.dataProvider().capabilities() & QgsVectorDataProvider.Capability.DeleteAttributes:
             # delete attributes
             if vl.dataProvider().deleteAttributes([0]):
                 # may not be possible, e.g. if it's a primary key
@@ -1105,12 +1113,12 @@ class ProviderTestCase(FeatureSourceTestCase):
                 '15 NOT LIKE \'5\'',
                 '15 NOT ILIKE \'5\'',
                 '5 ~ \'5\''):
-            iterator = self.source.getFeatures(QgsFeatureRequest().setFilterExpression('5 LIKE \'5\'').setFlags(QgsFeatureRequest.IgnoreStaticNodesDuringExpressionCompilation))
+            iterator = self.source.getFeatures(QgsFeatureRequest().setFilterExpression('5 LIKE \'5\'').setFlags(QgsFeatureRequest.Flag.IgnoreStaticNodesDuringExpressionCompilation))
             count = len([f for f in iterator])
             self.assertEqual(count, 5)
             self.assertFalse(iterator.compileFailed())
             if self.enableCompiler():
-                iterator = self.source.getFeatures(QgsFeatureRequest().setFilterExpression('5 LIKE \'5\'').setFlags(QgsFeatureRequest.IgnoreStaticNodesDuringExpressionCompilation))
+                iterator = self.source.getFeatures(QgsFeatureRequest().setFilterExpression('5 LIKE \'5\'').setFlags(QgsFeatureRequest.Flag.IgnoreStaticNodesDuringExpressionCompilation))
                 self.assertEqual(count, 5)
                 self.assertFalse(iterator.compileFailed())
                 self.disableCompiler()
@@ -1190,7 +1198,7 @@ class ProviderTestCase(FeatureSourceTestCase):
         feature = QgsFeature(vl.fields())
         feature.setAttribute(0, 2)
         vl.addFeature(feature)
-        self.assertTrue(feature.id() < 0)
+        self.assertLess(feature.id(), 0)
         self.assertFalse(QgsVectorLayerUtils.fieldIsEditable(vl, 1, feature))
         self.assertTrue(QgsVectorLayerUtils.fieldIsEditable(vl, 0, feature))
         vl.commitChanges()
@@ -1228,12 +1236,12 @@ class ProviderTestCase(FeatureSourceTestCase):
 
         # Test insertion with default value evaluation on provider side to be sure
         # it doesn't fail generated columns
-        vl.dataProvider().setProviderProperty(QgsDataProvider.EvaluateDefaultValues, True)
+        vl.dataProvider().setProviderProperty(QgsDataProvider.ProviderProperty.EvaluateDefaultValues, True)
 
         vl.startEditing()
         feature = QgsVectorLayerUtils.createFeature(vl, QgsGeometry(), {0: 8})
         vl.addFeature(feature)
-        self.assertTrue(feature.id() < 0)
+        self.assertLess(feature.id(), 0)
         self.assertFalse(QgsVectorLayerUtils.fieldIsEditable(vl, 1, feature))
         self.assertTrue(QgsVectorLayerUtils.fieldIsEditable(vl, 0, feature))
         self.assertTrue(vl.commitChanges())

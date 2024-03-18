@@ -26,9 +26,8 @@
 #include "qgsfielddomainsitem.h"
 #include "qgsrelationshipsitem.h"
 #include "qgsproviderutils.h"
-#include "qgsmbtiles.h"
-#include "qgsvectortiledataitems.h"
 #include "qgsprovidermetadata.h"
+#include "qgsgdalutils.h"
 #include <QUrlQuery>
 
 //
@@ -163,6 +162,9 @@ Qgis::BrowserLayerType QgsProviderSublayerItem::layerTypeFromSublayer( const Qgs
     case Qgis::LayerType::PointCloud:
       return Qgis::BrowserLayerType::PointCloud;
 
+    case Qgis::LayerType::TiledScene:
+      return Qgis::BrowserLayerType::TiledScene;
+
     case Qgis::LayerType::Annotation:
     case Qgis::LayerType::Group:
       break;
@@ -220,7 +222,7 @@ QgsFileDataCollectionItem::QgsFileDataCollectionItem( QgsDataItem *parent, const
   else
     setCapabilities( Qgis::BrowserItemCapability::Fast | Qgis::BrowserItemCapability::Fertile );
 
-  if ( !qgsVsiPrefix( path ).isEmpty() )
+  if ( !QgsGdalUtils::vsiPrefixForPath( path ).isEmpty() )
   {
     mIconName = QStringLiteral( "/mIconZip.svg" );
   }
@@ -292,7 +294,13 @@ QVector<QgsDataItem *> QgsFileDataCollectionItem::createChildren()
   }
 
   std::unique_ptr<QgsAbstractDatabaseProviderConnection> conn( databaseConnection() );
-  if ( conn && ( conn->capabilities() & QgsAbstractDatabaseProviderConnection::Capability::ListFieldDomains ) )
+  if ( conn )
+  {
+    mCachedCapabilities = conn->capabilities();
+    mCachedCapabilities2 = conn->capabilities2();
+    mHasCachedCapabilities = true;
+  }
+  if ( conn && ( mCachedCapabilities & QgsAbstractDatabaseProviderConnection::Capability::ListFieldDomains ) )
   {
     QString domainError;
     QStringList fieldDomains;
@@ -313,7 +321,7 @@ QVector<QgsDataItem *> QgsFileDataCollectionItem::createChildren()
       children.append( domainsItem.release() );
     }
   }
-  if ( conn && ( conn->capabilities() & QgsAbstractDatabaseProviderConnection::Capability::RetrieveRelationships ) )
+  if ( conn && ( mCachedCapabilities & QgsAbstractDatabaseProviderConnection::Capability::RetrieveRelationships ) )
   {
     QString relationError;
     QList< QgsWeakRelation > relations;
@@ -341,6 +349,62 @@ QVector<QgsDataItem *> QgsFileDataCollectionItem::createChildren()
 bool QgsFileDataCollectionItem::hasDragEnabled() const
 {
   return true;
+}
+
+bool QgsFileDataCollectionItem::canAddVectorLayers() const
+{
+  // if we've previously opened a connection for this item, we can use the previously
+  // determined capababilities to return an accurate answer.
+  if ( mHasCachedCapabilities )
+    return mCachedCapabilities & QgsAbstractDatabaseProviderConnection::Capability::CreateVectorTable;
+
+  if ( mHasCachedDropSupport )
+    return mCachedSupportsDrop;
+
+  // otherwise, we are limited to VERY VERY cheap calculations only!!
+  // DO NOT UNDER *****ANY***** CIRCUMSTANCES OPEN DATASETS HERE!!!!
+
+  mHasCachedDropSupport = true;
+  if ( !QFileInfo( path() ).isWritable() )
+  {
+    mCachedSupportsDrop = false;
+    return mCachedSupportsDrop;
+  }
+
+  GDALDriverH hDriver = GDALIdentifyDriverEx( path().toUtf8().constData(), GDAL_OF_VECTOR, nullptr, nullptr );
+  if ( !hDriver )
+  {
+    mCachedSupportsDrop = false;
+    return mCachedSupportsDrop;
+  }
+
+  // explicitly blocklist some drivers which we don't want to expose drop support for
+  const QString driverName = GDALGetDriverShortName( hDriver );
+  if ( driverName == QLatin1String( "PDF" )
+       || driverName == QLatin1String( "DXF" ) )
+  {
+    mCachedSupportsDrop = false;
+    return mCachedSupportsDrop;
+  }
+
+  // DO NOT UNDER *****ANY***** CIRCUMSTANCES OPEN DATASETS HERE!!!!
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,4,0)
+  const bool isSingleTableDriver = GDALGetMetadataItem( hDriver, GDAL_DCAP_MULTIPLE_VECTOR_LAYERS, nullptr ) == nullptr;
+#else
+  const QFileInfo pathInfo( path() );
+  const QString suffix = pathInfo.suffix().toLower();
+  const bool isSingleTableDriver = !QgsGdalUtils::multiLayerFileExtensions().contains( suffix );
+#endif
+
+  if ( isSingleTableDriver )
+  {
+    mCachedSupportsDrop = false;
+    return mCachedSupportsDrop;
+  }
+
+  // DO NOT UNDER *****ANY***** CIRCUMSTANCES OPEN DATASETS HERE!!!!
+  mCachedSupportsDrop = true;
+  return mCachedSupportsDrop;
 }
 
 QgsMimeDataUtils::UriList QgsFileDataCollectionItem::mimeUris() const
@@ -372,7 +436,8 @@ QgsAbstractDatabaseProviderConnection *QgsFileDataCollectionItem::databaseConnec
   }
 
   const QString driverName = GDALGetDriverShortName( hDriver );
-  if ( driverName == QLatin1String( "PDF" ) )
+  if ( driverName == QLatin1String( "PDF" )
+       || driverName == QLatin1String( "DXF" ) )
   {
     // unwanted drivers -- it's slow to create connections for these, and we don't really want
     // to expose database capabilities for them (even though they kind of are database formats)
@@ -400,7 +465,50 @@ QgsAbstractDatabaseProviderConnection *QgsFileDataCollectionItem::databaseConnec
       conn = static_cast<QgsAbstractDatabaseProviderConnection *>( md->createConnection( md->encodeUri( parts ), {} ) );
     }
   }
+
+  if ( conn )
+  {
+    mCachedCapabilities = conn->capabilities();
+    mCachedCapabilities2 = conn->capabilities2();
+    mHasCachedCapabilities = true;
+  }
+
   return conn;
+}
+
+QgsAbstractDatabaseProviderConnection::Capabilities QgsFileDataCollectionItem::databaseConnectionCapabilities() const
+{
+  if ( mHasCachedCapabilities )
+    return mCachedCapabilities;
+
+  std::unique_ptr<QgsAbstractDatabaseProviderConnection> conn( databaseConnection() );
+  if ( conn )
+  {
+    mCachedCapabilities = conn->capabilities();
+    mCachedCapabilities2 = conn->capabilities2();
+    mHasCachedCapabilities = true;
+  }
+  return mCachedCapabilities;
+}
+
+Qgis::DatabaseProviderConnectionCapabilities2 QgsFileDataCollectionItem::databaseConnectionCapabilities2() const
+{
+  if ( mHasCachedCapabilities )
+    return mCachedCapabilities2;
+
+  std::unique_ptr<QgsAbstractDatabaseProviderConnection> conn( databaseConnection() );
+  if ( conn )
+  {
+    mCachedCapabilities = conn->capabilities();
+    mCachedCapabilities2 = conn->capabilities2();
+    mHasCachedCapabilities = true;
+  }
+  return mCachedCapabilities2;
+}
+
+QList<QgsProviderSublayerDetails> QgsFileDataCollectionItem::sublayers() const
+{
+  return mSublayers;
 }
 
 //
@@ -412,9 +520,9 @@ QString QgsFileBasedDataItemProvider::name()
   return QStringLiteral( "files" );
 }
 
-int QgsFileBasedDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsFileBasedDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File | QgsDataProvider::Dir;
+  return Qgis::DataItemProviderCapability::Files | Qgis::DataItemProviderCapability::Directories;
 }
 
 QgsDataItem *QgsFileBasedDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -463,37 +571,6 @@ QgsDataItem *QgsFileBasedDataItemProvider::createDataItem( const QString &path, 
             GDALIdentifyDriverEx( path.toUtf8().constData(), GDAL_OF_VECTOR, nullptr, nullptr ) )
   {
     suffix = QStringLiteral( "shp.zip" );
-  }
-  // special handling for mbtiles files
-  else if ( suffix == QLatin1String( "mbtiles" ) )
-  {
-    QgsMbTiles reader( path );
-    if ( reader.open() )
-    {
-      if ( reader.metadataValue( QStringLiteral( "format" ) ) == QLatin1String( "pbf" ) )
-      {
-        // these are vector tiles
-        QUrlQuery uq;
-        uq.addQueryItem( QStringLiteral( "type" ), QStringLiteral( "mbtiles" ) );
-        uq.addQueryItem( QStringLiteral( "url" ), path );
-        const QString encodedUri = uq.toString();
-        QgsVectorTileLayerItem *item = new QgsVectorTileLayerItem( parentItem, name, path, encodedUri );
-        item->setCapabilities( item->capabilities2() | Qgis::BrowserItemCapability::ItemRepresentsFile );
-        return item;
-      }
-      else
-      {
-        // handled by WMS provider
-        QUrlQuery uq;
-        uq.addQueryItem( QStringLiteral( "type" ), QStringLiteral( "mbtiles" ) );
-        uq.addQueryItem( QStringLiteral( "url" ), QUrl::fromLocalFile( path ).toString() );
-        const QString encodedUri = uq.toString();
-        QgsLayerItem *item = new QgsLayerItem( parentItem, name, path, encodedUri, Qgis::BrowserLayerType::Raster, QStringLiteral( "wms" ) );
-        item->setState( Qgis::BrowserItemState::Populated );
-        item->setCapabilities( item->capabilities2() | Qgis::BrowserItemCapability::ItemRepresentsFile );
-        return item;
-      }
-    }
   }
 
   // hide blocklisted URIs, such as .aux.xml files

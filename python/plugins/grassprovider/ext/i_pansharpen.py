@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     i_pansharpen.py
@@ -24,7 +22,7 @@ __copyright__ = '(C) 2016, Médéric Ribreux'
 import os
 from qgis.core import QgsProcessingParameterString
 from processing.tools.system import getTempFilename
-from grassprovider.Grass7Utils import Grass7Utils
+from grassprovider.grass_utils import GrassUtils
 
 
 def processCommand(alg, parameters, context, feedback):
@@ -43,5 +41,5 @@ def processOutputs(alg, parameters, context, feedback):
     for channel in ['red', 'green', 'blue']:
         fileName = alg.parameterAsOutputLayer(parameters, '{}output'.format(channel), context)
         grassName = '{}_{}'.format(outputName, channel)
-        outFormat = Grass7Utils.getRasterFormatFromFilename(fileName)
+        outFormat = GrassUtils.getRasterFormatFromFilename(fileName)
         alg.exportRasterLayer(grassName, fileName, True, outFormat, createOpt, metaOpt)

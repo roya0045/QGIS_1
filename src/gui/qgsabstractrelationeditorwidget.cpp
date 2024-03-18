@@ -287,12 +287,12 @@ QgsFeatureIds QgsAbstractRelationEditorWidget::addFeature( const QgsGeometry &ge
       keyAttrs.insert( fields.indexFromName( fieldPair.referencingField() ), mFeatureList.first().attribute( fieldPair.referencedField() ) );
 
     QgsFeature linkFeature;
-    if ( !vlTools->addFeature( mRelation.referencingLayer(), keyAttrs, geometry, &linkFeature, this, false, true ) )
+    if ( !vlTools->addFeature( mRelation.referencingLayer(), keyAttrs, geometry, &linkFeature, this, true, true ) )
       return QgsFeatureIds();
 
     addedFeatureIds.insert( linkFeature.id() );
 
-    // In multiedit add to other features to but whitout dialog
+    // In multiedit add to other features to but without dialog
     for ( const QgsFeature &feature : std::as_const( mFeatureList ) )
     {
       // First feature already added
@@ -341,7 +341,7 @@ void QgsAbstractRelationEditorWidget::deleteFeatures( const QgsFeatureIds &fids 
 
     QgsFeatureRequest deletedFeaturesRequest;
     deletedFeaturesRequest.setFilterFids( fids );
-    deletedFeaturesRequest.setFlags( QgsFeatureRequest::NoGeometry );
+    deletedFeaturesRequest.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
     deletedFeaturesRequest.setSubsetOfAttributes( QgsAttributeList() << mNmRelation.referencedFields().first() );
 
     QgsFeatureIterator deletedFeatures = layer->getFeatures( deletedFeaturesRequest );
@@ -353,7 +353,7 @@ void QgsAbstractRelationEditorWidget::deleteFeatures( const QgsFeatureIds &fids 
     }
 
     QgsFeatureRequest linkingFeaturesRequest;
-    linkingFeaturesRequest.setFlags( QgsFeatureRequest::NoGeometry );
+    linkingFeaturesRequest.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
     linkingFeaturesRequest.setNoAttributes();
 
     QString linkingFeaturesRequestExpression;
@@ -654,7 +654,7 @@ void QgsAbstractRelationEditorWidget::unlinkFeatures( const QgsFeatureIds &fids 
       const int idx = mRelation.referencingLayer()->fields().lookupField( fieldPair.referencingField() );
       if ( idx < 0 )
       {
-        QgsDebugMsg( QStringLiteral( "referencing field %1 not found" ).arg( fieldPair.referencingField() ) );
+        QgsDebugError( QStringLiteral( "referencing field %1 not found" ).arg( fieldPair.referencingField() ) );
         return;
       }
       const QgsField fld = mRelation.referencingLayer()->fields().at( idx );

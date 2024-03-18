@@ -18,14 +18,13 @@
 #include <QComboBox>
 
 #include "qgsfeature.h"
-#include "qgsfeaturerequest.h"
 #include "qgis_gui.h"
 
 class QgsVectorLayer;
 class QgsFeatureFilterModel;
 class QgsAnimatedIcon;
 class QgsFilterLineEdit;
-
+class QgsFeatureRequest;
 
 /**
  * \ingroup gui
@@ -34,7 +33,6 @@ class QgsFilterLineEdit;
  * It will show up to 100 entries at a time. The entries can be chosen based on the displayExpression
  * and whenever text is typed into the combobox, the completer and popup will adjust to features matching the typed text.
  *
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsFeatureListComboBox : public QComboBox
 {
@@ -255,6 +253,7 @@ class GUI_EXPORT QgsFeatureListComboBox : public QComboBox
 
   private slots:
     void onCurrentTextChanged( const QString &text );
+    void onFilterLineEditCleared();
     void onFilterUpdateCompleted();
     void onLoadingChanged();
     void onItemSelected( const QModelIndex &index );

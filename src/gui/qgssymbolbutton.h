@@ -30,6 +30,7 @@ class QgsPanelWidget;
 class QgsMessageBar;
 class QMimeData;
 class QgsSymbol;
+class QgsSymbolSelectorWidget;
 
 /**
  * \ingroup gui
@@ -39,7 +40,6 @@ class QgsSymbol;
  * The button shows a preview icon for the current symbol, and will open a detailed symbol editor dialog (or
  * panel widget) when clicked.
  *
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsSymbolButton : public QToolButton
 {
@@ -304,8 +304,7 @@ class GUI_EXPORT QgsSymbolButton : public QToolButton
   private slots:
 
     void showSettingsDialog();
-    void updateSymbolFromWidget();
-    void cleanUpSymbolSelector( QgsPanelWidget *container );
+    void updateSymbolFromWidget( QgsSymbolSelectorWidget *widget );
 
     /**
      * Creates the drop-down menu entries

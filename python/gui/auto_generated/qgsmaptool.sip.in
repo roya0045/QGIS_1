@@ -80,8 +80,6 @@ implemented as map tools.
     virtual Flags flags() const;
 %Docstring
 Returns the flags for the map tool.
-
-.. versionadded:: 2.16
 %End
 
     ~QgsMapTool();
@@ -180,6 +178,15 @@ called when set as currently active map tool
 called when map tool is being deactivated
 %End
 
+    virtual void reactivate();
+%Docstring
+Called when the map tool is being activated while it is already active.
+
+The default implementation emits the reactivated () signal.
+
+.. versionadded:: 3.32
+%End
+
     virtual void clean();
 %Docstring
 convenient method to clean members
@@ -195,33 +202,25 @@ returns pointer to the tool's map canvas
 Emit map tool changed with the old tool
 
 .. seealso:: :py:func:`setToolName`
-
-.. versionadded:: 2.3
 %End
 
     static double searchRadiusMM();
 %Docstring
 Gets search radius in mm. Used by identify, tip etc.
 The values is currently set in identify tool options (move somewhere else?)
-and defaults to Qgis.DEFAULT_SEARCH_RADIUS_MM.
-
-.. versionadded:: 2.3
+and defaults to :py:class:`Qgis`.DEFAULT_SEARCH_RADIUS_MM.
 %End
 
     static double searchRadiusMU( const QgsRenderContext &context );
 %Docstring
 Gets search radius in map units for given context. Used by identify, tip etc.
 The values is calculated from :py:func:`~QgsMapTool.searchRadiusMM`.
-
-.. versionadded:: 2.3
 %End
 
     static double searchRadiusMU( QgsMapCanvas *canvas );
 %Docstring
 Gets search radius in map units for given canvas. Used by identify, tip etc.
 The values is calculated from :py:func:`~QgsMapTool.searchRadiusMM`.
-
-.. versionadded:: 2.3
 %End
 
     virtual void populateContextMenu( QMenu *menu );
@@ -288,6 +287,12 @@ signal emitted once the map tool is activated
     void deactivated();
 %Docstring
 signal emitted once the map tool is deactivated
+%End
+
+    void reactivated();
+%Docstring
+
+.. versionadded:: 3.32
 %End
 
   protected:

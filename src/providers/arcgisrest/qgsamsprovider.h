@@ -75,6 +75,7 @@ class QgsAmsProvider : public QgsRasterDataProvider
     QgsAmsProvider( const QString &uri, const QgsDataProvider::ProviderOptions &providerOptions, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() );
 
     explicit QgsAmsProvider( const QgsAmsProvider &other, const QgsDataProvider::ProviderOptions &providerOptions );
+    Qgis::DataProviderFlags flags() const override;
     QgsRasterDataProvider::ProviderCapabilities providerCapabilities() const override;
     /* Inherited from QgsDataProvider */
     bool isValid() const override { return mValid; }
@@ -102,7 +103,7 @@ class QgsAmsProvider : public QgsRasterDataProvider
     Qgis::DataType dataType( int /*bandNo*/ ) const override { return Qgis::DataType::ARGB32; }
     Qgis::DataType sourceDataType( int /*bandNo*/ ) const override { return Qgis::DataType::ARGB32; }
     QgsAmsProvider *clone() const override;
-    QString htmlMetadata() override;
+    QString htmlMetadata() const override;
     bool supportsLegendGraphic() const override { return true; }
     QImage getLegendGraphic( double scale = 0, bool forceRefresh = false, const QgsRectangle *visibleExtent = nullptr ) override;
     QgsImageFetcher *getLegendGraphicFetcher( const QgsMapSettings *mapSettings ) override;
@@ -161,6 +162,7 @@ class QgsAmsProvider : public QgsRasterDataProvider
     int mMaxImageHeight = 4096;
     QgsLayerMetadata mLayerMetadata;
     QList< double > mResolutions;
+    QString mUrlPrefix;
 
     /**
      * Resets cached image
@@ -174,7 +176,7 @@ class QgsAmsTiledImageDownloadHandler : public QObject
     Q_OBJECT
   public:
 
-    QgsAmsTiledImageDownloadHandler( const QString &auth,  const QgsHttpHeaders &requestHeaders, int reqNo, const QgsAmsProvider::TileRequests &requests, QImage *image, const QgsRectangle &viewExtent, QgsRasterBlockFeedback *feedback );
+    QgsAmsTiledImageDownloadHandler( const QString &auth,  const QgsHttpHeaders &requestHeaders, int reqNo, const QgsAmsProvider::TileRequests &requests, QImage *image, const QgsRectangle &viewExtent, QgsRasterBlockFeedback *feedback, const QString &urlPrefix );
     ~QgsAmsTiledImageDownloadHandler() override;
 
     void downloadBlocking();
@@ -218,6 +220,7 @@ class QgsAmsTiledImageDownloadHandler : public QObject
     QList<QNetworkReply *> mReplies;
 
     QgsRasterBlockFeedback *mFeedback = nullptr;
+    QString mUrlPrefix;
 };
 
 class QgsAmsProviderMetadata: public QgsProviderMetadata

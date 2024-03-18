@@ -45,6 +45,9 @@
 #include "qgsmeshlayerprofilegenerator.h"
 #include "qgsmeshlayerelevationproperties.h"
 #include "qgsthreadingutils.h"
+#include "qgsapplication.h"
+#include "qgsruntimeprofiler.h"
+#include "qgsmeshlayerlabeling.h"
 
 QgsMeshLayer::QgsMeshLayer( const QString &meshLayerPath,
                             const QString &baseName,
@@ -104,6 +107,7 @@ bool QgsMeshLayer::hasSimplifiedMeshes() const
 
 QgsMeshLayer::~QgsMeshLayer()
 {
+  delete mLabeling;
   delete mDataProvider;
 }
 
@@ -136,6 +140,12 @@ QgsMeshLayer *QgsMeshLayer::clone() const
   layer->mElevationProperties = mElevationProperties->clone();
   layer->mElevationProperties->setParent( layer );
 
+  if ( auto *lLabeling = labeling() )
+  {
+    layer->setLabeling( lLabeling->clone() );
+  }
+  layer->setLabelsEnabled( labelsEnabled() );
+
   return layer;
 }
 
@@ -151,7 +161,7 @@ QgsRectangle QgsMeshLayer::extent() const
   else
   {
     QgsRectangle rec;
-    rec.setMinimal();
+    rec.setNull();
     return rec;
   }
 }
@@ -221,7 +231,7 @@ QString QgsMeshLayer::loadDefaultStyle( bool &resultFlag )
         scalarSettings.setDataResamplingMethod( QgsMeshRendererScalarSettings::NeighbourAverage );
         break;
       case QgsMeshDatasetGroupMetadata::DataOnVertices:
-        scalarSettings.setDataResamplingMethod( QgsMeshRendererScalarSettings::None );
+        scalarSettings.setDataResamplingMethod( QgsMeshRendererScalarSettings::NoResampling );
         break;
       case QgsMeshDatasetGroupMetadata::DataOnEdges:
         break;
@@ -246,22 +256,23 @@ bool QgsMeshLayer::addDatasets( const QString &path, const QDateTime &defaultRef
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
-  const bool isTemporalBefore = dataProvider()->temporalCapabilities()->hasTemporalCapabilities();
+  const QgsDataProviderTemporalCapabilities *temporalCapabilities = dataProvider()->temporalCapabilities();
+  const bool isTemporalBefore = temporalCapabilities->hasTemporalCapabilities();
   if ( mDatasetGroupStore->addPersistentDatasets( path ) )
   {
     mExtraDatasetUri.append( path );
     QgsMeshLayerTemporalProperties *temporalProperties = qobject_cast< QgsMeshLayerTemporalProperties * >( mTemporalProperties );
-    if ( !isTemporalBefore && dataProvider()->temporalCapabilities()->hasTemporalCapabilities() )
+    if ( !isTemporalBefore && temporalCapabilities->hasTemporalCapabilities() )
     {
       mTemporalProperties->setDefaultsFromDataProviderTemporalCapabilities(
-        dataProvider()->temporalCapabilities() );
+        temporalCapabilities );
 
       if ( ! temporalProperties->referenceTime().isValid() )
       {
         QDateTime referenceTime = defaultReferenceTime;
         if ( !defaultReferenceTime.isValid() ) // If project reference time is invalid, use current date
           referenceTime = QDateTime( QDate::currentDate(), QTime( 0, 0, 0 ), Qt::UTC );
-        temporalProperties->setReferenceTime( referenceTime, dataProvider()->temporalCapabilities() );
+        temporalProperties->setReferenceTime( referenceTime, temporalCapabilities );
       }
 
       mTemporalProperties->setIsActive( true );
@@ -488,7 +499,7 @@ QgsMeshDataBlock QgsMeshLayer::datasetValues( const QgsMeshDatasetIndex &index, 
   return mDatasetGroupStore->datasetValues( index, valueIndex, count );
 }
 
-QgsMesh3dDataBlock QgsMeshLayer::dataset3dValues( const QgsMeshDatasetIndex &index, int faceIndex, int count ) const
+QgsMesh3DDataBlock QgsMeshLayer::dataset3dValues( const QgsMeshDatasetIndex &index, int faceIndex, int count ) const
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
@@ -558,10 +569,10 @@ QgsMeshDatasetValue QgsMeshLayer::datasetValue( const QgsMeshDatasetIndex &index
 
           case QgsMeshDatasetGroupMetadata::DataOnVolumes:
           {
-            const QgsMesh3dAveragingMethod *avgMethod = mRendererSettings.averagingMethod();
+            const QgsMesh3DAveragingMethod *avgMethod = mRendererSettings.averagingMethod();
             if ( avgMethod )
             {
-              const QgsMesh3dDataBlock block3d = dataset3dValues( index, nativeFaceIndex, 1 );
+              const QgsMesh3DDataBlock block3d = dataset3dValues( index, nativeFaceIndex, 1 );
               const QgsMeshDataBlock block2d = avgMethod->calculate( block3d );
               if ( block2d.isValid() )
               {
@@ -581,11 +592,11 @@ QgsMeshDatasetValue QgsMeshLayer::datasetValue( const QgsMeshDatasetIndex &index
   return value;
 }
 
-QgsMesh3dDataBlock QgsMeshLayer::dataset3dValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point ) const
+QgsMesh3DDataBlock QgsMeshLayer::dataset3dValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point ) const
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
-  QgsMesh3dDataBlock block3d;
+  QgsMesh3DDataBlock block3d;
 
   const QgsTriangularMesh *baseTriangularMesh = triangularMesh();
 
@@ -782,7 +793,7 @@ void QgsMeshLayer::applyClassificationOnScalarSettings( const QgsMeshDatasetGrou
     }
 
     scalarSettings.setColorRampShader( colorRampShader );
-    scalarSettings.setDataResamplingMethod( QgsMeshRendererScalarSettings::None );
+    scalarSettings.setDataResamplingMethod( QgsMeshRendererScalarSettings::NoResampling );
   }
 }
 
@@ -1382,6 +1393,64 @@ void QgsMeshLayer::updateActiveDatasetGroups()
     emit activeVectorDatasetGroupChanged( settings.activeVectorDatasetGroup() );
 }
 
+QgsMeshRendererSettings QgsMeshLayer::accordSymbologyWithGroupName( const QgsMeshRendererSettings &settings, const QMap<QString, int> &nameToIndex )
+{
+  QString activeScalarName;
+  QString activeVectorName;
+  QgsMeshRendererSettings consistentSettings = settings;
+  int activeScalar = consistentSettings.activeScalarDatasetGroup();
+  int activeVector = consistentSettings.activeVectorDatasetGroup();
+
+  for ( auto it = nameToIndex.constBegin(); it != nameToIndex.constEnd(); ++it )
+  {
+    int index = it.value();
+    const QString name = it.key() ;
+    int globalIndex = mDatasetGroupStore->indexFromGroupName( name );
+    if ( globalIndex >= 0 )
+    {
+      QgsMeshRendererScalarSettings scalarSettings = settings.scalarSettings( index );
+      consistentSettings.setScalarSettings( globalIndex, scalarSettings );
+      if ( settings.hasVectorSettings( it.value() ) && mDatasetGroupStore->datasetGroupMetadata( globalIndex ).isVector() )
+      {
+        QgsMeshRendererVectorSettings vectorSettings = settings.vectorSettings( index );
+        consistentSettings.setVectorSettings( globalIndex, vectorSettings );
+      }
+    }
+    else
+    {
+      consistentSettings.removeScalarSettings( index );
+      if ( settings.hasVectorSettings( it.value() ) )
+        consistentSettings.removeVectorSettings( index );
+    }
+
+    if ( index == activeScalar )
+      activeScalarName = name;
+    if ( index == activeVector )
+      activeVectorName = name;
+  }
+
+  const QList<int> globalIndexes = datasetGroupsIndexes();
+  for ( int globalIndex : globalIndexes )
+  {
+    const QString name = mDatasetGroupStore->groupName( globalIndex );
+    if ( !nameToIndex.contains( name ) )
+    {
+      consistentSettings.setScalarSettings( globalIndex, mRendererSettings.scalarSettings( globalIndex ) );
+      if ( mDatasetGroupStore->datasetGroupMetadata( globalIndex ).isVector() )
+      {
+        consistentSettings.setVectorSettings( globalIndex, mRendererSettings.vectorSettings( globalIndex ) );
+      }
+    }
+  }
+
+  if ( !activeScalarName.isEmpty() )
+    consistentSettings.setActiveScalarDatasetGroup( mDatasetGroupStore->indexFromGroupName( activeScalarName ) );
+  if ( !activeVectorName.isEmpty() )
+    consistentSettings.setActiveVectorDatasetGroup( mDatasetGroupStore->indexFromGroupName( activeVectorName ) );
+
+  return consistentSettings;
+}
+
 void QgsMeshLayer::setDataSourcePrivate( const QString &dataSource, const QString &baseName, const QString &provider, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags )
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
@@ -1428,7 +1497,7 @@ QList<int> QgsMeshLayer::selectVerticesByExpression( QgsExpression expression )
   QgsExpressionContext context;
   std::unique_ptr<QgsExpressionContextScope> expScope( QgsExpressionContextUtils::meshExpressionScope( QgsMesh::Vertex ) );
   context.appendScope( expScope.release() );
-  context.lastScope()->setVariable( QStringLiteral( "_mesh_layer" ), QVariant::fromValue( this ) );
+  context.lastScope()->setVariable( QStringLiteral( "_native_mesh" ), QVariant::fromValue( *mNativeMesh ) );
 
   expression.prepare( &context );
 
@@ -1461,7 +1530,7 @@ QList<int> QgsMeshLayer::selectFacesByExpression( QgsExpression expression )
   QgsExpressionContext context;
   std::unique_ptr<QgsExpressionContextScope> expScope( QgsExpressionContextUtils::meshExpressionScope( QgsMesh::Face ) );
   context.appendScope( expScope.release() );
-  context.lastScope()->setVariable( QStringLiteral( "_mesh_layer" ), QVariant::fromValue( this ) );
+  context.lastScope()->setVariable( QStringLiteral( "_native_mesh" ), QVariant::fromValue( *mNativeMesh ) );
 
   expression.prepare( &context );
 
@@ -1606,7 +1675,8 @@ void QgsMeshLayer::checkSymbologyConsistency()
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
   const QList<int> groupIndexes = mDatasetGroupStore->datasetGroupIndexes();
-  if ( !groupIndexes.contains( mRendererSettings.activeScalarDatasetGroup() ) )
+  if ( !groupIndexes.contains( mRendererSettings.activeScalarDatasetGroup() ) &&
+       mRendererSettings.activeScalarDatasetGroup() != -1 )
   {
     if ( !groupIndexes.empty() )
       mRendererSettings.setActiveScalarDatasetGroup( groupIndexes.first() );
@@ -1614,7 +1684,8 @@ void QgsMeshLayer::checkSymbologyConsistency()
       mRendererSettings.setActiveScalarDatasetGroup( -1 );
   }
 
-  if ( !groupIndexes.contains( mRendererSettings.activeVectorDatasetGroup() ) )
+  if ( !groupIndexes.contains( mRendererSettings.activeVectorDatasetGroup() )  &&
+       mRendererSettings.activeVectorDatasetGroup() != -1 )
   {
     mRendererSettings.setActiveVectorDatasetGroup( -1 );
   }
@@ -1632,9 +1703,22 @@ bool QgsMeshLayer::readSymbology( const QDomNode &node, QString &errorMessage,
 
   readCommonStyle( elem, context, categories );
 
+  QgsMeshRendererSettings rendererSettings;
   const QDomElement elemRendererSettings = elem.firstChildElement( "mesh-renderer-settings" );
   if ( !elemRendererSettings.isNull() )
-    mRendererSettings.readXml( elemRendererSettings, context );
+    rendererSettings.readXml( elemRendererSettings, context );
+
+  QMap<QString, int> groupNameToGlobalIndex;
+  QDomElement nameToIndexElem = elem.firstChildElement( "name-to-global-index" );
+  while ( !nameToIndexElem.isNull() )
+  {
+    const QString name = nameToIndexElem.attribute( QStringLiteral( "name" ) );
+    int globalIndex = nameToIndexElem.attribute( QStringLiteral( "global-index" ) ).toInt();
+    groupNameToGlobalIndex.insert( name, globalIndex );
+    nameToIndexElem = nameToIndexElem.nextSiblingElement( QStringLiteral( "name-to-global-index" ) );
+  }
+
+  mRendererSettings = accordSymbologyWithGroupName( rendererSettings, groupNameToGlobalIndex );
 
   checkSymbologyConsistency();
 
@@ -1648,6 +1732,20 @@ bool QgsMeshLayer::readSymbology( const QDomNode &node, QString &errorMessage,
   {
     const QDomElement e = blendModeNode.toElement();
     setBlendMode( QgsPainting::getCompositionMode( static_cast< Qgis::BlendMode >( e.text().toInt() ) ) );
+  }
+
+  // read labeling definition
+  if ( categories.testFlag( Labeling ) )
+  {
+    QgsReadWriteContextCategoryPopper p = context.enterCategory( tr( "Labeling" ) );
+
+    QDomElement labelingElement = node.firstChildElement( QStringLiteral( "labeling" ) );
+    if ( !labelingElement.isNull() )
+    {
+      QgsAbstractMeshLayerLabeling *labeling = QgsAbstractMeshLayerLabeling::create( labelingElement, context );
+      mLabelsEnabled = node.toElement().attribute( QStringLiteral( "labelsEnabled" ), QStringLiteral( "0" ) ).toInt();
+      setLabeling( labeling );
+    }
   }
 
   // get and set the layer transparency
@@ -1679,6 +1777,16 @@ bool QgsMeshLayer::writeSymbology( QDomNode &node, QDomDocument &doc, QString &e
   const QDomElement elemRendererSettings = mRendererSettings.writeXml( doc, context );
   elem.appendChild( elemRendererSettings );
 
+  const QList<int> groupIndexes = datasetGroupsIndexes();
+  // we store the relation between name and indexes to be able to retrieve the consistency between name and symbology
+  for ( int index : groupIndexes )
+  {
+    QDomElement elemNameToIndex = doc.createElement( QStringLiteral( "name-to-global-index" ) );
+    elemNameToIndex.setAttribute( QStringLiteral( "name" ), mDatasetGroupStore->groupName( index ) );
+    elemNameToIndex.setAttribute( QStringLiteral( "global-index" ), index );
+    elem.appendChild( elemNameToIndex );
+  }
+
   const QDomElement elemSimplifySettings = mSimplificationSettings.writeXml( doc, context );
   elem.appendChild( elemSimplifySettings );
 
@@ -1687,6 +1795,16 @@ bool QgsMeshLayer::writeSymbology( QDomNode &node, QDomDocument &doc, QString &e
   const QDomText blendModeText = doc.createTextNode( QString::number( static_cast< int >( QgsPainting::getBlendModeEnum( blendMode() ) ) ) );
   blendModeElement.appendChild( blendModeText );
   node.appendChild( blendModeElement );
+
+  if ( categories.testFlag( Labeling ) )
+  {
+    if ( mLabeling )
+    {
+      QDomElement labelingElement = mLabeling->save( doc, context );
+      elem.appendChild( labelingElement );
+    }
+    elem.setAttribute( QStringLiteral( "labelsEnabled" ), mLabelsEnabled ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  }
 
   // add the layer opacity
   if ( categories.testFlag( Rendering ) )
@@ -1753,15 +1871,7 @@ bool QgsMeshLayer::readXml( const QDomNode &layer_node, QgsReadWriteContext &con
   }
 
   const QgsDataProvider::ProviderOptions providerOptions;
-  QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags();
-  if ( mReadFlags & QgsMapLayer::FlagTrustLayerMetadata )
-  {
-    flags |= QgsDataProvider::FlagTrustDataSource;
-  }
-  if ( mReadFlags & QgsMapLayer::FlagForceReadOnly )
-  {
-    flags |= QgsDataProvider::ForceReadOnly;
-  }
+  QgsDataProvider::ReadFlags flags = providerReadFlags( layer_node, mReadFlags );
 
   const QDomElement elemExtraDatasets = layer_node.firstChildElement( QStringLiteral( "extra-datasets" ) );
   if ( !elemExtraDatasets.isNull() )
@@ -1917,7 +2027,7 @@ QString QgsMeshLayer::htmlMetadata() const
   QLocale locale = QLocale();
   locale.setNumberOptions( locale.numberOptions() &= ~QLocale::NumberOption::OmitGroupSeparator );
 
-  if ( dataProvider() )
+  if ( const QgsMeshDataProvider *provider = dataProvider() )
   {
     myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
                   + tr( "Vertex count" ) + QStringLiteral( "</td><td>" )
@@ -1935,6 +2045,7 @@ QString QgsMeshLayer::htmlMetadata() const
                   + tr( "Dataset groups count" ) + QStringLiteral( "</td><td>" )
                   + ( locale.toString( static_cast<qlonglong>( datasetGroupCount() ) ) )
                   + QStringLiteral( "</td></tr>\n" );
+    myMetadata += provider->htmlMetadata();
   }
 
   // End Provider section
@@ -1994,7 +2105,18 @@ bool QgsMeshLayer::setDataProvider( QString const &provider, const QgsDataProvid
   mProviderKey = provider;
   const QString dataSource = mDataSource;
 
-  mDataProvider = qobject_cast<QgsMeshDataProvider *>( QgsProviderRegistry::instance()->createProvider( provider, dataSource, options, flags ) );
+  if ( mPreloadedProvider )
+  {
+    mDataProvider = qobject_cast< QgsMeshDataProvider * >( mPreloadedProvider.release() );
+  }
+  else
+  {
+    std::unique_ptr< QgsScopedRuntimeProfile > profile;
+    if ( QgsApplication::profiler()->groupIsActive( QStringLiteral( "projectload" ) ) )
+      profile = std::make_unique< QgsScopedRuntimeProfile >( tr( "Create %1 provider" ).arg( provider ), QStringLiteral( "projectload" ) );
+
+    mDataProvider = qobject_cast<QgsMeshDataProvider *>( QgsProviderRegistry::instance()->createProvider( provider, dataSource, options, flags ) );
+  }
 
   if ( !mDataProvider )
   {
@@ -2058,4 +2180,30 @@ QgsMapLayerElevationProperties *QgsMeshLayer::elevationProperties()
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
   return mElevationProperties;
+}
+
+bool QgsMeshLayer::labelsEnabled() const
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  return mLabelsEnabled && static_cast< bool >( mLabeling );
+}
+
+void QgsMeshLayer::setLabelsEnabled( bool enabled )
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  mLabelsEnabled = enabled;
+}
+
+void QgsMeshLayer::setLabeling( QgsAbstractMeshLayerLabeling *labeling )
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  if ( mLabeling == labeling )
+    return;
+
+  delete mLabeling;
+  mLabeling = labeling;
+  triggerRepaint();
 }

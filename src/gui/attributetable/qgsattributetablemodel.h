@@ -51,14 +51,25 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     Q_OBJECT
 
   public:
-    enum Role
+
+    // *INDENT-OFF*
+
+    /**
+     * Custom model roles.
+     *
+     * \note Prior to QGIS 3.36 this was available as QgsAttributeTableModel::Role
+     * \since QGIS 3.36
+     */
+    enum class CustomRole SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsAttributeTableModel, Role ) : int
     {
-      FeatureIdRole = Qt::UserRole, //!< Get the feature id of the feature in this row
-      FieldIndexRole,               //!< Get the field index of this column
-      UserRole,                     //!< Start further roles starting from this role
+      FeatureId SIP_MONKEYPATCH_COMPAT_NAME(FeatureIdRole)= Qt::UserRole, //!< Get the feature id of the feature in this row
+      FieldIndex SIP_MONKEYPATCH_COMPAT_NAME(FieldIndexRole),               //!< Get the field index of this column
+      User SIP_MONKEYPATCH_COMPAT_NAME(UserRole),                     //!< Start further roles starting from this role
       // Insert new values here, SortRole needs to be the last one
-      SortRole,                     //!< Role used for sorting start here
+      Sort SIP_MONKEYPATCH_COMPAT_NAME(SortRole),                     //!< Role used for sorting start here
     };
+    Q_ENUM( CustomRole )
+    // *INDENT-ON*
 
   public:
 
@@ -281,7 +292,6 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     /**
      * Handles updating the model when the conditional style for a field changes.
      * \param fieldName name of field whose conditional style has changed
-     * \since QGIS 2.12
      */
     void fieldConditionalStyleChanged( const QString &fieldName );
 
@@ -386,6 +396,18 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
      * \returns feature exists
      */
     virtual bool loadFeatureAtId( QgsFeatureId fid ) const;
+
+    /**
+     * Load feature fid into local cache (mFeat) ensuring that the field with
+     * index \a fieldIdx is also fetched even if the cached attributes did not
+     * contain the field (e.g. because it was hidden in the attribute table).
+     *
+     * \param  fid      feature id
+     * \param  fieldIdx field index
+     *
+     * \returns feature exists
+     */
+    virtual bool loadFeatureAtId( QgsFeatureId fid, int fieldIdx ) const;
 
     QgsFeatureRequest mFeatureRequest;
 

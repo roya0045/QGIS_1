@@ -9,8 +9,6 @@ the Free Software Foundation; either version 2 of the License, or
 __author__ = 'Alessandro Pasotti'
 __date__ = '24/12/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
-# This will get replaced with a git SHA1 when you do a git archive
-__revision__ = '$Format:%H$'
 
 import os
 
@@ -25,18 +23,19 @@ from qgis.PyQt.QtTest import QAbstractItemModelTester
 from qgis.PyQt.QtWidgets import QDialog, QLabel, QListView, QVBoxLayout
 from qgis.core import (
     QgsProviderRegistry,
-    QgsQueryResultModel,
-)
-from qgis.testing import start_app, unittest
+    QgsQueryResultModel, NULL)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
-class TestPyQgsQgsQueryResultModel(unittest.TestCase):
+class TestPyQgsQgsQueryResultModel(QgisTestCase):
 
     NUM_RECORDS = 100050
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(cls.__name__)
@@ -59,6 +58,7 @@ class TestPyQgsQgsQueryResultModel(unittest.TestCase):
     def tearDownClass(cls):
 
         cls._deleteBigData()
+        super().tearDownClass()
 
     @classmethod
     def _deleteBigData(cls):
@@ -85,14 +85,14 @@ class TestPyQgsQgsQueryResultModel(unittest.TestCase):
 
         self.assertEqual(model.columnCount(model.index(-1, -1)), 1)
         self.assertEqual(model.rowCount(model.index(-1, -1)), 1000)
-        self.assertEqual(model.data(model.index(999, 0), Qt.DisplayRole), 1000)
+        self.assertEqual(model.data(model.index(999, 0), Qt.ItemDataRole.DisplayRole), 1000)
 
         # Test data
         for i in range(1000):
-            self.assertEqual(model.data(model.index(i, 0), Qt.DisplayRole), i + 1)
+            self.assertEqual(model.data(model.index(i, 0), Qt.ItemDataRole.DisplayRole), i + 1)
 
-        self.assertEqual(model.data(model.index(1000, 0), Qt.DisplayRole), QVariant())
-        self.assertEqual(model.data(model.index(1, 1), Qt.DisplayRole), QVariant())
+        self.assertEqual(model.data(model.index(1000, 0), Qt.ItemDataRole.DisplayRole), NULL)
+        self.assertEqual(model.data(model.index(1, 1), Qt.ItemDataRole.DisplayRole), NULL)
 
     def test_model_stop(self):
         """Test that when a model is deleted fetching query rows is also interrupted"""
@@ -149,7 +149,7 @@ class TestPyQgsQgsQueryResultModel(unittest.TestCase):
 
         model.rowsInserted.connect(_set_row_count)
 
-        d.exec_()
+        d.exec()
 
         # Because exit handler will exit QGIS and clear the connections pool before
         # the model is deleted (and it will in turn clear the connection)

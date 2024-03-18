@@ -30,17 +30,12 @@
 #include <QHeaderView>
 
 #include "qgis.h"
-#include "qgsdatasourceuri.h"
 #include "qgslogger.h"
-#include "qgsmaplayer.h"
-#include "qgsrasterlayer.h"
-#include "qgsvectorlayer.h"
 
 #include "qgsgrass.h"
 #include "qgsgrassmodule.h"
 #include "qgsgrassmoduleparam.h"
 #include "qgsgrassplugin.h"
-#include "qgsgrassprovider.h"
 #include "qgsgrassvector.h"
 
 extern "C"
@@ -370,7 +365,7 @@ bool QgsGrassModuleInputProxy::filterAcceptsRow( int sourceRow, const QModelInde
     }
     else
     {
-      QgsDebugMsg( "mapset " + mapset + " is not in search path" );
+      QgsDebugError( "mapset " + mapset + " is not in search path" );
       return false;
     }
   }
@@ -654,7 +649,6 @@ bool QgsGrassModuleInputComboBox::setCurrent( const QString &map, const QString 
 
 bool QgsGrassModuleInputComboBox::setFirst()
 {
-  int index = 0;
   for ( int i = 0; i < mProxy->rowCount(); i++ )
   {
     QModelIndex mapsetIndex = mProxy->index( i, 0 );
@@ -665,7 +659,6 @@ bool QgsGrassModuleInputComboBox::setFirst()
       setCurrent( mapIndex );
       return true;
     }
-    index++;
   }
   return false;
 }
@@ -923,7 +916,7 @@ QgsGrassModuleInput::QgsGrassModuleInput( QgsGrassModule *module,
   mComboBox = new QgsGrassModuleInputComboBox( mType, this );
   mComboBox->setSizePolicy( QSizePolicy::Expanding, QSizePolicy:: Preferred );
   // QComboBox does not emit activated() when item is selected in completer popup
-  connect( mComboBox, static_cast<void ( QComboBox::* )( const QString & )>( &QComboBox::activated ), this, &QgsGrassModuleInput::onActivated );
+  connect( mComboBox, qOverload< int >( &QComboBox::activated ), this, [ = ]( int index ) { onActivated( mComboBox->itemText( index ) ); } );
   connect( mComboBox->completer(), static_cast<void ( QCompleter::* )( const QString & )>( &QCompleter::activated ), this, &QgsGrassModuleInput::onActivated );
   connect( mComboBox, &QComboBox::editTextChanged, this, &QgsGrassModuleInput::onChanged );
   mapLayout->addWidget( mComboBox );

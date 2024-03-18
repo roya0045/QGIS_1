@@ -20,7 +20,8 @@
 #include "qgstiledownloadmanager.h"
 #include "qgslazdecoder.h"
 #include "qgsapplication.h"
-#include "qgsremotecopcpointcloudindex.h"
+#include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 
 //
 // QgsCopcPointCloudBlockRequest
@@ -35,7 +36,12 @@ QgsCopcPointCloudBlockRequest::QgsCopcPointCloudBlockRequest( const IndexedPoint
   : QgsPointCloudBlockRequest( node, uri, attributes, requestedAttributes, scale, offset, filterExpression, filterRect ),
     mBlockOffset( blockOffset ), mBlockSize( blockSize ), mPointCount( pointCount ), mLazInfo( lazInfo )
 {
-  QNetworkRequest nr( mUri );
+  // an empty block size will create an invalid range, causing a full request to the server
+  Q_ASSERT( mBlockSize > 0 );
+
+  QNetworkRequest nr = QNetworkRequest( QUrl( mUri ) );
+  QgsSetRequestInitiatorClass( nr, QStringLiteral( "QgsCopcPointCloudBlockRequest" ) );
+  QgsSetRequestInitiatorId( nr, node.toString() );
   nr.setAttribute( QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache );
   nr.setAttribute( QNetworkRequest::CacheSaveControlAttribute, true );
 
@@ -61,6 +67,10 @@ void QgsCopcPointCloudBlockRequest::blockFinishedLoading()
       try
       {
         mBlock = QgsLazDecoder::decompressCopc( mTileDownloadManagerReply->data(), mLazInfo, mPointCount, mRequestedAttributes, mFilterExpression, mFilterRect );
+        QgsPointCloudRequest req;
+        req.setAttributes( mRequestedAttributes );
+        req.setFilterRect( mFilterRect );
+        QgsPointCloudIndex::storeNodeDataToCacheStatic( mBlock.get(), mNode, req, mFilterExpression, mUri );
       }
       catch ( std::exception &e )
       {

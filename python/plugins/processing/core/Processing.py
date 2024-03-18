@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     Processing.py
@@ -49,7 +47,6 @@ import processing
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.gui.MessageBarProgress import MessageBarProgress
 from processing.gui.RenderingStyles import RenderingStyles
-from processing.gui.Postprocessing import handleAlgorithmResults
 from processing.gui.AlgorithmExecutor import execute
 from processing.script import ScriptUtils
 from processing.tools import dataobjects
@@ -68,7 +65,7 @@ from processing.modeler.ModelerAlgorithmProvider import ModelerAlgorithmProvider
 from processing.modeler.ProjectProvider import ProjectProvider  # NOQA
 
 
-class Processing(object):
+class Processing:
     BASIC_PROVIDERS = []
 
     @staticmethod
@@ -85,7 +82,7 @@ class Processing(object):
 
     @staticmethod
     def initialize():
-        if "model" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
+        if "script" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
             return
 
         with QgsRuntimeProfiler.profile('Initialize'):
@@ -104,13 +101,20 @@ class Processing(object):
                     pass
 
             # Add the basic providers
-            for c in [
+            basic_providers = [
                 QgisAlgorithmProvider,
                 GdalAlgorithmProvider,
-                ScriptAlgorithmProvider,
-                ModelerAlgorithmProvider,
-                ProjectProvider
-            ]:
+                ScriptAlgorithmProvider
+            ]
+
+            # model providers are deferred for qgis_process startup
+            if QgsApplication.platform() != 'qgis_process':
+                basic_providers.extend([
+                    ModelerAlgorithmProvider,
+                    ProjectProvider
+                ])
+
+            for c in basic_providers:
                 p = c()
                 if QgsApplication.processingRegistry().addProvider(p):
                     Processing.BASIC_PROVIDERS.append(p)
@@ -118,16 +122,8 @@ class Processing(object):
             if QgsApplication.platform() == 'external':
                 # for external applications we must also load the builtin providers stored in separate plugins
                 try:
-                    from grassprovider.Grass7AlgorithmProvider import Grass7AlgorithmProvider
-                    p = Grass7AlgorithmProvider()
-                    if QgsApplication.processingRegistry().addProvider(p):
-                        Processing.BASIC_PROVIDERS.append(p)
-                except ImportError:
-                    pass
-
-                try:
-                    from otbprovider.OtbAlgorithmProvider import OtbAlgorithmProvider
-                    p = OtbAlgorithmProvider()
+                    from grassprovider.grass_provider import GrassProvider
+                    p = GrassProvider()
                     if QgsApplication.processingRegistry().addProvider(p):
                         Processing.BASIC_PROVIDERS.append(p)
                 except ImportError:
@@ -137,6 +133,23 @@ class Processing(object):
             ProcessingConfig.initialize()
             ProcessingConfig.readSettings()
             RenderingStyles.loadStyles()
+
+    @staticmethod
+    def perform_deferred_model_initialization():
+        if "model" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
+            return
+
+        # Add the model providers
+        # note that we don't add the Project Provider, as this cannot be called
+        # from qgis_process
+        model_providers = [
+            ModelerAlgorithmProvider
+        ]
+
+        for c in model_providers:
+            p = c()
+            if QgsApplication.processingRegistry().addProvider(p):
+                Processing.BASIC_PROVIDERS.append(p)
 
     @staticmethod
     def deinitialize():
@@ -200,7 +213,7 @@ class Processing(object):
                         if result:
                             layers_result = []
                             for l in result:
-                                if not isinstance(result, QgsMapLayer):
+                                if not isinstance(l, QgsMapLayer):
                                     layer = context.takeResultLayer(l)  # transfer layer ownership out of context
                                     if layer:
                                         layers_result.append(layer)

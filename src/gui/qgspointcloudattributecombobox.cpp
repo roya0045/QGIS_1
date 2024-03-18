@@ -45,6 +45,13 @@ bool QgsPointCloudAttributeComboBox::allowEmptyAttributeName() const
 
 void QgsPointCloudAttributeComboBox::setLayer( QgsMapLayer *layer )
 {
+  if ( !layer )
+  {
+    setCurrentIndex( -1 );
+    mAttributeModel->setLayer( nullptr );
+    return;
+  }
+
   QgsPointCloudLayer *pcl = qobject_cast<QgsPointCloudLayer *>( layer );
   mAttributeModel->setLayer( pcl );
 }
@@ -99,7 +106,7 @@ QString QgsPointCloudAttributeComboBox::currentAttribute() const
     return QString();
   }
 
-  return mProxyModel->data( proxyIndex, QgsPointCloudAttributeModel::AttributeNameRole ).toString();
+  return mProxyModel->data( proxyIndex, static_cast< int >( QgsPointCloudAttributeModel::CustomRole::AttributeName ) ).toString();
 }
 
 void QgsPointCloudAttributeComboBox::indexChanged( int i )

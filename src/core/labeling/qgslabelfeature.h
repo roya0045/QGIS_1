@@ -23,7 +23,6 @@
 #include "qgsmargins.h"
 #include "qgslabelobstaclesettings.h"
 #include "qgslabellinesettings.h"
-#include "qgslabeling.h"
 #include "qgsfeature.h"
 #include "qgscoordinatereferencesystem.h"
 
@@ -52,7 +51,6 @@ class QgsGeometry;
  *
  * \note this class is not a part of public API yet. See notes in QgsLabelingEngine
  * \note not available in Python bindings
- * \since QGIS 2.12
  */
 class CORE_EXPORT QgsLabelFeature
 {
@@ -67,7 +65,7 @@ class CORE_EXPORT QgsLabelFeature
      * used by the labeling engine to generate candidate placements for the label. For
      * a vector layer feature this will generally be the feature's geometry.
      *
-     * The \a size argument dicates the size of the label's content (e.g. text width and height).
+     * The \a size argument dictates the size of the label's content (e.g. text width and height).
      */
     QgsLabelFeature( QgsFeatureId id, geos::unique_ptr geometry, QSizeF size );
 
@@ -86,7 +84,6 @@ class CORE_EXPORT QgsLabelFeature
      * \param geometry permissible zone geometry. If an invalid QgsGeometry is passed then no zone limit
      * will be applied to the label candidates (this is the default behavior).
      * \see permissibleZone()
-     * \since QGIS 3.0
      */
     void setPermissibleZone( const QgsGeometry &geometry );
 
@@ -96,19 +93,21 @@ class CORE_EXPORT QgsLabelFeature
      * generated which are not contained within the zone.
      * \see setPermissibleZone()
      * \see permissibleZonePrepared()
-     * \since QGIS 3.0
      */
     QgsGeometry permissibleZone() const { return mPermissibleZone; }
 
     /**
      * Returns a GEOS prepared geometry representing the label's permissibleZone().
      * \see permissibleZone()
-     * \since QGIS 3.0
      */
     //TODO - remove when QgsGeometry caches GEOS preparedness
     const GEOSPreparedGeometry *permissibleZonePrepared() const { return mPermissibleZoneGeosPrepared.get(); }
 
-    //! Size of the label (in map units)
+    /**
+     * Size of the label (in map units).
+     *
+     * An optional \a angle (in radians) can be specified to return the size taking into account the rotation.
+     */
     QSizeF size( double angle = 0.0 ) const;
 
     /**
@@ -185,7 +184,6 @@ class CORE_EXPORT QgsLabelFeature
      * Returns the label's z-index. Higher z-index labels are rendered on top of lower
      * z-index labels.
      * \see setZIndex()
-     * \since QGIS 2.14
      */
     double zIndex() const { return mZIndex; }
 
@@ -194,7 +192,6 @@ class CORE_EXPORT QgsLabelFeature
      * z-index labels.
      * \param zIndex z-index for label
      * \see zIndex()
-     * \since QGIS 2.14
      */
     void setZIndex( double zIndex ) { mZIndex = zIndex; }
 
@@ -228,9 +225,17 @@ class CORE_EXPORT QgsLabelFeature
     bool hasFixedAngle() const { return mHasFixedAngle; }
     //! Sets whether the label should use a fixed angle instead of using angle from automatic placement
     void setHasFixedAngle( bool enabled ) { mHasFixedAngle = enabled; }
-    //! Angle in degrees of the fixed angle (relevant only if hasFixedAngle() returns TRUE)
+
+    /**
+     * Angle in radians of the fixed angle (relevant only if hasFixedAngle() returns TRUE)
+     * \see setFixedAngle()
+     */
     double fixedAngle() const { return mFixedAngle; }
-    //! Sets angle in degrees of the fixed angle (relevant only if hasFixedAngle() returns TRUE)
+
+    /**
+     * Sets the \a angle in radians of the fixed angle (relevant only if hasFixedAngle() returns TRUE).
+     * \see fixedAngle()
+     */
     void setFixedAngle( double angle ) { mFixedAngle = angle; }
 
     /**
@@ -338,14 +343,14 @@ class CORE_EXPORT QgsLabelFeature
      * Returns the feature's arrangement flags.
      * \see setArrangementFlags
      */
-    QgsLabeling::LinePlacementFlags arrangementFlags() const { return mArrangementFlags; }
+    Qgis::LabelLinePlacementFlags arrangementFlags() const { return mArrangementFlags; }
 
     /**
      * Sets the feature's arrangement flags.
      * \param flags arrangement flags
      * \see arrangementFlags
      */
-    void setArrangementFlags( QgsLabeling::LinePlacementFlags flags ) { mArrangementFlags = flags; }
+    void setArrangementFlags( Qgis::LabelLinePlacementFlags flags ) { mArrangementFlags = flags; }
 
     /**
      * Returns the polygon placement flags, which dictate how polygon labels can be placed.
@@ -353,7 +358,7 @@ class CORE_EXPORT QgsLabelFeature
      * \see setPolygonPlacementFlags()
      * \since QGIS 3.14
      */
-    QgsLabeling::PolygonPlacementFlags polygonPlacementFlags() const { return mPolygonPlacementFlags; }
+    Qgis::LabelPolygonPlacementFlags polygonPlacementFlags() const { return mPolygonPlacementFlags; }
 
     /**
      * Sets the polygon placement \a flags, which dictate how polygon labels can be placed.
@@ -361,7 +366,7 @@ class CORE_EXPORT QgsLabelFeature
      * \see polygonPlacementFlags()
      * \since QGIS 3.14
      */
-    void setPolygonPlacementFlags( QgsLabeling::PolygonPlacementFlags flags ) { mPolygonPlacementFlags = flags; }
+    void setPolygonPlacementFlags( Qgis::LabelPolygonPlacementFlags flags ) { mPolygonPlacementFlags = flags; }
 
     /**
      * Text of the label
@@ -687,8 +692,8 @@ class CORE_EXPORT QgsLabelFeature
     //! Distance to smooth angle of line start and end when calculating overruns
     double mOverrunSmoothDistance = 0;
 
-    QgsLabeling::LinePlacementFlags mArrangementFlags = QgsLabeling::LinePlacementFlags();
-    QgsLabeling::PolygonPlacementFlags mPolygonPlacementFlags = QgsLabeling::PolygonPlacementFlag::AllowPlacementInsideOfPolygon;
+    Qgis::LabelLinePlacementFlags mArrangementFlags = Qgis::LabelLinePlacementFlags();
+    Qgis::LabelPolygonPlacementFlags mPolygonPlacementFlags = Qgis::LabelPolygonPlacementFlag::AllowPlacementInsideOfPolygon;
 
   private:
 

@@ -15,8 +15,6 @@ class QgsGui : QObject
 %Docstring(signature="appended")
 :py:class:`QgsGui` is a singleton class containing various registry and other global members
 related to GUI classes.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -132,6 +130,13 @@ Returns the registry of GUI-related components of data providers
 .. versionadded:: 3.10
 %End
 
+    static QgsSensorGuiRegistry *sensorGuiRegistry() /KeepReference/;
+%Docstring
+Returns the registry of GUI-related components for sensors
+
+.. versionadded:: 3.32
+%End
+
     static QgsSubsetStringEditorProviderRegistry *subsetStringEditorProviderRegistry() /KeepReference/;
 %Docstring
 Returns the registry of subset string editors of data providers
@@ -161,6 +166,13 @@ Returns the global history provider registry, used for tracking history provider
 .. versionadded:: 3.24
 %End
 
+    static QgsSettingsEditorWidgetRegistry *settingsEditorWidgetRegistry() /KeepReference/;
+%Docstring
+Returns the registry of settings editors.
+
+.. versionadded:: 3.32
+%End
+
     static void enableAutoGeometryRestore( QWidget *widget, const QString &key = QString() );
 %Docstring
 Register the widget to allow its position to be automatically saved and restored when open and closed.
@@ -183,6 +195,13 @@ Sets the global window ``manager``. Ownership is transferred to the QgsGui insta
 .. seealso:: :py:func:`windowManager`
 
 .. versionadded:: 3.4
+%End
+
+    static QgsInputControllerManager *inputControllerManager() /KeepReference/;
+%Docstring
+Returns the global input controller manager.
+
+.. versionadded:: 3.32
 %End
 
     enum HigFlag

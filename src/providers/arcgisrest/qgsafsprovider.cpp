@@ -46,19 +46,21 @@ QgsAfsProvider::QgsAfsProvider( const QString &uri, const ProviderOptions &optio
   QString errorTitle, errorMessage;
 
   mRequestHeaders = mSharedData->mDataSource.httpHeaders();
+  const QString &urlPrefix = mSharedData->mDataSource.param( QStringLiteral( "urlprefix" ) );
 
   std::unique_ptr< QgsScopedRuntimeProfile > profile;
   if ( QgsApplication::profiler()->groupIsActive( QStringLiteral( "projectload" ) ) )
     profile = std::make_unique< QgsScopedRuntimeProfile >( tr( "Retrieve service definition" ), QStringLiteral( "projectload" ) );
 
   const QVariantMap layerData = QgsArcGisRestQueryUtils::getLayerInfo( mSharedData->mDataSource.param( QStringLiteral( "url" ) ),
-                                authcfg, errorTitle, errorMessage, mRequestHeaders );
+                                authcfg, errorTitle, errorMessage, mRequestHeaders, urlPrefix );
   if ( layerData.isEmpty() )
   {
     pushError( errorTitle + ": " + errorMessage );
     appendError( QgsErrorMessage( tr( "getLayerInfo failed" ), QStringLiteral( "AFSProvider" ) ) );
     return;
   }
+  const bool isTable = layerData.value( QStringLiteral( "type" ) ).toString().compare( QLatin1String( "table" ), Qt::CaseInsensitive ) == 0;
   mLayerName = layerData[QStringLiteral( "name" )].toString();
   mLayerDescription = layerData[QStringLiteral( "description" )].toString();
   mCapabilityStrings = layerData[QStringLiteral( "capabilities" )].toString().split( ',' );
@@ -74,7 +76,7 @@ QgsAfsProvider::QgsAfsProvider( const QString &uri, const ProviderOptions &optio
     {
       adminUrl.replace( QLatin1String( "/rest/services/" ), QLatin1String( "/rest/admin/services/" ) );
       const QVariantMap adminData = QgsArcGisRestQueryUtils::getLayerInfo( adminUrl,
-                                    authcfg, errorTitle, errorMessage, mRequestHeaders );
+                                    authcfg, errorTitle, errorMessage, mRequestHeaders, urlPrefix );
       if ( !adminData.isEmpty() )
       {
         mAdminUrl = adminUrl;
@@ -86,69 +88,72 @@ QgsAfsProvider::QgsAfsProvider( const QString &uri, const ProviderOptions &optio
 
   mServerSupportsCurves = layerData.value( QStringLiteral( "allowTrueCurvesUpdates" ), false ).toBool();
 
-  // Set extent
-  QStringList coords = mSharedData->mDataSource.param( QStringLiteral( "bbox" ) ).split( ',' );
-  if ( coords.size() == 4 )
+  if ( !isTable )
   {
-    bool xminOk = false, yminOk = false, xmaxOk = false, ymaxOk = false;
-    mSharedData->mExtent.setXMinimum( coords[0].toDouble( &xminOk ) );
-    mSharedData->mExtent.setYMinimum( coords[1].toDouble( &yminOk ) );
-    mSharedData->mExtent.setXMaximum( coords[2].toDouble( &xmaxOk ) );
-    mSharedData->mExtent.setYMaximum( coords[3].toDouble( &ymaxOk ) );
-    if ( !xminOk || !yminOk || !xmaxOk || !ymaxOk )
-      mSharedData->mExtent = QgsRectangle();
-    else
-      mSharedData->mLimitBBox = true;
-  }
-
-  const QVariantMap layerExtentMap = layerData[QStringLiteral( "extent" )].toMap();
-  bool xminOk = false, yminOk = false, xmaxOk = false, ymaxOk = false;
-  QgsRectangle originalExtent;
-  originalExtent.setXMinimum( layerExtentMap[QStringLiteral( "xmin" )].toDouble( &xminOk ) );
-  originalExtent.setYMinimum( layerExtentMap[QStringLiteral( "ymin" )].toDouble( &yminOk ) );
-  originalExtent.setXMaximum( layerExtentMap[QStringLiteral( "xmax" )].toDouble( &xmaxOk ) );
-  originalExtent.setYMaximum( layerExtentMap[QStringLiteral( "ymax" )].toDouble( &ymaxOk ) );
-  if ( mSharedData->mExtent.isEmpty() && ( !xminOk || !yminOk || !xmaxOk || !ymaxOk ) )
-  {
-    appendError( QgsErrorMessage( tr( "Could not retrieve layer extent" ), QStringLiteral( "AFSProvider" ) ) );
-    return;
-  }
-  const QgsCoordinateReferenceSystem extentCrs = QgsArcGisRestUtils::convertSpatialReference( layerExtentMap[QStringLiteral( "spatialReference" )].toMap() );
-  if ( mSharedData->mExtent.isEmpty() && !extentCrs.isValid() )
-  {
-    appendError( QgsErrorMessage( tr( "Could not parse spatial reference" ), QStringLiteral( "AFSProvider" ) ) );
-    return;
-  }
-
-  if ( !mSharedData->mSourceCRS.isValid() )
-    mSharedData->mSourceCRS = extentCrs;
-
-  if ( xminOk && yminOk && xmaxOk && ymaxOk )
-  {
-    QgsLayerMetadata::SpatialExtent spatialExtent;
-    spatialExtent.bounds = QgsBox3d( originalExtent );
-    spatialExtent.extentCrs = extentCrs;
-    QgsLayerMetadata::Extent metadataExtent;
-    metadataExtent.setSpatialExtents( QList<  QgsLayerMetadata::SpatialExtent >() << spatialExtent );
-    mLayerMetadata.setExtent( metadataExtent );
-  }
-  if ( extentCrs.isValid() )
-  {
-    mLayerMetadata.setCrs( extentCrs );
-  }
-
-  if ( mSharedData->mExtent.isEmpty() )
-  {
-    mSharedData->mExtent = originalExtent;
-    QgsCoordinateTransform ct( extentCrs, mSharedData->mSourceCRS, options.transformContext );
-    ct.setBallparkTransformsAreAppropriate( true );
-    try
+    // Set extent
+    QStringList coords = mSharedData->mDataSource.param( QStringLiteral( "bbox" ) ).split( ',' );
+    if ( coords.size() == 4 )
     {
-      mSharedData->mExtent = ct.transformBoundingBox( mSharedData->mExtent );
+      bool xminOk = false, yminOk = false, xmaxOk = false, ymaxOk = false;
+      mSharedData->mExtent.setXMinimum( coords[0].toDouble( &xminOk ) );
+      mSharedData->mExtent.setYMinimum( coords[1].toDouble( &yminOk ) );
+      mSharedData->mExtent.setXMaximum( coords[2].toDouble( &xmaxOk ) );
+      mSharedData->mExtent.setYMaximum( coords[3].toDouble( &ymaxOk ) );
+      if ( !xminOk || !yminOk || !xmaxOk || !ymaxOk )
+        mSharedData->mExtent = QgsRectangle();
+      else
+        mSharedData->mLimitBBox = true;
     }
-    catch ( QgsCsException & )
+
+    const QVariantMap layerExtentMap = layerData[QStringLiteral( "extent" )].toMap();
+    bool xminOk = false, yminOk = false, xmaxOk = false, ymaxOk = false;
+    QgsRectangle originalExtent;
+    originalExtent.setXMinimum( layerExtentMap[QStringLiteral( "xmin" )].toDouble( &xminOk ) );
+    originalExtent.setYMinimum( layerExtentMap[QStringLiteral( "ymin" )].toDouble( &yminOk ) );
+    originalExtent.setXMaximum( layerExtentMap[QStringLiteral( "xmax" )].toDouble( &xmaxOk ) );
+    originalExtent.setYMaximum( layerExtentMap[QStringLiteral( "ymax" )].toDouble( &ymaxOk ) );
+    if ( mSharedData->mExtent.isEmpty() && ( !xminOk || !yminOk || !xmaxOk || !ymaxOk ) )
     {
-      QgsDebugMsg( QStringLiteral( "Exception raised while transforming layer extent" ) );
+      appendError( QgsErrorMessage( tr( "Could not retrieve layer extent" ), QStringLiteral( "AFSProvider" ) ) );
+      return;
+    }
+    const QgsCoordinateReferenceSystem extentCrs = QgsArcGisRestUtils::convertSpatialReference( layerExtentMap[QStringLiteral( "spatialReference" )].toMap() );
+    if ( mSharedData->mExtent.isEmpty() && !extentCrs.isValid() )
+    {
+      appendError( QgsErrorMessage( tr( "Could not parse spatial reference" ), QStringLiteral( "AFSProvider" ) ) );
+      return;
+    }
+
+    if ( !mSharedData->mSourceCRS.isValid() )
+      mSharedData->mSourceCRS = extentCrs;
+
+    if ( xminOk && yminOk && xmaxOk && ymaxOk )
+    {
+      QgsLayerMetadata::SpatialExtent spatialExtent;
+      spatialExtent.bounds = QgsBox3D( originalExtent );
+      spatialExtent.extentCrs = extentCrs;
+      QgsLayerMetadata::Extent metadataExtent;
+      metadataExtent.setSpatialExtents( QList<  QgsLayerMetadata::SpatialExtent >() << spatialExtent );
+      mLayerMetadata.setExtent( metadataExtent );
+    }
+    if ( extentCrs.isValid() )
+    {
+      mLayerMetadata.setCrs( extentCrs );
+    }
+
+    if ( mSharedData->mExtent.isEmpty() )
+    {
+      mSharedData->mExtent = originalExtent;
+      QgsCoordinateTransform ct( extentCrs, mSharedData->mSourceCRS, options.transformContext );
+      ct.setBallparkTransformsAreAppropriate( true );
+      try
+      {
+        mSharedData->mExtent = ct.transformBoundingBox( mSharedData->mExtent );
+      }
+      catch ( QgsCsException & )
+      {
+        QgsDebugError( QStringLiteral( "Exception raised while transforming layer extent" ) );
+      }
     }
   }
 
@@ -174,7 +179,7 @@ QgsAfsProvider::QgsAfsProvider( const QString &uri, const ProviderOptions &optio
     }
     if ( type == QVariant::Invalid )
     {
-      QgsDebugMsg( QStringLiteral( "Skipping unsupported field %1 of type %2" ).arg( fieldName, fieldTypeString ) );
+      QgsDebugError( QStringLiteral( "Skipping unsupported field %1 of type %2" ).arg( fieldName, fieldTypeString ) );
       continue;
     }
     QgsField field( fieldName, type, fieldDataMap[QStringLiteral( "type" )].toString(), fieldDataMap[QStringLiteral( "length" )].toInt() );
@@ -214,44 +219,52 @@ QgsAfsProvider::QgsAfsProvider( const QString &uri, const ProviderOptions &optio
   if ( objectIdFieldName.isEmpty() )
     objectIdFieldName = QStringLiteral( "objectid" );
 
-  // Determine geometry type
-  const bool hasM = layerData[QStringLiteral( "hasM" )].toBool();
-  const bool hasZ = layerData[QStringLiteral( "hasZ" )].toBool();
-  mSharedData->mGeometryType = QgsArcGisRestUtils::convertGeometryType( layerData[QStringLiteral( "geometryType" )].toString() );
-  if ( mSharedData->mGeometryType == Qgis::WkbType::Unknown )
+  if ( isTable )
   {
-    if ( layerData.value( QStringLiteral( "serviceDataType" ) ).toString().startsWith( QLatin1String( "esriImageService" ) ) )
-    {
-      // it's possible to connect to ImageServers as a feature service, to view tile boundaries
-      mSharedData->mGeometryType = Qgis::WkbType::Polygon;
-    }
-    else
-    {
-      appendError( QgsErrorMessage( tr( "Failed to determine geometry type" ), QStringLiteral( "AFSProvider" ) ) );
-      return;
-    }
+    mSharedData->mGeometryType = Qgis::WkbType::NoGeometry;
   }
-  mSharedData->mGeometryType = QgsWkbTypes::zmType( mSharedData->mGeometryType, hasZ, hasM );
+  else
+  {
+    // Determine geometry type
+    const bool hasM = layerData[QStringLiteral( "hasM" )].toBool();
+    const bool hasZ = layerData[QStringLiteral( "hasZ" )].toBool();
+    mSharedData->mGeometryType = QgsArcGisRestUtils::convertGeometryType( layerData[QStringLiteral( "geometryType" )].toString() );
+    if ( mSharedData->mGeometryType == Qgis::WkbType::Unknown )
+    {
+      if ( layerData.value( QStringLiteral( "serviceDataType" ) ).toString().startsWith( QLatin1String( "esriImageService" ) ) )
+      {
+        // it's possible to connect to ImageServers as a feature service, to view tile boundaries
+        mSharedData->mGeometryType = Qgis::WkbType::Polygon;
+      }
+      else
+      {
+        appendError( QgsErrorMessage( tr( "Failed to determine geometry type" ), QStringLiteral( "AFSProvider" ) ) );
+        return;
+      }
+    }
+    mSharedData->mGeometryType = QgsWkbTypes::zmType( mSharedData->mGeometryType, hasZ, hasM );
+  }
 
   // read temporal properties
   if ( layerData.contains( QStringLiteral( "timeInfo" ) ) )
   {
     const QVariantMap timeInfo = layerData.value( QStringLiteral( "timeInfo" ) ).toMap();
 
-    temporalCapabilities()->setHasTemporalCapabilities( true );
-    temporalCapabilities()->setStartField( timeInfo.value( QStringLiteral( "startTimeField" ) ).toString() );
-    temporalCapabilities()->setEndField( timeInfo.value( QStringLiteral( "endTimeField" ) ).toString() );
-    if ( !temporalCapabilities()->endField().isEmpty() )
-      temporalCapabilities()->setMode( Qgis::VectorDataProviderTemporalMode::StoresFeatureDateTimeStartAndEndInSeparateFields );
-    else if ( !temporalCapabilities()->startField().isEmpty() )
-      temporalCapabilities()->setMode( Qgis::VectorDataProviderTemporalMode::StoresFeatureDateTimeInstantInField );
+    QgsVectorDataProviderTemporalCapabilities *lTemporalCapabilities = temporalCapabilities();
+    lTemporalCapabilities->setHasTemporalCapabilities( true );
+    lTemporalCapabilities->setStartField( timeInfo.value( QStringLiteral( "startTimeField" ) ).toString() );
+    lTemporalCapabilities->setEndField( timeInfo.value( QStringLiteral( "endTimeField" ) ).toString() );
+    if ( !lTemporalCapabilities->endField().isEmpty() )
+      lTemporalCapabilities->setMode( Qgis::VectorDataProviderTemporalMode::StoresFeatureDateTimeStartAndEndInSeparateFields );
+    else if ( !lTemporalCapabilities->startField().isEmpty() )
+      lTemporalCapabilities->setMode( Qgis::VectorDataProviderTemporalMode::StoresFeatureDateTimeInstantInField );
     else
-      temporalCapabilities()->setMode( Qgis::VectorDataProviderTemporalMode::HasFixedTemporalRange );
+      lTemporalCapabilities->setMode( Qgis::VectorDataProviderTemporalMode::HasFixedTemporalRange );
 
     const QVariantList extent = timeInfo.value( QStringLiteral( "timeExtent" ) ).toList();
     if ( extent.size() == 2 )
     {
-      temporalCapabilities()->setAvailableTemporalRange( QgsDateTimeRange( QgsArcGisRestUtils::convertDateTime( extent.at( 0 ) ),
+      lTemporalCapabilities->setAvailableTemporalRange( QgsDateTimeRange( QgsArcGisRestUtils::convertDateTime( extent.at( 0 ) ),
           QgsArcGisRestUtils::convertDateTime( extent.at( 1 ) ) ) );
     }
   }
@@ -383,7 +396,7 @@ bool QgsAfsProvider::changeAttributeValues( const QgsChangedAttributesMap &attrM
   }
 
   // REST API requires a full definition of features, so we have to read their initial values first
-  QgsFeatureIterator it = getFeatures( QgsFeatureRequest().setFilterFids( ids ).setFlags( QgsFeatureRequest::NoGeometry ) );
+  QgsFeatureIterator it = getFeatures( QgsFeatureRequest().setFilterFids( ids ).setFlags( Qgis::FeatureRequestFlag::NoGeometry ) );
   QgsFeature feature;
 
   QgsFeatureList updatedFeatures;
@@ -640,6 +653,11 @@ bool QgsAfsProvider::setSubsetString( const QString &subset, bool )
   const QString trimmedSubset = subset.trimmed();
   if ( trimmedSubset == mSharedData->subsetString() )
     return true;
+
+  // We must not change the subset string of the shared data used in another iterator/data provider,
+  // or other layers attached to the same shared data (i.e. layers with a data provider cloned from
+  // this one) will also unwantedly inherit the new subset string.
+  mSharedData = mSharedData->clone();
 
   mSharedData->setSubsetString( trimmedSubset );
 

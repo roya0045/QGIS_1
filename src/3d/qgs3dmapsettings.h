@@ -47,7 +47,6 @@ class QDomElement;
  * \ingroup 3d
  * \brief Definition of the world.
  *
- * \since QGIS 3.0
  */
 class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObject
 {
@@ -132,7 +131,6 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
      * during rendering operations, e.g. for resolving relative symbol paths.
      *
      * \see setPathResolver()
-     * \since QGIS 3.0
      */
     const QgsPathResolver &pathResolver() const { return mPathResolver; }
 
@@ -141,7 +139,6 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
      * during rendering operations, e.g. for resolving relative symbol paths.
      *
      * \see pathResolver()
-     * \since QGIS 3.0
      */
     void setPathResolver( const QgsPathResolver &resolver ) { mPathResolver = resolver; }
 
@@ -338,11 +335,6 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     //
     // misc configuration
     //
-
-    //! Sets list of extra 3D renderers to use in the scene. Takes ownership of the objects.
-    void setRenderers( const QList<QgsAbstract3DRenderer *> &renderers SIP_TRANSFER );
-    //! Returns list of extra 3D renderers
-    QList<QgsAbstract3DRenderer *> renderers() const { return mRenderers; }
 
     //! Sets whether to display bounding boxes of terrain tiles (for debugging)
     void setShowTerrainBoundingBoxes( bool enabled );
@@ -681,6 +673,19 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
      */
     void setIsDebugOverlayEnabled( bool debugOverlayEnabled );
 
+    /**
+     * Returns whether the extent is displayed on the main 2D map canvas
+     * \see setShowExtentIn2DView()
+     * \since QGIS 3.32
+     */
+    bool showExtentIn2DView() const { return mShowExtentIn2DView; }
+
+    /**
+     * Sets whether the extent is displayed on the main 2D map canvas
+     * \since QGIS 3.32
+     */
+    void setShowExtentIn2DView( bool show );
+
   signals:
 
     /**
@@ -887,6 +892,13 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
      */
     void extentChanged();
 
+    /**
+     * Emitted when the parameter to display 3d view's extent in the 2D canvas has changed
+     * \see setShowExtentIn2DView()
+     * \since QGIS 3.32
+     */
+    void showExtentIn2DViewChanged();
+
   private:
 #ifdef SIP_RUN
     Qgs3DMapSettings &operator=( const Qgs3DMapSettings & );
@@ -923,7 +935,6 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     Qgis::NavigationMode mCameraNavigationMode = Qgis::NavigationMode::TerrainBased;
     double mCameraMovementSpeed = 5.0;
     QList<QgsMapLayerRef> mLayers;   //!< Layers to be rendered
-    QList<QgsAbstract3DRenderer *> mRenderers;  //!< Extra stuff to render as 3D object
     //! Coordinate transform context
     QgsCoordinateTransformContext mTransformContext;
     QgsPathResolver mPathResolver;
@@ -960,6 +971,8 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     bool mIsDebugOverlayEnabled = false;
 
     QgsRectangle mExtent; //!< 2d extent used to limit the 3d view
+
+    bool mShowExtentIn2DView = false;
 
 };
 

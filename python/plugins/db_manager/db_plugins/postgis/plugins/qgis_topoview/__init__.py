@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : TopoViewer plugin for DB Manager
@@ -21,7 +19,6 @@ Based on qgis_pgis_topoview by Sandro Santilli <strk@kbt.io>
  *                                                                         *
  ***************************************************************************/
 """
-from builtins import str
 
 from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtCore import Qt
@@ -72,7 +69,7 @@ def run(item, action, mainwindow):
     isTopoSchema = False
 
     if not hasattr(item, 'schema'):
-        mainwindow.infoBar.pushMessage("Invalid topology", 'Select a topology schema to continue.', Qgis.Info,
+        mainwindow.infoBar.pushMessage("Invalid topology", 'Select a topology schema to continue.', Qgis.MessageLevel.Info,
                                        mainwindow.iface.messageTimeout())
         return False
 
@@ -83,13 +80,13 @@ def run(item, action, mainwindow):
 
     if not isTopoSchema:
         mainwindow.infoBar.pushMessage("Invalid topology",
-                                       'Schema "{0}" is not registered in topology.topology.'.format(
-                                           item.schema().name), Qgis.Warning,
+                                       'Schema "{}" is not registered in topology.topology.'.format(
+                                           item.schema().name), Qgis.MessageLevel.Warning,
                                        mainwindow.iface.messageTimeout())
         return False
 
     if (res[0][0] < 0):
-        mainwindow.infoBar.pushMessage("WARNING", 'Topology "{0}" is registered as having a srid of {1} in topology.topology, we will assume 0 (for unknown)'.format(item.schema().name, res[0]), Qgis.Warning, mainwindow.iface.messageTimeout())
+        mainwindow.infoBar.pushMessage("WARNING", 'Topology "{}" is registered as having a srid of {} in topology.topology, we will assume 0 (for unknown)'.format(item.schema().name, res[0]), Qgis.MessageLevel.Warning, mainwindow.iface.messageTimeout())
         toposrid = '0'
     else:
         toposrid = str(res[0][0])
@@ -113,7 +110,7 @@ def run(item, action, mainwindow):
         # face mbr
         uri.setDataSource(toponame, 'face', 'mbr', '', 'face_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.Polygon)
+        uri.setWkbType(QgsWkbTypes.Type.Polygon)
         layerFaceMbr = QgsVectorLayer(uri.uri(False), '%s.face_mbr' % toponame, provider)
         layerFaceMbr.loadNamedStyle(os.path.join(template_dir, 'face_mbr.qml'))
 
@@ -128,7 +125,7 @@ def run(item, action, mainwindow):
         uri.setParam('bbox', 'mbr')
         uri.setParam('checkPrimaryKeyUnicity', '0')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.Polygon)
+        uri.setWkbType(QgsWkbTypes.Type.Polygon)
         layerFaceGeom = QgsVectorLayer(uri.uri(False), '%s.face' % toponame, provider)
         layerFaceGeom.setExtent(face_extent)
         layerFaceGeom.loadNamedStyle(os.path.join(template_dir, 'face.qml'))
@@ -143,7 +140,7 @@ def run(item, action, mainwindow):
         uri.setParam('bbox', 'mbr')
         uri.setParam('checkPrimaryKeyUnicity', '0')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.Point)
+        uri.setWkbType(QgsWkbTypes.Type.Point)
         layerFaceSeed = QgsVectorLayer(uri.uri(False), '%s.face_seed' % toponame, provider)
         layerFaceSeed.setExtent(face_extent)
         layerFaceSeed.loadNamedStyle(os.path.join(template_dir, 'face_seed.qml'))
@@ -156,7 +153,7 @@ def run(item, action, mainwindow):
         uri.setDataSource(toponame, 'node', 'geom', '', 'node_id')
         uri.removeParam('bbox')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.Point)
+        uri.setWkbType(QgsWkbTypes.Type.Point)
         layerNode = QgsVectorLayer(uri.uri(False), '%s.node' % toponame, provider)
         layerNode.loadNamedStyle(os.path.join(template_dir, 'node.qml'))
         node_extent = layerNode.extent()
@@ -164,7 +161,7 @@ def run(item, action, mainwindow):
         # node labels
         uri.setDataSource(toponame, 'node', 'geom', '', 'node_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.Point)
+        uri.setWkbType(QgsWkbTypes.Type.Point)
         uri.removeParam('bbox')
         layerNodeLabel = QgsVectorLayer(uri.uri(False), '%s.node_id' % toponame, provider)
         layerNodeLabel.setExtent(node_extent)
@@ -175,7 +172,7 @@ def run(item, action, mainwindow):
         # edge
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.LineString)
+        uri.setWkbType(QgsWkbTypes.Type.LineString)
         uri.removeParam('bbox')
         layerEdge = QgsVectorLayer(uri.uri(False), '%s.edge' % toponame, provider)
         edge_extent = layerEdge.extent()
@@ -183,7 +180,7 @@ def run(item, action, mainwindow):
         # directed edge
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.LineString)
+        uri.setWkbType(QgsWkbTypes.Type.LineString)
         uri.removeParam('bbox')
         layerDirectedEdge = QgsVectorLayer(uri.uri(False), '%s.directed_edge' % toponame, provider)
         layerDirectedEdge.setExtent(edge_extent)
@@ -192,7 +189,7 @@ def run(item, action, mainwindow):
         # edge labels
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.LineString)
+        uri.setWkbType(QgsWkbTypes.Type.LineString)
         uri.removeParam('bbox')
         layerEdgeLabel = QgsVectorLayer(uri.uri(False), '%s.edge_id' % toponame, provider)
         layerEdgeLabel.setExtent(edge_extent)
@@ -201,7 +198,7 @@ def run(item, action, mainwindow):
         # face_left
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.LineString)
+        uri.setWkbType(QgsWkbTypes.Type.LineString)
         uri.removeParam('bbox')
         layerFaceLeft = QgsVectorLayer(uri.uri(False), '%s.face_left' % toponame, provider)
         layerFaceLeft.setExtent(edge_extent)
@@ -210,7 +207,7 @@ def run(item, action, mainwindow):
         # face_right
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.LineString)
+        uri.setWkbType(QgsWkbTypes.Type.LineString)
         uri.removeParam('bbox')
         layerFaceRight = QgsVectorLayer(uri.uri(False), '%s.face_right' % toponame, provider)
         layerFaceRight.setExtent(edge_extent)
@@ -219,7 +216,7 @@ def run(item, action, mainwindow):
         # next_left
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.LineString)
+        uri.setWkbType(QgsWkbTypes.Type.LineString)
         uri.removeParam('bbox')
         layerNextLeft = QgsVectorLayer(uri.uri(False), '%s.next_left' % toponame, provider)
         layerNextLeft.setExtent(edge_extent)
@@ -228,7 +225,7 @@ def run(item, action, mainwindow):
         # next_right
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
         uri.setSrid(toposrid)
-        uri.setWkbType(QgsWkbTypes.LineString)
+        uri.setWkbType(QgsWkbTypes.Type.LineString)
         uri.removeParam('bbox')
         layerNextRight = QgsVectorLayer(uri.uri(False), '%s.next_right' % toponame, provider)
         layerNextRight.setExtent(edge_extent)

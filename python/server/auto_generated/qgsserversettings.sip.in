@@ -15,8 +15,6 @@ class QgsServerSettingsEnv : QObject
 {
 %Docstring(signature="appended")
 Provides some enum describing the environment currently supported for configuration.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -64,6 +62,7 @@ Provides some enum describing the environment currently supported for configurat
       QGIS_SERVER_PROJECT_CACHE_STRATEGY,
       QGIS_SERVER_ALLOWED_EXTRA_SQL_TOKENS,
       QGIS_SERVER_APPLICATION_NAME,
+      QGIS_SERVER_CAPABILITIES_CACHE_SIZE,
     };
 };
 
@@ -71,8 +70,6 @@ class QgsServerSettings
 {
 %Docstring(signature="appended")
 Provides a way to retrieve settings by prioritizing according to environment variables, ini file and default values.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -136,7 +133,7 @@ Returns ``True`` if profile information has to be added to the logs, default val
 
 .. note::
 
-   this flag is only effective when :py:func:`~QgsServerSettings.logLevel` returns Qgis.MessageLevel.Info (0)
+   this flag is only effective when :py:func:`~QgsServerSettings.logLevel` returns :py:class:`Qgis`.MessageLevel.Info (0)
 
 .. seealso:: :py:func:`logLevel`
 
@@ -312,7 +309,7 @@ Returns the service URL from the setting.
 
     int projectCacheCheckInterval() const;
 %Docstring
-Returns the config cache check interval for the 'periodic' strategy.
+Returns the config cache check interval (in ms) for the 'periodic' strategy.
 
 .. versionadded:: 3.26
 %End
@@ -357,6 +354,15 @@ by setting the environment variable QGIS_SERVER_APPLICATION_NAME.
 Returns the string representation of a setting.
 
 .. versionadded:: 3.16
+%End
+
+    int capabilitiesCacheSize() const;
+%Docstring
+Returns the maximum number of project capabilities to cache.
+The default value is 40 and the value can be changed
+by setting the environment variable QGIS_SERVER_CAPABILITIES_CACHE_SIZE.
+
+.. versionadded:: 3.31
 %End
 
 };

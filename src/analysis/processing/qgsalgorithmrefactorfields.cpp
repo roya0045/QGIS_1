@@ -63,12 +63,12 @@ QString QgsRefactorFieldsAlgorithm::outputName() const
 
 QList<int> QgsRefactorFieldsAlgorithm::inputLayerTypes() const
 {
-  return QList<int>() << QgsProcessing::TypeVector;
+  return QList<int>() << static_cast< int >( Qgis::ProcessingSourceType::Vector );
 }
 
-QgsProcessingFeatureSource::Flag QgsRefactorFieldsAlgorithm::sourceFlags() const
+Qgis::ProcessingFeatureSourceFlags QgsRefactorFieldsAlgorithm::sourceFlags() const
 {
-  return QgsProcessingFeatureSource::FlagSkipGeometryValidityChecks;
+  return Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks;
 }
 
 QgsRefactorFieldsAlgorithm *QgsRefactorFieldsAlgorithm::createInstance() const
@@ -113,7 +113,13 @@ bool QgsRefactorFieldsAlgorithm::prepareAlgorithm( const QVariantMap &parameters
     const int length = fieldDef.value( QStringLiteral( "length" ), 0 ).toInt();
     const int precision = fieldDef.value( QStringLiteral( "precision" ), 0 ).toInt();
 
-    mFields.append( QgsField( name, type, typeName, length, precision, QString(), subType ) );
+    const QString alias = fieldDef.value( QStringLiteral( "alias" ) ).toString();
+    const QString comment = fieldDef.value( QStringLiteral( "comment" ) ).toString();
+
+    QgsField newField( name, type, typeName, length, precision, QString(), subType );
+    newField.setAlias( alias );
+    newField.setComment( comment );
+    mFields.append( newField );
 
     const QString expressionString = fieldDef.value( QStringLiteral( "expression" ) ).toString();
     if ( !expressionString.isEmpty() )

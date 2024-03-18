@@ -200,6 +200,11 @@ QString QgsVectorLayerExporter::errorMessage() const
   return mErrorMessage;
 }
 
+Qgis::VectorDataProviderAttributeEditCapabilities QgsVectorLayerExporter::attributeEditCapabilities() const
+{
+  return mProvider ? mProvider->attributeEditCapabilities() : Qgis::VectorDataProviderAttributeEditCapabilities();
+}
+
 bool QgsVectorLayerExporter::addFeatures( QgsFeatureList &features, Flags flags )
 {
   QgsFeatureList::iterator fIt = features.begin();
@@ -269,7 +274,7 @@ bool QgsVectorLayerExporter::flushBuffer()
     mErrorCount += mFeatureBuffer.count();
 
     mFeatureBuffer.clear();
-    QgsDebugMsg( mErrorMessage );
+    QgsDebugError( mErrorMessage );
     return false;
   }
 
@@ -371,7 +376,7 @@ Qgis::VectorExportResult QgsVectorLayerExporter::exportLayer( QgsVectorLayer *la
 
   QgsFeatureRequest req;
   if ( wkbType == Qgis::WkbType::NoGeometry )
-    req.setFlags( QgsFeatureRequest::NoGeometry );
+    req.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   if ( onlySelected )
     req.setFilterFids( layer->selectedFeatureIds() );
 

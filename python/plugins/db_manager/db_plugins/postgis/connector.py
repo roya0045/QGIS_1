@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : DB Manager
@@ -21,13 +19,11 @@ The content of this file is based on
  *                                                                         *
  ***************************************************************************/
 """
-from builtins import str
-from builtins import range
 
 from functools import cmp_to_key
 
 from qgis.PyQt.QtCore import (
-    QRegExp,
+    QRegularExpression,
     QFile,
     QVariant,
     QDateTime,
@@ -50,12 +46,6 @@ from ..plugin import DbError, Table
 
 import os
 import re
-import psycopg2
-import psycopg2.extensions
-
-# use unicode!
-psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
-psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 
 def classFactory():
@@ -90,7 +80,7 @@ class CursorAdapter():
                     else:
                         col = str(col)  # force to string
                 if isinstance(col, QDateTime) or isinstance(col, QDate) or isinstance(col, QTime):
-                    col = col.toString(Qt.ISODate)
+                    col = col.toString(Qt.DateFormat.ISODate)
                 newrec.append(col)
             newres.append(newrec)
         return newres
@@ -278,7 +268,7 @@ class PostGisDBConnector(DBConnector):
             # set permission to allow removing on Win.
             # On linux and Mac if file is set with QFile::>ReadUser
             # does not create problem removing certs
-            if not file.setPermissions(QFile.WriteOwner):
+            if not file.setPermissions(QFile.Permission.WriteOwner):
                 raise Exception('Cannot change permissions on {}: error code: {}'.format(file.fileName(), file.error()))
             if not file.remove():
                 raise Exception('Cannot remove {}: error code: {}'.format(file.fileName(), file.error()))
@@ -351,6 +341,13 @@ class PostGisDBConnector(DBConnector):
         res = self._fetchone(c)
         self._close_cursor(c)
         return res
+
+    def getPsqlVersion(self):
+        regex = r"^PostgreSQL\s([0-9]{1,2})"
+        match = re.match(regex, self.getInfo()[0])
+        if match:
+            return int(match.group(1))
+        raise DbError(f"Unknown PostgreSQL version: {self.getInfo()[0]}")
 
     def getSpatialInfo(self):
         """ returns tuple about PostGIS support:
@@ -648,7 +645,7 @@ class PostGisDBConnector(DBConnector):
         schema, tablename = self.getSchemaTableName(table)
         schema_where = " AND nspname=%s " % self.quoteString(schema) if schema is not None else ""
 
-        version_number = int(self.getInfo()[0].split(' ')[1].split('.')[0])
+        version_number = self.getPsqlVersion()
         ad_col_name = 'adsrc' if version_number < 12 else 'adbin'
 
         sql = """SELECT a.attnum AS ordinal_position,
@@ -696,7 +693,7 @@ class PostGisDBConnector(DBConnector):
         schema, tablename = self.getSchemaTableName(table)
         schema_where = " AND nspname=%s " % self.quoteString(schema) if schema is not None else ""
 
-        version_number = int(self.getInfo()[0].split(' ')[1].split('.')[0])
+        version_number = self.getPsqlVersion()
         con_col_name = 'consrc' if version_number < 12 else 'conbin'
 
         # In the query below, we exclude rows where pg_constraint.contype whose values are equal to 't'
@@ -851,9 +848,10 @@ class PostGisDBConnector(DBConnector):
 
         srtext = sr[0]
         # try to extract just SR name (should be quoted in double quotes)
-        regex = QRegExp('"([^"]+)"')
-        if regex.indexIn(srtext) > -1:
-            srtext = regex.cap(1)
+        regex = QRegularExpression('"([^"]+)"')
+        match = regex.match(srtext)
+        if match.hasMatch():
+            srtext = match.captured(1)
         return srtext
 
     def isVectorTable(self, table):
@@ -942,9 +940,9 @@ class PostGisDBConnector(DBConnector):
 
     def commentTable(self, schema, tablename, comment=None):
         if comment is None:
-            self._execute(None, 'COMMENT ON TABLE "{0}"."{1}" IS NULL;'.format(schema, tablename))
+            self._execute(None, 'COMMENT ON TABLE "{}"."{}" IS NULL;'.format(schema, tablename))
         else:
-            self._execute(None, 'COMMENT ON TABLE "{0}"."{1}" IS $escape${2}$escape$;'.format(schema, tablename, comment))
+            self._execute(None, 'COMMENT ON TABLE "{}"."{}" IS $escape${}$escape$;'.format(schema, tablename, comment))
 
     def getComment(self, tablename, field):
         """Returns the comment for a field"""
@@ -1201,12 +1199,6 @@ class PostGisDBConnector(DBConnector):
         schema, tablename = self.getSchemaTableName(table)
         idx_name = self.quoteId("sidx_%s_%s" % (tablename, geom_column))
         return self.deleteTableIndex(table, idx_name)
-
-    def execution_error_types(self):
-        return psycopg2.Error, psycopg2.ProgrammingError, psycopg2.Warning
-
-    def connection_error_types(self):
-        return psycopg2.InterfaceError, psycopg2.OperationalError
 
     def _execute(self, cursor, sql):
         if cursor is not None:

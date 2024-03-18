@@ -22,6 +22,7 @@
 #include "qgsgeometryengine.h"
 #include "qgsmeshadvancedediting.h"
 #include "qgsgeometryutils.h"
+#include "qgspolygon.h"
 
 #include <poly2tri.h>
 
@@ -53,7 +54,13 @@ QgsMeshEditor::QgsMeshEditor( QgsMesh *nativeMesh, QgsTriangularMesh *triangular
 QgsMeshDatasetGroup *QgsMeshEditor::createZValueDatasetGroup()
 {
   std::unique_ptr<QgsMeshDatasetGroup> zValueDatasetGroup = std::make_unique<QgsMeshVerticesElevationDatasetGroup>( tr( "vertices Z value" ), mMesh );
+
+  // this DOES look very dangerous!
+  // TODO rework to avoid this danger
+
+  // cppcheck-suppress danglingLifetime
   mZValueDatasetGroup = zValueDatasetGroup.get();
+
   return zValueDatasetGroup.release();
 }
 
@@ -580,7 +587,7 @@ bool QgsMeshEditor::edgeIsClose( QgsPointXY point, double tolerance, int &faceIn
       const QgsMeshVertex &v2 = mTriangularMesh->vertices().at( face.at( ( i + 1 ) % faceSize ) );
 
       double mx, my;
-      double dist = sqrt( QgsGeometryUtils::sqrDistToLine( point.x(),
+      double dist = sqrt( QgsGeometryUtilsBase::sqrDistToLine( point.x(),
                           point.y(),
                           v1.x(),
                           v1.y(),

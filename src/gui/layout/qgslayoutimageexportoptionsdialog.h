@@ -31,7 +31,6 @@
  * \brief A dialog for customizing the properties of an exported image file.
  *
  * \note This class is not a part of public API
- * \since QGIS 3.0
 */
 class GUI_EXPORT QgsLayoutImageExportOptionsDialog: public QDialog, private Ui::QgsLayoutImageExportOptionsDialog
 {
@@ -133,6 +132,11 @@ class GUI_EXPORT QgsLayoutImageExportOptionsDialog: public QDialog, private Ui::
      * \param leftMargin left margin
      */
     void setCropMargins( int topMargin, int rightMargin, int bottomMargin, int leftMargin );
+
+    //! Sets whether to open the pdf after exporting it
+    void setOpenAfterExporting( bool enabled );
+    //! Returns whether the pdf should be opened after exporting it
+    bool openAfterExporting() const;
 
   private slots:
 

@@ -23,7 +23,7 @@ QgsLine3DSymbolWidget::QgsLine3DSymbolWidget( QWidget *parent )
 {
   setupUi( this );
 
-  spinHeight->setClearValue( 0.0 );
+  spinOffset->setClearValue( 0.0 );
   spinWidth->setClearValue( 0.0, tr( "Hairline" ) );
   spinExtrusion->setClearValue( 0.0 );
 
@@ -35,10 +35,11 @@ QgsLine3DSymbolWidget::QgsLine3DSymbolWidget( QWidget *parent )
   setSymbol( &defaultLine, nullptr );
 
   connect( spinWidth, static_cast<void ( QDoubleSpinBox::* )( double )>( &QDoubleSpinBox::valueChanged ), this, &QgsLine3DSymbolWidget::changed );
-  connect( spinHeight, static_cast<void ( QDoubleSpinBox::* )( double )>( &QDoubleSpinBox::valueChanged ), this, &QgsLine3DSymbolWidget::changed );
+  connect( spinOffset, static_cast<void ( QDoubleSpinBox::* )( double )>( &QDoubleSpinBox::valueChanged ), this, &QgsLine3DSymbolWidget::changed );
   connect( spinExtrusion, static_cast<void ( QDoubleSpinBox::* )( double )>( &QDoubleSpinBox::valueChanged ), this, &QgsLine3DSymbolWidget::changed );
-  connect( cboAltClamping, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsLine3DSymbolWidget::changed );
   connect( cboAltBinding, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsLine3DSymbolWidget::changed );
+  connect( cboAltClamping, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsLine3DSymbolWidget::changed );
+  connect( cboAltClamping, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsLine3DSymbolWidget::updateGuiState );
   connect( chkSimpleLines, &QCheckBox::toggled, this, &QgsLine3DSymbolWidget::changed );
   connect( chkSimpleLines, &QCheckBox::toggled, this, &QgsLine3DSymbolWidget::updateGuiState );
   connect( chkSimpleLines, &QCheckBox::toggled, this, &QgsLine3DSymbolWidget::simple3DLinesToggled );
@@ -59,7 +60,7 @@ void QgsLine3DSymbolWidget::setSymbol( const QgsAbstract3DSymbol *symbol, QgsVec
     return;
 
   spinWidth->setValue( lineSymbol->width() );
-  spinHeight->setValue( lineSymbol->height() );
+  spinOffset->setValue( lineSymbol->offset() );
   spinExtrusion->setValue( lineSymbol->extrusionHeight() );
   cboAltClamping->setCurrentIndex( cboAltClamping->findData( static_cast< int >( lineSymbol->altitudeClamping() ) ) );
   cboAltBinding->setCurrentIndex( static_cast<int>( lineSymbol->altitudeBinding() ) );
@@ -74,7 +75,7 @@ QgsAbstract3DSymbol *QgsLine3DSymbolWidget::symbol()
 {
   std::unique_ptr< QgsLine3DSymbol > sym = std::make_unique< QgsLine3DSymbol >();
   sym->setWidth( spinWidth->value() );
-  sym->setHeight( spinHeight->value() );
+  sym->setOffset( static_cast<float>( spinOffset->value() ) );
   sym->setExtrusionHeight( spinExtrusion->value() );
   sym->setAltitudeClamping( static_cast<Qgis::AltitudeClamping>( cboAltClamping->currentData().toInt() ) );
   sym->setAltitudeBinding( static_cast<Qgis::AltitudeBinding>( cboAltBinding->currentIndex() ) );
@@ -94,6 +95,11 @@ void QgsLine3DSymbolWidget::updateGuiState()
   spinExtrusion->setEnabled( !simple );
   widgetMaterial->setTechnique( chkSimpleLines->isChecked() ? QgsMaterialSettingsRenderingTechnique::Lines
                                 : QgsMaterialSettingsRenderingTechnique::Triangles );
+
+  // Altitude binding is not taken into account if altitude clamping is absolute.
+  // See: Qgs3DUtils::clampAltitudes()
+  const bool absoluteClamping = cboAltClamping->currentData().toInt() == static_cast< int >( Qgis::AltitudeClamping::Absolute );
+  cboAltBinding->setEnabled( !absoluteClamping );
 }
 
 void QgsLine3DSymbolWidget::simple3DLinesToggled( bool active )

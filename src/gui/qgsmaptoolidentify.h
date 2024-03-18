@@ -65,7 +65,7 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
     };
     Q_ENUM( IdentifyMode )
 
-    enum Type
+    enum Type SIP_ENUM_BASETYPE( IntFlag )
     {
       VectorLayer = 1,
       RasterLayer = 2,
@@ -257,28 +257,24 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
     /**
      * Desired units for distance display.
      * \see displayAreaUnits()
-     * \since QGIS 2.14
      */
     virtual Qgis::DistanceUnit displayDistanceUnits() const;
 
     /**
      * Desired units for area display.
      * \see displayDistanceUnits()
-     * \since QGIS 2.14
      */
     virtual Qgis::AreaUnit displayAreaUnits() const;
 
     /**
      * Format a distance into a suitable string for display to the user
      * \see formatArea()
-     * \since QGIS 2.14
      */
     QString formatDistance( double distance ) const;
 
     /**
      * Format a distance into a suitable string for display to the user
      * \see formatDistance()
-     * \since QGIS 2.14
      */
     QString formatArea( double area ) const;
 

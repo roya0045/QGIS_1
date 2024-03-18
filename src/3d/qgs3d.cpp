@@ -26,6 +26,7 @@
 #include "qgsvectorlayer3drenderer.h"
 #include "qgsmeshlayer3drenderer.h"
 #include "qgspointcloudlayer3drenderer.h"
+#include "qgstiledscenelayer3drenderer.h"
 #include "qgs3dsymbolregistry.h"
 #include "qgspoint3dsymbol.h"
 #include "qgsline3dsymbol.h"
@@ -36,6 +37,7 @@
 #include "qgspoint3dsymbol_p.h"
 #include "qgsline3dsymbol_p.h"
 #include "qgsgoochmaterialsettings.h"
+#include "qgsmetalroughmaterialsettings.h"
 #include "qgssimplelinematerialsettings.h"
 #include "qgsphongtexturedmaterialsettings.h"
 #include "qgsnullmaterialsettings.h"
@@ -63,6 +65,7 @@ void Qgs3D::initialize()
   QgsApplication::renderer3DRegistry()->addRenderer( new QgsRuleBased3DRendererMetadata );
   QgsApplication::renderer3DRegistry()->addRenderer( new QgsMeshLayer3DRendererMetadata );
   QgsApplication::renderer3DRegistry()->addRenderer( new QgsPointCloudLayer3DRendererMetadata );
+  QgsApplication::renderer3DRegistry()->addRenderer( new QgsTiledSceneLayer3DRendererMetadata );
 
   QgsApplication::symbol3DRegistry()->addSymbolType( new Qgs3DSymbolMetadata( QStringLiteral( "point" ), QObject::tr( "Point" ),
       &QgsPoint3DSymbol::create, nullptr, Qgs3DSymbolImpl::handlerForPoint3DSymbol ) );
@@ -81,6 +84,8 @@ void Qgs3D::initialize()
       QgsSimpleLineMaterialSettings::create, QgsSimpleLineMaterialSettings::supportsTechnique, nullptr, QgsApplication::getThemeIcon( QStringLiteral( "/mIconSimpleLineMaterial.svg" ) ) ) );
   Qgs3D::materialRegistry()->addMaterialSettingsType( new QgsMaterialSettingsMetadata( QStringLiteral( "gooch" ), QObject::tr( "CAD (Gooch)" ),
       QgsGoochMaterialSettings::create, QgsGoochMaterialSettings::supportsTechnique, nullptr, QgsApplication::getThemeIcon( QStringLiteral( "/mIconGoochMaterial.svg" ) ) ) );
+  Qgs3D::materialRegistry()->addMaterialSettingsType( new QgsMaterialSettingsMetadata( QStringLiteral( "metalrough" ), QObject::tr( "Metal Roughness" ),
+      QgsMetalRoughMaterialSettings::create, QgsMetalRoughMaterialSettings::supportsTechnique, nullptr, QgsApplication::getThemeIcon( QStringLiteral( "/mIconGoochMaterial.svg" ) ) ) );
 
   // because we are usually populating the 3d registry AFTER QgsApplication initialization, we need to defer creation
   // of 3d symbols in the default style until now

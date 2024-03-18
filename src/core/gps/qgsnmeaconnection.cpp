@@ -60,15 +60,24 @@ void QgsNmeaConnection::parseData()
 
   if ( numBytes >= 6 )
   {
+    QgsDebugMsgLevel( QStringLiteral( "Got %1 NMEA bytes" ).arg( numBytes ), 3 );
+    QgsDebugMsgLevel( QStringLiteral( "Current NMEA device status is %1" ).arg( mStatus ), 3 );
     if ( mStatus != GPSDataReceived )
     {
+      QgsDebugMsgLevel( QStringLiteral( "Setting device status to DataReceived" ), 3 );
       mStatus = DataReceived;
     }
 
     //append new data to the remaining results from last parseData() call
     mStringBuffer.append( mSource->read( numBytes ) );
     processStringBuffer();
-    emit stateChanged( mLastGPSInformation );
+    QgsDebugMsgLevel( QStringLiteral( "Processed buffer" ), 3 );
+
+    QgsDebugMsgLevel( QStringLiteral( "New status is %1" ).arg( mStatus ), 3 );
+    if ( mStatus == GPSDataReceived )
+    {
+      emit stateChanged( mLastGPSInformation );
+    }
   }
 }
 
@@ -492,6 +501,7 @@ void QgsNmeaConnection::processGsaSentence( const char *data, int len )
         else if ( result.sat_prn[i] > 32 && result.sat_prn[i] <= 64 )
           constellation = Qgis::GnssConstellation::Sbas;
 
+        // cppcheck-suppress identicalInnerCondition
         if ( result.sat_prn[i] > 0 )
         {
           if ( mixedConstellation

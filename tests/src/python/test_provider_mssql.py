@@ -11,10 +11,10 @@ __copyright__ = 'Copyright 2015, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QDate, QDateTime, QDir, QTime, QVariant
 from qgis.core import (
     NULL,
+    Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsDataSourceUri,
@@ -31,7 +31,8 @@ from qgis.core import (
     QgsVectorLayerExporter,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from providertestbase import ProviderTestCase
 from utilities import unitTestDataPath
@@ -40,11 +41,12 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
+class TestPyQgsMssqlProvider(QgisTestCase, ProviderTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestPyQgsMssqlProvider, cls).setUpClass()
         # These are the connection details for the SQL Server instance running on Travis
         cls.dbconn = "service='testsqlserver' user=sa password='<YourStrong!Passw0rd>' "
         if 'QGIS_MSSQLTEST_DB' in os.environ:
@@ -69,11 +71,6 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
         # Use connections API
         md = QgsProviderRegistry.instance().providerMetadata('mssql')
         cls.conn_api = md.createConnection(cls.dbconn, {})
-
-    @classmethod
-    def tearDownClass(cls):
-        """Run after all tests"""
-        pass
 
     def setUp(self):
         for t in ['new_table', 'new_table_multipoint', 'new_table_multipolygon']:
@@ -239,7 +236,7 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
     def testDateTimeTypes(self):
         vl = QgsVectorLayer('%s table="qgis_test"."date_times" sql=' %
                             (self.dbconn), "testdatetimes", "mssql")
-        assert (vl.isValid())
+        self.assertTrue(vl.isValid())
 
         fields = vl.dataProvider().fields()
         self.assertEqual(fields.at(fields.indexFromName(
@@ -312,11 +309,11 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
         uri = f'{self.dbconn} table="qgis_test"."new_table" sql='
         error, message = QgsVectorLayerExporter.exportLayer(layer, uri, 'mssql',
                                                             QgsCoordinateReferenceSystem('EPSG:4326'))
-        self.assertEqual(error, QgsVectorLayerExporter.NoError)
+        self.assertEqual(error, QgsVectorLayerExporter.ExportError.NoError)
 
         new_layer = QgsVectorLayer(uri, 'new', 'mssql')
         self.assertTrue(new_layer.isValid())
-        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Type.Point)
         self.assertEqual([f.name() for f in new_layer.fields()], ['qgs_fid', 'id', 'fldtxt', 'fldint'])
 
         features = [f.attributes() for f in new_layer.getFeatures()]
@@ -345,11 +342,11 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
         uri = f'{self.dbconn} table="qgis_test"."new_table_multipoint" sql='
         error, message = QgsVectorLayerExporter.exportLayer(layer, uri, 'mssql',
                                                             QgsCoordinateReferenceSystem('EPSG:3111'))
-        self.assertEqual(error, QgsVectorLayerExporter.NoError)
+        self.assertEqual(error, QgsVectorLayerExporter.ExportError.NoError)
 
         new_layer = QgsVectorLayer(uri, 'new', 'mssql')
         self.assertTrue(new_layer.isValid())
-        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.MultiPoint)
+        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Type.MultiPoint)
         self.assertEqual(new_layer.crs().authid(), 'EPSG:3111')
         self.assertEqual([f.name() for f in new_layer.fields()], ['qgs_fid', 'id', 'fldtxt', 'fldint'])
 
@@ -388,7 +385,7 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
             uri = self.dbconn + ' table="qgis_test"."new_table_curvegeom_' + str(idx) + '" sql='
             error, message = QgsVectorLayerExporter.exportLayer(layer, uri, 'mssql',
                                                                 QgsCoordinateReferenceSystem('EPSG:4326'))
-            self.assertEqual(error, QgsVectorLayerExporter.NoError)
+            self.assertEqual(error, QgsVectorLayerExporter.ExportError.NoError)
             new_layer = QgsVectorLayer(uri, 'new', 'mssql')
             self.assertTrue(new_layer.isValid())
             self.assertEqual(new_layer.wkbType(), g.wkbType())
@@ -406,8 +403,8 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
 
         vl = self.getSource()
         self.assertTrue(vl.isValid())
-        self.assertTrue(
-            vl.dataProvider().isSaveAndLoadStyleToDatabaseSupported())
+        self.assertEqual(int(vl.dataProvider().styleStorageCapabilities()) & Qgis.ProviderStyleStorageCapability.LoadFromDatabase, Qgis.ProviderStyleStorageCapability.LoadFromDatabase)
+        self.assertEqual(int(vl.dataProvider().styleStorageCapabilities()) & Qgis.ProviderStyleStorageCapability.SaveToDatabase, Qgis.ProviderStyleStorageCapability.SaveToDatabase)
 
         # table layer_styles does not exist
 
@@ -511,11 +508,11 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
         uri = f'{self.dbconn} table="qgis_test"."new_table_multipolygon" sql='
         error, message = QgsVectorLayerExporter.exportLayer(layer, uri, 'mssql',
                                                             QgsCoordinateReferenceSystem('EPSG:4326'))
-        self.assertEqual(error, QgsVectorLayerExporter.NoError)
+        self.assertEqual(error, QgsVectorLayerExporter.ExportError.NoError)
 
         new_layer = QgsVectorLayer(uri, 'new', 'mssql')
         self.assertTrue(new_layer.isValid())
-        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.MultiPolygon)
+        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Type.MultiPolygon)
         geom = [f.geometry().asWkt() for f in new_layer.getFeatures()]
         self.assertEqual(geom, ['MultiPolygon (((0 0, 1 0, 1 1, 0 1, 0 0)),((10 0, 11 0, 11 1, 10 1, 10 0)))'])
 
@@ -544,7 +541,7 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
 
         # try to overwrite
         error, message = QgsVectorLayerExporter.exportLayer(layer, uri, 'mssql', QgsCoordinateReferenceSystem())
-        self.assertEqual(error, QgsVectorLayerExporter.ErrCreateLayer)
+        self.assertEqual(error, QgsVectorLayerExporter.ExportError.ErrCreateLayer)
 
         # should not have overwritten features
         self.assertEqual([f.attributes() for f in new_layer.getFeatures()], [[1]])
@@ -630,7 +627,7 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
             (self.dbconn), "testdatetimes", "mssql")
 
         # Activate EvaluateDefaultValues
-        vl.dataProvider().setProviderProperty(QgsDataProvider.EvaluateDefaultValues, True)
+        vl.dataProvider().setProviderProperty(QgsDataProvider.ProviderProperty.EvaluateDefaultValues, True)
 
         name_index = vl.fields().lookupField('name')
         defaultValue = vl.dataProvider().defaultValue(name_index)
@@ -787,28 +784,28 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
             1001), QgsFieldConstraints.Constraints())
 
         self.assertTrue(vl.dataProvider().fieldConstraints(0) &
-                        QgsFieldConstraints.ConstraintNotNull)
+                        QgsFieldConstraints.Constraint.ConstraintNotNull)
         self.assertFalse(vl.dataProvider().fieldConstraints(1)
-                         & QgsFieldConstraints.ConstraintNotNull)
+                         & QgsFieldConstraints.Constraint.ConstraintNotNull)
         self.assertTrue(vl.dataProvider().fieldConstraints(2) &
-                        QgsFieldConstraints.ConstraintNotNull)
+                        QgsFieldConstraints.Constraint.ConstraintNotNull)
         self.assertFalse(vl.dataProvider().fieldConstraints(3)
-                         & QgsFieldConstraints.ConstraintNotNull)
+                         & QgsFieldConstraints.Constraint.ConstraintNotNull)
 
         # test that constraints have been saved to fields correctly
         fields = vl.fields()
         self.assertTrue(fields.at(0).constraints().constraints()
-                        & QgsFieldConstraints.ConstraintNotNull)
-        self.assertEqual(fields.at(0).constraints().constraintOrigin(QgsFieldConstraints.ConstraintNotNull),
-                         QgsFieldConstraints.ConstraintOriginProvider)
+                        & QgsFieldConstraints.Constraint.ConstraintNotNull)
+        self.assertEqual(fields.at(0).constraints().constraintOrigin(QgsFieldConstraints.Constraint.ConstraintNotNull),
+                         QgsFieldConstraints.ConstraintOrigin.ConstraintOriginProvider)
         self.assertFalse(fields.at(1).constraints().constraints()
-                         & QgsFieldConstraints.ConstraintNotNull)
+                         & QgsFieldConstraints.Constraint.ConstraintNotNull)
         self.assertTrue(fields.at(2).constraints().constraints()
-                        & QgsFieldConstraints.ConstraintNotNull)
-        self.assertEqual(fields.at(2).constraints().constraintOrigin(QgsFieldConstraints.ConstraintNotNull),
-                         QgsFieldConstraints.ConstraintOriginProvider)
+                        & QgsFieldConstraints.Constraint.ConstraintNotNull)
+        self.assertEqual(fields.at(2).constraints().constraintOrigin(QgsFieldConstraints.Constraint.ConstraintNotNull),
+                         QgsFieldConstraints.ConstraintOrigin.ConstraintOriginProvider)
         self.assertFalse(fields.at(3).constraints().constraints()
-                         & QgsFieldConstraints.ConstraintNotNull)
+                         & QgsFieldConstraints.Constraint.ConstraintNotNull)
 
     def testUniqueConstraint(self):
         vl = QgsVectorLayer('%s table="qgis_test"."constraints" sql=' %
@@ -823,28 +820,28 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
             1001), QgsFieldConstraints.Constraints())
 
         self.assertTrue(vl.dataProvider().fieldConstraints(0)
-                        & QgsFieldConstraints.ConstraintUnique)
+                        & QgsFieldConstraints.Constraint.ConstraintUnique)
         self.assertTrue(vl.dataProvider().fieldConstraints(1)
-                        & QgsFieldConstraints.ConstraintUnique)
+                        & QgsFieldConstraints.Constraint.ConstraintUnique)
         self.assertFalse(vl.dataProvider().fieldConstraints(2)
-                         & QgsFieldConstraints.ConstraintUnique)
+                         & QgsFieldConstraints.Constraint.ConstraintUnique)
         self.assertFalse(vl.dataProvider().fieldConstraints(3)
-                         & QgsFieldConstraints.ConstraintUnique)
+                         & QgsFieldConstraints.Constraint.ConstraintUnique)
 
         # test that constraints have been saved to fields correctly
         fields = vl.fields()
         self.assertTrue(fields.at(0).constraints().constraints()
-                        & QgsFieldConstraints.ConstraintUnique)
-        self.assertEqual(fields.at(0).constraints().constraintOrigin(QgsFieldConstraints.ConstraintUnique),
-                         QgsFieldConstraints.ConstraintOriginProvider)
+                        & QgsFieldConstraints.Constraint.ConstraintUnique)
+        self.assertEqual(fields.at(0).constraints().constraintOrigin(QgsFieldConstraints.Constraint.ConstraintUnique),
+                         QgsFieldConstraints.ConstraintOrigin.ConstraintOriginProvider)
         self.assertTrue(fields.at(1).constraints().constraints()
-                        & QgsFieldConstraints.ConstraintUnique)
-        self.assertEqual(fields.at(1).constraints().constraintOrigin(QgsFieldConstraints.ConstraintUnique),
-                         QgsFieldConstraints.ConstraintOriginProvider)
+                        & QgsFieldConstraints.Constraint.ConstraintUnique)
+        self.assertEqual(fields.at(1).constraints().constraintOrigin(QgsFieldConstraints.Constraint.ConstraintUnique),
+                         QgsFieldConstraints.ConstraintOrigin.ConstraintOriginProvider)
         self.assertFalse(fields.at(2).constraints().constraints()
-                         & QgsFieldConstraints.ConstraintUnique)
+                         & QgsFieldConstraints.Constraint.ConstraintUnique)
         self.assertFalse(fields.at(3).constraints().constraints()
-                         & QgsFieldConstraints.ConstraintUnique)
+                         & QgsFieldConstraints.Constraint.ConstraintUnique)
 
     def testIdentityFieldHandling(self):
         """
@@ -872,10 +869,10 @@ class TestPyQgsMssqlProvider(unittest.TestCase, ProviderTestCase):
         self.assertEqual(vl.dataProvider().defaultValueClause(0), 'Autogenerate')
         identity_field = vl.dataProvider().fields().at(0)
         self.assertEqual(identity_field.name(), 'pk')
-        self.assertEqual(identity_field.constraints().constraints(), QgsFieldConstraints.ConstraintNotNull)
-        self.assertEqual(identity_field.constraints().constraintOrigin(QgsFieldConstraints.ConstraintNotNull), QgsFieldConstraints.ConstraintOriginProvider)
-        self.assertEqual(identity_field.constraints().constraintStrength(QgsFieldConstraints.ConstraintNotNull),
-                         QgsFieldConstraints.ConstraintStrengthHard)
+        self.assertEqual(identity_field.constraints().constraints(), QgsFieldConstraints.Constraint.ConstraintNotNull)
+        self.assertEqual(identity_field.constraints().constraintOrigin(QgsFieldConstraints.Constraint.ConstraintNotNull), QgsFieldConstraints.ConstraintOrigin.ConstraintOriginProvider)
+        self.assertEqual(identity_field.constraints().constraintStrength(QgsFieldConstraints.Constraint.ConstraintNotNull),
+                         QgsFieldConstraints.ConstraintStrength.ConstraintStrengthHard)
         self.assertTrue(identity_field.isReadOnly())
 
     def getSubsetString(self):

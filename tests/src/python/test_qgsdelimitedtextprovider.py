@@ -26,8 +26,8 @@ import re
 import tempfile
 import time
 from collections.abc import Callable
+from pathlib import Path
 
-import qgis  # NOQA
 
 import test_qgsdelimitedtextprovider_wanted as want  # NOQA
 
@@ -37,6 +37,7 @@ from providertestbase import ProviderTestCase
 from qgis.core import (
     NULL,
     QgsApplication,
+    QgsBox3D,
     QgsFeature,
     QgsFeatureRequest,
     QgsFeatureSource,
@@ -56,7 +57,8 @@ from qgis.PyQt.QtCore import (
     QUrl,
     QVariant,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from utilities import compareUrl, compareWkt, unitTestDataPath
 
 start_app()
@@ -84,7 +86,7 @@ try:
 
         def toString(self):
             urlstr = self.url.toString()
-            querystr = self.query.toString(QUrl.FullyDecoded)
+            querystr = self.query.toString(QUrl.ComponentFormattingOption.FullyDecoded)
             if querystr != '':
                 urlstr += '?'
                 urlstr += querystr
@@ -138,11 +140,12 @@ class MessageLogger(QObject):
         return self.log
 
 
-class TestQgsDelimitedTextProviderXY(unittest.TestCase, ProviderTestCase):
+class TestQgsDelimitedTextProviderXY(QgisTestCase, ProviderTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestQgsDelimitedTextProviderXY, cls).setUpClass()
         # Create test layer
         srcpath = os.path.join(TEST_DATA_DIR, 'provider')
         cls.basetestfile = os.path.join(srcpath, 'delimited_xy.csv')
@@ -160,10 +163,6 @@ class TestQgsDelimitedTextProviderXY(unittest.TestCase, ProviderTestCase):
         assert cls.vl.isValid(), f"{cls.basetestfile} is invalid"
         cls.source = cls.vl.dataProvider()
 
-    @classmethod
-    def tearDownClass(cls):
-        """Run after all tests"""
-
     def treat_time_as_string(self):
         return False
 
@@ -174,11 +173,12 @@ class TestQgsDelimitedTextProviderXY(unittest.TestCase, ProviderTestCase):
         return False
 
 
-class TestQgsDelimitedTextProviderWKT(unittest.TestCase, ProviderTestCase):
+class TestQgsDelimitedTextProviderWKT(QgisTestCase, ProviderTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestQgsDelimitedTextProviderWKT, cls).setUpClass()
         # Create test layer
         srcpath = os.path.join(TEST_DATA_DIR, 'provider')
         cls.basetestfile = os.path.join(srcpath, 'delimited_wkt.csv')
@@ -209,10 +209,6 @@ class TestQgsDelimitedTextProviderWKT(unittest.TestCase, ProviderTestCase):
         assert cls.vl_poly.isValid(), f"{cls.basetestpolyfile} is invalid"
         cls.poly_provider = cls.vl_poly.dataProvider()
 
-    @classmethod
-    def tearDownClass(cls):
-        """Run after all tests"""
-
     def treat_time_as_string(self):
         return False
 
@@ -223,11 +219,12 @@ class TestQgsDelimitedTextProviderWKT(unittest.TestCase, ProviderTestCase):
         return False
 
 
-class TestQgsDelimitedTextProviderOther(unittest.TestCase):
+class TestQgsDelimitedTextProviderOther(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         # toggle full ctest output to debug flaky CI test
         print('CTEST_FULL_OUTPUT')
         cls.tmp_dir = QTemporaryDir()
@@ -243,9 +240,9 @@ class TestQgsDelimitedTextProviderOther(unittest.TestCase):
         fr = QgsFeatureRequest()
         if request:
             if 'exact' in request and request['exact']:
-                fr.setFlags(QgsFeatureRequest.ExactIntersect)
+                fr.setFlags(QgsFeatureRequest.Flag.ExactIntersect)
             if 'nogeom' in request and request['nogeom']:
-                fr.setFlags(QgsFeatureRequest.NoGeometry)
+                fr.setFlags(QgsFeatureRequest.Flag.NoGeometry)
             if 'fid' in request:
                 fr.setFilterFid(request['fid'])
             elif 'extents' in request:
@@ -880,8 +877,18 @@ class TestQgsDelimitedTextProviderOther(unittest.TestCase):
 
         vl = QgsVectorLayer(url.toString(), 'test', 'delimitedtext')
         assert vl.isValid(), f"{basetestfile} is invalid"
-        assert vl.wkbType() == QgsWkbTypes.PointZM, "wrong wkb type, should be PointZM"
+        assert vl.wkbType() == QgsWkbTypes.Type.PointZM, "wrong wkb type, should be PointZM"
         assert vl.getFeature(2).geometry().asWkt() == "PointZM (-71.12300000000000466 78.23000000000000398 1 2)", "wrong PointZM geometry"
+        self.assertAlmostEqual(vl.extent().xMinimum(), -71.12300000000000466, places=4)
+        self.assertAlmostEqual(vl.extent().yMinimum(), 66.32999999999999829, places=4)
+        self.assertAlmostEqual(vl.extent().xMaximum(), -65.31999999999999318, places=4)
+        self.assertAlmostEqual(vl.extent().yMaximum(), 78.29999999999999716, places=4)
+        self.assertAlmostEqual(vl.extent3D().xMinimum(), -71.12300000000000466, places=4)
+        self.assertAlmostEqual(vl.extent3D().yMinimum(), 66.32999999999999829, places=4)
+        self.assertEqual(vl.extent3D().zMinimum(), 1)
+        self.assertAlmostEqual(vl.extent3D().xMaximum(), -65.31999999999999318, places=4)
+        self.assertAlmostEqual(vl.extent3D().yMaximum(), 78.29999999999999716, places=4)
+        self.assertEqual(vl.extent3D().zMaximum(), 3)
 
     def test_045_Z(self):
         # Create test layer
@@ -900,8 +907,10 @@ class TestQgsDelimitedTextProviderOther(unittest.TestCase):
 
         vl = QgsVectorLayer(url.toString(), 'test', 'delimitedtext')
         assert vl.isValid(), f"{basetestfile} is invalid"
-        assert vl.wkbType() == QgsWkbTypes.PointZ, "wrong wkb type, should be PointZ"
+        assert vl.wkbType() == QgsWkbTypes.Type.PointZ, "wrong wkb type, should be PointZ"
         assert vl.getFeature(2).geometry().asWkt() == "PointZ (-71.12300000000000466 78.23000000000000398 1)", "wrong PointZ geometry"
+        self.assertEqual(vl.extent(), QgsRectangle(-71.12300000000000466, 66.32999999999999829, -65.31999999999999318, 78.29999999999999716))
+        self.assertEqual(vl.extent3D(), QgsBox3D(-71.12300000000000466, 66.32999999999999829, 1, -65.31999999999999318, 78.29999999999999716, 3))
 
     def test_046_M(self):
         # Create test layer
@@ -920,8 +929,10 @@ class TestQgsDelimitedTextProviderOther(unittest.TestCase):
 
         vl = QgsVectorLayer(url.toString(), 'test', 'delimitedtext')
         assert vl.isValid(), f"{basetestfile} is invalid"
-        assert vl.wkbType() == QgsWkbTypes.PointM, "wrong wkb type, should be PointM"
+        assert vl.wkbType() == QgsWkbTypes.Type.PointM, "wrong wkb type, should be PointM"
         assert vl.getFeature(2).geometry().asWkt() == "PointM (-71.12300000000000466 78.23000000000000398 2)", "wrong PointM geometry"
+        self.assertEqual(vl.extent(), QgsRectangle(-71.12300000000000466, 66.32999999999999829, -65.31999999999999318, 78.29999999999999716))
+        self.assertEqual(vl.extent3D(), QgsBox3D(-71.12300000000000466, 66.32999999999999829, float('nan'), -65.31999999999999318, 78.29999999999999716, float('nan')))
 
     def test_047_datetime(self):
         # Create test layer
@@ -965,9 +976,9 @@ class TestQgsDelimitedTextProviderOther(unittest.TestCase):
         vl = QgsVectorLayer(url.toString(), 'test', 'delimitedtext')
         self.assertTrue(vl.isValid())
 
-        self.assertEqual(vl.hasSpatialIndex(), QgsFeatureSource.SpatialIndexNotPresent)
+        self.assertEqual(vl.hasSpatialIndex(), QgsFeatureSource.SpatialIndexPresence.SpatialIndexNotPresent)
         vl.dataProvider().createSpatialIndex()
-        self.assertEqual(vl.hasSpatialIndex(), QgsFeatureSource.SpatialIndexPresent)
+        self.assertEqual(vl.hasSpatialIndex(), QgsFeatureSource.SpatialIndexPresence.SpatialIndexPresent)
 
     def testEncodeDecodeUri(self):
         registry = QgsProviderRegistry.instance()
@@ -1410,6 +1421,16 @@ class TestQgsDelimitedTextProviderOther(unittest.TestCase):
 
         self.assertEqual(meta.absoluteToRelativeUri(absolute_uri, context), relative_uri)
         self.assertEqual(meta.relativeToAbsoluteUri(relative_uri, context), absolute_uri)
+
+    def test_special_characters_in_filepath(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for basename in ("test.csv", "t e s t .csv", "tèst.csv", "teẞt.csv", "Ťest.csv"):
+                filepath = Path(tmpdir) / basename
+                filepath.write_text("id,name\n1,name1\n2,name2\n")
+                self.assertTrue(filepath.exists())
+                uri = f"file:///{filepath}"
+                vl = QgsVectorLayer(uri, "test", "delimitedtext")
+                self.assertTrue(vl.isValid())
 
 
 if __name__ == '__main__':

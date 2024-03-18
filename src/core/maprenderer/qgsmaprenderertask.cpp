@@ -31,9 +31,7 @@
 #include <QImageWriter>
 #include <QTextStream>
 #include <QTimeZone>
-#ifndef QT_NO_PRINTER
-#include <QPrinter>
-#endif
+#include <QPdfWriter>
 
 #include "gdal.h"
 #include "cpl_conv.h"
@@ -128,6 +126,12 @@ QgsMapRendererTask::QgsMapRendererTask( const QgsMapSettings &ms, const QString 
   , mGeoPDF( geoPDF && mFileFormat == QLatin1String( "PDF" ) && QgsAbstractGeoPdfExporter::geoPDFCreationAvailable() )
   , mGeoPdfExportDetails( geoPdfExportDetails )
 {
+  if ( mFileFormat == QLatin1String( "PDF" ) && !qgsDoubleNear( mMapSettings.devicePixelRatio(), 1.0 ) )
+  {
+    mMapSettings.setOutputSize( mMapSettings.outputSize() * mMapSettings.devicePixelRatio() );
+    mMapSettings.setOutputDpi( mMapSettings.outputDpi() * mMapSettings.devicePixelRatio() );
+    mMapSettings.setDevicePixelRatio( 1.0 );
+  }
   prepare();
 }
 
@@ -176,9 +180,6 @@ bool QgsMapRendererTask::run()
 
   if ( mGeoPDF )
   {
-#ifdef QT_NO_PRINTER
-    return false;
-#else
     QList< QgsAbstractGeoPdfExporter::ComponentLayerDetail > pdfComponents;
 
     QgsMapRendererStagedRenderJob *job = static_cast< QgsMapRendererStagedRenderJob * >( mJob.get() );
@@ -194,26 +195,16 @@ bool QgsMapRendererTask::run()
       component.sourcePdfPath = mGeoPdfExporter->generateTemporaryFilepath( QStringLiteral( "layer_%1.pdf" ).arg( outputLayer ) );
       pdfComponents << component;
 
-      QPrinter printer;
-      printer.setOutputFileName( component.sourcePdfPath );
-      printer.setOutputFormat( QPrinter::PdfFormat );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      printer.setOrientation( QPrinter::Portrait );
-      // paper size needs to be given in millimeters in order to be able to set a resolution to pass onto the map renderer
-      QSizeF outputSize = mMapSettings.outputSize();
-      printer.setPaperSize( outputSize  * 25.4 / mMapSettings.outputDpi(), QPrinter::Millimeter );
-      printer.setPageMargins( 0, 0, 0, 0, QPrinter::Millimeter );
-#else
-      printer.setPageOrientation( QPageLayout::Orientation::Portrait );
+      QPdfWriter pdfWriter( component.sourcePdfPath );
+      pdfWriter.setPageOrientation( QPageLayout::Orientation::Portrait );
       // paper size needs to be given in millimeters in order to be able to set a resolution to pass onto the map renderer
       const QSizeF outputSize = mMapSettings.outputSize();
       const QPageSize pageSize( outputSize  * 25.4 / mMapSettings.outputDpi(), QPageSize::Unit::Millimeter );
-      printer.setPageSize( pageSize );
-      printer.setPageMargins( QMarginsF( 0, 0, 0, 0 ) );
-#endif
-      printer.setResolution( mMapSettings.outputDpi() );
+      pdfWriter.setPageSize( pageSize );
+      pdfWriter.setPageMargins( QMarginsF( 0, 0, 0, 0 ) );
+      pdfWriter.setResolution( static_cast<int>( mMapSettings.outputDpi() ) );
 
-      QPainter p( &printer );
+      QPainter p( &pdfWriter );
       job->renderCurrentPart( &p );
       p.end();
 
@@ -246,9 +237,8 @@ bool QgsMapRendererTask::run()
     const bool res = mGeoPdfExporter->finalize( pdfComponents, mFileName, exportDetails );
     mGeoPdfExporter.reset();
     mTempPainter.reset();
-    mPrinter.reset();
+    mPdfWriter.reset();
     return res;
-#endif
   }
   else
     static_cast< QgsMapRendererCustomPainterJob *>( mJob.get() )->renderPrepared();
@@ -310,11 +300,10 @@ bool QgsMapRendererTask::run()
 
     if ( mFileFormat == QLatin1String( "PDF" ) )
     {
-#ifndef QT_NO_PRINTER
       if ( mForceRaster )
       {
         QPainter pp;
-        pp.begin( mPrinter.get() );
+        pp.begin( mPdfWriter.get() );
         const QRectF rect( 0, 0, mImage.width(), mImage.height() );
         pp.drawImage( rect, mImage, rect );
         pp.end();
@@ -336,7 +325,7 @@ bool QgsMapRendererTask::run()
             f -= 0.5 * e;
             double geoTransform[6] = { c, a, b, f, d, e };
             GDALSetGeoTransform( outputDS.get(), geoTransform );
-            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLocal8Bit().constData() );
+            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLocal8Bit().constData() );
           }
 
           if ( mExportMetadata )
@@ -377,10 +366,6 @@ bool QgsMapRendererTask::run()
         }
         CPLSetThreadLocalConfigOption( "GDAL_PDF_DPI", nullptr );
       }
-#else
-      mError = ImageUnsupportedFormat;
-      return false;
-#endif // !QT_NO_PRINTER
     }
     else if ( mFileFormat != QLatin1String( "PDF" ) )
     {
@@ -418,7 +403,7 @@ bool QgsMapRendererTask::run()
             f -= 0.5 * e;
             double geoTransform[] = { c, a, b, f, d, e };
             GDALSetGeoTransform( outputDS.get(), geoTransform );
-            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLocal8Bit().constData() );
+            GDALSetProjection( outputDS.get(), mMapSettings.destinationCrs().toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLocal8Bit().constData() );
           }
         }
 
@@ -439,9 +424,7 @@ bool QgsMapRendererTask::run()
   }
 
   mTempPainter.reset();
-#ifndef QT_NO_PRINTER
-  mPrinter.reset();
-#endif
+  mPdfWriter.reset();
 
   return true;
 }
@@ -484,40 +467,26 @@ void QgsMapRendererTask::prepare()
 
   if ( mFileFormat == QLatin1String( "PDF" ) )
   {
-#ifndef QT_NO_PRINTER
-    mPrinter.reset( new QPrinter() );
-    mPrinter->setOutputFileName( mFileName );
-    mPrinter->setOutputFormat( QPrinter::PdfFormat );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    mPrinter->setOrientation( QPrinter::Portrait );
-    // paper size needs to be given in millimeters in order to be able to set a resolution to pass onto the map renderer
-    QSizeF outputSize = mMapSettings.outputSize();
-    mPrinter->setPaperSize( outputSize  * 25.4 / mMapSettings.outputDpi(), QPrinter::Millimeter );
-    mPrinter->setPageMargins( 0, 0, 0, 0, QPrinter::Millimeter );
-#else
-    mPrinter->setPageOrientation( QPageLayout::Orientation::Portrait );
+    mPdfWriter.reset( new QPdfWriter( mFileName ) );
+    mPdfWriter->setPageOrientation( QPageLayout::Orientation::Portrait );
     // paper size needs to be given in millimeters in order to be able to set a resolution to pass onto the map renderer
     const QSizeF outputSize = mMapSettings.outputSize();
     const QPageSize pageSize( outputSize  * 25.4 / mMapSettings.outputDpi(), QPageSize::Unit::Millimeter );
-    mPrinter->setPageSize( pageSize );
-    mPrinter->setPageMargins( QMarginsF( 0, 0, 0, 0 ) );
-#endif
-    mPrinter->setResolution( mMapSettings.outputDpi() );
+    mPdfWriter->setPageSize( pageSize );
+    mPdfWriter->setPageMargins( QMarginsF( 0, 0, 0, 0 ) );
+    mPdfWriter->setResolution( static_cast<int>( mMapSettings.outputDpi() ) );
 
     if ( !mForceRaster )
     {
-      mTempPainter.reset( new QPainter( mPrinter.get() ) );
+      mTempPainter.reset( new QPainter( mPdfWriter.get() ) );
       mDestPainter = mTempPainter.get();
     }
-#else
-    mError = ImageUnsupportedFormat;
-#endif // ! QT_NO_PRINTER
   }
 
   if ( !mDestPainter )
   {
     // save rendered map to an image file
-    mImage = QImage( mMapSettings.outputSize(), QImage::Format_ARGB32 );
+    mImage = QImage( mMapSettings.outputSize() * mMapSettings.devicePixelRatio(), QImage::Format_ARGB32 );
     if ( mImage.isNull() )
     {
       mErrored = true;
@@ -525,6 +494,7 @@ void QgsMapRendererTask::prepare()
       return;
     }
 
+    mImage.setDevicePixelRatio( mMapSettings.devicePixelRatio() );
     mImage.setDotsPerMeterX( 1000 * mMapSettings.outputDpi() / 25.4 );
     mImage.setDotsPerMeterY( 1000 * mMapSettings.outputDpi() / 25.4 );
 

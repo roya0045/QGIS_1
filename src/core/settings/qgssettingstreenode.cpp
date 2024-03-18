@@ -17,9 +17,9 @@
 #include "qgssettingsentryimpl.h"
 #include "qgsexception.h"
 #include "qgssettings.h"
+#include "qgssettingsproxy.h"
 
 #include <QDir>
-
 
 QgsSettingsTreeNode::~QgsSettingsTreeNode()
 {
@@ -76,7 +76,7 @@ QgsSettingsTreeNamedListNode *QgsSettingsTreeNode::createNamedListNode( const QS
 }
 
 
-QgsSettingsTreeNode *QgsSettingsTreeNode::childNode( const QString &key )
+QgsSettingsTreeNode *QgsSettingsTreeNode::childNode( const QString &key ) const
 {
   QList<QgsSettingsTreeNode *>::const_iterator it = mChildrenNodes.constBegin();
   for ( ; it != mChildrenNodes.constEnd(); ++it )
@@ -87,7 +87,7 @@ QgsSettingsTreeNode *QgsSettingsTreeNode::childNode( const QString &key )
   return nullptr;
 }
 
-const QgsSettingsEntryBase *QgsSettingsTreeNode::childSetting( const QString &key )
+const QgsSettingsEntryBase *QgsSettingsTreeNode::childSetting( const QString &key ) const
 {
   const QString testCompleteKey = QStringLiteral( "%1%2" ).arg( mCompleteKey, key );
   QList<const QgsSettingsEntryBase *>::const_iterator it = mChildrenSettings.constBegin();
@@ -168,9 +168,11 @@ QStringList QgsSettingsTreeNamedListNode::items( Qgis::SettingsOrigin origin, co
 
 
   const QString completeKeyParam = completeKeyWithNamedItems( mItemsCompleteKey, parentsNamedItems );
-  QgsSettings settings;
-  settings.beginGroup( completeKeyParam );
-  return settings.childGroups( origin );
+  auto settings = QgsSettings::get();
+  settings->beginGroup( completeKeyParam );
+  const QStringList res = settings->childGroups( origin );
+  settings->endGroup();
+  return res;
 }
 
 void QgsSettingsTreeNamedListNode::setSelectedItem( const QString &item, const QStringList &parentsNamedItems )
@@ -201,7 +203,7 @@ void QgsSettingsTreeNamedListNode::deleteItem( const QString &item, const QStrin
   QStringList args = parentsNamedItems;
   args << item;
   QString key = completeKeyWithNamedItems( mCompleteKey, args );
-  QgsSettings().remove( key );
+  QgsSettings::get()->remove( key );
 }
 
 void QgsSettingsTreeNamedListNode::deleteAllItems( const QStringList &parentsNamedItems )
@@ -210,12 +212,13 @@ void QgsSettingsTreeNamedListNode::deleteAllItems( const QStringList &parentsNam
     throw QgsSettingsException( QObject::tr( "The number of given parent named items (%1) doesn't match with the number of named items in the key (%2)." ).arg( parentsNamedItems.count(), namedNodesCount() ) );
 
   const QStringList children = items( parentsNamedItems );
+  auto settings = QgsSettings::get();
   for ( const QString &child : children )
   {
     QStringList args = parentsNamedItems;
     args << child;
     QString key = completeKeyWithNamedItems( mCompleteKey, args );
-    QgsSettings().remove( key );
+    settings->remove( key );
   }
 }
 

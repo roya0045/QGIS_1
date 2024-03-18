@@ -17,16 +17,18 @@ from qgis.core import (
     QgsSettings,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsProcessingParameters(unittest.TestCase):
+class TestQgsProcessingParameters(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(
             "QGIS_TestPyQgsProcessingParameters.com")
@@ -37,7 +39,7 @@ class TestQgsProcessingParameters(unittest.TestCase):
 
     def test_qgsprocessinggometry(self):  # spellok
         """ Test QgsProcessingParameterGeometry initialization """
-        geomtypes = [QgsWkbTypes.PointGeometry, QgsWkbTypes.PolygonGeometry]
+        geomtypes = [QgsWkbTypes.GeometryType.PointGeometry, QgsWkbTypes.GeometryType.PolygonGeometry]
         param = QgsProcessingParameterGeometry(name='test', geometryTypes=geomtypes)
 
         types = param.geometryTypes()

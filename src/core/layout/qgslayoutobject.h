@@ -34,7 +34,6 @@ class QgsReadWriteContext;
 /**
  * \ingroup core
  * \brief A base class for objects which belong to a layout.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutObject: public QObject, public QgsExpressionContextGenerator
 {
@@ -136,11 +135,13 @@ class CORE_EXPORT QgsLayoutObject: public QObject, public QgsExpressionContextGe
     Q_OBJECT
   public:
 
+    // *INDENT-OFF*
+
     /**
      * Data defined properties for different item types
      */
-    enum DataDefinedProperty
-    {
+    enum class DataDefinedProperty SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsLayoutObject, DataDefinedProperty ) : int
+      {
       NoProperty = 0, //!< No property
       AllProperties, //!< All properties for item
       TestProperty, //!< Dummy property with no effect on item
@@ -196,6 +197,11 @@ class CORE_EXPORT QgsLayoutObject: public QObject, public QgsExpressionContextGe
       MapGridFrameDivisionsRight, //!< Map frame division display right
       MapGridFrameDivisionsTop, //!< Map frame division display top
       MapGridFrameDivisionsBottom, //!< Map frame division display bottom
+      MapCrs, //!< Map CRS
+      StartDateTime, //!< Temporal range's start DateTime
+      EndDateTime, //!< Temporal range's end DateTime
+      MapZRangeLower, //!< Map frame Z-range lower value (since QGIS 3.38)
+      MapZRangeUpper, //!< Map frame Z-range lower value (since QGIS 3.38)
       //composer picture
       PictureSource, //!< Picture source url
       PictureSvgBackgroundColor, //!< SVG background color
@@ -221,9 +227,6 @@ class CORE_EXPORT QgsLayoutObject: public QObject, public QgsExpressionContextGe
       ScalebarLineWidth, //!< Scalebar line width (deprecated, use data defined properties on scalebar line symbol instead)
       //table item
       AttributeTableSourceLayer, //!< Attribute table source layer
-      MapCrs, //!< Map CRS
-      StartDateTime, //!< Temporal range's start DateTime
-      EndDateTime, //!< Temporal range's end DateTime
       ElevationProfileTolerance, //!< Tolerance distance for elevation profiles (since QGIS 3.30)
       ElevationProfileDistanceMajorInterval, //!< Major grid line interval for elevation profile distance axis (since QGIS 3.30)
       ElevationProfileDistanceMinorInterval, //!< Minor grid line interval for elevation profile distance axis (since QGIS 3.30)
@@ -237,6 +240,8 @@ class CORE_EXPORT QgsLayoutObject: public QObject, public QgsExpressionContextGe
       ElevationProfileMaximumElevation, //!< Maximum elevation value for elevation profile (since QGIS 3.30)
       AtlasGeometryOverride,
     };
+
+    // *INDENT-ON*
 
     /**
      * Specifies whether the value returned by a function should be the original, user

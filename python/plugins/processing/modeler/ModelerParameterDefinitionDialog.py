@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     ModelerParameterDefinitionDialog.py
@@ -81,7 +79,7 @@ class ModelerParameterDefinitionDialog(QDialog):
     def closeEvent(self, event):
         settings = QgsSettings()
         settings.setValue("/Processing/modelParametersDefinitionDialogGeometry", self.saveGeometry())
-        super(ModelerParameterDefinitionDialog, self).closeEvent(event)
+        super().closeEvent(event)
 
     def switchToCommentTab(self):
         self.tab.setCurrentIndex(1)
@@ -118,14 +116,14 @@ class ModelerParameterDefinitionDialog(QDialog):
         self.requiredCheck.setText(self.tr('Mandatory'))
         self.requiredCheck.setChecked(True)
         if self.param is not None:
-            self.requiredCheck.setChecked(not self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+            self.requiredCheck.setChecked(not self.param.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional)
         self.verticalLayout.addWidget(self.requiredCheck)
 
         self.advancedCheck = QCheckBox()
         self.advancedCheck.setText(self.tr('Advanced'))
         self.advancedCheck.setChecked(False)
         if self.param is not None:
-            self.advancedCheck.setChecked(self.param.flags() & QgsProcessingParameterDefinition.FlagAdvanced)
+            self.advancedCheck.setChecked(self.param.flags() & QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.verticalLayout.addWidget(self.advancedCheck)
 
         # If child algorithm output is mandatory, disable checkbox
@@ -133,7 +131,7 @@ class ModelerParameterDefinitionDialog(QDialog):
             child = self.alg.childAlgorithms()[self.param.metadata()['_modelChildId']]
             model_output = child.modelOutput(self.param.metadata()['_modelChildOutputName'])
             param_def = child.algorithm().parameterDefinition(model_output.childOutputName())
-            if not (param_def.flags() & QgsProcessingParameterDefinition.FlagOptional):
+            if not (param_def.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional):
                 self.requiredCheck.setEnabled(False)
                 self.requiredCheck.setChecked(True)
 
@@ -166,9 +164,9 @@ class ModelerParameterDefinitionDialog(QDialog):
         self.tab.addTab(w2, self.tr('Comments'))
 
         self.buttonBox = QDialogButtonBox(self)
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel |
-                                          QDialogButtonBox.Ok)
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Cancel |
+                                          QDialogButtonBox.StandardButton.Ok)
         self.buttonBox.setObjectName('buttonBox')
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -240,21 +238,21 @@ class ModelerParameterDefinitionDialog(QDialog):
 
             paramTypeDef = QgsApplication.instance().processingRegistry().parameterType(typeId)
             if not paramTypeDef:
-                msg = self.tr('The parameter `{}` is not registered, are you missing a required plugin?'.format(typeId))
+                msg = self.tr('The parameter `{}` is not registered, are you missing a required plugin?').format(typeId)
                 raise UndefinedParameterException(msg)
             self.param = paramTypeDef.create(name)
             self.param.setDescription(description)
             self.param.setMetadata(paramTypeDef.metadata())
 
         if not self.requiredCheck.isChecked():
-            self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.FlagOptional)
+            self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.Flag.FlagOptional)
         else:
-            self.param.setFlags(self.param.flags() & ~QgsProcessingParameterDefinition.FlagOptional)
+            self.param.setFlags(self.param.flags() & ~QgsProcessingParameterDefinition.Flag.FlagOptional)
 
         if self.advancedCheck.isChecked():
-            self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         else:
-            self.param.setFlags(self.param.flags() & ~QgsProcessingParameterDefinition.FlagAdvanced)
+            self.param.setFlags(self.param.flags() & ~QgsProcessingParameterDefinition.Flag.FlagAdvanced)
 
         settings = QgsSettings()
         settings.setValue("/Processing/modelParametersDefinitionDialogGeometry", self.saveGeometry())

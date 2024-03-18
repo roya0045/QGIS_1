@@ -1,24 +1,24 @@
 /***************************************************************************
-    qgscolorrampimpl.cpp
-    ---------------------
-    begin                : November 2009
-    copyright            : (C) 2009 by Martin Dobias
-    email                : wonder dot sk at gmail dot com
- ***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
+   qgscolorrampimpl.cpp
+   ---------------------
+   begin                : November 2009
+   copyright            : (C) 2009 by Martin Dobias
+   email                : wonder dot sk at gmail dot com
+***************************************************************************
+*                                                                         *
+*   This program is free software; you can redistribute it and/or modify  *
+*   it under the terms of the GNU General Public License as published by  *
+*   the Free Software Foundation; either version 2 of the License, or     *
+*   (at your option) any later version.                                   *
+*                                                                         *
+***************************************************************************/
 
 #include "qgscolorrampimpl.h"
 #include "qgscolorbrewerpalette.h"
 #include "qgscptcityarchive.h"
 
-#include "qgssymbollayerutils.h"
 #include "qgsapplication.h"
+#include "qgscolorutils.h"
 #include "qgslogger.h"
 
 #include <algorithm>
@@ -94,6 +94,8 @@ static QColor _interpolateHsv( const QColor &c1, const QColor &c2, const double 
           hue -= 1;
         break;
       }
+      case Qgis::AngularDirection::NoOrientation:
+        break;
     }
   }
 
@@ -151,6 +153,8 @@ static QColor _interpolateHsl( const QColor &c1, const QColor &c2, const double 
           hue -= 1;
         break;
       }
+      case Qgis::AngularDirection::NoOrientation:
+        break;
     }
   }
 
@@ -217,22 +221,23 @@ QgsColorRamp *QgsGradientColorRamp::create( const QVariantMap &props )
   QColor color1 = DEFAULT_GRADIENT_COLOR1;
   QColor color2 = DEFAULT_GRADIENT_COLOR2;
   if ( props.contains( QStringLiteral( "color1" ) ) )
-    color1 = QgsSymbolLayerUtils::decodeColor( props[QStringLiteral( "color1" )].toString() );
+    color1 = QgsColorUtils::colorFromString( props[QStringLiteral( "color1" )].toString() );
   if ( props.contains( QStringLiteral( "color2" ) ) )
-    color2 = QgsSymbolLayerUtils::decodeColor( props[QStringLiteral( "color2" )].toString() );
+    color2 = QgsColorUtils::colorFromString( props[QStringLiteral( "color2" )].toString() );
 
   //stops
   QgsGradientStopsList stops;
   if ( props.contains( QStringLiteral( "stops" ) ) )
   {
-    const auto constSplit = props[QStringLiteral( "stops" )].toString().split( ':' );
+    const thread_local QRegularExpression rx( QStringLiteral( "(?<!,rgb)(?<!,cmyk)(?<!,hsl)(?<!,hsv):" ) );
+    const auto constSplit = props[QStringLiteral( "stops" )].toString().split( rx );
     for ( const QString &stop : constSplit )
     {
       const QStringList parts = stop.split( ';' );
       if ( parts.size() != 2 && parts.size() != 4 )
         continue;
 
-      QColor c = QgsSymbolLayerUtils::decodeColor( parts.at( 1 ) );
+      QColor c = QgsColorUtils::colorFromString( parts.at( 1 ) );
       stops.append( QgsGradientStop( parts.at( 0 ).toDouble(), c ) );
 
       if ( parts.size() == 4 )
@@ -423,15 +428,15 @@ QgsGradientColorRamp *QgsGradientColorRamp::clone() const
 QVariantMap QgsGradientColorRamp::properties() const
 {
   QVariantMap map;
-  map[QStringLiteral( "color1" )] = QgsSymbolLayerUtils::encodeColor( mColor1 );
-  map[QStringLiteral( "color2" )] = QgsSymbolLayerUtils::encodeColor( mColor2 );
+  map[QStringLiteral( "color1" )] = QgsColorUtils::colorToString( mColor1 );
+  map[QStringLiteral( "color2" )] = QgsColorUtils::colorToString( mColor2 );
   if ( !mStops.isEmpty() )
   {
     QStringList lst;
     lst.reserve( mStops.size() );
     for ( const QgsGradientStop &stop : mStops )
     {
-      lst.append( QStringLiteral( "%1;%2;%3;%4" ).arg( stop.offset ).arg( QgsSymbolLayerUtils::encodeColor( stop.color ),
+      lst.append( QStringLiteral( "%1;%2;%3;%4" ).arg( stop.offset ).arg( QgsColorUtils::colorToString( stop.color ),
                   stop.colorSpec() == QColor::Rgb ? QStringLiteral( "rgb" )
                   : stop.colorSpec() == QColor::Hsv ? QStringLiteral( "hsv" )
                   : stop.colorSpec() == QColor::Hsl ? QStringLiteral( "hsl" ) : QString(),
@@ -472,6 +477,8 @@ QVariantMap QgsGradientColorRamp::properties() const
       break;
     case Qgis::AngularDirection::CounterClockwise:
       map[QStringLiteral( "direction" ) ] = QStringLiteral( "ccw" );
+      break;
+    case Qgis::AngularDirection::NoOrientation:
       break;
   }
 
@@ -1165,7 +1172,7 @@ QgsColorRamp *QgsPresetSchemeColorRamp::create( const QVariantMap &properties )
   QString colorName = properties.value( QStringLiteral( "preset_color_name_%1" ).arg( i ), QString() ).toString();
   while ( !colorString.isEmpty() )
   {
-    colors << qMakePair( QgsSymbolLayerUtils::decodeColor( colorString ), colorName );
+    colors << qMakePair( QgsColorUtils::colorFromString( colorString ), colorName );
     i++;
     colorString = properties.value( QStringLiteral( "preset_color_%1" ).arg( i ), QString() ).toString();
     colorName = properties.value( QStringLiteral( "preset_color_name_%1" ).arg( i ), QString() ).toString();
@@ -1232,7 +1239,7 @@ QVariantMap QgsPresetSchemeColorRamp::properties() const
   QVariantMap props;
   for ( int i = 0; i < mColors.count(); ++i )
   {
-    props.insert( QStringLiteral( "preset_color_%1" ).arg( i ), QgsSymbolLayerUtils::encodeColor( mColors.at( i ).first ) );
+    props.insert( QStringLiteral( "preset_color_%1" ).arg( i ), QgsColorUtils::colorToString( mColors.at( i ).first ) );
     props.insert( QStringLiteral( "preset_color_name_%1" ).arg( i ), mColors.at( i ).second );
   }
   props[QStringLiteral( "rampType" )] = type();

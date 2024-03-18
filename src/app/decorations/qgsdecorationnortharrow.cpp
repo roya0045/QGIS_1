@@ -26,6 +26,7 @@ email                : tim@linfiniti.com
 
 #include "qgisapp.h"
 #include "qgsbearingutils.h"
+#include "qgscolorutils.h"
 #include "qgsexception.h"
 #include "qgslogger.h"
 #include "qgsproject.h"
@@ -63,8 +64,8 @@ QgsDecorationNorthArrow::QgsDecorationNorthArrow( QObject *parent )
 void QgsDecorationNorthArrow::projectRead()
 {
   QgsDecorationItem::projectRead();
-  mColor = QgsSymbolLayerUtils::decodeColor( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/Color" ), QStringLiteral( "#000000" ) ) );
-  mOutlineColor = QgsSymbolLayerUtils::decodeColor( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QStringLiteral( "#FFFFFF" ) ) );
+  mColor = QgsColorUtils::colorFromString( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/Color" ), QStringLiteral( "#000000" ) ) );
+  mOutlineColor = QgsColorUtils::colorFromString( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QStringLiteral( "#FFFFFF" ) ) );
   mSize = QgsProject::instance()->readDoubleEntry( mConfigurationName, QStringLiteral( "/Size" ), 16.0 );
   mSvgPath = QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/SvgPath" ), QString() );
   mRotationInt = QgsProject::instance()->readNumEntry( mConfigurationName, QStringLiteral( "/Rotation" ), 0 );
@@ -76,8 +77,8 @@ void QgsDecorationNorthArrow::projectRead()
 void QgsDecorationNorthArrow::saveToProject()
 {
   QgsDecorationItem::saveToProject();
-  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/Color" ), QgsSymbolLayerUtils::encodeColor( mColor ) );
-  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QgsSymbolLayerUtils::encodeColor( mOutlineColor ) );
+  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/Color" ), QgsColorUtils::colorToString( mColor ) );
+  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QgsColorUtils::colorToString( mOutlineColor ) );
   QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/Size" ), mSize );
   QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/SvgPath" ), mSvgPath );
   QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/Rotation" ), mRotationInt );
@@ -171,8 +172,8 @@ void QgsDecorationNorthArrow::render( const QgsMapSettings &mapSettings, QgsRend
                                          ) - centerYDouble );
     // need width/height of paint device
     QPaintDevice *device = context.painter()->device();
-    const int deviceHeight = device->height() / device->devicePixelRatioF();
-    const int deviceWidth = device->width() / device->devicePixelRatioF();
+    const float deviceHeight = static_cast<float>( device->height() ) / context.devicePixelRatio();
+    const float deviceWidth = static_cast<float>( device->width() ) / context.devicePixelRatio();
 
     // Set  margin according to selected units
     int xOffset = 0;
@@ -228,7 +229,7 @@ void QgsDecorationNorthArrow::render( const QgsMapSettings &mapSettings, QgsRend
                                       deviceHeight - yOffset - size.height() );
         break;
       default:
-        QgsDebugMsg( QStringLiteral( "Unsupported placement index of %1" ).arg( static_cast<int>( mPlacement ) ) );
+        QgsDebugError( QStringLiteral( "Unsupported placement index of %1" ).arg( static_cast<int>( mPlacement ) ) );
     }
 
     //rotate the canvas by the north arrow rotation amount

@@ -9,19 +9,19 @@ __author__ = 'Nyall Dawson'
 __date__ = '04/06/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import QgsTextFormat
 from qgis.gui import QgsFontButton, QgsMapCanvas
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import getTestFont
 
 start_app()
 
 
-class TestQgsFontButton(unittest.TestCase):
+class TestQgsFontButton(QgisTestCase):
 
     def testGettersSetters(self):
         button = QgsFontButton()
@@ -56,8 +56,8 @@ class TestQgsFontButton(unittest.TestCase):
 
     def testSetGetFont(self):
         button = QgsFontButton()
-        button.setMode(QgsFontButton.ModeQFont)
-        self.assertEqual(button.mode(), QgsFontButton.ModeQFont)
+        button.setMode(QgsFontButton.Mode.ModeQFont)
+        self.assertEqual(button.mode(), QgsFontButton.Mode.ModeQFont)
 
         s = getTestFont()
         s.setPointSize(16)

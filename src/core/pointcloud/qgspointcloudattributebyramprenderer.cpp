@@ -49,7 +49,13 @@ QgsPointCloudRenderer *QgsPointCloudAttributeByRampRenderer::clone() const
 
 void QgsPointCloudAttributeByRampRenderer::renderBlock( const QgsPointCloudBlock *block, QgsPointCloudRenderContext &context )
 {
-  const QgsRectangle visibleExtent = context.renderContext().extent();
+  QgsRectangle visibleExtent = context.renderContext().extent();
+  if ( renderAsTriangles() )
+  {
+    // we need to include also points slightly outside of the visible extent,
+    // otherwise the triangulation may be missing triangles near the edges and corners
+    visibleExtent.grow( std::max( visibleExtent.width(), visibleExtent.height() ) * 0.05 );
+  }
 
   const char *ptr = block->data();
   int count = block->pointCount();
@@ -122,6 +128,16 @@ void QgsPointCloudAttributeByRampRenderer::renderBlock( const QgsPointCloudBlock
         attributeValue = ( context.offset().z() + context.scale().z() * attributeValue ) * context.zValueScale() + context.zValueFixedOffset();
 
       mColorRampShader.shade( attributeValue, &red, &green, &blue, &alpha );
+
+      if ( renderAsTriangles() )
+      {
+        addPointToTriangulation( x, y, z, QColor( red, green, blue, alpha ), context );
+
+        // We don't want to render any points if we're rendering triangles and there is no preview painter
+        if ( !context.renderContext().previewRenderPainter() )
+          continue;
+      }
+
       drawPoint( x, y, QColor( red, green, blue, alpha ), context );
       if ( renderElevation )
         drawPointToElevationMap( x, y, z, context );
@@ -193,7 +209,7 @@ QList<QgsLayerTreeModelLegendNode *> QgsPointCloudAttributeByRampRenderer::creat
                                            mColorRampShader.maximumValue() );
         break;
       }
-      Q_FALLTHROUGH();
+      [[fallthrough]];
     case QgsColorRampShader::Discrete:
     case QgsColorRampShader::Exact:
     {

@@ -22,6 +22,7 @@
 #include "qgsmessageoutput.h"
 #include "qgsvectorlayer.h"
 #include "qgsdbquerylog.h"
+#include "qgsdbquerylog_p.h"
 #include "qgsvectorlayerexporter.h"
 
 #include <QMessageBox>
@@ -31,7 +32,7 @@
 
 bool deleteLayer( const QString &uri, QString &errCause )
 {
-  QgsDebugMsg( "deleting layer " + uri );
+  QgsDebugMsgLevel( "deleting layer " + uri, 2 );
 
   QgsDataSourceUri dsUri( uri );
   QString ownerName = dsUri.schema();
@@ -454,7 +455,7 @@ QString QgsOracleLayerItem::createUri()
 
   if ( !connItem )
   {
-    QgsDebugMsg( QStringLiteral( "connection item not found." ) );
+    QgsDebugError( QStringLiteral( "connection item not found." ) );
     return QString();
   }
 
@@ -589,9 +590,9 @@ QString QgsOracleDataItemProvider::dataProviderKey() const
   return QStringLiteral( "oracle" );
 }
 
-int QgsOracleDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsOracleDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Database;
+  return Qgis::DataItemProviderCapability::Databases;
 }
 
 

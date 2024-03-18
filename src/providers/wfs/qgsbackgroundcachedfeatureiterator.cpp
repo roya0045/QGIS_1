@@ -26,6 +26,7 @@
 #include <QDataStream>
 #include <QDir>
 #include <QFile>
+#include <QJsonDocument>
 #include <QMutex>
 #include <QPushButton>
 #include <QStyle>
@@ -275,7 +276,7 @@ QgsBackgroundCachedFeatureIterator::QgsBackgroundCachedFeatureIterator(
   , mCachedFeaturesIter( mCachedFeatures.begin() )
 {
   QString serverExpression;
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression && mRequest.filterExpression() && mRequest.filterExpression()->isValid() )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression && mRequest.filterExpression() && mRequest.filterExpression()->isValid() )
   {
     serverExpression = mShared->computedExpression( *mRequest.filterExpression() );
   }
@@ -283,7 +284,7 @@ QgsBackgroundCachedFeatureIterator::QgsBackgroundCachedFeatureIterator(
   if ( !shared->clientSideFilterExpression().isEmpty() )
   {
     // backup current request because combine filter expression will remove the fid(s) filtering
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterFid || mRequest.filterType() == QgsFeatureRequest::FilterFids )
+    if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid || mRequest.filterType() == Qgis::FeatureRequestFilterType::Fids )
     {
       mAdditionalRequest = QgsFeatureRequest( shared->clientSideFilterExpression() );
     }
@@ -335,12 +336,12 @@ QgsBackgroundCachedFeatureIterator::QgsBackgroundCachedFeatureIterator(
   // download anything.
   auto cacheDataProvider = mShared->cacheDataProvider();
   if ( cacheDataProvider &&
-       ( mRequest.filterType() == QgsFeatureRequest::FilterFid ||
-         ( mRequest.filterType() == QgsFeatureRequest::FilterFids && mRequest.filterFids().size() < 100000 ) ) )
+       ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid ||
+         ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fids && mRequest.filterFids().size() < 100000 ) ) )
   {
     QgsFeatureRequest requestCache;
     QgsFeatureIds qgisIds;
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
+    if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid )
       qgisIds.insert( mRequest.filterFid() );
     else
       qgisIds = mRequest.filterFids();
@@ -391,11 +392,11 @@ QgsFeatureRequest QgsBackgroundCachedFeatureIterator::initRequestCache( int genC
   const QgsFields fields = mShared->fields();
 
   auto cacheDataProvider = mShared->cacheDataProvider();
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterFid ||
-       mRequest.filterType() == QgsFeatureRequest::FilterFids )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid ||
+       mRequest.filterType() == Qgis::FeatureRequestFilterType::Fids )
   {
     QgsFeatureIds qgisIds;
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
+    if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid )
       qgisIds.insert( mRequest.filterFid() );
     else
       qgisIds = mRequest.filterFids();
@@ -404,7 +405,7 @@ QgsFeatureRequest QgsBackgroundCachedFeatureIterator::initRequestCache( int genC
   }
   else
   {
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression &&
+    if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression &&
          // We cannot filter on geometry because the spatialite geometry is just
          // a bounding box and not the actual geometry of the final feature
          !mRequest.filterExpression()->needsGeometry() )
@@ -448,14 +449,14 @@ void QgsBackgroundCachedFeatureIterator::fillRequestCache( QgsFeatureRequest req
 {
   requestCache.setFilterRect( mFilterRect );
 
-  if ( ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) || !mFilterRect.isNull() ) ||
+  if ( ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) || !mFilterRect.isNull() ) ||
        ( mRequest.spatialFilterType() == Qgis::SpatialFilterType::DistanceWithin ) ||
-       ( mRequest.filterType() == QgsFeatureRequest::FilterExpression && mRequest.filterExpression()->needsGeometry() ) )
+       ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression && mRequest.filterExpression()->needsGeometry() ) )
   {
     mFetchGeometry = true;
   }
 
-  if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+  if ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
   {
     const QgsFields fields = mShared->fields();
     auto cacheDataProvider = mShared->cacheDataProvider();
@@ -473,7 +474,7 @@ void QgsBackgroundCachedFeatureIterator::fillRequestCache( QgsFeatureRequest req
     }
 
     // ensure that all attributes required for expression filter are being fetched
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression )
+    if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression )
     {
       const auto referencedColumns = mRequest.filterExpression()->referencedColumns();
       for ( const QString &field : referencedColumns )
@@ -492,7 +493,7 @@ void QgsBackgroundCachedFeatureIterator::fillRequestCache( QgsFeatureRequest req
     }
 
     // also need attributes required by order by
-    if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes && !mRequest.orderBy().isEmpty() )
+    if ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes && !mRequest.orderBy().isEmpty() )
     {
       const auto usedProviderAttributeIndices = mRequest.orderBy().usedAttributeIndices( dataProviderFields );
       for ( int attrIdx : usedProviderAttributeIndices )
@@ -605,7 +606,7 @@ void QgsBackgroundCachedFeatureIterator::featureReceivedSynchronous( const QVect
     mWriterFile.reset( new QFile( mWriterFilename ) );
     if ( !mWriterFile->open( QIODevice::WriteOnly | QIODevice::Truncate ) )
     {
-      QgsDebugMsg( QStringLiteral( "Cannot open %1 for writing" ).arg( mWriterFilename ) );
+      QgsDebugError( QStringLiteral( "Cannot open %1 for writing" ).arg( mWriterFilename ) );
       mWriterFile.reset();
       mWriterFilename.clear();
       mShared->releaseCacheDirectory();
@@ -648,7 +649,7 @@ bool QgsBackgroundCachedFeatureIterator::fetchFeature( QgsFeature &f )
     if ( mTimeoutOrInterruptionOccurred )
       return false;
 
-    //QgsDebugMsg(QString("QgsBackgroundCachedSharedData::fetchFeature() : mCacheIterator.nextFeature(cachedFeature)") );
+    //QgsDebugMsgLevel(QString("QgsBackgroundCachedSharedData::fetchFeature() : mCacheIterator.nextFeature(cachedFeature)"), 2 );
 
     if ( mShared->hasGeometry() && mFetchGeometry )
     {
@@ -667,7 +668,7 @@ bool QgsBackgroundCachedFeatureIterator::fetchFeature( QgsFeature &f )
         }
         catch ( const QgsWkbException & )
         {
-          QgsDebugMsg( QStringLiteral( "Invalid WKB for cached feature %1" ).arg( cachedFeature.id() ) );
+          QgsDebugError( QStringLiteral( "Invalid WKB for cached feature %1" ).arg( cachedFeature.id() ) );
           cachedFeature.clearGeometry();
         }
       }
@@ -746,7 +747,7 @@ bool QgsBackgroundCachedFeatureIterator::fetchFeature( QgsFeature &f )
         mReaderFile.reset( new QFile( mReaderFilename ) );
         if ( !mReaderFile->open( QIODevice::ReadOnly ) )
         {
-          QgsDebugMsg( QStringLiteral( "Cannot open %1" ).arg( mReaderFilename ) );
+          QgsDebugError( QStringLiteral( "Cannot open %1" ).arg( mReaderFilename ) );
           mReaderFile.reset();
           return false;
         }
@@ -767,14 +768,14 @@ bool QgsBackgroundCachedFeatureIterator::fetchFeature( QgsFeature &f )
         // We need to re-attach fields explicitly
         feat.setFields( mShared->fields() );
 
-        if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
+        if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid )
         {
           if ( feat.id() != mRequest.filterFid() )
           {
             continue;
           }
         }
-        else if ( mRequest.filterType() == QgsFeatureRequest::FilterFids )
+        else if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fids )
         {
           if ( !mRequest.filterFids().contains( feat.id() ) )
           {
@@ -944,13 +945,15 @@ void QgsBackgroundCachedFeatureIterator::copyFeature( const QgsFeature &srcFeatu
       else if ( QgsWFSUtils::isCompatibleType( v.type(), fieldType ) )
         dstFeature.setAttribute( i, v );
       else if ( fieldType == QVariant::DateTime && !QgsVariantUtils::isNull( v ) )
-        dstFeature.setAttribute( i, QVariant( QDateTime::fromMSecsSinceEpoch( v.toLongLong() ) ) );
+        dstFeature.setAttribute( i, QDateTime::fromMSecsSinceEpoch( v.toLongLong() ) );
+      else if ( fieldType == QVariant::Map && !QgsVariantUtils::isNull( v ) )
+        dstFeature.setAttribute( i, QJsonDocument::fromJson( v.toString().toUtf8() ).toVariant() );
       else
         dstFeature.setAttribute( i, QgsVectorDataProvider::convertValue( fieldType, v.toString() ) );
     }
   };
 
-  if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+  if ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
   {
     for ( auto i : std::as_const( mSubSetAttributes ) )
     {

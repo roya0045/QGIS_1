@@ -21,6 +21,8 @@
 #include "qgslinesymbol.h"
 #include "qgsannotationitemnode.h"
 #include "qgsannotationitemeditoperation.h"
+#include "qgscurve.h"
+#include "qgslinestring.h"
 
 QgsAnnotationLineItem::QgsAnnotationLineItem( QgsCurve *curve )
   : QgsAnnotationItem()
@@ -193,13 +195,15 @@ QgsRectangle QgsAnnotationLineItem::boundingBox() const
   return mCurve->boundingBox();
 }
 
-QgsAnnotationLineItem *QgsAnnotationLineItem::clone()
+QgsAnnotationLineItem *QgsAnnotationLineItem::clone() const
 {
   std::unique_ptr< QgsAnnotationLineItem > item = std::make_unique< QgsAnnotationLineItem >( mCurve->clone() );
   item->setSymbol( mSymbol->clone() );
   item->copyCommonProperties( this );
   return item.release();
 }
+
+void QgsAnnotationLineItem::setGeometry( QgsCurve *geometry ) { mCurve.reset( geometry ); }
 
 const QgsLineSymbol *QgsAnnotationLineItem::symbol() const
 {

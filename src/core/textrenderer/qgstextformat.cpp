@@ -26,6 +26,7 @@
 #include "qgsfontmanager.h"
 #include "qgsapplication.h"
 #include "qgsunittypes.h"
+#include "qgscolorutils.h"
 
 #include <QFontDatabase>
 #include <QMimeData>
@@ -312,6 +313,17 @@ double QgsTextFormat::opacity() const
   return d->opacity;
 }
 
+void QgsTextFormat::multiplyOpacity( double opacityFactor )
+{
+  if ( qgsDoubleNear( opacityFactor, 1.0 ) )
+    return;
+  d->opacity *= opacityFactor;
+  mBufferSettings.setOpacity( mBufferSettings.opacity() * opacityFactor );
+  mShadowSettings.setOpacity( mShadowSettings.opacity() * opacityFactor );
+  mBackgroundSettings.setOpacity( mBackgroundSettings.opacity() * opacityFactor );
+  mMaskSettings.setOpacity( mMaskSettings.opacity() * opacityFactor );
+}
+
 void QgsTextFormat::setOpacity( double opacity )
 {
   d->isValid = true;
@@ -471,7 +483,7 @@ void QgsTextFormat::readFromLayer( QgsVectorLayer *layer )
   }
   int fontWeight = layer->customProperty( QStringLiteral( "labeling/fontWeight" ) ).toInt();
   bool fontItalic = layer->customProperty( QStringLiteral( "labeling/fontItalic" ) ).toBool();
-  d->textFont = QFont( fontFamily, d->fontSize, fontWeight, fontItalic );
+  d->textFont = QgsFontUtils::createFont( fontFamily, d->fontSize, fontWeight, fontItalic );
   d->textNamedStyle = QgsFontUtils::translateNamedStyle( layer->customProperty( QStringLiteral( "labeling/namedStyle" ), QVariant( "" ) ).toString() );
   QgsFontUtils::updateFontViaStyle( d->textFont, d->textNamedStyle ); // must come after textFont.setPointSizeF()
   d->capitalization = static_cast< Qgis::Capitalization >( layer->customProperty( QStringLiteral( "labeling/fontCapitals" ), QVariant( 0 ) ).toUInt() );
@@ -593,7 +605,7 @@ void QgsTextFormat::readXml( const QDomElement &elem, const QgsReadWriteContext 
   }
   int fontWeight = textStyleElem.attribute( QStringLiteral( "fontWeight" ) ).toInt();
   bool fontItalic = textStyleElem.attribute( QStringLiteral( "fontItalic" ) ).toInt();
-  d->textFont = QFont( fontFamily, d->fontSize, fontWeight, fontItalic );
+  d->textFont = QgsFontUtils::createFont( fontFamily, d->fontSize, fontWeight, fontItalic );
   d->textFont.setPointSizeF( d->fontSize ); //double precision needed because of map units
   d->textNamedStyle = QgsFontUtils::translateNamedStyle( textStyleElem.attribute( QStringLiteral( "namedStyle" ) ) );
   QgsFontUtils::updateFontViaStyle( d->textFont, d->textNamedStyle ); // must come after textFont.setPointSizeF()
@@ -604,7 +616,7 @@ void QgsTextFormat::readXml( const QDomElement &elem, const QgsReadWriteContext 
   d->textFont.setKerning( textStyleElem.attribute( QStringLiteral( "fontKerning" ), QStringLiteral( "1" ) ).toInt() );
   d->textFont.setLetterSpacing( QFont::AbsoluteSpacing, textStyleElem.attribute( QStringLiteral( "fontLetterSpacing" ), QStringLiteral( "0" ) ).toDouble() );
   d->textFont.setWordSpacing( textStyleElem.attribute( QStringLiteral( "fontWordSpacing" ), QStringLiteral( "0" ) ).toDouble() );
-  d->textColor = QgsSymbolLayerUtils::decodeColor( textStyleElem.attribute( QStringLiteral( "textColor" ), QgsSymbolLayerUtils::encodeColor( Qt::black ) ) );
+  d->textColor = QgsColorUtils::colorFromString( textStyleElem.attribute( QStringLiteral( "textColor" ), QgsColorUtils::colorToString( Qt::black ) ) );
   if ( !textStyleElem.hasAttribute( QStringLiteral( "textOpacity" ) ) )
   {
     d->opacity = ( 1 - textStyleElem.attribute( QStringLiteral( "textTransp" ) ).toInt() / 100.0 ); //0 -100
@@ -617,7 +629,7 @@ void QgsTextFormat::readXml( const QDomElement &elem, const QgsReadWriteContext 
   d->textFont.setStretch( textStyleElem.attribute( QStringLiteral( "stretchFactor" ), QStringLiteral( "100" ) ).toInt() );
 #endif
   d->orientation = QgsTextRendererUtils::decodeTextOrientation( textStyleElem.attribute( QStringLiteral( "textOrientation" ) ) );
-  d->previewBackgroundColor = QgsSymbolLayerUtils::decodeColor( textStyleElem.attribute( QStringLiteral( "previewBkgrdColor" ), QgsSymbolLayerUtils::encodeColor( Qt::white ) ) );
+  d->previewBackgroundColor = QgsColorUtils::colorFromString( textStyleElem.attribute( QStringLiteral( "previewBkgrdColor" ), QgsColorUtils::colorToString( Qt::white ) ) );
 
   d->blendMode = QgsPainting::getCompositionMode(
                    static_cast< Qgis::BlendMode >( textStyleElem.attribute( QStringLiteral( "blendMode" ), QString::number( static_cast< int >( Qgis::BlendMode::Normal ) ) ).toUInt() ) );
@@ -718,8 +730,8 @@ QDomElement QgsTextFormat::writeXml( QDomDocument &doc, const QgsReadWriteContex
   textStyleElem.setAttribute( QStringLiteral( "fontUnderline" ), d->textFont.underline() );
   textStyleElem.setAttribute( QStringLiteral( "forcedBold" ), d->forcedBold );
   textStyleElem.setAttribute( QStringLiteral( "forcedItalic" ), d->forcedItalic );
-  textStyleElem.setAttribute( QStringLiteral( "textColor" ), QgsSymbolLayerUtils::encodeColor( d->textColor ) );
-  textStyleElem.setAttribute( QStringLiteral( "previewBkgrdColor" ), QgsSymbolLayerUtils::encodeColor( d->previewBackgroundColor ) );
+  textStyleElem.setAttribute( QStringLiteral( "textColor" ), QgsColorUtils::colorToString( d->textColor ) );
+  textStyleElem.setAttribute( QStringLiteral( "previewBkgrdColor" ), QgsColorUtils::colorToString( d->previewBackgroundColor ) );
   textStyleElem.setAttribute( QStringLiteral( "fontLetterSpacing" ), d->textFont.letterSpacing() );
   textStyleElem.setAttribute( QStringLiteral( "fontWordSpacing" ), d->textFont.wordSpacing() );
   textStyleElem.setAttribute( QStringLiteral( "fontKerning" ), d->textFont.kerning() );
@@ -893,7 +905,7 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
 
   QString ddFontFamily;
   context.expressionContext().setOriginalValueVariable( d->textFont.family() );
-  QVariant exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::Family, context.expressionContext() );
+  QVariant exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::Family, context.expressionContext() );
   if ( !QgsVariantUtils::isNull( exprVal ) )
   {
     QString family = exprVal.toString().trimmed();
@@ -912,7 +924,7 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
   // data defined named font style?
   QString ddFontStyle;
   context.expressionContext().setOriginalValueVariable( d->textNamedStyle );
-  exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::FontStyle, context.expressionContext() );
+  exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::FontStyle, context.expressionContext() );
   if ( !QgsVariantUtils::isNull( exprVal ) )
   {
     QString fontstyle = exprVal.toString().trimmed();
@@ -920,17 +932,17 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
   }
 
   bool ddBold = false;
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Bold ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::Bold ) )
   {
     context.expressionContext().setOriginalValueVariable( d->textFont.bold() );
-    ddBold = d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Bold, context.expressionContext(), false ) ;
+    ddBold = d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Property::Bold, context.expressionContext(), false ) ;
   }
 
   bool ddItalic = false;
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Italic ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::Italic ) )
   {
     context.expressionContext().setOriginalValueVariable( d->textFont.italic() );
-    ddItalic = d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Italic, context.expressionContext(), false );
+    ddItalic = d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Property::Italic, context.expressionContext(), false );
   }
 
   // TODO: update when pref for how to resolve missing family (use matching algorithm or just default font) is implemented
@@ -942,7 +954,7 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
   if ( ddBold || ddItalic )
   {
     // new font needs built, since existing style needs removed
-    newFont = QFont( !ddFontFamily.isEmpty() ? ddFontFamily : d->textFont.family() );
+    newFont = QgsFontUtils::createFont( !ddFontFamily.isEmpty() ? ddFontFamily : d->textFont.family() );
     newFontBuilt = true;
     newFont.setBold( ddBold );
     newFont.setItalic( ddItalic );
@@ -978,7 +990,7 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
     }
     else
     {
-      newFont = QFont( ddFontFamily );
+      newFont = QgsFontUtils::createFont( ddFontFamily );
       newFontBuilt = true;
     }
   }
@@ -993,31 +1005,31 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
     d->textFont = newFont;
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Underline ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::Underline ) )
   {
     context.expressionContext().setOriginalValueVariable( d->textFont.underline() );
-    d->textFont.setUnderline( d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Underline, context.expressionContext(), d->textFont.underline() ) );
+    d->textFont.setUnderline( d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Property::Underline, context.expressionContext(), d->textFont.underline() ) );
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Strikeout ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::Strikeout ) )
   {
     context.expressionContext().setOriginalValueVariable( d->textFont.strikeOut() );
-    d->textFont.setStrikeOut( d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Strikeout, context.expressionContext(), d->textFont.strikeOut() ) );
+    d->textFont.setStrikeOut( d->mDataDefinedProperties.valueAsBool( QgsPalLayerSettings::Property::Strikeout, context.expressionContext(), d->textFont.strikeOut() ) );
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Color ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::Color ) )
   {
     context.expressionContext().setOriginalValueVariable( QgsSymbolLayerUtils::encodeColor( d->textColor ) );
-    d->textColor = d->mDataDefinedProperties.valueAsColor( QgsPalLayerSettings::Color, context.expressionContext(), d->textColor );
+    d->textColor = d->mDataDefinedProperties.valueAsColor( QgsPalLayerSettings::Property::Color, context.expressionContext(), d->textColor );
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Size ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::Size ) )
   {
     context.expressionContext().setOriginalValueVariable( size() );
-    d->fontSize = d->mDataDefinedProperties.valueAsDouble( QgsPalLayerSettings::Size, context.expressionContext(), d->fontSize );
+    d->fontSize = d->mDataDefinedProperties.valueAsDouble( QgsPalLayerSettings::Property::Size, context.expressionContext(), d->fontSize );
   }
 
-  exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::FontSizeUnit, context.expressionContext() );
+  exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::FontSizeUnit, context.expressionContext() );
   if ( !QgsVariantUtils::isNull( exprVal ) )
   {
     QString units = exprVal.toString();
@@ -1030,10 +1042,10 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
     }
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::FontOpacity ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::FontOpacity ) )
   {
     context.expressionContext().setOriginalValueVariable( d->opacity * 100 );
-    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::FontOpacity, context.expressionContext(), d->opacity * 100 );
+    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::FontOpacity, context.expressionContext(), d->opacity * 100 );
     if ( !QgsVariantUtils::isNull( val ) )
     {
       d->opacity = val.toDouble() / 100.0;
@@ -1041,10 +1053,10 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
   }
 
 #ifdef HAS_KDE_QT5_FONT_STRETCH_FIX
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::FontStretchFactor ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::FontStretchFactor ) )
   {
     context.expressionContext().setOriginalValueVariable( d->textFont.stretch() );
-    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::FontStretchFactor, context.expressionContext(), d->textFont.stretch() );
+    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::FontStretchFactor, context.expressionContext(), d->textFont.stretch() );
     if ( !QgsVariantUtils::isNull( val ) )
     {
       d->textFont.setStretch( val.toInt() );
@@ -1052,36 +1064,36 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
   }
 #endif
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::TextOrientation ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::TextOrientation ) )
   {
     const QString encoded = QgsTextRendererUtils::encodeTextOrientation( d->orientation );
     context.expressionContext().setOriginalValueVariable( encoded );
-    d->orientation = QgsTextRendererUtils::decodeTextOrientation( d->mDataDefinedProperties.value( QgsPalLayerSettings::TextOrientation, context.expressionContext(), encoded ).toString() );
+    d->orientation = QgsTextRendererUtils::decodeTextOrientation( d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::TextOrientation, context.expressionContext(), encoded ).toString() );
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::FontLetterSpacing ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::FontLetterSpacing ) )
   {
     context.expressionContext().setOriginalValueVariable( d->textFont.letterSpacing() );
-    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::FontLetterSpacing, context.expressionContext(), d->textFont.letterSpacing() );
+    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::FontLetterSpacing, context.expressionContext(), d->textFont.letterSpacing() );
     if ( !QgsVariantUtils::isNull( val ) )
     {
       d->textFont.setLetterSpacing( QFont::AbsoluteSpacing, val.toDouble() );
     }
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::FontWordSpacing ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::FontWordSpacing ) )
   {
     context.expressionContext().setOriginalValueVariable( d->textFont.wordSpacing() );
-    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::FontWordSpacing, context.expressionContext(), d->textFont.wordSpacing() );
+    const QVariant val = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::FontWordSpacing, context.expressionContext(), d->textFont.wordSpacing() );
     if ( !QgsVariantUtils::isNull( val ) )
     {
       d->textFont.setWordSpacing( val.toDouble() );
     }
   }
 
-  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::FontBlendMode ) )
+  if ( d->mDataDefinedProperties.isActive( QgsPalLayerSettings::Property::FontBlendMode ) )
   {
-    exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::FontBlendMode, context.expressionContext() );
+    exprVal = d->mDataDefinedProperties.value( QgsPalLayerSettings::Property::FontBlendMode, context.expressionContext() );
     QString blendstr = exprVal.toString().trimmed();
     if ( !blendstr.isEmpty() )
       d->blendMode = QgsSymbolLayerUtils::decodeBlendMode( blendstr );
@@ -1093,17 +1105,20 @@ void QgsTextFormat::updateDataDefinedProperties( QgsRenderContext &context )
   mMaskSettings.updateDataDefinedProperties( context, d->mDataDefinedProperties );
 }
 
-QPixmap QgsTextFormat::textFormatPreviewPixmap( const QgsTextFormat &format, QSize size, const QString &previewText, int padding )
+QPixmap QgsTextFormat::textFormatPreviewPixmap( const QgsTextFormat &format, QSize size, const QString &previewText, int padding, const QgsScreenProperties &screen )
 {
+  const double devicePixelRatio = screen.isValid() ? screen.devicePixelRatio() : 1;
   QgsTextFormat tempFormat = format;
-  QPixmap pixmap( size );
+  QPixmap pixmap( size * devicePixelRatio );
   pixmap.fill( Qt::transparent );
+  pixmap.setDevicePixelRatio( devicePixelRatio );
+
   QPainter painter;
   painter.begin( &pixmap );
 
   painter.setRenderHint( QPainter::Antialiasing );
 
-  QRect rect( 0, 0, size.width(), size.height() );
+  const QRectF rect( 0, 0, size.width(), size.height() );
 
   // shameless eye candy - use a subtle gradient when drawing background
   painter.setPen( Qt::NoPen );
@@ -1139,9 +1154,24 @@ QPixmap QgsTextFormat::textFormatPreviewPixmap( const QgsTextFormat &format, QSi
   newCoordXForm.setParameters( 1, 0, 0, 0, 0, 0 );
   context.setMapToPixel( newCoordXForm );
 
-  QWidget *activeWindow = QApplication::activeWindow();
-  const double logicalDpiX = activeWindow && activeWindow->screen() ? activeWindow->screen()->logicalDotsPerInchX() : 96.0;
-  context.setScaleFactor( logicalDpiX / 25.4 );
+  if ( screen.isValid() )
+  {
+    screen.updateRenderContextForScreen( context );
+  }
+  else
+  {
+    QWidget *activeWindow = QApplication::activeWindow();
+    if ( QScreen *screen = activeWindow ? activeWindow->screen() : nullptr )
+    {
+      context.setScaleFactor( screen->physicalDotsPerInch() / 25.4 );
+      context.setDevicePixelRatio( screen->devicePixelRatio() );
+    }
+    else
+    {
+      context.setScaleFactor( 96.0 / 25.4 );
+      context.setDevicePixelRatio( 1.0 );
+    }
+  }
 
   context.setUseAdvancedEffects( true );
   context.setFlag( Qgis::RenderContextFlag::Antialiasing, true );
@@ -1195,4 +1225,41 @@ QPixmap QgsTextFormat::textFormatPreviewPixmap( const QgsTextFormat &format, QSi
   }
   painter.end();
   return pixmap;
+}
+
+QString QgsTextFormat::asCSS( double pointToPixelMultiplier ) const
+{
+  QString css;
+
+  switch ( lineHeightUnit() )
+  {
+    case Qgis::RenderUnit::Percentage:
+      css += QStringLiteral( "line-height: %1%;" ).arg( lineHeight() * 100 );
+      break;
+    case Qgis::RenderUnit::Pixels:
+      css += QStringLiteral( "line-height: %1px;" ).arg( lineHeight() );
+      break;
+    case Qgis::RenderUnit::Points:
+      // While the Qt documentation states pt unit type is supported, it's ignored, convert to px
+      css += QStringLiteral( "line-height: %1px;" ).arg( lineHeight() * pointToPixelMultiplier );
+      break;
+    case Qgis::RenderUnit::Millimeters:
+      // While the Qt documentation states cm unit type is supported, it's ignored, convert to px
+      css += QStringLiteral( "line-height: %1px;" ).arg( lineHeight() * 2.83464567 * pointToPixelMultiplier );
+      break;
+    case Qgis::RenderUnit::MetersInMapUnits:
+    case Qgis::RenderUnit::MapUnits:
+    case Qgis::RenderUnit::Inches:
+    case Qgis::RenderUnit::Unknown:
+      break;
+  }
+  css += QStringLiteral( "color: rgba(%1,%2,%3,%4);" ).arg( color().red() ).arg( color().green() ).arg( color().blue() ).arg( QString::number( color().alphaF(), 'f', 4 ) );
+  QFont f = toQFont();
+  if ( sizeUnit() == Qgis::RenderUnit::Millimeters )
+  {
+    f.setPointSizeF( size() / 0.352778 );
+  }
+  css += QgsFontUtils::asCSS( toQFont(), pointToPixelMultiplier );
+
+  return css;
 }

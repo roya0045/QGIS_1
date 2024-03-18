@@ -99,7 +99,7 @@ class GUI_EXPORT QgsRelationEditorWidget : public QgsAbstractRelationEditorWidge
      * Possible buttons shown in the relation editor
      * \since QGIS 3.18
      */
-    enum Button
+    enum Button SIP_ENUM_BASETYPE( IntFlag )
     {
       NoButton = 0, //!< No button (since QGIS 3.20)
       Link = 1 << 1, //!< Link button
@@ -294,14 +294,14 @@ class GUI_EXPORT QgsRelationEditorConfigWidget : public QgsAbstractRelationEdito
      *
      * \returns A widget configuration
      */
-    QVariantMap config();
+    QVariantMap config() override;
 
     /**
      * \brief Update the configuration widget to represent the given configuration.
      *
      * \param config The configuration which should be represented by this widget
      */
-    void setConfig( const QVariantMap &config );
+    void setConfig( const QVariantMap &config ) override;
 
 };
 

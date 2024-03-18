@@ -24,7 +24,7 @@
 #include "qgshelp.h"
 
 Qgs3DMeasureDialog::Qgs3DMeasureDialog( Qgs3DMapToolMeasureLine *tool, Qt::WindowFlags f )
-  : QDialog( tool->canvas()->topLevelWidget(), f )
+  : QDialog( nullptr, f )
   , mTool( tool )
 {
   setupUi( this );
@@ -129,6 +129,7 @@ void Qgs3DMeasureDialog::repopulateComboBoxUnits()
   mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::NauticalMiles ), static_cast< int >( Qgis::DistanceUnit::NauticalMiles ) );
   mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Centimeters ), static_cast< int >( Qgis::DistanceUnit::Centimeters ) );
   mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Millimeters ), static_cast< int >( Qgis::DistanceUnit::Millimeters ) );
+  mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Inches ), static_cast< int >( Qgis::DistanceUnit::Inches ) );
   mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Degrees ), static_cast< int >( Qgis::DistanceUnit::Degrees ) );
   mUnitsCombo->addItem( tr( "map units" ), static_cast< int >( Qgis::DistanceUnit::Unknown ) );
 }
@@ -172,7 +173,7 @@ void Qgs3DMeasureDialog::updateSettings()
   const QgsSettings settings;
 
   mDecimalPlaces = settings.value( QStringLiteral( "qgis/measure/decimalplaces" ), "3" ).toInt();
-  mMapDistanceUnit = mTool->canvas()->map()->crs().mapUnits();
+  mMapDistanceUnit = mTool->canvas()->mapSettings()->crs().mapUnits();
   mDisplayedDistanceUnit = QgsUnitTypes::decodeDistanceUnit(
                              settings.value( QStringLiteral( "qgis/measure/displayunits" ),
                                  QgsUnitTypes::encodeUnit( Qgis::DistanceUnit::Unknown ) ).toString() );

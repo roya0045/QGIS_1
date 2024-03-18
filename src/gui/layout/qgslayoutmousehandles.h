@@ -43,7 +43,6 @@ class QgsAbstractLayoutUndoCommand;
  *
  * \note not available in Python bindings
  *
- * \since QGIS 3.0
 */
 class GUI_EXPORT QgsLayoutMouseHandles: public QgsGraphicsViewMouseHandles
 {
@@ -75,6 +74,7 @@ class GUI_EXPORT QgsLayoutMouseHandles: public QgsGraphicsViewMouseHandles
     bool itemIsGroupMember( QGraphicsItem *item ) override;
     QRectF itemRect( QGraphicsItem *item ) const override;
     void expandItemList( const QList< QGraphicsItem * > &items, QList< QGraphicsItem * > &collected ) const override;
+    void expandItemList( const QList< QgsLayoutItem * > &items, QList< QGraphicsItem * > &collected ) const;
     void moveItem( QGraphicsItem *item, double deltaX, double deltaY ) override;
     void setItemRect( QGraphicsItem *item, QRectF rect ) override;
     void showStatusMessage( const QString &message ) override;

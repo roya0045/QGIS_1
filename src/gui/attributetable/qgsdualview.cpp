@@ -141,7 +141,7 @@ void QgsDualView::init( QgsVectorLayer *layer, QgsMapCanvas *mapCanvas, const Qg
   const QgsAttributeForm emptyForm( mLayer, QgsFeature(), mEditorContext );
 
   const bool needsGeometry = mLayer->conditionalStyles()->rulesNeedGeometry() ||
-                             !( request.flags() & QgsFeatureRequest::NoGeometry )
+                             !( request.flags() & Qgis::FeatureRequestFlag::NoGeometry )
                              || ( request.spatialFilterType() != Qgis::SpatialFilterType::NoFilter )
                              || emptyForm.needsGeometry();
 
@@ -332,20 +332,23 @@ void QgsDualView::setFilterMode( QgsAttributeTableFilterModel::FilterMode filter
       break;
   }
 
-  QgsFeatureRequest r = mMasterModel->request();
-  const bool needsGeometry = filterMode == QgsAttributeTableFilterModel::ShowVisible;
+  QgsFeatureRequest request = mMasterModel->request();
 
-  const bool requiresTableReload = ( r.filterType() != QgsFeatureRequest::FilterNone || r.spatialFilterType() != Qgis::SpatialFilterType::NoFilter ) // previous request was subset
-                                   || ( needsGeometry && r.flags() & QgsFeatureRequest::NoGeometry ) // no geometry for last request
+  // create an empty form to find out if it needs geometry or not
+  const QgsAttributeForm emptyForm( mLayer, QgsFeature(), mEditorContext );
+  const bool needsGeometry = ( filterMode == QgsAttributeTableFilterModel::ShowVisible ) || emptyForm.needsGeometry();
+
+  const bool requiresTableReload = ( request.filterType() != Qgis::Qgis::FeatureRequestFilterType::NoFilter || request.spatialFilterType() != Qgis::SpatialFilterType::NoFilter ) // previous request was subset
+                                   || ( needsGeometry && request.flags() & Qgis::FeatureRequestFlag::NoGeometry ) // no geometry for last request
                                    || ( mMasterModel->rowCount() == 0 ); // no features
 
   if ( !needsGeometry )
-    r.setFlags( r.flags() | QgsFeatureRequest::NoGeometry );
+    request.setFlags( request.flags() | Qgis::FeatureRequestFlag::NoGeometry );
   else
-    r.setFlags( r.flags() & ~( QgsFeatureRequest::NoGeometry ) );
-  r.setFilterFids( QgsFeatureIds() );
-  r.setFilterRect( QgsRectangle() );
-  r.disableFilter();
+    request.setFlags( request.flags() & ~( static_cast< int >( Qgis::FeatureRequestFlag::NoGeometry ) ) );
+  request.setFilterFids( QgsFeatureIds() );
+  request.setFilterRect( QgsRectangle() );
+  request.disableFilter();
 
   // setup new connections and filter request parameters
   switch ( filterMode )
@@ -355,13 +358,13 @@ void QgsDualView::setFilterMode( QgsAttributeTableFilterModel::FilterMode filter
       if ( mFilterModel->mapCanvas() )
       {
         const QgsRectangle rect = mFilterModel->mapCanvas()->mapSettings().mapToLayerCoordinates( mLayer, mFilterModel->mapCanvas()->extent() );
-        r.setFilterRect( rect );
+        request.setFilterRect( rect );
       }
       connect( mFilterModel, &QgsAttributeTableFilterModel::visibleReloaded, this, &QgsDualView::filterChanged );
       break;
 
     case QgsAttributeTableFilterModel::ShowEdited:
-      r.setFilterFids( masterModel()->layer()->editBuffer() ? masterModel()->layer()->editBuffer()->allAddedOrEditedFeatures() : QgsFeatureIds() );
+      request.setFilterFids( masterModel()->layer()->editBuffer() ? masterModel()->layer()->editBuffer()->allAddedOrEditedFeatures() : QgsFeatureIds() );
       connect( mFilterModel, &QgsAttributeTableFilterModel::featuresFiltered, this, &QgsDualView::filterChanged );
       connect( mFilterModel, &QgsAttributeTableFilterModel::filterError, this, &QgsDualView::filterError );
       connect( masterModel()->layer(), &QgsVectorLayer::layerModified, this, &QgsDualView::updateEditedAddedFeatures );
@@ -382,7 +385,7 @@ void QgsDualView::setFilterMode( QgsAttributeTableFilterModel::FilterMode filter
     {
       const QString filterExpression = filterMode == QgsAttributeTableFilterModel::ShowFilteredList ? mFilterModel->filterExpression() : QString();
       if ( !filterExpression.isEmpty() )
-        r.setFilterExpression( mFilterModel->filterExpression() );
+        request.setFilterExpression( mFilterModel->filterExpression() );
       connect( mFilterModel, &QgsAttributeTableFilterModel::featuresFiltered, this, &QgsDualView::filterChanged );
       connect( mFilterModel, &QgsAttributeTableFilterModel::filterError, this, &QgsDualView::filterError );
       break;
@@ -390,7 +393,7 @@ void QgsDualView::setFilterMode( QgsAttributeTableFilterModel::FilterMode filter
 
     case QgsAttributeTableFilterModel::ShowSelected:
       connect( masterModel()->layer(), &QgsVectorLayer::selectionChanged, this, &QgsDualView::updateSelectedFeatures );
-      r.setFilterFids( masterModel()->layer()->selectedFeatureIds() );
+      request.setFilterFids( masterModel()->layer()->selectedFeatureIds() );
       break;
   }
 
@@ -415,7 +418,7 @@ void QgsDualView::setFilterMode( QgsAttributeTableFilterModel::FilterMode filter
     //disconnect the connections of the current (old) filtermode before reload
     mFilterModel->disconnectFilterModeConnections();
 
-    mMasterModel->setRequest( r );
+    mMasterModel->setRequest( request );
     whileBlocking( mLayerCache )->setCacheGeometry( needsGeometry );
     mMasterModel->loadLayer();
   }
@@ -436,6 +439,7 @@ void QgsDualView::initLayerCache( bool cacheGeometry )
   const QgsSettings settings;
   const int cacheSize = settings.value( QStringLiteral( "qgis/attributeTableRowCache" ), "10000" ).toInt();
   mLayerCache = new QgsVectorLayerCache( mLayer, cacheSize, this );
+  mLayerCache->setCacheSubsetOfAttributes( requiredAttributes( mLayer ) );
   mLayerCache->setCacheGeometry( cacheGeometry );
   if ( 0 == cacheSize || 0 == ( QgsVectorDataProvider::SelectAtId & mLayer->dataProvider()->capabilities() ) )
   {
@@ -473,7 +477,6 @@ void QgsDualView::initModels( QgsMapCanvas *mapCanvas, const QgsFeatureRequest &
   connect( mFeatureListView, &QgsFeatureListView::displayExpressionChanged, this, &QgsDualView::displayExpressionChanged );
 
   mFeatureListModel = new QgsFeatureListModel( mFilterModel, mFilterModel );
-  mFeatureListModel->setSortByDisplayExpression( true );
 }
 
 void QgsDualView::restoreRecentDisplayExpressions()
@@ -1142,6 +1145,35 @@ bool QgsDualView::modifySort()
 
 }
 
+QgsAttributeList QgsDualView::requiredAttributes( const QgsVectorLayer *layer )
+{
+  QSet<int> attributes;
+
+  const QgsAttributeTableConfig config { layer->attributeTableConfig() };
+
+  const QVector<QgsAttributeTableConfig::ColumnConfig> constColumnconfigs { config.columns() };
+  for ( const QgsAttributeTableConfig::ColumnConfig &columnConfig : std::as_const( constColumnconfigs ) )
+  {
+    if ( columnConfig.type == QgsAttributeTableConfig::Type::Field && ! columnConfig.hidden )
+    {
+      attributes.insert( layer->fields().lookupField( columnConfig.name ) );
+    }
+  }
+
+  const QSet<int> colAttrs { attributes };
+  for ( const int attrIdx : std::as_const( colAttrs ) )
+  {
+    if ( layer->fields().fieldOrigin( attrIdx ) == QgsFields::FieldOrigin::OriginExpression )
+    {
+      attributes += QgsExpression( layer->expressionField( attrIdx ) ).referencedAttributeIndexes( layer->fields() );
+    }
+  }
+
+  QgsAttributeList attrs { attributes.values() };
+  std::sort( attrs.begin(), attrs.end() );
+  return attrs;
+}
+
 void QgsDualView::zoomToCurrentFeature()
 {
   const QModelIndex currentIndex = mTableView->currentIndex();
@@ -1221,7 +1253,7 @@ void QgsDualView::onSortColumnChanged()
 void QgsDualView::updateSelectedFeatures()
 {
   QgsFeatureRequest r = mMasterModel->request();
-  if ( r.filterType() == QgsFeatureRequest::FilterNone && r.spatialFilterType() == Qgis::SpatialFilterType::NoFilter )
+  if ( r.filterType() == Qgis::FeatureRequestFilterType::NoFilter && r.spatialFilterType() == Qgis::SpatialFilterType::NoFilter )
     return; // already requested all features
 
   r.setFilterFids( masterModel()->layer()->selectedFeatureIds() );
@@ -1233,7 +1265,7 @@ void QgsDualView::updateSelectedFeatures()
 void QgsDualView::updateEditedAddedFeatures()
 {
   QgsFeatureRequest r = mMasterModel->request();
-  if ( r.filterType() == QgsFeatureRequest::FilterNone && r.spatialFilterType() == Qgis::SpatialFilterType::NoFilter )
+  if ( r.filterType() == Qgis::FeatureRequestFilterType::NoFilter && r.spatialFilterType() == Qgis::SpatialFilterType::NoFilter )
     return; // already requested all features
 
   r.setFilterFids( masterModel()->layer()->editBuffer() ? masterModel()->layer()->editBuffer()->allAddedOrEditedFeatures() : QgsFeatureIds() );
@@ -1245,7 +1277,7 @@ void QgsDualView::updateEditedAddedFeatures()
 void QgsDualView::extentChanged()
 {
   QgsFeatureRequest r = mMasterModel->request();
-  if ( mFilterModel->mapCanvas() && ( r.filterType() != QgsFeatureRequest::FilterNone || !r.filterRect().isNull() ) )
+  if ( mFilterModel->mapCanvas() && ( r.filterType() != Qgis::FeatureRequestFilterType::NoFilter || !r.filterRect().isNull() ) )
   {
     const QgsRectangle rect = mFilterModel->mapCanvas()->mapSettings().mapToLayerCoordinates( mLayer, mFilterModel->mapCanvas()->extent() );
     r.setFilterRect( rect );
@@ -1301,6 +1333,11 @@ void QgsDualView::setAttributeTableConfig( const QgsAttributeTableConfig &config
   mLayer->setAttributeTableConfig( mConfig );
   mFilterModel->setAttributeTableConfig( mConfig );
   mTableView->setAttributeTableConfig( mConfig );
+  const QgsAttributeList attributes { requiredAttributes( mLayer ) };
+  QgsFeatureRequest request { mMasterModel->request() };
+  request.setSubsetOfAttributes( attributes );
+  mMasterModel->setRequest( request );
+  mLayerCache->setCacheSubsetOfAttributes( attributes );
 }
 
 void QgsDualView::setSortExpression( const QString &sortExpression, Qt::SortOrder sortOrder )

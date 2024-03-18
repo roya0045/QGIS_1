@@ -12,7 +12,6 @@ __copyright__ = 'Copyright 2016, The QGIS Project'
 import os
 import tempfile
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import (
     QCoreApplication,
     QDate,
@@ -38,9 +37,9 @@ from qgis.core import (
     QgsValueMapFieldFormatter,
     QgsValueRelationFieldFormatter,
     QgsVectorFileWriter,
-    QgsVectorLayer,
-)
-from qgis.testing import start_app, unittest
+    QgsVectorLayer, NULL)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from qgis.utils import spatialite_connect
 
 from utilities import writeShape
@@ -48,7 +47,7 @@ from utilities import writeShape
 start_app()
 
 
-class TestQgsValueMapFieldFormatter(unittest.TestCase):
+class TestQgsValueMapFieldFormatter(QgisTestCase):
     VALUEMAP_NULL_TEXT = "{2839923C-8B7D-419E-B84B-CA2FE9B80EC7}"
 
     def test_representValue(self):
@@ -101,7 +100,7 @@ class TestQgsValueMapFieldFormatter(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
 
 
-class TestQgsValueRelationFieldFormatter(unittest.TestCase):
+class TestQgsValueRelationFieldFormatter(QgisTestCase):
 
     def test_representValue(self):
         first_layer = QgsVectorLayer("none?field=foreign_key:integer",
@@ -216,7 +215,7 @@ class TestQgsValueRelationFieldFormatter(unittest.TestCase):
         self.assertTrue(QgsValueRelationFieldFormatter.expressionRequiresParentFormScope("@current_parent_geometry"))
 
 
-class TestQgsRelationReferenceFieldFormatter(unittest.TestCase):
+class TestQgsRelationReferenceFieldFormatter(QgisTestCase):
 
     def test_representValue(self):
         first_layer = QgsVectorLayer("none?field=foreign_key:integer",
@@ -305,22 +304,24 @@ class TestQgsRelationReferenceFieldFormatter(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
 
 
-class TestQgsRangeFieldFormatter(unittest.TestCase):
+class TestQgsRangeFieldFormatter(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("QGIS_TestPyQgsColorScheme.com")
         QCoreApplication.setApplicationName("QGIS_TestPyQgsColorScheme")
         QgsSettings().clear()
-        QLocale.setDefault(QLocale(QLocale.English))
+        QLocale.setDefault(QLocale(QLocale.Language.English))
         start_app()
 
     @classmethod
     def tearDownClass(cls):
         """Reset locale"""
-        QLocale.setDefault(QLocale(QLocale.English))
+        QLocale.setDefault(QLocale(QLocale.Language.English))
+        super().tearDownClass()
 
     def test_representValue(self):
         layer = QgsVectorLayer("point?field=int:integer&field=double:double&field=long:long",
@@ -391,7 +392,7 @@ class TestQgsRangeFieldFormatter(unittest.TestCase):
         # Check with custom locale without thousand separator
 
         custom = QLocale('en')
-        custom.setNumberOptions(QLocale.OmitGroupSeparator)
+        custom.setNumberOptions(QLocale.NumberOption.OmitGroupSeparator)
         QLocale.setDefault(custom)
 
         self.assertEqual(fieldFormatter.representValue(layer, 0, {'Precision': 1}, None, '9999999'),
@@ -405,11 +406,12 @@ class TestQgsRangeFieldFormatter(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
 
 
-class TestQgsCheckBoxFieldFormatter(unittest.TestCase):
+class TestQgsCheckBoxFieldFormatter(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("QGIS_TestPyQgsCheckBoxFieldFormatter.com")
         QCoreApplication.setApplicationName("QGIS_TestPyQgsCheckBoxFieldFormatter")
@@ -418,8 +420,9 @@ class TestQgsCheckBoxFieldFormatter(unittest.TestCase):
 
     def test_representValue(self):
         null_value = "NULL"
-        QgsSettings().setValue("qgis/nullValue", null_value)
-        layer = QgsVectorLayer("point?field=int:integer&field=str:string", "layer", "memory")
+        QgsApplication.setNullRepresentation(null_value)
+
+        layer = QgsVectorLayer("point?field=int:integer&field=str:string&field=bool:bool", "layer", "memory")
         self.assertTrue(layer.isValid())
 
         field_formatter = QgsCheckBoxFieldFormatter()
@@ -433,7 +436,7 @@ class TestQgsCheckBoxFieldFormatter(unittest.TestCase):
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 10), "(10)")
 
         # displaying stored values
-        config['TextDisplayMethod'] = QgsCheckBoxFieldFormatter.ShowStoredValues
+        config['TextDisplayMethod'] = QgsCheckBoxFieldFormatter.TextDisplayMethod.ShowStoredValues
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 1), '1')
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 0), '0')
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 10), "(10)")
@@ -444,7 +447,7 @@ class TestQgsCheckBoxFieldFormatter(unittest.TestCase):
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 1), 'false')
 
         # displaying stored values
-        config['TextDisplayMethod'] = QgsCheckBoxFieldFormatter.ShowStoredValues
+        config['TextDisplayMethod'] = QgsCheckBoxFieldFormatter.TextDisplayMethod.ShowStoredValues
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 1), '1')
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 0), '0')
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 10), "(10)")
@@ -456,28 +459,36 @@ class TestQgsCheckBoxFieldFormatter(unittest.TestCase):
         self.assertEqual(field_formatter.representValue(layer, 1, config, None, 'oops'), "(oops)")
 
         # displaying stored values
-        config['TextDisplayMethod'] = QgsCheckBoxFieldFormatter.ShowStoredValues
+        config['TextDisplayMethod'] = QgsCheckBoxFieldFormatter.TextDisplayMethod.ShowStoredValues
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 'yeah'), 'yeah')
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 'nooh'), 'nooh')
         self.assertEqual(field_formatter.representValue(layer, 0, config, None, 'oops'), "(oops)")
 
+        # bool
+        config['TextDisplayMethod'] = QgsCheckBoxFieldFormatter.TextDisplayMethod.ShowTrueFalse
+        self.assertEqual(field_formatter.representValue(layer, 2, config, None, True), 'true')
+        self.assertEqual(field_formatter.representValue(layer, 2, config, None, False), 'false')
+        self.assertEqual(field_formatter.representValue(layer, 2, config, None, NULL), 'NULL')
 
-class TestQgsFallbackFieldFormatter(unittest.TestCase):
+
+class TestQgsFallbackFieldFormatter(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("QGIS_TestPyQgsFieldFormatter.com")
         QCoreApplication.setApplicationName("QGIS_TestPyQgsFieldFormatter")
         QgsSettings().clear()
-        QLocale.setDefault(QLocale(QLocale.English))
+        QLocale.setDefault(QLocale(QLocale.Language.English))
         start_app()
 
     @classmethod
     def tearDownClass(cls):
         """Reset locale"""
-        QLocale.setDefault(QLocale(QLocale.English))
+        QLocale.setDefault(QLocale(QLocale.Language.English))
+        super().tearDownClass()
 
     def test_representValue(self):
 
@@ -564,7 +575,7 @@ class TestQgsFallbackFieldFormatter(unittest.TestCase):
             # Check with custom locale without thousand separator
 
             custom = QLocale('en')
-            custom.setNumberOptions(QLocale.OmitGroupSeparator)
+            custom.setNumberOptions(QLocale.NumberOption.OmitGroupSeparator)
             QLocale.setDefault(custom)
 
             self.assertEqual(fieldFormatter.representValue(layer, 0 + offset, {}, None, '9999999'),
@@ -584,13 +595,13 @@ class TestQgsFallbackFieldFormatter(unittest.TestCase):
             self.assertEqual(fieldFormatter.representValue(layer, 3 + offset, {}, None, None), 'NULL')
 
             # Check NULLs (this is what happens in real life inside QGIS)
-            self.assertEqual(fieldFormatter.representValue(layer, 0 + offset, {}, None, QVariant(QVariant.String)),
+            self.assertEqual(fieldFormatter.representValue(layer, 0 + offset, {}, None, NULL),
                              'NULL')
-            self.assertEqual(fieldFormatter.representValue(layer, 1 + offset, {}, None, QVariant(QVariant.String)),
+            self.assertEqual(fieldFormatter.representValue(layer, 1 + offset, {}, None, NULL),
                              'NULL')
-            self.assertEqual(fieldFormatter.representValue(layer, 2 + offset, {}, None, QVariant(QVariant.String)),
+            self.assertEqual(fieldFormatter.representValue(layer, 2 + offset, {}, None, NULL),
                              'NULL')
-            self.assertEqual(fieldFormatter.representValue(layer, 3 + offset, {}, None, QVariant(QVariant.String)),
+            self.assertEqual(fieldFormatter.representValue(layer, 3 + offset, {}, None, NULL),
                              'NULL')
 
         memory_layer = QgsVectorLayer("point?field=int:integer&field=double:double&field=long:long&field=string:string",
@@ -654,7 +665,7 @@ class TestQgsFallbackFieldFormatter(unittest.TestCase):
 
         QLocale.setDefault(QLocale('en'))
 
-        self.assertEqual(fieldFormatter.representValue(vl, 1, {}, None, QVariant(QVariant.Int)),
+        self.assertEqual(fieldFormatter.representValue(vl, 1, {}, None, NULL),
                          'NULL')
         self.assertEqual(fieldFormatter.representValue(vl, 1, {}, None, 4),
                          '4')
@@ -664,22 +675,24 @@ class TestQgsFallbackFieldFormatter(unittest.TestCase):
         self.assertEqual(fieldFormatter.representValue(vl, 3, {}, None, 5), "")
 
 
-class TestQgsDateTimeFieldFormatter(unittest.TestCase):
+class TestQgsDateTimeFieldFormatter(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("QGIS_TestQgsDateTimeFieldFormatter.com")
         QCoreApplication.setApplicationName("QGIS_TestQgsDateTimeFieldFormatter")
         QgsSettings().clear()
-        QLocale.setDefault(QLocale(QLocale.English))
+        QLocale.setDefault(QLocale(QLocale.Language.English))
         start_app()
 
     @classmethod
     def tearDownClass(cls):
         """Reset locale"""
-        QgsApplication.setLocale(QLocale(QLocale.English))
+        QgsApplication.setLocale(QLocale(QLocale.Language.English))
+        super().tearDownClass()
 
     def test_representValue(self):
         layer = QgsVectorLayer("point?field=datetime:datetime&field=date:date&field=time:time",
@@ -692,21 +705,21 @@ class TestQgsDateTimeFieldFormatter(unittest.TestCase):
         # if specific display format is set then use that
         config = {"display_format": "dd/MM/yyyy HH:mm:ss"}
         self.assertEqual(field_formatter.representValue(layer, 0, config, None,
-                                                        QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.UTC)),
+                                                        QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.TimeSpec.UTC)),
                          '04/03/2020 12:13:14')
         self.assertEqual(field_formatter.representValue(layer, 0, config, None,
-                                                        QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.OffsetFromUTC, 3600)),
+                                                        QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.TimeSpec.OffsetFromUTC, 3600)),
                          '04/03/2020 12:13:14')
 
         locale_assertions = {
-            QLocale(QLocale.English): {
+            QLocale(QLocale.Language.English): {
                 "date_format": 'M/d/yy',
                 "time_format": 'HH:mm:ss',
                 "datetime_format": 'M/d/yy HH:mm:ss',
                 "datetime_utc": '3/4/20 12:13:14 (UTC)',
                 "datetime_utc+1": '3/4/20 12:13:14 (UTC+01:00)'
             },
-            QLocale(QLocale.Finnish): {
+            QLocale(QLocale.Language.Finnish): {
                 "date_format": 'd.M.yyyy',
                 "time_format": 'HH:mm:ss',
                 "datetime_format": 'd.M.yyyy HH:mm:ss',
@@ -726,10 +739,10 @@ class TestQgsDateTimeFieldFormatter(unittest.TestCase):
             # default configuration should show timezone information
             config = {}
             self.assertEqual(field_formatter.representValue(layer, 0, config, None,
-                                                            QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.UTC)),
+                                                            QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.TimeSpec.UTC)),
                              assertions["datetime_utc"], locale.name())
             self.assertEqual(field_formatter.representValue(layer, 0, config, None,
-                                                            QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.OffsetFromUTC, 3600)),
+                                                            QDateTime(QDate(2020, 3, 4), QTime(12, 13, 14), Qt.TimeSpec.OffsetFromUTC, 3600)),
                              assertions["datetime_utc+1"], locale.name())
             self.assertEqual(field_formatter.representValue(layer, 1, config, None,
                                                             QDate(2020, 3, 4)),

@@ -10,6 +10,7 @@
 
 
 
+
 class QgsOgcUtils
 {
 %Docstring(signature="appended")
@@ -79,8 +80,6 @@ Read rectangle from GML3 Envelope
 Exports the geometry to GML
 
 :return: QDomElement
-
-.. versionadded:: 2.16
 %End
 
     static QDomElement geometryToGML( const QgsGeometry &geometry, QDomDocument &doc, const QString &format, int precision = 17 );
@@ -112,8 +111,6 @@ Exports the rectangle to GML2 Box
 Exports the rectangle to GML2 Box
 
 :return: QDomElement
-
-.. versionadded:: 2.16
 %End
 
     static QDomElement rectangleToGMLEnvelope( QgsRectangle *env, QDomDocument &doc, int precision = 17 );
@@ -131,8 +128,6 @@ Exports the rectangle to GML3 Envelope
 Exports the rectangle to GML3 Envelope
 
 :return: QDomElement
-
-.. versionadded:: 2.16
 %End
 
 
@@ -202,7 +197,9 @@ Creates an ElseFilter from ``doc``
         bool honourAxisOrientation,
         bool invertAxisOrientation,
         QString *errorMessage = 0,
-        bool requiresFilterElement = false );
+        bool requiresFilterElement = false,
+        const QMap<QString, QString> &fieldNameToXPathMap = QMap<QString, QString>(),
+        const QMap<QString, QString> &namespacePrefixToUriMap = QMap<QString, QString>() );
 %Docstring
 Creates an OGC expression XML element from the ``exp`` expression.
 

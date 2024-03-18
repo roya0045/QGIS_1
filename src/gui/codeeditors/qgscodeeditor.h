@@ -88,7 +88,6 @@ class QWidget;
  * \ingroup gui
  * \brief A text editor based on QScintilla2.
  * \note may not be available in Python bindings, depending on platform support
- * \since QGIS 2.6
  */
 class GUI_EXPORT QgsCodeEditor : public QsciScintilla
 {
@@ -136,9 +135,10 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      *
      * \since QGIS 3.28
      */
-    enum class Flag : int
+    enum class Flag : int SIP_ENUM_BASETYPE( IntFlag )
     {
       CodeFolding = 1 << 0, //!< Indicates that code folding should be enabled for the editor
+      ImmediatelyUpdateHistory = 1 << 1, //!< Indicates that the history file should be immediately updated whenever a command is executed, instead of the default behavior of only writing the history on widget close. Since QGIS 3.32.
     };
     Q_ENUM( Flag )
 
@@ -159,15 +159,14 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      * \param margin FALSE: Enable margin for code editor (deprecated)
      * \param flags flags controlling behavior of code editor (since QGIS 3.28)
      * \param mode code editor mode (since QGIS 3.30)
-     * \since QGIS 2.6
      */
-    QgsCodeEditor( QWidget * parent SIP_TRANSFERTHIS = nullptr, const QString & title = QString(), bool folding = false, bool margin = false, QgsCodeEditor::Flags flags = QgsCodeEditor::Flags(), QgsCodeEditor::Mode mode = QgsCodeEditor::Mode::ScriptEditor );
+    QgsCodeEditor( QWidget *parent SIP_TRANSFERTHIS = nullptr, const QString &title = QString(), bool folding = false, bool margin = false, QgsCodeEditor::Flags flags = QgsCodeEditor::Flags(), QgsCodeEditor::Mode mode = QgsCodeEditor::Mode::ScriptEditor );
 
     /**
      * Set the widget title
      * \param title widget title
      */
-    void setTitle( const QString & title );
+    void setTitle( const QString &title );
 
     /**
      * Returns the associated scripting language.
@@ -238,7 +237,7 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      * made a selection.
      * \param text The text to be inserted
      */
-    void insertText( const QString & text );
+    void insertText( const QString &text );
 
     /**
      * Returns the default color for the specified \a role.
@@ -251,7 +250,7 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      *
      * \since QGIS 3.16
      */
-    static QColor defaultColor( QgsCodeEditorColorScheme::ColorRole role, const QString & theme = QString() );
+    static QColor defaultColor( QgsCodeEditorColorScheme::ColorRole role, const QString &theme = QString() );
 
     /**
      * Returns the color to use in the editor for the specified \a role.
@@ -275,7 +274,7 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      * \see color()
      * \since QGIS 3.16
      */
-    static void setColor( QgsCodeEditorColorScheme::ColorRole role, const QColor & color );
+    static void setColor( QgsCodeEditorColorScheme::ColorRole role, const QColor &color );
 
     /**
      * Returns the monospaced font to use for code editors.
@@ -291,7 +290,7 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      * \note Not available in Python bindings
      * \since QGIS 3.16
      */
-    void setCustomAppearance( const QString & scheme = QString(), const QMap< QgsCodeEditorColorScheme::ColorRole, QColor > & customColors = QMap< QgsCodeEditorColorScheme::ColorRole, QColor >(), const QString & fontFamily = QString(), int fontSize = 0 ) SIP_SKIP;
+    void setCustomAppearance( const QString &scheme = QString(), const QMap< QgsCodeEditorColorScheme::ColorRole, QColor > &customColors = QMap< QgsCodeEditorColorScheme::ColorRole, QColor >(), const QString &fontFamily = QString(), int fontSize = 0 ) SIP_SKIP;
 
     /**
      * Adds a \a warning message and indicator to the specified a \a lineNumber.
@@ -299,7 +298,7 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      * \see clearWarnings()
      * \since QGIS 3.16
      */
-    void addWarning( int lineNumber, const QString & warning );
+    void addWarning( int lineNumber, const QString &warning );
 
     /**
      * Clears all warning messages from the editor.
@@ -359,6 +358,45 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      */
     void setInterpreter( QgsCodeInterpreter *newInterpreter );
 
+    /**
+     * Convenience function to return the cursor position as a linear index
+     *
+     * \since QGIS 3.36
+     */
+    int linearPosition() const;
+
+    /**
+     * Convenience function to set the cursor position as a linear index
+     *
+     * \since QGIS 3.36
+     */
+    void setLinearPosition( int position );
+
+    /**
+     * Convenience function to return the start of the selection as a linear index
+     * Contrary to the getSelection method, this method returns the cursor position if
+     * no selection is made.
+     *
+     * \since QGIS 3.36
+     */
+    int selectionStart() const;
+
+    /**
+     * Convenience function to return the end of the selection as a linear index
+     * Contrary to the getSelection method, this method returns the cursor position if
+     * no selection is made.
+     *
+     * \since QGIS 3.36
+     */
+    int selectionEnd() const;
+
+    /**
+     * Convenience function to set the selection using linear indexes
+     *
+     * \since QGIS 3.36
+     */
+    void setLinearSelection( int start, int end );
+
   public slots:
 
     /**
@@ -366,9 +404,12 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
      *
      * An interpreter() must be set.
      *
+     * Since QGIS 3.32, if \a skipHistory is TRUE then the command will not be automatically
+     * added to the widget's history.
+     *
      * \since QGIS 3.30
      */
-    void runCommand( const QString &command );
+    void runCommand( const QString &command, bool skipHistory = false );
 
     /**
      * Moves the cursor to the start of the document and scrolls to ensure
@@ -498,6 +539,7 @@ class GUI_EXPORT QgsCodeEditor : public QsciScintilla
     void focusOutEvent( QFocusEvent *event ) override;
     void keyPressEvent( QKeyEvent *event ) override;
     void contextMenuEvent( QContextMenuEvent *event ) override;
+    bool eventFilter( QObject *watched, QEvent *event ) override;
 
     /**
      * Called when the dialect specific code lexer needs to be initialized (or reinitialized).

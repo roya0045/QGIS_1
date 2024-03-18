@@ -34,6 +34,8 @@
 #include <QDomDocument>
 #include <QMessageBox>
 #include <QSvgRenderer>
+#include <QRegularExpression>
+#include <QRegularExpressionMatch>
 
 extern "C"
 {
@@ -127,7 +129,7 @@ QgsGrassModule::QgsGrassModule( QgsGrassTools *tools, QString moduleName, QgisIn
   {
     QString errmsg = tr( "Cannot read module file (%1)" ).arg( mpath )
                      + tr( "\n%1\nat line %2 column %3" ).arg( err ).arg( line ).arg( column );
-    QgsDebugMsg( errmsg );
+    QgsDebugError( errmsg );
     mErrors.append( errmsg );
     qFile.close();
     return;
@@ -151,7 +153,7 @@ QgsGrassModule::QgsGrassModule( QgsGrassTools *tools, QString moduleName, QgisIn
   mXName = QgsGrass::findModule( xName );
   if ( mXName.isNull() )
   {
-    QgsDebugMsg( "Module " + xName + " not found" );
+    QgsDebugError( "Module " + xName + " not found" );
     mErrors.append( tr( "Module %1 not found" ).arg( xName ) );
     return;
   }
@@ -237,7 +239,7 @@ QgsGrassModule::Description QgsGrassModule::description( QString path )
   {
     QString errmsg = tr( "Cannot read module file (%1)" ).arg( path )
                      + tr( "\n%1\nat line %2 column %3" ).arg( err ).arg( line ).arg( column );
-    QgsDebugMsg( errmsg );
+    QgsDebugError( errmsg );
     QMessageBox::warning( nullptr, tr( "Warning" ), errmsg );
     qFile.close();
     return Description( tr( "Not available, incorrect description (%1)" ).arg( path ) );
@@ -562,7 +564,8 @@ void QgsGrassModule::run()
 
       // Quote options with special characters so that user
       // can copy-paste-run the command
-      if ( it->contains( QRegExp( "[ <>\\$|;&]" ) ) )
+      const thread_local QRegularExpression rx( "[ <>\\$|;&]" );
+      if ( it->contains( rx ) )
       {
         argumentsHtml.append( "\"" + *it + "\"" );
       }
@@ -763,7 +766,7 @@ void QgsGrassModule::readStdout()
   QgsDebugMsgLevel( "called.", 4 );
 
   QString line;
-  QRegExp rxpercent( "GRASS_INFO_PERCENT: (\\d+)" );
+  const thread_local QRegularExpression rxpercent( "GRASS_INFO_PERCENT: (\\d+)" );
 
   mProcess.setReadChannel( QProcess::StandardOutput );
   while ( mProcess.canReadLine() )
@@ -773,9 +776,10 @@ void QgsGrassModule::readStdout()
 
     // GRASS_INFO_PERCENT is caught here only because of bugs in GRASS,
     // normally it should be printed to stderr
-    if ( rxpercent.indexIn( line ) != -1 )
+    const QRegularExpressionMatch match = rxpercent.match( line );
+    if ( match.hasMatch() )
     {
-      int progress = rxpercent.cap( 1 ).toInt();
+      int progress = match.captured( 1 ).toInt();
       setProgress( progress );
     }
     else
@@ -856,7 +860,7 @@ void QgsGrassModule::viewOutput()
       }
       catch ( QgsGrass::Exception &e )
       {
-        QgsDebugMsg( e.what() );
+        QgsDebugError( e.what() );
         continue;
       }
 

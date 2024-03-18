@@ -18,7 +18,7 @@
 
 #include "qgsrectangle.h"
 #include "qgsproperty.h"
-#include "qgssymbollayerutils.h"
+#include "qgscolorutils.h"
 #include "qgsprocessingparameters.h"
 #include "qgsremappingproxyfeaturesink.h"
 #include "qgsunittypes.h"
@@ -34,6 +34,31 @@ Qgis::DistanceUnit QgsXmlUtils::readMapUnits( const QDomElement &element )
     const Qgis::DistanceUnit unit = QgsUnitTypes::decodeDistanceUnit( element.text() );
     return unit == Qgis::DistanceUnit::Unknown ? Qgis::DistanceUnit::Degrees : unit;
   }
+}
+
+QgsBox3D QgsXmlUtils::readBox3D( const QDomElement &element )
+{
+  QgsBox3D aoi;
+
+  const double xmin = element.attribute( QStringLiteral( "xmin" ) ).toDouble();
+  aoi.setXMinimum( xmin );
+
+  const double ymin = element.attribute( QStringLiteral( "ymin" ) ).toDouble();
+  aoi.setYMinimum( ymin );
+
+  const double zmin = element.attribute( QStringLiteral( "zmin" ) ).toDouble();
+  aoi.setZMinimum( zmin );
+
+  const double xmax = element.attribute( QStringLiteral( "xmax" ) ).toDouble();
+  aoi.setXMaximum( xmax );
+
+  const double ymax = element.attribute( QStringLiteral( "ymax" ) ).toDouble();
+  aoi.setYMaximum( ymax );
+
+  const double zmax = element.attribute( QStringLiteral( "zmax" ) ).toDouble();
+  aoi.setZMaximum( zmax );
+
+  return aoi;
 }
 
 QgsRectangle QgsXmlUtils::readRectangle( const QDomElement &element )
@@ -76,6 +101,19 @@ QDomElement QgsXmlUtils::writeMapUnits( Qgis::DistanceUnit units, QDomDocument &
   QDomElement unitsNode = doc.createElement( QStringLiteral( "units" ) );
   unitsNode.appendChild( doc.createTextNode( unitsString ) );
   return unitsNode;
+}
+
+QDomElement QgsXmlUtils::writeBox3D( const QgsBox3D &box, QDomDocument &doc, const QString &elementName )
+{
+  QDomElement elemExtent3D = doc.createElement( elementName );
+  elemExtent3D.setAttribute( QStringLiteral( "xMin" ), box.xMinimum() );
+  elemExtent3D.setAttribute( QStringLiteral( "yMin" ), box.yMinimum() );
+  elemExtent3D.setAttribute( QStringLiteral( "zMin" ), box.zMinimum() );
+  elemExtent3D.setAttribute( QStringLiteral( "xMax" ), box.xMaximum() );
+  elemExtent3D.setAttribute( QStringLiteral( "yMax" ), box.yMaximum() );
+  elemExtent3D.setAttribute( QStringLiteral( "zMax" ), box.zMaximum() );
+
+  return elemExtent3D;
 }
 
 QDomElement QgsXmlUtils::writeRectangle( const QgsRectangle &rect, QDomDocument &doc, const QString &elementName )
@@ -174,7 +212,7 @@ QDomElement QgsXmlUtils::writeVariant( const QVariant &value, QDomDocument &doc 
 
     case QVariant::Color:
       element.setAttribute( QStringLiteral( "type" ), QStringLiteral( "color" ) );
-      element.setAttribute( QStringLiteral( "value" ), value.value< QColor >().isValid() ? QgsSymbolLayerUtils::encodeColor( value.value< QColor >() ) : QString() );
+      element.setAttribute( QStringLiteral( "value" ), value.value< QColor >().isValid() ? QgsColorUtils::colorToString( value.value< QColor >() ) : QString() );
       break;
 
     case QVariant::DateTime:
@@ -278,12 +316,13 @@ QVariant QgsXmlUtils::readVariant( const QDomElement &element )
   }
   else if ( type == QLatin1String( "QString" ) )
   {
-    return element.attribute( QStringLiteral( "value" ) );
+    const QString res = element.attribute( QStringLiteral( "value" ) );
+    return res.isEmpty() ? QVariant() : res;
   }
   else if ( type == QLatin1String( "QChar" ) )
   {
     const QString res = element.attribute( QStringLiteral( "value" ) );
-    return res.isEmpty() ? QChar() : res.at( 0 );
+    return res.isEmpty() ? QVariant() : res.at( 0 );
   }
   else if ( type == QLatin1String( "bool" ) )
   {
@@ -291,19 +330,19 @@ QVariant QgsXmlUtils::readVariant( const QDomElement &element )
   }
   else if ( type == QLatin1String( "color" ) )
   {
-    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QColor() : QgsSymbolLayerUtils::decodeColor( element.attribute( QStringLiteral( "value" ) ) );
+    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QVariant() : QgsColorUtils::colorFromString( element.attribute( QStringLiteral( "value" ) ) );
   }
   else if ( type == QLatin1String( "datetime" ) )
   {
-    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QDateTime() : QDateTime::fromString( element.attribute( QStringLiteral( "value" ) ), Qt::ISODate );
+    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QVariant() : QDateTime::fromString( element.attribute( QStringLiteral( "value" ) ), Qt::ISODate );
   }
   else if ( type == QLatin1String( "date" ) )
   {
-    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QDate() : QDate::fromString( element.attribute( QStringLiteral( "value" ) ), Qt::ISODate );
+    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QVariant() : QDate::fromString( element.attribute( QStringLiteral( "value" ) ), Qt::ISODate );
   }
   else if ( type == QLatin1String( "time" ) )
   {
-    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QTime() : QTime::fromString( element.attribute( QStringLiteral( "value" ) ), Qt::ISODate );
+    return element.attribute( QStringLiteral( "value" ) ).isEmpty() ? QVariant() : QTime::fromString( element.attribute( QStringLiteral( "value" ) ), Qt::ISODate );
   }
   else if ( type == QLatin1String( "Map" ) )
   {
@@ -356,11 +395,12 @@ QVariant QgsXmlUtils::readVariant( const QDomElement &element )
   {
     QgsCoordinateReferenceSystem crs;
     crs.readXml( element );
-    return crs;
+    return crs.isValid() ? crs : QVariant();
   }
   else if ( type == QLatin1String( "QgsGeometry" ) )
   {
-    return QgsGeometry::fromWkt( element.attribute( "value" ) );
+    const QgsGeometry g = QgsGeometry::fromWkt( element.attribute( "value" ) );
+    return !g.isNull() ? g : QVariant();
   }
   else if ( type == QLatin1String( "QgsProcessingOutputLayerDefinition" ) )
   {

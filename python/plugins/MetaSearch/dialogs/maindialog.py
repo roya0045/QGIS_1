@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 ###############################################################################
 #
 # CSW Client
@@ -40,7 +39,7 @@ from qgis.PyQt.QtGui import QColor
 from qgis.core import (Qgis, QgsApplication, QgsCoordinateReferenceSystem,
                        QgsCoordinateTransform, QgsGeometry, QgsPointXY,
                        QgsProviderRegistry, QgsSettings, QgsProject,
-                       QgsRectangle)
+                       QgsRectangle, QgsSettingsTree)
 from qgis.gui import QgsRubberBand, QgsGui
 from qgis.utils import OverrideCursor
 
@@ -51,7 +50,7 @@ from MetaSearch.dialogs.recorddialog import RecordDialog
 from MetaSearch.dialogs.apidialog import APIRequestResponseDialog
 from MetaSearch.search_backend import get_catalog_service
 from MetaSearch.util import (clean_ows_url, get_connections_from_file,
-                             get_ui_class, get_help_url, highlight_content,
+                             get_ui_class, get_help_url,
                              normalize_text, open_url, render_template,
                              serialize_string, StaticContext)
 
@@ -115,7 +114,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
         self.btnSearch.clicked.connect(self.search)
         self.leKeywords.returnPressed.connect(self.search)
         # prevent dialog from closing upon pressing enter
-        self.buttonBox.button(QDialogButtonBox.Close).setAutoDefault(False)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Close).setAutoDefault(False)
         # launch help from button
         self.buttonBox.helpRequested.connect(self.help)
         self.btnCanvasBbox.setAutoDefault(False)
@@ -303,7 +302,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
 
         conn_new = NewConnectionDialog()
         conn_new.setWindowTitle(self.tr('New Catalog Service'))
-        if conn_new.exec_() == QDialog.Accepted:  # add to service list
+        if conn_new.exec() == QDialog.DialogCode.Accepted:  # add to service list
             self.populate_connection_list()
         self.textMetadata.clear()
 
@@ -326,7 +325,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
         conn_edit.cmbCatalogType.setCurrentText(
             self.settings.value('/MetaSearch/%s/catalog-type' % current_text))
 
-        if conn_edit.exec_() == QDialog.Accepted:  # update service list
+        if conn_edit.exec() == QDialog.DialogCode.Accepted:  # update service list
             self.populate_connection_list()
 
     def delete_connection(self):
@@ -340,8 +339,8 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
 
         result = QMessageBox.question(
             self, self.tr('Delete Service'), msg,
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if result == QMessageBox.Yes:  # remove service from list
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if result == QMessageBox.StandardButton.Yes:  # remove service from list
             self.settings.remove(key)
             index_to_delete = self.cmbConnectionsServices.currentIndex()
             self.cmbConnectionsServices.removeItem(index_to_delete)
@@ -351,7 +350,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
     def load_connections(self):
         """load services from list"""
 
-        ManageConnectionsDialog(1).exec_()
+        ManageConnectionsDialog(1).exec()
         self.populate_connection_list()
 
     def add_default_connections(self):
@@ -375,8 +374,8 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
                 msg = self.tr('{0} exists.  Overwrite?').format(name)
                 res = QMessageBox.warning(self,
                                           self.tr('Loading connections'), msg,
-                                          QMessageBox.Yes | QMessageBox.No)
-                if res != QMessageBox.Yes:
+                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if res != QMessageBox.StandardButton.Yes:
                     continue
 
             # no dups detected or overwrite is allowed
@@ -481,7 +480,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
         # TODO: allow users to select resources types
         # to find ('service', 'dataset', etc.)
         try:
-            with OverrideCursor(Qt.WaitCursor):
+            with OverrideCursor(Qt.CursorShape.WaitCursor):
                 self.catalog.query_records(bbox, keywords, self.maxrecords,
                                            self.startfrom)
 
@@ -658,9 +657,9 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
                 msg = self.tr('End of results. Go to start?')
                 res = QMessageBox.information(self, self.tr('Navigation'),
                                               msg,
-                                              (QMessageBox.Ok |
-                                               QMessageBox.Cancel))
-                if res == QMessageBox.Ok:
+                                              (QMessageBox.StandardButton.Ok |
+                                               QMessageBox.StandardButton.Cancel))
+                if res == QMessageBox.StandardButton.Ok:
                     self.startfrom = 1
                 else:
                     return
@@ -671,9 +670,9 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
                 msg = self.tr('Start of results. Go to end?')
                 res = QMessageBox.information(self, self.tr('Navigation'),
                                               msg,
-                                              (QMessageBox.Ok |
-                                               QMessageBox.Cancel))
-                if res == QMessageBox.Ok:
+                                              (QMessageBox.StandardButton.Ok |
+                                               QMessageBox.StandardButton.Cancel))
+                if res == QMessageBox.StandardButton.Ok:
                     self.startfrom = (self.catalog.matches -
                                       self.maxrecords + 1)
                 else:
@@ -694,7 +693,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
         keywords = self.leKeywords.text()
 
         try:
-            with OverrideCursor(Qt.WaitCursor):
+            with OverrideCursor(Qt.CursorShape.WaitCursor):
                 self.catalog.query_records(bbox, keywords,
                                            limit=self.maxrecords,
                                            offset=self.startfrom)
@@ -719,35 +718,38 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
 
         caller = self.sender().objectName()
 
-        # stype = human name,/qgis/connections-%s,providername
         if caller == 'mActionAddWms':
-            stype = ['OGC:WMS/OGC:WMTS', 'wms', 'wms']
+            service_type = 'OGC:WMS/OGC:WMTS'
+            sname = 'WMS'
+            dyn_param = ['wms']
+            provider_name = 'wms'
+            setting_node = QgsSettingsTree.node('connections').childNode('ows').childNode('connections')
             data_url = item_data['wms']
         elif caller == 'mActionAddWfs':
-            stype = ['OGC:WFS', 'wfs', 'WFS']
+            service_type = 'OGC:WFS'
+            sname = 'WFS'
+            dyn_param = ['wfs']
+            provider_name = 'WFS'
+            setting_node = QgsSettingsTree.node('connections').childNode('ows').childNode('connections')
             data_url = item_data['wfs']
         elif caller == 'mActionAddWcs':
-            stype = ['OGC:WCS', 'wcs', 'wcs']
+            service_type = 'OGC:WCS'
+            sname = 'WCS'
+            dyn_param = ['wcs']
+            provider_name = 'wcs'
+            setting_node = QgsSettingsTree.node('connections').childNode('ows').childNode('connections')
             data_url = item_data['wcs']
-        elif caller == 'mActionAddAms':
-            stype = ['ESRI:ArcGIS:MapServer', 'ams', 'arcgismapserver']
-            data_url = item_data['ams'].split('MapServer')[0] + 'MapServer'
         elif caller == 'mActionAddAfs':
-            stype = ['ESRI:ArcGIS:FeatureServer', 'afs', 'arcgisfeatureserver']
-            data_url = (item_data['afs'].split('FeatureServer')[0] +
-                        'FeatureServer')
+            service_type = 'ESRI:ArcGIS:FeatureServer'
+            sname = 'AFS'
+            dyn_param = []
+            provider_name = 'arcgisfeatureserver'
+            setting_node = QgsSettingsTree.node('connections').childNode('arcgisfeatureserver')
+            data_url = (item_data['afs'].split('FeatureServer')[0] + 'FeatureServer')
 
-        sname = '%s from MetaSearch' % stype[1]
+        keys = setting_node.items(dyn_param)
 
-        # store connection
-        # check if there is a connection with same name
-        if caller in ['mActionAddAms', 'mActionAddAfs']:
-            self.settings.beginGroup('/qgis/connections-%s' % stype[2])
-        else:
-            self.settings.beginGroup('/qgis/connections-%s' % stype[1])
-        keys = self.settings.childGroups()
-        self.settings.endGroup()
-
+        sname = '%s from MetaSearch' % sname
         for key in keys:
             if key.startswith(sname):
                 conn_name_matches.append(key)
@@ -759,26 +761,21 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
             msg = self.tr('Connection {0} exists. Overwrite?').format(sname)
             res = QMessageBox.warning(
                 self, self.tr('Saving server'), msg,
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
-            if res == QMessageBox.No:  # assign new name with serial
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
+            if res == QMessageBox.StandardButton.No:  # assign new name with serial
                 sname = serialize_string(sname)
-            elif res == QMessageBox.Cancel:
+            elif res == QMessageBox.StandardButton.Cancel:
                 return
 
         # no dups detected or overwrite is allowed
-        if caller in ['mActionAddAms', 'mActionAddAfs']:
-            self.settings.beginGroup('/qgis/connections-%s' % stype[2])
-        else:
-            self.settings.beginGroup('/qgis/connections-%s' % stype[1])
-        self.settings.setValue('/%s/url' % sname, clean_ows_url(data_url))
-        self.settings.endGroup()
+        dyn_param.append(sname)
+        setting_node.childSetting('url').setValue(clean_ows_url(data_url), dyn_param)
 
         # open provider window
         ows_provider = QgsGui.sourceSelectProviderRegistry().\
             createSelectionWidget(
-                stype[2], self, Qt.Widget,
+                provider_name, self, Qt.WindowType.Widget,
                 QgsProviderRegistry.WidgetMode.Embedded)
-        service_type = stype[0]
 
         # connect dialog signals to iface slots
         if service_type == 'OGC:WMS/OGC:WMTS':
@@ -796,10 +793,6 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
             ows_provider.addRasterLayer.connect(self.iface.addRasterLayer)
             conn_cmb = ows_provider.findChild(QWidget, 'mConnectionsComboBox')
             connect = 'mConnectButton_clicked'
-        elif service_type == 'ESRI:ArcGIS:MapServer':
-            ows_provider.addRasterLayer.connect(self.iface.addRasterLayer)
-            conn_cmb = ows_provider.findChild(QComboBox)
-            connect = 'connectToServer'
         elif service_type == 'ESRI:ArcGIS:FeatureServer':
             def addAfsLayer(path, name):
                 self.iface.addVectorLayer(path, name, 'afs')
@@ -818,7 +811,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
             # only for wfs
             if service_type == 'OGC:WFS':
                 ows_provider.cmbConnections_activated(index)
-            elif service_type in ['ESRI:ArcGIS:MapServer', 'ESRI:ArcGIS:FeatureServer']:  # noqa
+            elif service_type == 'ESRI:ArcGIS:FeatureServer':
                 ows_provider.cmbConnections_activated(index)
         getattr(ows_provider, connect)()
 
@@ -859,7 +852,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
                 pass
 
         try:
-            with OverrideCursor(Qt.WaitCursor):
+            with OverrideCursor(Qt.CursorShape.WaitCursor):
                 cat = get_catalog_service(self.catalog_url,  # spellok
                                           catalog_type=self.catalog_type,
                                           timeout=self.timeout,
@@ -890,24 +883,17 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
         style = QgsApplication.reportStyleSheet()
         crd.textMetadata.document().setDefaultStyleSheet(style)
         crd.textMetadata.setHtml(metadata)
-        crd.exec_()
+        crd.exec()
 
     def show_api(self):
         """show API request / response"""
 
-        crd = APIRequestResponseDialog()
-        request_html = highlight_content(self.context, self.catalog.request,
-                                         self.catalog.format)
-        response_html = highlight_content(self.context, self.catalog.response,
-                                          self.catalog.format)
-        style = QgsApplication.reportStyleSheet()
-        crd.txtbrAPIRequest.clear()
-        crd.txtbrAPIResponse.clear()
-        crd.txtbrAPIRequest.document().setDefaultStyleSheet(style)
-        crd.txtbrAPIResponse.document().setDefaultStyleSheet(style)
-        crd.txtbrAPIRequest.setHtml(request_html)
-        crd.txtbrAPIResponse.setHtml(response_html)
-        crd.exec_()
+        crd = APIRequestResponseDialog(
+            self.catalog.request,
+            self.catalog.response,
+            self.catalog.format
+        )
+        crd.exec()
 
     def reset_buttons(self, services=True, api=True, navigation=True):
         """Convenience function to disable WMS/WMTS|WFS|WCS buttons"""
@@ -953,7 +939,7 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
                 pass
 
         # connect to the server
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             try:
                 self.catalog = get_catalog_service(
                     self.catalog_url, catalog_type=self.catalog_type,
@@ -985,19 +971,19 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
             proxy_port = ''
 
             if all([user != '', password != '']):
-                proxy_up = '%s:%s@' % (user, password)
+                proxy_up = f'{user}:{password}@'
 
             if port != '':
                 proxy_port = ':%s' % port
 
-            conn = '%s://%s%s%s' % (ptype, proxy_up, host, proxy_port)
+            conn = f'{ptype}://{proxy_up}{host}{proxy_port}'
             install_opener(build_opener(ProxyHandler({ptype: conn})))
 
 
 def save_connections():
     """save servers to list"""
 
-    ManageConnectionsDialog(0).exec_()
+    ManageConnectionsDialog(0).exec()
 
 
 def get_item_data(item, field):

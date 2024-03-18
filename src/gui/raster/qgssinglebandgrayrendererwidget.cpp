@@ -148,7 +148,7 @@ void QgsSingleBandGrayRendererWidget::loadMinMax( int bandNo, double min, double
 {
   Q_UNUSED( bandNo )
 
-  QgsDebugMsg( QStringLiteral( "theBandNo = %1 min = %2 max = %3" ).arg( bandNo ).arg( min ).arg( max ) );
+  QgsDebugMsgLevel( QStringLiteral( "theBandNo = %1 min = %2 max = %3" ).arg( bandNo ).arg( min ).arg( max ), 2 );
 
   mDisableMinMaxWidgetRefresh = true;
   if ( std::isnan( min ) )
@@ -185,8 +185,8 @@ void QgsSingleBandGrayRendererWidget::setFromRenderer( const QgsRasterRenderer *
   if ( gr )
   {
     //band
-    mGrayBandComboBox->setBand( gr->grayBand() );
-    mMinMaxWidget->setBands( QList< int >() << gr->grayBand() );
+    mGrayBandComboBox->setBand( gr->inputBand() );
+    mMinMaxWidget->setBands( QList< int >() << gr->inputBand() );
     mGradientComboBox->setCurrentIndex( mGradientComboBox->findData( gr->gradient() ) );
 
     const QgsContrastEnhancement *ce = gr->contrastEnhancement();

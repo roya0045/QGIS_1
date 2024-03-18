@@ -36,7 +36,6 @@ class QgsPoint;
  *
  * A circle is defined by a center point with a radius and an azimuth.
  * The azimuth is the north angle to the semi-major axis, in degrees. By default, the semi-major axis is oriented to the north (0 degrees).
- * \since QGIS 3.0
  */
 
 
@@ -112,7 +111,7 @@ class CORE_EXPORT QgsCircle : public QgsEllipse
      * \param pt2_tg3 Second point of the third tangent.
      * \param epsilon Value used to compare point.
      * \param pos Point to determine which circle use in case of multi return.
-     * If the solution is not unique and pos is an empty point, an empty circle is returned. -- This case happens only when two tangets are parallels. (since QGIS 3.18)
+     * If the solution is not unique and pos is an empty point, an empty circle is returned. -- This case happens only when two tangents are parallels. (since QGIS 3.18)
      *
      * \see from3TangentsMulti()
      *

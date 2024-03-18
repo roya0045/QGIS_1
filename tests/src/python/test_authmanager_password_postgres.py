@@ -31,7 +31,8 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -71,12 +72,13 @@ def ScopedCertAuthority(username, password, sslrootcert_path=None):
     authm.rebuildCertTrustCache()
 
 
-class TestAuthManager(unittest.TestCase):
+class TestAuthManager(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests:
         Creates an auth configuration"""
+        super().setUpClass()
         cls.username = 'docker'
         cls.password = 'docker'
         cls.dbname = 'qgis_test'
@@ -97,14 +99,14 @@ class TestAuthManager(unittest.TestCase):
         pass
 
     @classmethod
-    def _getPostGISLayer(cls, type_name, layer_name=None, authcfg=None, sslmode=QgsDataSourceUri.SslVerifyFull):
+    def _getPostGISLayer(cls, type_name, layer_name=None, authcfg=None, sslmode=QgsDataSourceUri.SslMode.SslVerifyFull):
         """
         PG layer factory
         """
         if layer_name is None:
             layer_name = 'pg_' + type_name
         uri = QgsDataSourceUri()
-        uri.setWkbType(QgsWkbTypes.Point)
+        uri.setWkbType(QgsWkbTypes.Type.Point)
         uri.setConnection(cls.hostname, cls.port, cls.dbname, "", "", sslmode, authcfg)
         uri.setKeyColumn('pk')
         uri.setSrid('EPSG:4326')
@@ -135,7 +137,7 @@ class TestAuthManager(unittest.TestCase):
         This should work.
         """
         with ScopedCertAuthority(self.username, self.password) as auth_config:
-            pg_layer = self._getPostGISLayer('testlayer_èé', authcfg=auth_config.id(), sslmode=QgsDataSourceUri.SslRequire)
+            pg_layer = self._getPostGISLayer('testlayer_èé', authcfg=auth_config.id(), sslmode=QgsDataSourceUri.SslMode.SslRequire)
             self.assertTrue(pg_layer.isValid())
 
     def testSslVerifyFullCaCheck(self):

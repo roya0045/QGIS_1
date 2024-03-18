@@ -22,6 +22,7 @@
 #include <QSharedDataPointer>
 #include "qgis_core.h"
 #include "qgis_sip.h"
+#include "qgis.h"
 
 typedef QList<int> QgsAttributeList SIP_SKIP;
 
@@ -62,32 +63,10 @@ class CORE_EXPORT QgsField
     Q_PROPERTY( QString alias READ alias WRITE setAlias )
     Q_PROPERTY( QgsDefaultValue defaultValueDefinition READ defaultValueDefinition WRITE setDefaultValueDefinition )
     Q_PROPERTY( QgsFieldConstraints constraints READ constraints WRITE setConstraints )
-    Q_PROPERTY( ConfigurationFlags configurationFlags READ configurationFlags WRITE setConfigurationFlags )
+    Q_PROPERTY( Qgis::FieldConfigurationFlags configurationFlags READ configurationFlags WRITE setConfigurationFlags )
     Q_PROPERTY( bool isReadOnly READ isReadOnly WRITE setReadOnly )
 
-
   public:
-
-#ifndef SIP_RUN
-
-    /**
-       * Configuration flags for fields
-       * These flags are meant to be user-configurable
-       * and are not describing any information from the data provider.
-       * \note Flags are expressed in the negative forms so that default flags is None.
-       * \since QGIS 3.16
-       */
-    enum class ConfigurationFlag : int
-    {
-      None = 0, //!< No flag is defined
-      NotSearchable = 1 << 1, //!< Defines if the field is searchable (used in the locator search for instance)
-      HideFromWms = 1 << 2, //!< Field is not available if layer is served as WMS from QGIS server
-      HideFromWfs = 1 << 3, //!< Field is not available if layer is served as WFS from QGIS server
-    };
-    Q_ENUM( ConfigurationFlag )
-    Q_DECLARE_FLAGS( ConfigurationFlags, ConfigurationFlag )
-    Q_FLAG( ConfigurationFlags )
-#endif
 
     /**
      * Constructor. Constructs a new QgsField object.
@@ -139,7 +118,6 @@ class CORE_EXPORT QgsField
      * field alias if set, otherwise the field name.
      * \see name()
      * \see alias()
-     * \since QGIS 3.0
      */
     QString displayName() const;
 
@@ -187,7 +165,6 @@ class CORE_EXPORT QgsField
      * If the field is a collection, gets its element's type.
      * When all the elements don't need to have the same type, this returns
      * QVariant::Invalid.
-     * \since QGIS 3.0
      */
     QVariant::Type subType() const;
 
@@ -217,10 +194,61 @@ class CORE_EXPORT QgsField
     QString comment() const;
 
     /**
+     * Returns the map of field metadata.
+     *
+     * Map keys should match values from the Qgis::FieldMetadataProperty enum.
+     *
+     * \see setMetadata()
+     * \since QGIS 3.32
+     */
+    QMap< int, QVariant > metadata() const;
+
+    /**
+     * Returns a specific metadata \a property.
+     *
+     * \see setMetadata()
+     * \since QGIS 3.32
+     */
+    QVariant metadata( Qgis::FieldMetadataProperty property ) const SIP_SKIP;
+
+    /**
+     * Returns a specific metadata \a property.
+     *
+     * \see setMetadata()
+     * \since QGIS 3.32
+     */
+    QVariant metadata( int property ) const;
+
+    /**
+     * Sets the map of field \a metadata.
+     *
+     * Map keys should match values from the Qgis::FieldMetadataProperty enum.
+     *
+     * \see metadata()
+     * \since QGIS 3.32
+     */
+    void setMetadata( const QMap< int, QVariant > metadata );
+
+    /**
+     * Sets a metadata \a property to \a value.
+     *
+     * \see metadata()
+     * \since QGIS 3.32
+     */
+    void setMetadata( Qgis::FieldMetadataProperty property, const QVariant &value ) SIP_SKIP;
+
+    /**
+     * Sets a metadata \a property to \a value.
+     *
+     * \see metadata()
+     * \since QGIS 3.32
+     */
+    void setMetadata( int property, const QVariant &value );
+
+    /**
      * Returns if this field is numeric. Any integer or floating point type
      * will return TRUE for this.
      *
-     * \since QGIS 2.18
      */
     bool isNumeric() const;
 
@@ -246,7 +274,6 @@ class CORE_EXPORT QgsField
      * If the field is a collection, set its element's type.
      * When all the elements don't need to have the same type, set this to
      * QVariant::Invalid.
-     * \since QGIS 3.0
      */
     void setSubType( QVariant::Type subType );
 
@@ -278,7 +305,6 @@ class CORE_EXPORT QgsField
      * \returns expression evaluated when calculating default values for field, or an
      * empty string if no default is set
      * \see setDefaultValueDefinition()
-     * \since QGIS 3.0
      */
     QgsDefaultValue defaultValueDefinition() const;
 
@@ -287,21 +313,18 @@ class CORE_EXPORT QgsField
      * \param defaultValueDefinition expression to evaluate when calculating default values for field. Pass
      * a default constructed QgsDefaultValue() to reset.
      * \see defaultValueDefinition()
-     * \since QGIS 3.0
      */
     void setDefaultValueDefinition( const QgsDefaultValue &defaultValueDefinition );
 
     /**
      * Returns constraints which are present for the field.
      * \see setConstraints()
-     * \since QGIS 3.0
      */
     const QgsFieldConstraints &constraints() const;
 
     /**
      * Sets constraints which are present for the field.
      * \see constraints()
-     * \since QGIS 3.0
      */
     void setConstraints( const QgsFieldConstraints &constraints );
 
@@ -309,7 +332,6 @@ class CORE_EXPORT QgsField
      * Returns the alias for the field (the friendly displayed name of the field ),
      * or an empty string if there is no alias.
      * \see setAlias()
-     * \since QGIS 3.0
      */
     QString alias() const;
 
@@ -317,21 +339,22 @@ class CORE_EXPORT QgsField
      * Sets the alias for the field (the friendly displayed name of the field ).
      * \param alias field alias, or empty string to remove an existing alias
      * \see alias()
-     * \since QGIS 3.0
      */
     void setAlias( const QString &alias );
 
     /**
-     * Returns the Flags for the field (searchable, …)
-     * \since QGIS 3.16
+     * Returns the Flags for the field (searchable, …).
+     * \see setConfigurationFlags()
+     * \since QGIS 3.34
      */
-    QgsField::ConfigurationFlags configurationFlags() const SIP_SKIP;
+    Qgis::FieldConfigurationFlags configurationFlags() const;
 
     /**
-     * Sets the Flags for the field (searchable, …)
-     * \since QGIS 3.16
+     * Sets the Flags for the field (searchable, …).
+     * \see configurationFlags()
+     * \since QGIS 3.34
      */
-    void setConfigurationFlags( QgsField::ConfigurationFlags configurationFlags ) SIP_SKIP;
+    void setConfigurationFlags( Qgis::FieldConfigurationFlags flags );
 
     //! Formats string for display
     QString displayString( const QVariant &v ) const;
@@ -340,7 +363,7 @@ class CORE_EXPORT QgsField
      * Returns the readable and translated value of the configuration flag
      * \since QGIS 3.16
      */
-    static QString readableConfigurationFlag( QgsField::ConfigurationFlag flag ) SIP_SKIP;
+    static QString readableConfigurationFlag( Qgis::FieldConfigurationFlag flag );
 
 #ifndef SIP_RUN
 
@@ -494,8 +517,6 @@ class CORE_EXPORT QgsField
 }; // class QgsField
 
 Q_DECLARE_METATYPE( QgsField )
-
-Q_DECLARE_OPERATORS_FOR_FLAGS( QgsField::ConfigurationFlags ) SIP_SKIP
 
 //! Writes the field to stream out. QGIS version compatibility is not guaranteed.
 CORE_EXPORT QDataStream &operator<<( QDataStream &out, const QgsField &field );

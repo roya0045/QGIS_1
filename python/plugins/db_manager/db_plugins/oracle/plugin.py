@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : DB Manager
@@ -22,8 +20,6 @@ The content of this file is based on
  *                                                                         *
  ***************************************************************************/
 """
-from builtins import str
-from builtins import range
 
 # this will disable the dbplugin if the connector raise an ImportError
 from .connector import OracleDBConnector
@@ -79,20 +75,20 @@ class OracleDBPlugin(DBPlugin):
     def connect(self, parent=None):
         conn_name = self.connectionName()
         settings = QgsSettings()
-        settings.beginGroup("/{0}/{1}".format(
+        settings.beginGroup("/{}/{}".format(
             self.connectionSettingsKey(), conn_name))
 
         if not settings.contains("database"):  # non-existent entry?
             raise InvalidDataException(
-                self.tr('There is no defined database connection "{0}".'.format(
+                self.tr('There is no defined database connection "{}".'.format(
                     conn_name)))
 
         from qgis.core import QgsDataSourceUri
         uri = QgsDataSourceUri()
 
         settingsList = ["host", "port", "database", "username", "password"]
-        host, port, database, username, password = [
-            settings.value(x, "", type=str) for x in settingsList]
+        host, port, database, username, password = (
+            settings.value(x, "", type=str) for x in settingsList)
 
         # get all of the connection options
 
@@ -245,7 +241,7 @@ class ORDatabase(Database):
         action = QAction(QApplication.translate(
             "DBManagerPlugin", "Delete Selected Item"), self)
         mainWindow.registerAction(action, None, self.deleteActionSlot)
-        action.setShortcuts(QKeySequence.Delete)
+        action.setShortcuts(QKeySequence.StandardKey.Delete)
 
         action = QAction(QgsApplication.getThemeIcon("/mActionCreateTable.svg"),
                          QApplication.translate(
@@ -353,10 +349,10 @@ class ORTable(Table):
                         QApplication.translate(
                             "DBManagerPlugin", "Table Index"),
                         msg,
-                        QMessageBox.Yes | QMessageBox.No) == QMessageBox.No:
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.No:
                     return False
             finally:
-                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
             if index_action == "rebuild":
                 self.aboutToChange.emit()

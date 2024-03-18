@@ -51,6 +51,7 @@ const QgsSettingsEntryString *QgsArcGisConnectionSettings::settingsAuthcfg = new
 const QgsSettingsEntryString *QgsArcGisConnectionSettings::settingsUsername = new QgsSettingsEntryString( QStringLiteral( "username" ), sTreeConnectionArcgis );
 const QgsSettingsEntryString *QgsArcGisConnectionSettings::settingsPassword = new QgsSettingsEntryString( QStringLiteral( "password" ), sTreeConnectionArcgis );
 const QgsSettingsEntryVariantMap *QgsArcGisConnectionSettings::settingsHeaders = new QgsSettingsEntryVariantMap( QStringLiteral( "http-header" ), sTreeConnectionArcgis );
+const QgsSettingsEntryString *QgsArcGisConnectionSettings::settingsUrlPrefix = new QgsSettingsEntryString( QStringLiteral( "urlprefix" ), sTreeConnectionArcgis );
 const QgsSettingsEntryString *QgsArcGisConnectionSettings::settingsContentEndpoint = new QgsSettingsEntryString( QStringLiteral( "content-endpoint" ), sTreeConnectionArcgis );
 const QgsSettingsEntryString *QgsArcGisConnectionSettings::settingsCommunityEndpoint = new QgsSettingsEntryString( QStringLiteral( "community-endpoint" ), sTreeConnectionArcgis );
 
@@ -66,7 +67,7 @@ const QgsSettingsEntryEnumFlag<Qgis::DpiMode> *QgsOwsConnection::settingsDpiMode
 const QgsSettingsEntryEnumFlag<Qgis::TilePixelRatio> *QgsOwsConnection::settingsTilePixelRatio = new QgsSettingsEntryEnumFlag<Qgis::TilePixelRatio>( QStringLiteral( "tile-pixel-ratio" ), sTreeOwsConnections, Qgis::TilePixelRatio::Undefined, QString(), Qgis::SettingsOption::SaveEnumFlagAsInt ) ;
 const QgsSettingsEntryString *QgsOwsConnection::settingsMaxNumFeatures = new QgsSettingsEntryString( QStringLiteral( "max-num-features" ), sTreeOwsConnections ) ;
 const QgsSettingsEntryString *QgsOwsConnection::settingsPagesize = new QgsSettingsEntryString( QStringLiteral( "page-size" ), sTreeOwsConnections ) ;
-const QgsSettingsEntryBool *QgsOwsConnection::settingsPagingEnabled = new QgsSettingsEntryBool( QStringLiteral( "paging-enabled" ), sTreeOwsConnections, true ) ;
+const QgsSettingsEntryString *QgsOwsConnection::settingsPagingEnabled = new QgsSettingsEntryString( QStringLiteral( "paging-enabled" ), sTreeOwsConnections, QString( "default" ) ) ;
 const QgsSettingsEntryBool *QgsOwsConnection::settingsPreferCoordinatesForWfsT11 = new QgsSettingsEntryBool( QStringLiteral( "prefer-coordinates-for-wfs-T11" ), sTreeOwsConnections, false ) ;
 const QgsSettingsEntryBool *QgsOwsConnection::settingsIgnoreAxisOrientation = new QgsSettingsEntryBool( QStringLiteral( "ignore-axis-orientation" ), sTreeOwsConnections, false ) ;
 const QgsSettingsEntryBool *QgsOwsConnection::settingsInvertAxisOrientation = new QgsSettingsEntryBool( QStringLiteral( "invert-axis-orientation" ), sTreeOwsConnections, false ) ;
@@ -85,8 +86,8 @@ QgsOwsConnection::QgsOwsConnection( const QString &service, const QString &connN
   mUri.setParam( QStringLiteral( "url" ), url );
 
   // Check for credentials and prepend to the connection info
-  const QString username = settingsUsername->value( {mService, mConnName} );
-  const QString password = settingsPassword->value( {mService, mConnName} );
+  const QString username = settingsUsername->value( {mService.toLower(), mConnName} );
+  const QString password = settingsPassword->value( {mService.toLower(), mConnName} );
   if ( !username.isEmpty() )
   {
     // check for a password, if none prompt to get it
@@ -94,7 +95,7 @@ QgsOwsConnection::QgsOwsConnection( const QString &service, const QString &connN
     mUri.setPassword( password );
   }
 
-  const QString authcfg = settingsAuthCfg->value( {mService, mConnName} );
+  const QString authcfg = settingsAuthCfg->value( {mService.toLower(), mConnName} );
   if ( !authcfg.isEmpty() )
   {
     mUri.setAuthConfigId( authcfg );

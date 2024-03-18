@@ -48,15 +48,32 @@ class CORE_EXPORT QgsRendererRange
      * \param range The classification range
      * \param symbol The symbol for this renderer range
      * \param render If TRUE, it will be renderered
+     * \param uuid Optional parameter to manually set the UUID key identifier for the this range (since QGIS 3.34).
      */
-    QgsRendererRange( const QgsClassificationRange &range, QgsSymbol *symbol SIP_TRANSFER, bool render = true );
-    QgsRendererRange( double lowerValue, double upperValue, QgsSymbol *symbol SIP_TRANSFER, const QString &label, bool render = true );
+    QgsRendererRange( const QgsClassificationRange &range, QgsSymbol *symbol SIP_TRANSFER, bool render = true, const QString &uuid = QString() );
+
+    /**
+     * Creates a renderer symbol range
+     * \param lowerValue The lower bound of the range
+     * \param upperValue The upper bound of the range
+     * \param symbol The symbol for this renderer range
+     * \param label The label used for the range
+     * \param render If TRUE, it will be renderered
+     * \param uuid Optional parameter to manually set the UUID key identifier for the this range (since QGIS 3.34).
+     */
+    QgsRendererRange( double lowerValue, double upperValue, QgsSymbol *symbol SIP_TRANSFER, const QString &label, bool render = true, const QString &uuid = QString() );
     QgsRendererRange( const QgsRendererRange &range );
 
     // default dtor is OK
     QgsRendererRange &operator=( QgsRendererRange range );
 
     bool operator<( const QgsRendererRange &other ) const;
+
+    /**
+     * Returns the unique identifier for this range.
+     * \since QGIS 3.34
+     */
+    QString uuid() const;
 
     /**
      * Returns the lower bound of the range.
@@ -124,7 +141,6 @@ class CORE_EXPORT QgsRendererRange
      * Returns TRUE if the range should be rendered.
      *
      * \see setRenderState()
-     * \since QGIS 2.6
      */
     bool renderState() const;
 
@@ -132,7 +148,6 @@ class CORE_EXPORT QgsRendererRange
      * Sets whether the range should be rendered.
      *
      * \see renderState()
-     * \since QGIS 2.6
      */
     void setRenderState( bool render );
 
@@ -183,6 +198,7 @@ class CORE_EXPORT QgsRendererRange
     std::unique_ptr<QgsSymbol> mSymbol;
     QString mLabel;
     bool mRender = true;
+    QString mUuid;
 
     // for cpy+swap idiom
     void swap( QgsRendererRange &other );
@@ -194,7 +210,6 @@ typedef QList<QgsRendererRange> QgsRangeList;
 /**
  * \ingroup core
  * \class QgsRendererRangeLabelFormat
- * \since QGIS 2.6
  * \deprecated since QGIS 3.10, use QgsClassificationMethod instead
  */
 class CORE_DEPRECATED_EXPORT QgsRendererRangeLabelFormat SIP_DEPRECATED

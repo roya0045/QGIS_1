@@ -5,6 +5,7 @@ set(QGIS_QUICK_GUI_MOC_HDRS
   qgsquickelevationprofilecanvas.h
   qgsquickmapcanvasmap.h
   qgsquickmapsettings.h
+  qgsquickmaptoscreen.h
   qgsquickmaptransform.h
   qgsquickutils.h
 )
@@ -14,6 +15,7 @@ set(QGIS_QUICK_GUI_SRC
   qgsquickelevationprofilecanvas.cpp
   qgsquickmapcanvasmap.cpp
   qgsquickmapsettings.cpp
+  qgsquickmaptoscreen.cpp
   qgsquickmaptransform.cpp
   qgsquickutils.cpp
 )
@@ -24,14 +26,8 @@ include_directories(
 )
 
 include_directories(SYSTEM
-  ${GDAL_INCLUDE_DIR}
-  ${PROJ_INCLUDE_DIR}
   ${LIBZIP_INCLUDE_DIRS}
   ${SPATIALINDEX_INCLUDE_DIR}
-  ${GEOS_INCLUDE_DIR}
-  ${EXPAT_INCLUDE_DIR}
-  ${SQLITE3_INCLUDE_DIR}
-  ${SPATIALITE_INCLUDE_DIR}
   ${QCA_INCLUDE_DIR}
   ${QTKEYCHAIN_INCLUDE_DIR}
 )

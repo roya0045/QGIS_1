@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
 *                                                                         *
@@ -105,7 +103,7 @@ class ExampleProcessingAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSource(
                 self.INPUT,
                 self.tr('Input layer'),
-                [QgsProcessing.TypeVectorAnyGeometry]
+                [QgsProcessing.SourceType.TypeVectorAnyGeometry]
             )
         )
 
@@ -150,7 +148,7 @@ class ExampleProcessingAlgorithm(QgsProcessingAlgorithm):
         )
 
         # Send some information to the user
-        feedback.pushInfo('CRS is {}'.format(source.sourceCrs().authid()))
+        feedback.pushInfo(f'CRS is {source.sourceCrs().authid()}')
 
         # If sink was not created, throw an exception to indicate that the algorithm
         # encountered a fatal error. The exception text can be any string, but in this
@@ -170,7 +168,7 @@ class ExampleProcessingAlgorithm(QgsProcessingAlgorithm):
                 break
 
             # Add a feature in the sink
-            sink.addFeature(feature, QgsFeatureSink.FastInsert)
+            sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
 
             # Update the progress bar
             feedback.setProgress(int(current * total))

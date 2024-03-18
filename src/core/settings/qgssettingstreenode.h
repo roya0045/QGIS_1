@@ -26,7 +26,6 @@ class QgsSettingsTreeNamedListNode;
 class QgsSettingsEntryBase;
 class QgsSettingsEntryString;
 
-
 /**
  * \ingroup core
  * \class QgsSettingsTreeNode
@@ -109,13 +108,13 @@ class CORE_EXPORT QgsSettingsTreeNode
     QList<QgsSettingsTreeNode *> childrenNodes() const {return mChildrenNodes;}
 
     //! Returns the existing child node if it exists at the given \a key
-    QgsSettingsTreeNode *childNode( const QString &key );
+    QgsSettingsTreeNode *childNode( const QString &key ) const;
 
     //! Returns the children settings
     QList<const QgsSettingsEntryBase *> childrenSettings() const {return mChildrenSettings;}
 
     //! Returns the existing child settings if it exists at the given \a key
-    const QgsSettingsEntryBase *childSetting( const QString &key );
+    const QgsSettingsEntryBase *childSetting( const QString &key ) const;
 
     //! Returns the parent of the node or nullptr if it does not exists
     QgsSettingsTreeNode *parent() const {return mParent;}
@@ -144,7 +143,6 @@ class CORE_EXPORT QgsSettingsTreeNode
     void registerChildNode( QgsSettingsTreeNode *node );
 
     Qgis::SettingsTreeNodeType mType = Qgis::SettingsTreeNodeType::Root;
-
 
   private:
 

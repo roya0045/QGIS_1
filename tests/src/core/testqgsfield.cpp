@@ -103,8 +103,17 @@ void TestQgsField::copy()
   original.setConstraints( constraints );
   original.setReadOnly( true );
   original.setSplitPolicy( Qgis::FieldDomainSplitPolicy::GeometryRatio );
+  original.setMetadata( {{ 1, QStringLiteral( "abc" )}, {2, 5 }} );
+
+  QVariantMap config;
+  config.insert( QStringLiteral( "a" ), "value_a" );
+  const QgsEditorWidgetSetup setup( QStringLiteral( "test" ), config );
+  original.setEditorWidgetSetup( setup );
+
   QgsField copy( original );
   QVERIFY( copy == original );
+  QCOMPARE( copy.editorWidgetSetup().type(), original.editorWidgetSetup().type() );
+  QCOMPARE( copy.editorWidgetSetup().config(), original.editorWidgetSetup().config() );
 
   copy.setName( QStringLiteral( "copy" ) );
   QCOMPARE( original.name(), QString( "original" ) );
@@ -121,6 +130,7 @@ void TestQgsField::assignment()
   original.setConstraints( constraints );
   original.setReadOnly( true );
   original.setSplitPolicy( Qgis::FieldDomainSplitPolicy::GeometryRatio );
+  original.setMetadata( {{ 1, QStringLiteral( "abc" )}, {2, 5 }} );
   QgsField copy;
   copy = original;
   QVERIFY( copy == original );
@@ -193,6 +203,19 @@ void TestQgsField::gettersSetters()
 
   field.setSplitPolicy( Qgis::FieldDomainSplitPolicy::GeometryRatio );
   QCOMPARE( field.splitPolicy(), Qgis::FieldDomainSplitPolicy::GeometryRatio );
+
+  field.setMetadata( {{ static_cast< int >( Qgis::FieldMetadataProperty::GeometryCrs ), QStringLiteral( "abc" )}, {2, 5 }} );
+  QMap< int, QVariant> expected {{ static_cast< int >( Qgis::FieldMetadataProperty::GeometryCrs ), QStringLiteral( "abc" )}, {2, 5 }};
+  QCOMPARE( field.metadata(), expected );
+  QVERIFY( !field.metadata( Qgis::FieldMetadataProperty::GeometryWkbType ).isValid() );
+  QCOMPARE( field.metadata( Qgis::FieldMetadataProperty::GeometryCrs ).toString(), QStringLiteral( "abc" ) );
+  field.setMetadata( Qgis::FieldMetadataProperty::GeometryWkbType, QStringLiteral( "def" ) );
+  QCOMPARE( field.metadata( Qgis::FieldMetadataProperty::GeometryWkbType ).toString(), QStringLiteral( "def" ) );
+
+  expected = QMap< int, QVariant> {{ static_cast< int >( Qgis::FieldMetadataProperty::GeometryCrs ), QStringLiteral( "abc" )}, {2, 5 }
+    , {static_cast<int>( Qgis::FieldMetadataProperty::GeometryWkbType ), QStringLiteral( "def" ) }
+  };
+  QCOMPARE( field.metadata(), expected );
 }
 
 void TestQgsField::isNumeric()
@@ -336,12 +359,44 @@ void TestQgsField::equality()
   field2.setSplitPolicy( Qgis::FieldDomainSplitPolicy::GeometryRatio );
   QVERIFY( field1 == field2 );
 
+  field1.setMetadata( {{ static_cast< int >( Qgis::FieldMetadataProperty::GeometryCrs ), QStringLiteral( "abc" )}, {2, 5 }} );
+  QVERIFY( !( field1 == field2 ) );
+  QVERIFY( field1 != field2 );
+  field2.setMetadata( {{ static_cast< int >( Qgis::FieldMetadataProperty::GeometryCrs ), QStringLiteral( "abc" )}, {2, 5 }} );
+  QVERIFY( field1 == field2 );
+  QVERIFY( !( field1 != field2 ) );
+
   QgsFieldConstraints constraints1;
   QgsFieldConstraints constraints2;
   constraints1.setDomainName( QStringLiteral( "d" ) );
   QVERIFY( !( constraints1 == constraints2 ) );
   constraints2.setDomainName( QStringLiteral( "d" ) );
   QVERIFY( constraints1 == constraints2 );
+
+  QgsEditorWidgetSetup setup1 { QStringLiteral( "TextEdit" ), QVariantMap() };
+  QgsEditorWidgetSetup setup2 { QStringLiteral( "TextEdit" ), QVariantMap() };
+
+  field1.setEditorWidgetSetup( setup1 );
+  field2.setEditorWidgetSetup( setup2 );
+  QVERIFY( field1 == field2 );
+
+  setup2 = QgsEditorWidgetSetup{ QStringLiteral( "Text" ), QVariantMap() };
+  field2.setEditorWidgetSetup( setup2 );
+  QVERIFY( field1 != field2 );
+  setup1 = QgsEditorWidgetSetup{ QStringLiteral( "Text" ), QVariantMap() };
+  field1.setEditorWidgetSetup( setup1 );
+  QVERIFY( field1 == field2 );
+
+  setup1 = QgsEditorWidgetSetup{ QStringLiteral( "TextEdit" ), QVariantMap{ { QStringLiteral( "a" ), QStringLiteral( "b" ) } } };
+  setup2 = QgsEditorWidgetSetup{ QStringLiteral( "TextEdit" ), QVariantMap{ { QStringLiteral( "a" ), QStringLiteral( "b" ) } } };
+  field1.setEditorWidgetSetup( setup1 );
+  field2.setEditorWidgetSetup( setup2 );
+  QVERIFY( field1 == field2 );
+
+  setup2 = QgsEditorWidgetSetup{ QStringLiteral( "TextEdit" ), QVariantMap{ { QStringLiteral( "a" ), QStringLiteral( "XXXXXX" ) } } };
+  field2.setEditorWidgetSetup( setup2 );
+  QVERIFY( field1 != field2 );
+
 }
 
 void TestQgsField::asVariant()
@@ -806,19 +861,37 @@ void TestQgsField::convertCompatible()
   QVariant vZero = 0;
   QVERIFY( intField.convertCompatible( vZero ) );
 
-  // Test json field conversion
-  const QgsField jsonField( QStringLiteral( "json" ), QVariant::String, QStringLiteral( "json" ) );
-  QVariant jsonValue = QVariant::fromValue( QVariantList() << 1 << 5 << 8 );
-  QVERIFY( jsonField.convertCompatible( jsonValue ) );
-  QCOMPARE( jsonValue.type(), QVariant::String );
-  QCOMPARE( jsonValue, QString( "[1,5,8]" ) );
-  QVariantMap variantMap;
-  variantMap.insert( QStringLiteral( "a" ), 1 );
-  variantMap.insert( QStringLiteral( "c" ), 3 );
-  jsonValue = QVariant::fromValue( variantMap );
-  QVERIFY( jsonField.convertCompatible( jsonValue ) );
-  QCOMPARE( jsonValue.type(), QVariant::String );
-  QCOMPARE( jsonValue, QString( "{\"a\":1,\"c\":3}" ) );
+  // Test string-based json field conversion
+  {
+    const QgsField jsonField( QStringLiteral( "json" ), QVariant::String, QStringLiteral( "json" ) );
+    QVariant jsonValue = QVariant::fromValue( QVariantList() << 1 << 5 << 8 );
+    QVERIFY( jsonField.convertCompatible( jsonValue ) );
+    QCOMPARE( jsonValue.type(), QVariant::String );
+    QCOMPARE( jsonValue, QString( "[1,5,8]" ) );
+    QVariantMap variantMap;
+    variantMap.insert( QStringLiteral( "a" ), 1 );
+    variantMap.insert( QStringLiteral( "c" ), 3 );
+    jsonValue = QVariant::fromValue( variantMap );
+    QVERIFY( jsonField.convertCompatible( jsonValue ) );
+    QCOMPARE( jsonValue.type(), QVariant::String );
+    QCOMPARE( jsonValue, QString( "{\"a\":1,\"c\":3}" ) );
+  }
+
+  // Test map-based json field (i.e. OGR geopackage JSON fields) conversion
+  {
+    const QgsField jsonField( QStringLiteral( "json" ), QVariant::Map, QStringLiteral( "json" ) );
+    QVariant jsonValue = QVariant::fromValue( QVariantList() << 1 << 5 << 8 );
+    QVERIFY( jsonField.convertCompatible( jsonValue ) );
+    QCOMPARE( jsonValue.type(), QVariant::List );
+    QCOMPARE( jsonValue, QVariantList() << 1 << 5 << 8 );
+    QVariantMap variantMap;
+    variantMap.insert( QStringLiteral( "a" ), 1 );
+    variantMap.insert( QStringLiteral( "c" ), 3 );
+    jsonValue = QVariant::fromValue( variantMap );
+    QVERIFY( jsonField.convertCompatible( jsonValue ) );
+    QCOMPARE( jsonValue.type(), QVariant::Map );
+    QCOMPARE( jsonValue, variantMap );
+  }
 
   // geometry field conversion
   const QgsField geometryField( QStringLiteral( "geometry" ), QVariant::UserType, QStringLiteral( "geometry" ) );
@@ -856,6 +929,7 @@ void TestQgsField::dataStream()
   constraints.setConstraintExpression( QStringLiteral( "constraint expression" ), QStringLiteral( "description" ) );
   constraints.setConstraintStrength( QgsFieldConstraints::ConstraintExpression, QgsFieldConstraints::ConstraintStrengthSoft );
   original.setConstraints( constraints );
+  original.setMetadata( {{ static_cast< int >( Qgis::FieldMetadataProperty::GeometryCrs ), QStringLiteral( "abc" )}, {2, 5 }} );
 
   QByteArray ba;
   QDataStream ds( &ba, QIODevice::ReadWrite );
@@ -935,8 +1009,17 @@ void TestQgsField::editorWidgetSetup()
   const QgsEditorWidgetSetup setup( QStringLiteral( "test" ), config );
   field.setEditorWidgetSetup( setup );
 
+  const QgsField otherField = field;
+
   QCOMPARE( field.editorWidgetSetup().type(), setup.type() );
   QCOMPARE( field.editorWidgetSetup().config(), setup.config() );
+  // trigger copy-on-write with unrelated method call when private pointer is referenced more than once
+  field.setName( QStringLiteral( "original" ) );
+  // verify that editorWidgetSetup still remains
+  QCOMPARE( field.editorWidgetSetup().type(), setup.type() );
+  QCOMPARE( field.editorWidgetSetup().config(), setup.config() );
+  QCOMPARE( otherField.editorWidgetSetup().type(), setup.type() );
+  QCOMPARE( otherField.editorWidgetSetup().config(), setup.config() );
 }
 
 void TestQgsField::collection()

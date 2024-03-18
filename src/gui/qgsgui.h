@@ -47,12 +47,14 @@ class QgsProviderSourceWidgetProviderRegistry;
 class QgsRelationWidgetRegistry;
 class QgsMapToolShapeRegistry;
 class QgsHistoryProviderRegistry;
+class QgsSensorGuiRegistry;
+class QgsSettingsEditorWidgetRegistry;
+class QgsInputControllerManager;
 
 /**
  * \ingroup gui
  * \brief QgsGui is a singleton class containing various registry and other global members
  * related to GUI classes.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsGui : public QObject
 {
@@ -175,6 +177,12 @@ class GUI_EXPORT QgsGui : public QObject
     static QgsProviderGuiRegistry *providerGuiRegistry() SIP_KEEPREFERENCE;
 
     /**
+     * Returns the registry of GUI-related components for sensors
+     * \since QGIS 3.32
+     */
+    static QgsSensorGuiRegistry *sensorGuiRegistry() SIP_KEEPREFERENCE;
+
+    /**
      * Returns the registry of subset string editors of data providers
      * \since QGIS 3.18
      */
@@ -206,6 +214,12 @@ class GUI_EXPORT QgsGui : public QObject
     static QgsHistoryProviderRegistry *historyProviderRegistry() SIP_KEEPREFERENCE;
 
     /**
+     * Returns the registry of settings editors.
+     * \since QGIS 3.32
+     */
+    static QgsSettingsEditorWidgetRegistry *settingsEditorWidgetRegistry() SIP_KEEPREFERENCE;
+
+    /**
      * Register the widget to allow its position to be automatically saved and restored when open and closed.
      * Use this to avoid needing to call saveGeometry() and restoreGeometry() on your widget.
      */
@@ -226,10 +240,16 @@ class GUI_EXPORT QgsGui : public QObject
     static void setWindowManager( QgsWindowManagerInterface *manager SIP_TRANSFER );
 
     /**
+     * Returns the global input controller manager.
+     * \since QGIS 3.32
+     */
+    static QgsInputControllerManager *inputControllerManager() SIP_KEEPREFERENCE;
+
+    /**
      * HIG flags, which indicate the Human Interface Guidelines for the current platform.
      * \since QGIS 3.4
     */
-    enum HigFlag
+    enum HigFlag SIP_ENUM_BASETYPE( IntFlag )
     {
       HigMenuTextIsTitleCase = 1 << 0,       //!< Menu action texts should be title case
       HigDialogTitleIsTitleCase = 1 << 1     //!< Dialog titles should be title case
@@ -313,6 +333,9 @@ class GUI_EXPORT QgsGui : public QObject
     QgsRelationWidgetRegistry *mRelationEditorRegistry = nullptr;
     QgsMapToolShapeRegistry *mShapeMapToolRegistry = nullptr;
     QgsHistoryProviderRegistry *mHistoryProviderRegistry = nullptr;
+    QgsSensorGuiRegistry *mSensorGuiRegistry = nullptr;
+    QgsSettingsEditorWidgetRegistry *mSettingsEditorRegistry = nullptr;
+    QgsInputControllerManager *mInputControllerManager = nullptr;
     std::unique_ptr< QgsWindowManagerInterface > mWindowManager;
 
 #ifdef SIP_RUN

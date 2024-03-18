@@ -32,6 +32,8 @@
 #include <Qsci/qscilexerpython.h>
 #include <QDesktopServices>
 #include <QKeyEvent>
+#include <QAction>
+#include <QMenu>
 
 const QMap<QString, QString> QgsCodeEditorPython::sCompletionPairs
 {
@@ -51,12 +53,13 @@ const QgsSettingsEntryBool *QgsCodeEditorPython::settingBlackNormalizeQuotes = n
 ///@endcond PRIVATE
 
 
-QgsCodeEditorPython::QgsCodeEditorPython( QWidget *parent, const QList<QString> &filenames, Mode mode )
+QgsCodeEditorPython::QgsCodeEditorPython( QWidget *parent, const QList<QString> &filenames, Mode mode, Flags flags )
   : QgsCodeEditor( parent,
                    QString(),
                    false,
                    false,
-                   QgsCodeEditor::Flag::CodeFolding, mode )
+                   flags,
+                   mode )
   , mAPISFilesList( filenames )
 {
   if ( !parent )
@@ -149,7 +152,7 @@ void QgsCodeEditorPython::initializeLexer()
       {
         if ( !QFileInfo::exists( path ) )
         {
-          QgsDebugMsg( QStringLiteral( "The apis file %1 was not found" ).arg( path ) );
+          QgsDebugError( QStringLiteral( "The apis file %1 was not found" ).arg( path ) );
         }
         else
         {
@@ -163,7 +166,7 @@ void QgsCodeEditorPython::initializeLexer()
   {
     if ( !QFileInfo::exists( mAPISFilesList[0] ) )
     {
-      QgsDebugMsg( QStringLiteral( "The apis file %1 not found" ).arg( mAPISFilesList.at( 0 ) ) );
+      QgsDebugError( QStringLiteral( "The apis file %1 not found" ).arg( mAPISFilesList.at( 0 ) ) );
       return;
     }
     mPapFile = mAPISFilesList[0];
@@ -175,7 +178,7 @@ void QgsCodeEditorPython::initializeLexer()
     {
       if ( !QFileInfo::exists( path ) )
       {
-        QgsDebugMsg( QStringLiteral( "The apis file %1 was not found" ).arg( path ) );
+        QgsDebugError( QStringLiteral( "The apis file %1 was not found" ).arg( path ) );
       }
       else
       {
@@ -219,15 +222,6 @@ void QgsCodeEditorPython::keyPressEvent( QKeyEvent *event )
   if ( isReadOnly() )
   {
     return QgsCodeEditor::keyPressEvent( event );
-  }
-  const bool ctrlModifier = event->modifiers() & Qt::ControlModifier;
-
-  // Toggle comment when user presses  Ctrl+:
-  if ( ctrlModifier && event->key() == Qt::Key_Colon )
-  {
-    event->accept();
-    toggleComment();
-    return;
   }
 
   const QgsSettings settings;
@@ -345,8 +339,12 @@ void QgsCodeEditorPython::keyPressEvent( QKeyEvent *event )
       }
 
       // Else, if not inside a string or comment and an opening character
-      // is entered, also insert the closing character
-      else if ( !isCursorInsideStringLiteralOrComment() && sCompletionPairs.contains( eText ) )
+      // is entered, also insert the closing character, provided the next
+      // character is a space, a colon, or a closing character
+      else if ( !isCursorInsideStringLiteralOrComment()
+                && sCompletionPairs.contains( eText )
+                && ( nextChar.isEmpty() || nextChar.at( 0 ).isSpace() || nextChar == ":" || sCompletionPairs.key( nextChar ) != "" )
+              )
       {
         // Check if user is not entering triple quotes
         if ( !( ( eText == "\"" || eText == "'" ) && prevChar == eText ) )
@@ -393,7 +391,7 @@ QString QgsCodeEditorPython::reformatCodeString( const QString &string )
 
     if ( !QgsPythonRunner::run( defineSortImports ) )
     {
-      QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( defineSortImports ) );
+      QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( defineSortImports ) );
       return string;
     }
 
@@ -412,7 +410,7 @@ QString QgsCodeEditorPython::reformatCodeString( const QString &string )
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( script ) );
+      QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( script ) );
       return newText;
     }
   }
@@ -434,7 +432,7 @@ QString QgsCodeEditorPython::reformatCodeString( const QString &string )
 
     if ( !QgsPythonRunner::run( defineReformat ) )
     {
-      QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( defineReformat ) );
+      QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( defineReformat ) );
       return newText;
     }
 
@@ -453,7 +451,7 @@ QString QgsCodeEditorPython::reformatCodeString( const QString &string )
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( script ) );
+      QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( script ) );
       return newText;
     }
   }
@@ -480,7 +478,7 @@ QString QgsCodeEditorPython::reformatCodeString( const QString &string )
 
     if ( !QgsPythonRunner::run( defineReformat ) )
     {
-      QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( defineReformat ) );
+      QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( defineReformat ) );
       return string;
     }
 
@@ -499,7 +497,7 @@ QString QgsCodeEditorPython::reformatCodeString( const QString &string )
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( script ) );
+      QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( script ) );
       return newText;
     }
   }
@@ -512,12 +510,27 @@ QString QgsCodeEditorPython::reformatCodeString( const QString &string )
     }
     else
     {
-      const QString modules = missingModules.join( QStringLiteral( ", " ) );
+      const QString modules = missingModules.join( QLatin1String( ", " ) );
       showMessage( tr( "Reformat Code" ), tr( "The Python modules %1 are missing" ).arg( modules ), Qgis::MessageLevel::Warning );
     }
   }
 
   return newText;
+}
+
+void QgsCodeEditorPython::populateContextMenu( QMenu *menu )
+{
+  QgsCodeEditor::populateContextMenu( menu );
+
+  QAction *pyQgisHelpAction = new QAction(
+    QgsApplication::getThemeIcon( QStringLiteral( "console/iconHelpConsole.svg" ) ),
+    tr( "Search Selection in PyQGIS Documentation" ),
+    menu );
+  pyQgisHelpAction->setEnabled( hasSelectedText() );
+  connect( pyQgisHelpAction, &QAction::triggered, this, &QgsCodeEditorPython::searchSelectedTextInPyQGISDocs );
+
+  menu->addSeparator();
+  menu->addAction( pyQgisHelpAction );
 }
 
 void QgsCodeEditorPython::autoComplete()
@@ -544,7 +557,7 @@ void QgsCodeEditorPython::autoComplete()
 void QgsCodeEditorPython::loadAPIs( const QList<QString> &filenames )
 {
   mAPISFilesList = filenames;
-  //QgsDebugMsg( QStringLiteral( "The apis files: %1" ).arg( mAPISFilesList[0] ) );
+  //QgsDebugMsgLevel( QStringLiteral( "The apis files: %1" ).arg( mAPISFilesList[0] ), 2 );
   initializeLexer();
 }
 
@@ -558,6 +571,9 @@ bool QgsCodeEditorPython::loadScript( const QString &script )
   }
 
   QTextStream in( &file );
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  in.setCodec( "UTF-8" );
+#endif
 
   setText( in.readAll().trimmed() );
   file.close();
@@ -568,9 +584,7 @@ bool QgsCodeEditorPython::loadScript( const QString &script )
 
 bool QgsCodeEditorPython::isCursorInsideStringLiteralOrComment() const
 {
-  int line, index;
-  getCursorPosition( &line, &index );
-  int position = positionFromLineIndex( line, index );
+  int position = linearPosition();
 
   // Special case: cursor at the end of the document. Style will always be Default,
   // so  we have to  check the style of the previous character.
@@ -605,9 +619,7 @@ bool QgsCodeEditorPython::isCursorInsideStringLiteralOrComment() const
 
 QString QgsCodeEditorPython::characterBeforeCursor() const
 {
-  int line, index;
-  getCursorPosition( &line, &index );
-  int position = positionFromLineIndex( line, index );
+  int position = linearPosition();
   if ( position <= 0 )
   {
     return QString();
@@ -617,9 +629,7 @@ QString QgsCodeEditorPython::characterBeforeCursor() const
 
 QString QgsCodeEditorPython::characterAfterCursor() const
 {
-  int line, index;
-  getCursorPosition( &line, &index );
-  int position = positionFromLineIndex( line, index );
+  int position = linearPosition();
   if ( position >= length() )
   {
     return QString();
@@ -667,7 +677,7 @@ bool QgsCodeEditorPython::checkSyntax()
 
   if ( !QgsPythonRunner::run( defineCheckSyntax ) )
   {
-    QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( defineCheckSyntax ) );
+    QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( defineCheckSyntax ) );
     return true;
   }
 
@@ -695,7 +705,7 @@ bool QgsCodeEditorPython::checkSyntax()
   }
   else
   {
-    QgsDebugMsg( QStringLiteral( "Error running script: %1" ).arg( script ) );
+    QgsDebugError( QStringLiteral( "Error running script: %1" ).arg( script ) );
     return true;
   }
 }

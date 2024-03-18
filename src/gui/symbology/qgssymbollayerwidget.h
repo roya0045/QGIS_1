@@ -57,20 +57,17 @@ class GUI_EXPORT QgsSymbolLayerWidget : public QWidget, protected QgsExpressionC
      * Sets the context in which the symbol widget is shown, e.g., the associated map canvas and expression contexts.
      * \param context symbol widget context
      * \see context()
-     * \since QGIS 3.0
      */
     virtual void setContext( const QgsSymbolWidgetContext &context );
 
     /**
      * Returns the context in which the symbol widget is shown, e.g., the associated map canvas and expression contexts.
      * \see setContext()
-     * \since QGIS 3.0
      */
     QgsSymbolWidgetContext context() const;
 
     /**
      * Returns the vector layer associated with the widget.
-     * \since QGIS 2.12
      */
     const QgsVectorLayer *vectorLayer() const { return mVectorLayer; }
 
@@ -80,7 +77,6 @@ class GUI_EXPORT QgsSymbolLayerWidget : public QWidget, protected QgsExpressionC
      * Registers a data defined override button. Handles setting up connections
      * for the button and initializing the button to show the correct descriptions
      * and help text for the associated property.
-     * \since QGIS 3.0
      */
     void registerDataDefinedButton( QgsPropertyOverrideButton *button, QgsSymbolLayer::Property key );
 
@@ -307,7 +303,6 @@ class QgsFilledMarkerSymbolLayer;
  * \ingroup gui
  * \class QgsFilledMarkerSymbolLayerWidget
  * \brief Widget for configuring QgsFilledMarkerSymbolLayer symbol layers.
- * \since QGIS 2.16
  */
 class GUI_EXPORT QgsFilledMarkerSymbolLayerWidget : public QgsSymbolLayerWidget, private Ui::WidgetFilledMarker
 {
@@ -820,8 +815,6 @@ class GUI_EXPORT QgsRasterFillSymbolLayerWidget : public QgsSymbolLayerWidget, p
     void offsetChanged();
     void mOffsetUnitWidget_changed();
     void mRotationSpinBox_valueChanged( double d );
-    void mWidthUnitWidget_changed();
-    void mWidthSpinBox_valueChanged( double d );
 
   private:
     void updatePreviewImage();
@@ -914,6 +907,50 @@ class GUI_EXPORT QgsLineburstSymbolLayerWidget : public QgsSymbolLayerWidget, pr
     QgsLineburstSymbolLayer *mLayer = nullptr;
 
 };
+
+
+///////////
+
+#include "ui_widget_filledline.h"
+
+class QgsFilledLineSymbolLayer;
+
+/**
+ * \ingroup gui
+ * \class QgsFilledLineSymbolLayerWidget
+ * A widget for configuring QgsFilledLineSymbolLayer.
+ * \since QGIS 3.36
+ */
+class GUI_EXPORT QgsFilledLineSymbolLayerWidget : public QgsSymbolLayerWidget, private Ui::WidgetFilledLine
+{
+    Q_OBJECT
+
+  public:
+
+    /**
+     * Constructor for QgsFilledLineSymbolLayerWidget.
+     * \param vl associated vector layer
+     * \param parent parent widget
+     */
+    QgsFilledLineSymbolLayerWidget( QgsVectorLayer *vl, QWidget *parent SIP_TRANSFERTHIS = nullptr );
+
+    ~QgsFilledLineSymbolLayerWidget() override;
+
+    /**
+     * Creates a new QgsFilledLineSymbolLayerWidget.
+     * \param vl associated vector layer
+     */
+    static QgsSymbolLayerWidget *create( QgsVectorLayer *vl ) SIP_FACTORY { return new QgsFilledLineSymbolLayerWidget( vl ); }
+
+    void setSymbolLayer( QgsSymbolLayer *layer ) override;
+    QgsSymbolLayer *symbolLayer() override;
+
+  private:
+
+    QgsFilledLineSymbolLayer *mLayer = nullptr;
+
+};
+
 
 ///////////
 
@@ -1156,7 +1193,6 @@ class GUI_EXPORT QgsFontMarkerSymbolLayerWidget : public QgsSymbolLayerWidget, p
 
     /**
      * Set stroke color.
-     * \since QGIS 2.16
     */
     void setColorStroke( const QColor &color );
     void setSize( double size );

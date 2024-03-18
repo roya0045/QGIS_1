@@ -35,6 +35,7 @@ Responsible for reading native point cloud data and returning the indexed data.
       ReadLayerMetadata,
       WriteLayerMetadata,
       CreateRenderer,
+      ContainSubIndexes,
     };
 
     typedef QFlags<QgsPointCloudDataProvider::Capability> Capabilities;
@@ -121,6 +122,8 @@ Gets the current index generation state
 %End
 
 
+
+
     bool hasValidIndex() const;
 %Docstring
 Returns whether provider has index which is valid
@@ -175,7 +178,7 @@ Returns whether the dataset contains statistics metadata
 %End
 
 
-    SIP_PYOBJECT metadataStatistic( const QString &attribute, QgsStatisticalSummary::Statistic statistic ) const;
+    SIP_PYOBJECT metadataStatistic( const QString &attribute, Qgis::Statistic statistic ) const;
 %Docstring
 Returns a statistic for the specified ``attribute``, taken only from the metadata of the point cloud
 data source.
@@ -214,7 +217,7 @@ in the metadata.
 
 
 
-    SIP_PYOBJECT metadataClassStatistic( const QString &attribute, const QVariant &value, QgsStatisticalSummary::Statistic statistic ) const;
+    SIP_PYOBJECT metadataClassStatistic( const QString &attribute, const QVariant &value, Qgis::Statistic statistic ) const;
 %Docstring
 Returns a statistic for one class ``value`` from the specified ``attribute``, taken only from the metadata of the point cloud
 data source.
@@ -243,7 +246,7 @@ in the metadata, and even for sources with statistical metadata only some ``stat
 
     QgsPointCloudStatistics metadataStatistics();
 %Docstring
-Returns the object containings the statistics metadata extracted from the dataset
+Returns the object containing the statistics metadata extracted from the dataset
 
 .. versionadded:: 3.26
 %End
@@ -290,6 +293,8 @@ Returns the map of LAS data format ID to translated string value.
 %Docstring
 Emitted when point cloud generation state is changed
 %End
+
+  protected:
 
 };
 

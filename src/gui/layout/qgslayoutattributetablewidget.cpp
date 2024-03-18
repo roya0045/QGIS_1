@@ -106,7 +106,7 @@ QgsLayoutAttributeTableWidget::QgsLayoutAttributeTableWidget( QgsLayoutFrame *fr
   //update relations combo when relations modified in project
   connect( QgsProject::instance()->relationManager(), &QgsRelationManager::changed, this, &QgsLayoutAttributeTableWidget::updateRelationsCombo );
 
-  mLayerComboBox->setFilters( QgsMapLayerProxyModel::VectorLayer );
+  mLayerComboBox->setFilters( Qgis::LayerFilter::VectorLayer );
   connect( mLayerComboBox, &QgsMapLayerComboBox::layerChanged, this, &QgsLayoutAttributeTableWidget::changeLayer );
 
   mComposerMapComboBox->setCurrentLayout( mTable->layout() );
@@ -142,7 +142,7 @@ QgsLayoutAttributeTableWidget::QgsLayoutAttributeTableWidget( QgsLayoutFrame *fr
     mLayerSourceDDBtn->registerExpressionContextGenerator( mTable );
   }
 
-  registerDataDefinedButton( mLayerSourceDDBtn, QgsLayoutObject::AttributeTableSourceLayer );
+  registerDataDefinedButton( mLayerSourceDDBtn, QgsLayoutObject::DataDefinedProperty::AttributeTableSourceLayer );
 
   //embed widget for general options
   if ( mFrame )

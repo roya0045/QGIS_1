@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2020, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import (
     QgsCoordinateReferenceSystem,
@@ -21,8 +20,12 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorLayer,
 )
-from qgis.gui import QgsExtentWidget
-from qgis.testing import start_app, unittest
+from qgis.gui import (
+    QgsExtentWidget,
+    QgsExtentGroupBox
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -30,7 +33,7 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsExtentWidget(unittest.TestCase):
+class TestQgsExtentWidget(QgisTestCase):
 
     def testGettersSetters(self):
         """ test widget getters/setters """
@@ -64,17 +67,17 @@ class TestQgsExtentWidget(unittest.TestCase):
 
         w.setOutputExtentFromOriginal()
         self.assertEqual(w.outputExtent(), QgsRectangle(1, 2, 3, 4))
-        self.assertEqual(w.extentState(), QgsExtentWidget.OriginalExtent)
+        self.assertEqual(w.extentState(), QgsExtentWidget.ExtentState.OriginalExtent)
         self.assertEqual(len(spy), 1)
 
         w.setOutputExtentFromCurrent()
         self.assertEqual(w.outputExtent(), QgsRectangle(11, 12, 13, 14))
-        self.assertEqual(w.extentState(), QgsExtentWidget.CurrentExtent)
+        self.assertEqual(w.extentState(), QgsExtentWidget.ExtentState.CurrentExtent)
         self.assertEqual(len(spy), 2)
 
         w.setOutputExtentFromUser(QgsRectangle(21, 22, 23, 24), QgsCoordinateReferenceSystem('epsg:3111'))
         self.assertEqual(w.outputExtent(), QgsRectangle(21, 22, 23, 24))
-        self.assertEqual(w.extentState(), QgsExtentWidget.UserExtent)
+        self.assertEqual(w.extentState(), QgsExtentWidget.ExtentState.UserExtent)
         self.assertEqual(len(spy), 3)
 
         shapefile = os.path.join(TEST_DATA_DIR, 'polys.shp')
@@ -85,12 +88,12 @@ class TestQgsExtentWidget(unittest.TestCase):
         # no layer - should be unchanged
         self.assertEqual(len(spy), 3)
         self.assertEqual(w.outputExtent(), QgsRectangle(21, 22, 23, 24))
-        self.assertEqual(w.extentState(), QgsExtentWidget.UserExtent)
+        self.assertEqual(w.extentState(), QgsExtentWidget.ExtentState.UserExtent)
         self.assertEqual(len(spy), 3)
 
         w.setOutputExtentFromLayer(layer)
         self.assertEqual(w.outputExtent().toString(4), QgsRectangle(-118.9229, 24.5079, -83.7900, 46.7262).toString(4))
-        self.assertEqual(w.extentState(), QgsExtentWidget.ProjectLayerExtent)
+        self.assertEqual(w.extentState(), QgsExtentWidget.ExtentState.ProjectLayerExtent)
         self.assertEqual(len(spy), 4)
 
         QgsProject.instance().removeAllMapLayers()
@@ -112,7 +115,7 @@ class TestQgsExtentWidget(unittest.TestCase):
         self.assertEqual(w.outputExtent().toString(20), QgsRectangle(1, 2, 3, 4).toString(20))
 
         # repeat, this time using original extents
-        w = qgis.gui.QgsExtentGroupBox()
+        w = QgsExtentGroupBox()
 
         w.setOutputCrs(QgsCoordinateReferenceSystem('epsg:4326'))
         w.setOriginalExtent(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('epsg:4326'))
@@ -148,7 +151,7 @@ class TestQgsExtentWidget(unittest.TestCase):
         self.assertEqual(w.outputExtent().toString(20), QgsRectangle(1, 2, 3, 4).toString(20))
 
         # custom extent
-        w = qgis.gui.QgsExtentGroupBox()
+        w = QgsExtentGroupBox()
 
         w.setOutputCrs(QgsCoordinateReferenceSystem('epsg:4326'))
         w.setOutputExtentFromUser(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('epsg:4326'))

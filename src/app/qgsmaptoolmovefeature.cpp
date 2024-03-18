@@ -49,35 +49,36 @@ void QgsMapToolMoveFeature::cadCanvasMoveEvent( QgsMapMouseEvent *e )
 {
   if ( mRubberBand )
   {
-    QgsVectorLayer *vlayer = currentVectorLayer();
-
-    // When MapCanvas crs == layer crs, fast rubberband translation
-    if ( vlayer->crs() == canvas()->mapSettings().destinationCrs() )
+    if ( QgsVectorLayer *vlayer = currentVectorLayer() )
     {
-      const QgsPointXY pointCanvasCoords = e->mapPoint();
-      const double offsetX = pointCanvasCoords.x() - mStartPointMapCoords.x();
-      const double offsetY = pointCanvasCoords.y() - mStartPointMapCoords.y();
-      mRubberBand->setTranslationOffset( offsetX, offsetY );
-    }
-
-    // Else, recreate the rubber band from the translated geometries
-    else
-    {
-      const QgsPointXY startPointLayerCoords = toLayerCoordinates( ( QgsMapLayer * )vlayer, mStartPointMapCoords );
-      const QgsPointXY stopPointLayerCoords = toLayerCoordinates( ( QgsMapLayer * )vlayer, e->mapPoint() );
-
-      const double dx = stopPointLayerCoords.x() - startPointLayerCoords.x();
-      const double dy = stopPointLayerCoords.y() - startPointLayerCoords.y();
-
-      QgsGeometry geom = mGeom;
-
-      if ( geom.translate( dx, dy ) == Qgis::GeometryOperationResult::Success )
+      // When MapCanvas crs == layer crs, fast rubberband translation
+      if ( vlayer->crs() == canvas()->mapSettings().destinationCrs() )
       {
-        mRubberBand->setToGeometry( geom, vlayer );
+        const QgsPointXY pointCanvasCoords = e->mapPoint();
+        const double offsetX = pointCanvasCoords.x() - mStartPointMapCoords.x();
+        const double offsetY = pointCanvasCoords.y() - mStartPointMapCoords.y();
+        mRubberBand->setTranslationOffset( offsetX, offsetY );
       }
+
+      // Else, recreate the rubber band from the translated geometries
       else
       {
-        mRubberBand->reset( vlayer->geometryType() );
+        const QgsPointXY startPointLayerCoords = toLayerCoordinates( ( QgsMapLayer * )vlayer, mStartPointMapCoords );
+        const QgsPointXY stopPointLayerCoords = toLayerCoordinates( ( QgsMapLayer * )vlayer, e->mapPoint() );
+
+        const double dx = stopPointLayerCoords.x() - startPointLayerCoords.x();
+        const double dy = stopPointLayerCoords.y() - startPointLayerCoords.y();
+
+        QgsGeometry geom = mGeom;
+
+        if ( geom.translate( dx, dy ) == Qgis::GeometryOperationResult::Success )
+        {
+          mRubberBand->setToGeometry( geom, vlayer );
+        }
+        else
+        {
+          mRubberBand->reset( vlayer->geometryType() );
+        }
       }
     }
   }
@@ -245,12 +246,17 @@ void QgsMapToolMoveFeature::cadCanvasReleaseEvent( QgsMapMouseEvent *e )
       case CopyMove:
         QgsFeatureRequest request;
         request.setFilterFids( mMovedFeatures );
-        QString *errorMsg = new QString();
-        if ( !QgisApp::instance()->vectorLayerTools()->copyMoveFeatures( vlayer, request, dx, dy, errorMsg, QgsProject::instance()->topologicalEditing(), mSnapIndicator->match().layer() ) )
+        QString errorMsg;
+        QString childrenInfoMsg;
+        if ( !QgisApp::instance()->vectorLayerTools()->copyMoveFeatures( vlayer, request, dx, dy, &errorMsg, QgsProject::instance()->topologicalEditing(), mSnapIndicator->match().layer(), &childrenInfoMsg ) )
         {
-          emit messageEmitted( *errorMsg, Qgis::MessageLevel::Critical );
+          emit messageEmitted( errorMsg, Qgis::MessageLevel::Critical );
           deleteRubberband();
           mSnapIndicator->setMatch( QgsPointLocator::Match() );
+        }
+        if ( !childrenInfoMsg.isEmpty() )
+        {
+          emit messageEmitted( childrenInfoMsg, Qgis::MessageLevel::Info );
         }
         break;
     }

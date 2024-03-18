@@ -152,7 +152,7 @@ QgsRasterBlock *QgsRasterContourRenderer::block( int bandNo, const QgsRectangle 
   std::unique_ptr< QgsRasterBlock > inputBlock( mInput->block( mInputBand, extent, inputWidth, inputHeight, feedback ) );
   if ( !inputBlock || inputBlock->isEmpty() )
   {
-    QgsDebugMsg( QStringLiteral( "No raster data!" ) );
+    QgsDebugError( QStringLiteral( "No raster data!" ) );
     return outputBlock.release();
   }
 
@@ -230,6 +230,26 @@ QList<QgsLayerTreeModelLegendNode *> QgsRasterContourRenderer::createLegendNodes
   }
 
   return nodes;
+}
+
+int QgsRasterContourRenderer::inputBand() const
+{
+  return mInputBand;
+}
+
+bool QgsRasterContourRenderer::setInputBand( int band )
+{
+  if ( !mInput )
+  {
+    mInputBand = band;
+    return true;
+  }
+  else if ( band > 0 && band <= mInput->bandCount() )
+  {
+    mInputBand = band;
+    return true;
+  }
+  return false;
 }
 
 void QgsRasterContourRenderer::setContourSymbol( QgsLineSymbol *symbol )

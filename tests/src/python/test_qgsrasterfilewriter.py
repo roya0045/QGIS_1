@@ -13,7 +13,6 @@ import glob
 import os
 import tempfile
 
-import qgis  # NOQA
 from osgeo import gdal
 from qgis.PyQt.QtCore import QDir, QTemporaryFile
 from qgis.core import (
@@ -26,17 +25,22 @@ from qgis.core import (
     QgsRasterProjector,
     QgsRectangle,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsRasterFileWriter(unittest.TestCase):
+def GDAL_COMPUTE_VERSION(maj, min, rev):
+    return ((maj) * 1000000 + (min) * 10000 + (rev) * 100)
+
+
+class TestQgsRasterFileWriter(QgisTestCase):
 
     def __init__(self, methodName):
-        unittest.TestCase.__init__(self, methodName)
+        QgisTestCase.__init__(self, methodName)
         self.testDataDir = unitTestDataPath()
         self.report = "<h1>Python Raster File Writer Tests</h1>\n"
 
@@ -115,33 +119,37 @@ class TestQgsRasterFileWriter(unittest.TestCase):
     def testExtensionsForFormat(self):
         self.assertCountEqual(QgsRasterFileWriter.extensionsForFormat('not format'), [])
         self.assertCountEqual(QgsRasterFileWriter.extensionsForFormat('GTiff'), ['tiff', 'tif'])
-        self.assertCountEqual(QgsRasterFileWriter.extensionsForFormat('GPKG'), ['gpkg'])
+        if int(gdal.VersionInfo('VERSION_NUM')) < GDAL_COMPUTE_VERSION(3, 7, 0):
+            self.assertCountEqual(QgsRasterFileWriter.extensionsForFormat('GPKG'), ['gpkg'])
+        else:
+            self.assertCountEqual(
+                QgsRasterFileWriter.extensionsForFormat('GPKG'), ['gpkg', 'gpkg.zip'])
         self.assertCountEqual(QgsRasterFileWriter.extensionsForFormat('JPEG'), ['jpg', 'jpeg'])
         self.assertCountEqual(QgsRasterFileWriter.extensionsForFormat('AAIGrid'), ['asc'])
 
     def testSupportedFiltersAndFormat(self):
         # test with formats in recommended order
-        formats = QgsRasterFileWriter.supportedFiltersAndFormats(QgsRasterFileWriter.SortRecommended)
+        formats = QgsRasterFileWriter.supportedFiltersAndFormats(QgsRasterFileWriter.RasterFormatOption.SortRecommended)
         self.assertEqual(formats[0].filterString, 'GeoTIFF (*.tif *.TIF *.tiff *.TIFF)')
         self.assertEqual(formats[0].driverName, 'GTiff')
-        self.assertTrue('netCDF' in [f.driverName for f in formats])
+        self.assertIn('netCDF', [f.driverName for f in formats])
 
         # alphabetical sorting
         formats2 = QgsRasterFileWriter.supportedFiltersAndFormats(QgsRasterFileWriter.RasterFormatOptions())
-        self.assertTrue(formats2[0].driverName < formats2[1].driverName)
+        self.assertLess(formats2[0].driverName, formats2[1].driverName)
         self.assertCountEqual([f.driverName for f in formats], [f.driverName for f in formats2])
         self.assertNotEqual(formats2[0].driverName, 'GTiff')
 
     def testSupportedFormatExtensions(self):
         formats = QgsRasterFileWriter.supportedFormatExtensions()
-        self.assertTrue('tif' in formats)
-        self.assertFalse('exe' in formats)
+        self.assertIn('tif', formats)
+        self.assertNotIn('exe', formats)
         self.assertEqual(formats[0], 'tif')
-        self.assertTrue('nc' in formats)
+        self.assertIn('nc', formats)
 
         # alphabetical sorting
         formats2 = QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions())
-        self.assertTrue(formats2[1] < formats2[2])
+        self.assertLess(formats2[1], formats2[2])
         self.assertCountEqual(formats, formats2)
         self.assertNotEqual(formats2[0], 'tif')
 
@@ -261,7 +269,7 @@ class TestQgsRasterFileWriter(unittest.TestCase):
         provider = source.dataProvider()
         fw = QgsRasterFileWriter(tmpName)
 
-        fw.setBuildPyramidsFlag(QgsRaster.PyramidsFlagYes)
+        fw.setBuildPyramidsFlag(QgsRaster.RasterBuildPyramids.PyramidsFlagYes)
         fw.setPyramidsFormat(pyramidFormat)
         fw.setPyramidsList([2])
 
@@ -283,24 +291,24 @@ class TestQgsRasterFileWriter(unittest.TestCase):
         self.assertEqual(ds.GetRasterBand(1).Checksum(), 4672)
         self.assertEqual(ds.GetRasterBand(1).GetOverviewCount(), 1)
         fl = ds.GetFileList()
-        if pyramidFormat == QgsRaster.PyramidsGTiff:
+        if pyramidFormat == QgsRaster.RasterPyramidsFormat.PyramidsGTiff:
             self.assertEqual(len(fl), 2, fl)
             self.assertIn('.ovr', fl[1])
-        elif pyramidFormat == QgsRaster.PyramidsInternal:
+        elif pyramidFormat == QgsRaster.RasterPyramidsFormat.PyramidsInternal:
             self.assertEqual(len(fl), 1, fl)
-        elif pyramidFormat == QgsRaster.PyramidsErdas:
+        elif pyramidFormat == QgsRaster.RasterPyramidsFormat.PyramidsErdas:
             self.assertEqual(len(fl), 2, fl)
             self.assertIn('.aux', fl[1])
         os.unlink(tmpName)
 
     def testGeneratePyramidsExternal(self):
-        return self._testGeneratePyramids(QgsRaster.PyramidsGTiff)
+        return self._testGeneratePyramids(QgsRaster.RasterPyramidsFormat.PyramidsGTiff)
 
     def testGeneratePyramidsInternal(self):
-        return self._testGeneratePyramids(QgsRaster.PyramidsInternal)
+        return self._testGeneratePyramids(QgsRaster.RasterPyramidsFormat.PyramidsInternal)
 
     def testGeneratePyramidsErdas(self):
-        return self._testGeneratePyramids(QgsRaster.PyramidsErdas)
+        return self._testGeneratePyramids(QgsRaster.RasterPyramidsFormat.PyramidsErdas)
 
     def testWriteAsRawInvalidOutputFile(self):
         tmpName = "/this/is/invalid/file.tif"
@@ -316,13 +324,13 @@ class TestQgsRasterFileWriter(unittest.TestCase):
                                         provider.xSize(),
                                         provider.ySize(),
                                         provider.extent(),
-                                        provider.crs()), QgsRasterFileWriter.CreateDatasourceError)
+                                        provider.crs()), QgsRasterFileWriter.WriterError.CreateDatasourceError)
         del fw
 
     def testWriteAsImage(self):
         tmpName = tempfile.mktemp(suffix='.tif')
         source = QgsRasterLayer(os.path.join(self.testDataDir, 'raster', 'byte.tif'), 'my', 'gdal')
-        source.setContrastEnhancement(algorithm=QgsContrastEnhancement.NoEnhancement)
+        source.setContrastEnhancement(algorithm=QgsContrastEnhancement.ContrastEnhancementAlgorithm.NoEnhancement)
         self.assertTrue(source.isValid())
         provider = source.dataProvider()
         fw = QgsRasterFileWriter(tmpName)
@@ -331,7 +339,7 @@ class TestQgsRasterFileWriter(unittest.TestCase):
                                         provider.xSize(),
                                         provider.ySize(),
                                         provider.extent(),
-                                        provider.crs()), QgsRasterFileWriter.NoError)
+                                        provider.crs()), QgsRasterFileWriter.WriterError.NoError)
         ds = gdal.Open(tmpName)
         self.assertEqual(ds.RasterCount, 4)
         self.assertEqual(ds.GetRasterBand(1).Checksum(), 4672)
@@ -346,7 +354,7 @@ class TestQgsRasterFileWriter(unittest.TestCase):
     def testWriteAsImageInvalidOutputPath(self):
         tmpName = "/this/is/invalid/file.tif"
         source = QgsRasterLayer(os.path.join(self.testDataDir, 'raster', 'byte.tif'), 'my', 'gdal')
-        source.setContrastEnhancement(algorithm=QgsContrastEnhancement.NoEnhancement)
+        source.setContrastEnhancement(algorithm=QgsContrastEnhancement.ContrastEnhancementAlgorithm.NoEnhancement)
         self.assertTrue(source.isValid())
         provider = source.dataProvider()
         fw = QgsRasterFileWriter(tmpName)
@@ -355,7 +363,7 @@ class TestQgsRasterFileWriter(unittest.TestCase):
                                         provider.xSize(),
                                         provider.ySize(),
                                         provider.extent(),
-                                        provider.crs()), QgsRasterFileWriter.CreateDatasourceError)
+                                        provider.crs()), QgsRasterFileWriter.WriterError.CreateDatasourceError)
         del fw
 
     def testWriteAsRawGS7BG(self):
@@ -374,7 +382,7 @@ class TestQgsRasterFileWriter(unittest.TestCase):
                                         provider.xSize(),
                                         provider.ySize(),
                                         provider.extent(),
-                                        provider.crs()), QgsRasterFileWriter.NoError)
+                                        provider.crs()), QgsRasterFileWriter.WriterError.NoError)
         del fw
 
         ds = gdal.Open(tmpName)

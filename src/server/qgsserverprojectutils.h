@@ -41,7 +41,6 @@ class QgsRectangle;
  * \ingroup server
  * \brief The QgsServerProjectUtils namespace provides a way to retrieve specific
  * entries from a QgsProject.
- * \since QGIS 3.0
  */
 namespace QgsServerProjectUtils
 {
@@ -243,6 +242,14 @@ namespace QgsServerProjectUtils
    * \returns if the GetLegendGraphic response has to contain legend groups
    */
   SERVER_EXPORT bool wmsAddLegendGroupsLegendGraphic( const QgsProject &project );
+
+  /**
+   * Returns if name attribute should be skipped for groups in WMS capabilities document.
+   * \param project the QGIS project
+   * \returns if name attribute should be skipped for groups in capabilities
+   * \since QGIS 3.36
+   */
+  SERVER_EXPORT bool wmsSkipNameForGroup( const QgsProject &project );
 
   /**
    * Returns the geometry precision for GetFeatureInfo request.

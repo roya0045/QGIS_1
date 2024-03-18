@@ -17,7 +17,6 @@
 
 #include "qgsapplication.h"
 #include "qgslayout.h"
-#include "qgsmultirenderchecker.h"
 #include "qgslayoutitemmap.h"
 #include "qgsmultibandcolorrenderer.h"
 #include "qgsrasterlayer.h"
@@ -48,16 +47,19 @@ class TestQgsLayoutMap : public QgsTest
     Q_OBJECT
 
   public:
-    TestQgsLayoutMap() : QgsTest( QStringLiteral( "Layout Map Tests" ) ) {}
+    TestQgsLayoutMap() : QgsTest( QStringLiteral( "Layout Map Tests" ), QStringLiteral( "composer_map" ) ) {}
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
     void init();// will be called before each testfunction is executed.
+
+    void construct(); //test constructor of QgsLayoutItemMap
     void id();
     void render();
     void uniqueId(); //test if map id is adapted when doing copy paste
     void worldFileGeneration(); // test world file generation
+    void zoomToExtent(); // test zoomToExtent method
 
     void mapPolygonVertices(); // test mapPolygon function with no map rotation
     void dataDefinedLayers(); //test data defined layer string
@@ -77,6 +79,7 @@ class TestQgsLayoutMap : public QgsTest
     void testLayeredExportLabelsByLayer();
     void testTemporal();
     void testLabelResults();
+    void testZRange();
 
   private:
     QgsRasterLayer *mRasterLayer = nullptr;
@@ -133,6 +136,21 @@ void TestQgsLayoutMap::init()
 #endif
 }
 
+void TestQgsLayoutMap::construct()
+{
+  QgsLayout l( QgsProject::instance( ) );
+  QgsLayoutItemMap mi( &l );
+  QCOMPARE( mi.type(), QgsLayoutItemRegistry::LayoutMap );
+  QVERIFY( mi.extent().isNull() ); // is this correct to expect ?
+
+  // WARNING: default values are mostly undefined behavior at
+  //          the time of writing, see
+  //          https://github.com/qgis/QGIS/pull/54827#discussion_r1346928192
+  //QVERIFY( mi.rect().isNull() ); // is this correct to expect ?
+  //QCOMPARE( mi.scale(), 0 ); // is this correct ?
+  // TODO: verify defined state
+}
+
 void TestQgsLayoutMap::id()
 {
   QgsLayout l( QgsProject::instance( ) );
@@ -152,9 +170,7 @@ void TestQgsLayoutMap::id()
   QgsLayoutItemMap *map3 = new QgsLayoutItemMap( &l );
   QCOMPARE( map3->displayName(), QStringLiteral( "Map 1" ) );
   l.addLayoutItem( map3 );
-
 }
-
 
 void TestQgsLayoutMap::render()
 {
@@ -167,10 +183,7 @@ void TestQgsLayoutMap::render()
   l.addLayoutItem( map );
 
   map->setExtent( QgsRectangle( 781662.375, 3339523.125, 793062.375, 3345223.125 ) );
-  QgsLayoutChecker checker( QStringLiteral( "composermap_render" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_map" ) );
-
-  QVERIFY( checker.testLayout( mReport, 0, 0 ) );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composermap_render" ), &l );
 }
 
 void TestQgsLayoutMap::uniqueId()
@@ -260,6 +273,25 @@ void TestQgsLayoutMap::worldFileGeneration()
   QGSCOMPARENEAR( f, 3.35331e+06, 1e+03 );
 }
 
+void TestQgsLayoutMap::zoomToExtent()
+{
+  QgsLayout l( QgsProject::instance( ) );
+  QgsLayoutItemMap mi( &l );
+  QVERIFY( mi.extent().isEmpty() );
+
+  // Sets extent to new extent, current being empty
+  mi.zoomToExtent( QgsRectangle( 0, 0, 10, 10 ) );
+  QCOMPARE( mi.extent(), QgsRectangle( 0, 0, 10, 10 ) );
+
+  // Sets extent to new extent but keeps current aspect ratio (1)
+  mi.zoomToExtent( QgsRectangle( 1, 2, 9, 8 ) );
+  QCOMPARE( mi.extent(), QgsRectangle( 1, 1, 9, 9 ) );
+
+  // Sets extent to new extent but keeps current aspect ratio (1)
+  mi.zoomToExtent( QgsRectangle( 0, 0, 10, 12 ) );
+  QCOMPARE( mi.extent(), QgsRectangle( -1, 0, 11, 12 ) );
+}
+
 
 void TestQgsLayoutMap::mapPolygonVertices()
 {
@@ -320,16 +352,16 @@ void TestQgsLayoutMap::dataDefinedLayers()
   l.addLayoutItem( map );
 
   //test malformed layer set string
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromExpression( QStringLiteral( "'x'" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromExpression( QStringLiteral( "'x'" ) ) );
   QList<QgsMapLayer *> result = map->layersToRender();
   QVERIFY( result.isEmpty() );
 
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromExpression( QStringLiteral( "'x|'" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromExpression( QStringLiteral( "'x|'" ) ) );
   result = map->layersToRender();
   QVERIFY( result.isEmpty() );
 
   //test subset of valid layers
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromExpression(
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromExpression(
         QStringLiteral( "'%1|%2'" ).arg( mPolysLayer->name(), mRasterLayer->name() ) ) );
   result = map->layersToRender();
   QCOMPARE( result.count(), 2 );
@@ -337,7 +369,7 @@ void TestQgsLayoutMap::dataDefinedLayers()
   QVERIFY( result.contains( mRasterLayer ) );
 
   //test non-existent layer
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromExpression(
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromExpression(
         QStringLiteral( "'x|%1|%2'" ).arg( mLinesLayer->name(), mPointsLayer->name() ) ) );
   result = map->layersToRender();
   QCOMPARE( result.count(), 2 );
@@ -345,7 +377,7 @@ void TestQgsLayoutMap::dataDefinedLayers()
   QVERIFY( result.contains( mPointsLayer ) );
 
   //test no layers
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromExpression(
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromExpression(
         QStringLiteral( "''" ) ) );
   result = map->layersToRender();
   QVERIFY( result.isEmpty() );
@@ -365,7 +397,7 @@ void TestQgsLayoutMap::dataDefinedLayers()
   it.nextFeature( f );
   l.reportContext().setFeature( f );
 
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromField( QStringLiteral( "col1" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromField( QStringLiteral( "col1" ) ) );
   result = map->layersToRender();
   QCOMPARE( result.count(), 1 );
   QCOMPARE( result.at( 0 ), mLinesLayer );
@@ -380,13 +412,11 @@ void TestQgsLayoutMap::dataDefinedLayers()
   delete atlasLayer;
 
   //render test
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromExpression(
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromExpression(
         QStringLiteral( "'%1|%2'" ).arg( mPolysLayer->name(), mPointsLayer->name() ) ) );
   map->setExtent( QgsRectangle( -110.0, 25.0, -90, 40.0 ) );
 
-  QgsLayoutChecker checker( QStringLiteral( "composermap_ddlayers" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_map" ) );
-  QVERIFY( checker.testLayout( mReport, 0, 0 ) );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composermap_ddlayers" ), &l );
 }
 
 void TestQgsLayoutMap::dataDefinedStyles()
@@ -419,38 +449,36 @@ void TestQgsLayoutMap::dataDefinedStyles()
   map->setFollowVisibilityPresetName( QString() );
 
   //test malformed style string
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "5" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "5" ) ) );
   result = qgis::listToSet( map->layersToRender() );
   QCOMPARE( result, qgis::listToSet( layers ) );
 
   //test valid preset
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'test preset'" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'test preset'" ) ) );
   result = qgis::listToSet( map->layersToRender() );
   QCOMPARE( result.count(), 2 );
   QVERIFY( result.contains( mLinesLayer ) );
   QVERIFY( result.contains( mPointsLayer ) );
 
   //test non-existent preset
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'bad preset'" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'bad preset'" ) ) );
   result = qgis::listToSet( map->layersToRender() );
   QCOMPARE( result, qgis::listToSet( layers ) );
 
   //test that dd layer set overrides style layers
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'test preset'" ) ) );
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty::fromExpression(
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'test preset'" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty::fromExpression(
         QStringLiteral( "'%1'" ).arg( mPolysLayer->name() ) ) );
   result = qgis::listToSet( map->layersToRender() );
   QCOMPARE( result.count(), 1 );
   QVERIFY( result.contains( mPolysLayer ) );
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapLayers, QgsProperty() );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapLayers, QgsProperty() );
 
   //render test
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'test preset'" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapStylePreset, QgsProperty::fromExpression( QStringLiteral( "'test preset'" ) ) );
   map->setExtent( QgsRectangle( -110.0, 25.0, -90, 40.0 ) );
 
-  QgsLayoutChecker checker( QStringLiteral( "composermap_ddstyles" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_map" ) );
-  QVERIFY( checker.testLayout( mReport, 0, 0 ) );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composermap_ddstyles" ), &l );
 }
 
 void TestQgsLayoutMap::dataDefinedCrs()
@@ -468,13 +496,13 @@ void TestQgsLayoutMap::dataDefinedCrs()
   l.addLayoutItem( map );
 
   //test epsg variable
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapCrs, QgsProperty::fromValue( QStringLiteral( "EPSG:2192" ) ) );
-  map->refreshDataDefinedProperty( QgsLayoutObject::MapCrs );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapCrs, QgsProperty::fromValue( QStringLiteral( "EPSG:2192" ) ) );
+  map->refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty::MapCrs );
   QCOMPARE( map->crs().authid(), QStringLiteral( "EPSG:2192" ) );
 
   //test proj string variable
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::MapCrs, QgsProperty::fromValue( QStringLiteral( "PROJ4: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs" ) ) );
-  map->refreshDataDefinedProperty( QgsLayoutObject::MapCrs );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapCrs, QgsProperty::fromValue( QStringLiteral( "PROJ4: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs" ) ) );
+  map->refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty::MapCrs );
   QCOMPARE( map->crs().toProj(), QStringLiteral( "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs" ) );
 }
 
@@ -495,10 +523,10 @@ void TestQgsLayoutMap::dataDefinedTemporalRange()
   const QDateTime dt1 = QDateTime( QDate( 2010, 1, 1 ), QTime( 0, 0, 0 ) );
   const QDateTime dt2 = QDateTime( QDate( 2020, 1, 1 ), QTime( 0, 0, 0 ) );
   map->setIsTemporal( true );
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::StartDateTime, QgsProperty::fromValue( dt1 ) );
-  map->dataDefinedProperties().setProperty( QgsLayoutObject::EndDateTime, QgsProperty::fromValue( dt2 ) );
-  map->refreshDataDefinedProperty( QgsLayoutObject::StartDateTime );
-  map->refreshDataDefinedProperty( QgsLayoutObject::EndDateTime );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::StartDateTime, QgsProperty::fromValue( dt1 ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::EndDateTime, QgsProperty::fromValue( dt2 ) );
+  map->refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty::StartDateTime );
+  map->refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty::EndDateTime );
   QCOMPARE( map->temporalRange(), QgsDateTimeRange( dt1, dt2, true, false ) );
   const QgsMapSettings ms = map->mapSettings( map->extent(), map->rect().size(), 300, false );
   QCOMPARE( ms.temporalRange(), QgsDateTimeRange( dt1, dt2, true, false ) );
@@ -554,16 +582,14 @@ void TestQgsLayoutMap::rasterized()
 
   QVERIFY( map->containsAdvancedEffects() );
 
-  QgsLayoutChecker checker( QStringLiteral( "layoutmap_rasterized" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_map" ) );
-  QVERIFY( checker.testLayout( mReport, 0, 0 ) );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "layoutmap_rasterized" ), &l );
 
   // try rendering again, without requiring rasterization, for comparison
   // (we can use the same test image, because CompositionMode_Darken doesn't actually have any noticeable
   // rendering differences for the black grid!)
   grid->setBlendMode( QPainter::CompositionMode_SourceOver );
   QVERIFY( !map->containsAdvancedEffects() );
-  QVERIFY( checker.testLayout( mReport, 0, 0 ) );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "layoutmap_rasterized" ), &l );
 }
 
 void TestQgsLayoutMap::layersToRender()
@@ -610,9 +636,9 @@ void TestQgsLayoutMap::mapRotation()
   map->setMapRotation( 90 );
   map->setLayers( QList<QgsMapLayer *>() << layer );
 
-  QgsLayoutChecker checker( QStringLiteral( "composerrotation_maprotation" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_items" ) );
-  QVERIFY( checker.testLayout( mReport, 0, 200 ) );
+  mControlPathPrefix = QStringLiteral( "composer_items" );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerrotation_maprotation" ), &l, 0, 200 );
+  mControlPathPrefix = QStringLiteral( "composer_map" );
 
   // test that rotation correctly applies to restored items
   QDomDocument doc;
@@ -646,9 +672,9 @@ void TestQgsLayoutMap::mapItemRotation()
   map->setItemRotation( 90 );
   map->setLayers( QList<QgsMapLayer *>() << layer );
 
-  QgsLayoutChecker checker( QStringLiteral( "composerrotation_mapitemrotation" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_items" ) );
-  QVERIFY( checker.testLayout( mReport, 0, 200 ) );
+  mControlPathPrefix = QStringLiteral( "composer_items" );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerrotation_mapitemrotation" ), &l, 0, 200 );
+  mControlPathPrefix = QStringLiteral( "composer_map" );
 }
 
 void TestQgsLayoutMap::expressionContext()
@@ -1911,7 +1937,7 @@ void TestQgsLayoutMap::testLayeredExportLabelsByLayer()
 void TestQgsLayoutMap::testTemporal()
 {
   QgsLayout l( QgsProject::instance( ) );
-  QgsLayoutItemMap *map = new QgsLayoutItemMap( &l );
+  std::unique_ptr< QgsLayoutItemMap > map = std::make_unique< QgsLayoutItemMap >( &l );
   const QDateTime begin( QDate( 2020, 01, 01 ), QTime( 10, 0, 0 ), Qt::UTC );
   const QDateTime end = begin.addSecs( 3600 );
 
@@ -2031,6 +2057,37 @@ void TestQgsLayoutMap::testLabelResults()
   QCOMPARE( labels.at( 5 ).labelText, QStringLiteral( "8888" ) );
   QVERIFY( labels.at( 5 ).isUnplaced );
 
+}
+
+void TestQgsLayoutMap::testZRange()
+{
+  QgsLayout l( QgsProject::instance( ) );
+  std::unique_ptr< QgsLayoutItemMap > map = std::make_unique< QgsLayoutItemMap >( &l );
+
+  QgsMapSettings settings = map->mapSettings( map->extent(), QSize( 512, 512 ), 72, false );
+  QVERIFY( settings.zRange().isInfinite() );
+  QVERIFY( !settings.expressionContext().variable( QStringLiteral( "map_z_range_lower" ) ).isValid() );
+  QVERIFY( !settings.expressionContext().variable( QStringLiteral( "map_z_range_upper" ) ).isValid() );
+
+  map->setZRangeEnabled( true );
+  map->setZRange( QgsDoubleRange( 30, 150 ) );
+  map->refresh();
+
+  settings = map->mapSettings( map->extent(), QSize( 512, 512 ), 72, false );
+  QCOMPARE( settings.zRange().lower(), 30.0 );
+  QCOMPARE( settings.zRange().upper(), 150.0 );
+
+  QCOMPARE( settings.expressionContext().variable( QStringLiteral( "map_z_range_lower" ) ).toDouble(), 30.0 );
+  QCOMPARE( settings.expressionContext().variable( QStringLiteral( "map_z_range_upper" ) ).toDouble(), 150.0 );
+
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapZRangeLower, QgsProperty::fromExpression( QStringLiteral( "15+2" ) ) );
+  map->dataDefinedProperties().setProperty( QgsLayoutObject::DataDefinedProperty::MapZRangeUpper, QgsProperty::fromExpression( QStringLiteral( "15+32" ) ) );
+  map->refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty::MapZRangeLower );
+  map->refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty::MapZRangeUpper );
+
+  settings = map->mapSettings( map->extent(), QSize( 512, 512 ), 72, false );
+  QCOMPARE( settings.zRange().lower(), 17.0 );
+  QCOMPARE( settings.zRange().upper(), 47.0 );
 }
 
 QGSTEST_MAIN( TestQgsLayoutMap )

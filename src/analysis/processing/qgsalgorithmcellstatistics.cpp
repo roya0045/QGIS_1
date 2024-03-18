@@ -36,7 +36,7 @@ QString QgsCellStatisticsAlgorithmBase::groupId() const
 void QgsCellStatisticsAlgorithmBase::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "INPUT" ),
-                QObject::tr( "Input layers" ), QgsProcessing::TypeRaster ) );
+                QObject::tr( "Input layers" ), Qgis::ProcessingSourceType::Raster ) );
 
   addSpecificAlgorithmParams();
 
@@ -44,8 +44,8 @@ void QgsCellStatisticsAlgorithmBase::initAlgorithm( const QVariantMap & )
 
   addParameter( new QgsProcessingParameterRasterLayer( QStringLiteral( "REFERENCE_LAYER" ), QObject::tr( "Reference layer" ) ) );
 
-  std::unique_ptr< QgsProcessingParameterNumber > output_nodata_parameter = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "OUTPUT_NODATA_VALUE" ), QObject::tr( "Output NoData value" ), QgsProcessingParameterNumber::Double, -9999, false );
-  output_nodata_parameter->setFlags( output_nodata_parameter->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  std::unique_ptr< QgsProcessingParameterNumber > output_nodata_parameter = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "OUTPUT_NODATA_VALUE" ), QObject::tr( "Output NoData value" ), Qgis::ProcessingNumberParameterType::Double, -9999, false );
+  output_nodata_parameter->setFlags( output_nodata_parameter->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( output_nodata_parameter.release() );
 
   addParameter( new QgsProcessingParameterRasterDestination( QStringLiteral( "OUTPUT" ),
@@ -129,7 +129,7 @@ QVariantMap QgsCellStatisticsAlgorithmBase::processAlgorithm( const QVariantMap 
   std::unique_ptr< QgsRasterFileWriter > writer = std::make_unique< QgsRasterFileWriter >( outputFile );
   writer->setOutputProviderKey( QStringLiteral( "gdal" ) );
   writer->setOutputFormat( outputFormat );
-  mOutputRasterDataProvider = writer->createOneBandRaster( mDataType, mLayerWidth, mLayerHeight, mExtent, mCrs );
+  mOutputRasterDataProvider.reset( writer->createOneBandRaster( mDataType, mLayerWidth, mLayerHeight, mExtent, mCrs ) );
   if ( !mOutputRasterDataProvider )
     throw QgsProcessingException( QObject::tr( "Could not create raster output: %1" ).arg( outputFile ) );
   if ( !mOutputRasterDataProvider->isValid() )
@@ -140,6 +140,8 @@ QVariantMap QgsCellStatisticsAlgorithmBase::processAlgorithm( const QVariantMap 
 
   //call child statistics method
   processRasterStack( feedback );
+
+  mOutputRasterDataProvider.reset();
 
   QVariantMap outputs;
   outputs.insert( QStringLiteral( "EXTENT" ), mExtent.toString() );
@@ -263,7 +265,7 @@ void QgsCellStatisticsAlgorithm::processRasterStack( QgsProcessingFeedback *feed
   int nbBlocksHeight = static_cast< int >( std::ceil( 1.0 * mLayerHeight / maxHeight ) );
   int nbBlocks = nbBlocksWidth * nbBlocksHeight;
   mOutputRasterDataProvider->setEditable( true );
-  QgsRasterIterator outputIter( mOutputRasterDataProvider );
+  QgsRasterIterator outputIter( mOutputRasterDataProvider.get() );
   outputIter.startRasterRead( 1, mLayerWidth, mLayerHeight, mExtent );
 
   int iterLeft = 0;
@@ -414,7 +416,7 @@ QgsCellStatisticsPercentileAlgorithm *QgsCellStatisticsPercentileAlgorithm::crea
 void QgsCellStatisticsPercentileAlgorithm::addSpecificAlgorithmParams()
 {
   addParameter( new QgsProcessingParameterEnum( QStringLiteral( "METHOD" ), QObject::tr( "Method" ), QStringList() << QObject::tr( "Nearest rank" ) << QObject::tr( "Inclusive linear interpolation (PERCENTILE.INC)" ) << QObject::tr( "Exclusive linear interpolation (PERCENTILE.EXC)" ), false, 0, false ) );
-  addParameter( new QgsProcessingParameterNumber( QStringLiteral( "PERCENTILE" ), QObject::tr( "Percentile" ), QgsProcessingParameterNumber::Double, 0.25, false, 0.0, 1.0 ) );
+  addParameter( new QgsProcessingParameterNumber( QStringLiteral( "PERCENTILE" ), QObject::tr( "Percentile" ), Qgis::ProcessingNumberParameterType::Double, 0.25, false, 0.0, 1.0 ) );
 }
 
 bool QgsCellStatisticsPercentileAlgorithm::prepareSpecificAlgorithmParameters( const QVariantMap &parameters, QgsProcessingContext &context, QgsProcessingFeedback *feedback )
@@ -424,7 +426,7 @@ bool QgsCellStatisticsPercentileAlgorithm::prepareSpecificAlgorithmParameters( c
   mPercentile = parameterAsDouble( parameters, QStringLiteral( "PERCENTILE" ), context );
 
   //default percentile output data type to float32 raster if interpolation method is chosen
-  //otherwise use the most potent data type in the intput raster stack (see prepareAlgorithm() in base class)
+  //otherwise use the most potent data type in the input raster stack (see prepareAlgorithm() in base class)
   if ( mMethod != QgsRasterAnalysisUtils::CellValuePercentileMethods::NearestRankPercentile && static_cast< int >( mDataType ) < 6 )
     mDataType = Qgis::DataType::Float32;
 
@@ -440,7 +442,7 @@ void QgsCellStatisticsPercentileAlgorithm::processRasterStack( QgsProcessingFeed
   int nbBlocksHeight = static_cast< int >( std::ceil( 1.0 * mLayerHeight / maxHeight ) );
   int nbBlocks = nbBlocksWidth * nbBlocksHeight;
   mOutputRasterDataProvider->setEditable( true );
-  QgsRasterIterator outputIter( mOutputRasterDataProvider );
+  QgsRasterIterator outputIter( mOutputRasterDataProvider.get() );
   outputIter.startRasterRead( 1, mLayerWidth, mLayerHeight, mExtent );
 
   int iterLeft = 0;
@@ -555,7 +557,7 @@ QgsCellStatisticsPercentRankFromValueAlgorithm *QgsCellStatisticsPercentRankFrom
 void QgsCellStatisticsPercentRankFromValueAlgorithm::addSpecificAlgorithmParams()
 {
   addParameter( new QgsProcessingParameterEnum( QStringLiteral( "METHOD" ), QObject::tr( "Method" ), QStringList() << QObject::tr( "Inclusive linear interpolation (PERCENTRANK.INC)" ) << QObject::tr( "Exclusive linear interpolation (PERCENTRANK.EXC)" ), false, 0, false ) );
-  addParameter( new QgsProcessingParameterNumber( QStringLiteral( "VALUE" ), QObject::tr( "Value" ), QgsProcessingParameterNumber::Double, 10, false ) );
+  addParameter( new QgsProcessingParameterNumber( QStringLiteral( "VALUE" ), QObject::tr( "Value" ), Qgis::ProcessingNumberParameterType::Double, 10, false ) );
 }
 
 bool QgsCellStatisticsPercentRankFromValueAlgorithm::prepareSpecificAlgorithmParameters( const QVariantMap &parameters, QgsProcessingContext &context, QgsProcessingFeedback *feedback )
@@ -578,7 +580,7 @@ void QgsCellStatisticsPercentRankFromValueAlgorithm::processRasterStack( QgsProc
   int nbBlocksHeight = static_cast< int >( std::ceil( 1.0 * mLayerHeight / maxHeight ) );
   int nbBlocks = nbBlocksWidth * nbBlocksHeight;
   mOutputRasterDataProvider->setEditable( true );
-  QgsRasterIterator outputIter( mOutputRasterDataProvider );
+  QgsRasterIterator outputIter( mOutputRasterDataProvider.get() );
   outputIter.startRasterRead( 1, mLayerWidth, mLayerHeight, mExtent );
 
   int iterLeft = 0;
@@ -721,7 +723,7 @@ void QgsCellStatisticsPercentRankFromRasterAlgorithm::processRasterStack( QgsPro
   int nbBlocksHeight = static_cast< int >( std::ceil( 1.0 * mLayerHeight / maxHeight ) );
   int nbBlocks = nbBlocksWidth * nbBlocksHeight;
   mOutputRasterDataProvider->setEditable( true );
-  QgsRasterIterator outputIter( mOutputRasterDataProvider );
+  QgsRasterIterator outputIter( mOutputRasterDataProvider.get() );
   outputIter.startRasterRead( 1, mLayerWidth, mLayerHeight, mExtent );
 
   int iterLeft = 0;

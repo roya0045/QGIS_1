@@ -69,7 +69,7 @@ QgsQuadrilateral QgsQuadrilateral::rectangleFrom3Points( const QgsPoint &p1, con
   QgsQuadrilateral rect;
   double inclination = 90.0;
   double distance = 0;
-  const double azimuth = point1.azimuth( point2 ) + 90.0 * QgsGeometryUtils::leftOfLine( point3.x(), point3.y(), point1.x(), point1.y(), point2.x(), point2.y() );
+  const double azimuth = point1.azimuth( point2 ) + 90.0 * QgsGeometryUtilsBase::leftOfLine( point3.x(), point3.y(), point1.x(), point1.y(), point2.x(), point2.y() );
   switch ( mode )
   {
     case Distance:
@@ -435,10 +435,12 @@ QString QgsQuadrilateral::toString( int pointPrecision ) const
 
 double QgsQuadrilateral::area() const
 {
-  return toPolygon()->area();
+  std::unique_ptr<QgsPolygon> polygon( toPolygon() );
+  return polygon->area();
 }
 
 double QgsQuadrilateral::perimeter() const
 {
-  return toPolygon()->perimeter();
+  std::unique_ptr<QgsPolygon> polygon( toPolygon() );
+  return polygon->perimeter();
 }

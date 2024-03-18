@@ -12,6 +12,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/providers/mssql
   ${CMAKE_SOURCE_DIR}/src/providers/ogr
   ${CMAKE_SOURCE_DIR}/src/providers/virtualraster
+  ${CMAKE_SOURCE_DIR}/src/providers/virtual
   ${CMAKE_SOURCE_DIR}/src/test
 )
 include_directories(SYSTEM
@@ -35,6 +36,7 @@ set_target_properties(test_provider_wcsprovider PROPERTIES
 add_qgis_test(testqgswmscapabilities.cpp MODULE provider LINKEDLIBRARIES provider_wms_a qgis_core)
 add_qgis_test(testqgswmsccapabilities.cpp MODULE provider LINKEDLIBRARIES provider_wms_a qgis_core)
 add_qgis_test(testqgswmsprovider.cpp MODULE provider LINKEDLIBRARIES provider_wms_a qgis_core)
+add_qgis_test(testqgsvirtuallayerprovider.cpp MODULE provider LINKEDLIBRARIES provider_virtuallayer_a qgis_core)
 
 if (POSTGRES_FOUND)
   add_qgis_test(testqgspostgresexpressioncompiler.cpp MODULE provider LINKEDLIBRARIES provider_postgres_a qgis_core)
@@ -62,6 +64,7 @@ endif()
 
 if (WITH_COPC)
   add_qgis_test(testqgscopcprovider.cpp MODULE provider LINKEDLIBRARIES qgis_core)
+  add_qgis_test(testqgsvirtualpointcloudprovider.cpp MODULE provider LINKEDLIBRARIES qgis_core)
 endif()
 
 if (WITH_PDAL)
@@ -82,6 +85,7 @@ if(UNIX AND NOT ANDROID AND CMAKE_BUILD_TYPE MATCHES Debug)
 
   add_executable(test_provider_wcs ${WCSTEST_SRCS} )
   target_compile_features(test_provider_wcs PRIVATE cxx_std_17)
+  target_compile_definitions(test_provider_wcs PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/core

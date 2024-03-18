@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2013, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.core import (
     QgsAttributeEditorElement,
     QgsFeature,
@@ -21,7 +20,8 @@ from qgis.core import (
     QgsRelation,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -73,7 +73,7 @@ def formatAttributes(attrs):
     return repr([str(a) for a in attrs])
 
 
-class TestQgsRelation(unittest.TestCase):
+class TestQgsRelation(QgisTestCase):
 
     def setUp(self):
         self.referencedLayer = createReferencedLayer()
@@ -205,7 +205,7 @@ class TestQgsRelation(unittest.TestCase):
         self.assertEqual(len(referencedLayer.editFormConfig().tabs()[0].children()), 7)
         for tab in referencedLayer.editFormConfig().tabs():
             for t in tab.children():
-                if (t.type() == QgsAttributeEditorElement.AeTypeRelation):
+                if (t.type() == QgsAttributeEditorElement.AttributeEditorType.AeTypeRelation):
                     valid = t.relation().isValid()
         self.assertTrue(valid)
 
@@ -232,7 +232,7 @@ class TestQgsRelation(unittest.TestCase):
         valid = False
         for tab in referencedLayer.editFormConfig().tabs():
             for t in tab.children():
-                if (t.type() == QgsAttributeEditorElement.AeTypeRelation):
+                if (t.type() == QgsAttributeEditorElement.AttributeEditorType.AeTypeRelation):
                     valid = t.relation().isValid()
         self.assertTrue(valid)
 

@@ -41,6 +41,7 @@
 #include "qgsrectangle.h"
 #include "qgsrasteriterator.h"
 #include "qgsrasterdataprovidertemporalcapabilities.h"
+#include "qgsrasterdataproviderelevationproperties.h"
 
 class QImage;
 class QByteArray;
@@ -52,7 +53,6 @@ class QgsMapSettings;
 /**
  * \brief Handles asynchronous download of images
  * \ingroup core
- * \since QGIS 2.8
  */
 class CORE_EXPORT QgsImageFetcher : public QObject
 {
@@ -93,9 +93,8 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
 
     /**
      * Enumeration with capabilities that raster providers might implement.
-     * \since QGIS 3.0
      */
-    enum ProviderCapability
+    enum ProviderCapability SIP_ENUM_BASETYPE( IntFlag )
     {
       NoProviderCapabilities = 0,       //!< Provider has no capabilities
       ReadLayerMetadata = 1 << 1, //!< Provider can read layer metadata from data store. Since QGIS 3.0. See QgsDataProvider::layerMetadata()
@@ -128,7 +127,6 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
 
     /**
      * Returns flags containing the supported capabilities of the data provider.
-     * \since QGIS 3.0
      */
     virtual QgsRasterDataProvider::ProviderCapabilities providerCapabilities() const;
 
@@ -228,13 +226,11 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
 
     /**
      * Read band scale for raster value
-     * \since QGIS 2.3
      */
     virtual double bandScale( int bandNo ) const { Q_UNUSED( bandNo ) return 1.0; }
 
     /**
      * Read band offset for raster value
-     * \since QGIS 2.3
      */
     virtual double bandOffset( int bandNo ) const { Q_UNUSED( bandNo ) return 0.0; }
 
@@ -274,6 +270,8 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
 
     QgsRasterDataProviderTemporalCapabilities *temporalCapabilities() override;
     const QgsRasterDataProviderTemporalCapabilities *temporalCapabilities() const override SIP_SKIP;
+    QgsRasterDataProviderElevationProperties *elevationProperties() override;
+    const QgsRasterDataProviderElevationProperties *elevationProperties() const override SIP_SKIP;
 
     //! \brief Returns whether the provider supplies a legend graphic
     virtual bool supportsLegendGraphic() const { return false; }
@@ -308,7 +306,6 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      *         to caller.
      *
      *
-     * \since QGIS 2.8
      */
     virtual QgsImageFetcher *getLegendGraphicFetcher( const QgsMapSettings *mapSettings ) SIP_FACTORY
     {
@@ -377,12 +374,6 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * \see buildPyramids()
      */
     bool hasPyramids();
-
-    /**
-     * Returns metadata in a format suitable for feeding directly
-     * into a subset of the GUI raster properties "Metadata" tab.
-     */
-    virtual QString htmlMetadata() = 0;
 
     /**
      * Identify raster value(s) found on the point position. The context
@@ -468,7 +459,6 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * Checks whether the provider is in editing mode, i.e. raster write operations will be accepted.
      * By default providers are not editable. Use setEditable() method to enable/disable editing.
      * \see setEditable(), writeBlock()
-     * \since QGIS 3.0
      */
     virtual bool isEditable() const { return false; }
 
@@ -480,7 +470,6 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * the underlying data source into editing mode, so it is necessary to check the return
      * value whether the operation was successful.
      * \see isEditable(), writeBlock()
-     * \since QGIS 3.0
      */
     virtual bool setEditable( bool enabled ) { Q_UNUSED( enabled ) return false; }
 
@@ -512,7 +501,6 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * in order to allow write operations.
      * \see isEditable(), setEditable()
      * \returns TRUE on success
-     * \since QGIS 3.0
      */
     bool writeBlock( QgsRasterBlock *block, int band, int xOffset = 0, int yOffset = 0 );
 
@@ -626,14 +614,12 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
     /**
      * Step width for raster iterations.
      * \see stepHeight()
-     * \since QGIS 3.0
      */
     virtual int stepWidth() const { return QgsRasterIterator::DEFAULT_MAXIMUM_TILE_WIDTH; }
 
     /**
      * Step height for raster iterations.
      * \see stepWidth()
-     * \since QGIS 3.0
      */
     virtual int stepHeight() const { return QgsRasterIterator::DEFAULT_MAXIMUM_TILE_HEIGHT; }
 
@@ -828,12 +814,19 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      */
     virtual bool readNativeAttributeTable( QString *errorMessage SIP_OUT  = nullptr );
 
+    /**
+     * Returns the description for band \a bandNumber, or an empty string if the band is not valid or has not description.
+     * The default implementation returns an empty string.
+     * \since QGIS 3.34
+     */
+    // Note: This method is not const because GDAL init on demand
+    virtual QString bandDescription( int bandNumber );
+
 
   signals:
 
     /**
      * Emit a message to be displayed on status bar, usually used by network providers (WMS,WCS)
-     * \since QGIS 2.14
      */
     void statusChanged( const QString & ) const;
 
@@ -913,6 +906,8 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * Data provider temporal properties
      */
     std::unique_ptr< QgsRasterDataProviderTemporalCapabilities > mTemporalCapabilities;
+
+    std::unique_ptr< QgsRasterDataProviderElevationProperties > mElevationProperties;
 
     std::map<int, std::unique_ptr<QgsRasterAttributeTable>> mAttributeTables;
 

@@ -47,6 +47,7 @@ QVariantList QgsHanaProviderResultIterator::nextRowPrivate()
     return ret;
 
   ret.reserve( mNumColumns );
+  // cppcheck-suppress unsignedLessThanZero
   for ( unsigned short i = 1; i <= mNumColumns; ++i )
     ret.push_back( mResultSet->getValue( i ) );
   mNextRow = mResultSet->next();
@@ -404,7 +405,7 @@ QList<QgsAbstractDatabaseProviderConnection::TableProperty> QgsHanaProviderConne
   return tables;
 }
 
-QgsAbstractDatabaseProviderConnection::TableProperty QgsHanaProviderConnection::table( const QString &schema, const QString &table ) const
+QgsAbstractDatabaseProviderConnection::TableProperty QgsHanaProviderConnection::table( const QString &schema, const QString &table, QgsFeedback * ) const
 {
   const QString geometryColumn = QgsDataSourceUri( uri() ).geometryColumn();
   auto layerFilter = [&table, &geometryColumn]( const QgsHanaLayerProperty & layer )
@@ -418,7 +419,7 @@ QgsAbstractDatabaseProviderConnection::TableProperty QgsHanaProviderConnection::
   return constTables[0];
 }
 
-QList<QgsHanaProviderConnection::TableProperty> QgsHanaProviderConnection::tables( const QString &schema, const TableFlags &flags ) const
+QList<QgsHanaProviderConnection::TableProperty> QgsHanaProviderConnection::tables( const QString &schema, const TableFlags &flags, QgsFeedback * ) const
 {
   return tablesWithFilter( schema, flags );
 }
@@ -444,7 +445,7 @@ QStringList QgsHanaProviderConnection::schemas( ) const
   }
 }
 
-QgsFields QgsHanaProviderConnection::fields( const QString &schema, const QString &table ) const
+QgsFields QgsHanaProviderConnection::fields( const QString &schema, const QString &table, QgsFeedback * ) const
 {
   QgsHanaConnectionRef conn = createConnection();
   const QString geometryColumn = QgsDataSourceUri( uri() ).geometryColumn();

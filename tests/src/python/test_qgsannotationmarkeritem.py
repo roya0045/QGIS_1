@@ -11,8 +11,7 @@ __author__ = '(C) 2020 by Nyall Dawson'
 __date__ = '29/07/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-from qgis.PyQt.QtCore import QDir, QSize
+from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor, QImage, QPainter
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
@@ -32,11 +31,11 @@ from qgis.core import (
     QgsProject,
     QgsReadWriteContext,
     QgsRectangle,
-    QgsRenderChecker,
     QgsRenderContext,
     QgsVertexId,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -44,17 +43,11 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsAnnotationMarkerItem(unittest.TestCase):
+class TestQgsAnnotationMarkerItem(QgisTestCase):
 
     @classmethod
-    def setUpClass(cls):
-        cls.report = "<h1>Python QgsAnnotationMarkerItem Tests</h1>\n"
-
-    @classmethod
-    def tearDownClass(cls):
-        report_file_path = f"{QDir.tempPath()}/qgistest.html"
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(cls.report)
+    def control_path_prefix(cls):
+        return "annotation_layer"
 
     def testBasic(self):
         item = QgsAnnotationMarkerItem(QgsPoint(12, 13))
@@ -162,10 +155,10 @@ class TestQgsAnnotationMarkerItem(unittest.TestCase):
         settings.setExtent(QgsRectangle(10, 10, 16, 16))
         settings.setOutputSize(QSize(300, 300))
 
-        settings.setFlag(QgsMapSettings.Antialiasing, False)
+        settings.setFlag(QgsMapSettings.Flag.Antialiasing, False)
 
         rc = QgsRenderContext.fromMapSettings(settings)
-        image = QImage(200, 200, QImage.Format_ARGB32)
+        image = QImage(200, 200, QImage.Format.Format_ARGB32)
         image.setDotsPerMeterX(int(96 / 25.4 * 1000))
         image.setDotsPerMeterY(int(96 / 25.4 * 1000))
         image.fill(QColor(255, 255, 255))
@@ -177,7 +170,7 @@ class TestQgsAnnotationMarkerItem(unittest.TestCase):
         finally:
             painter.end()
 
-        self.assertTrue(self.imageCheck('marker_item', 'marker_item', image))
+        self.assertTrue(self.image_check('marker_item', 'marker_item', image))
 
     def testRenderWithTransform(self):
         item = QgsAnnotationMarkerItem(QgsPoint(12, 13))
@@ -188,11 +181,11 @@ class TestQgsAnnotationMarkerItem(unittest.TestCase):
         settings.setExtent(QgsRectangle(1250958, 1386945, 1420709, 1532518))
         settings.setOutputSize(QSize(300, 300))
 
-        settings.setFlag(QgsMapSettings.Antialiasing, False)
+        settings.setFlag(QgsMapSettings.Flag.Antialiasing, False)
 
         rc = QgsRenderContext.fromMapSettings(settings)
         rc.setCoordinateTransform(QgsCoordinateTransform(QgsCoordinateReferenceSystem('EPSG:4326'), settings.destinationCrs(), QgsProject.instance()))
-        image = QImage(200, 200, QImage.Format_ARGB32)
+        image = QImage(200, 200, QImage.Format.Format_ARGB32)
         image.setDotsPerMeterX(int(96 / 25.4 * 1000))
         image.setDotsPerMeterY(int(96 / 25.4 * 1000))
         image.fill(QColor(255, 255, 255))
@@ -204,21 +197,7 @@ class TestQgsAnnotationMarkerItem(unittest.TestCase):
         finally:
             painter.end()
 
-        self.assertTrue(self.imageCheck('marker_item_transform', 'marker_item_transform', image))
-
-    def imageCheck(self, name, reference_image, image):
-        TestQgsAnnotationMarkerItem.report += f"<h2>Render {name}</h2>\n"
-        temp_dir = QDir.tempPath() + '/'
-        file_name = temp_dir + 'patch_' + name + ".png"
-        image.save(file_name, "PNG")
-        checker = QgsRenderChecker()
-        checker.setControlPathPrefix("annotation_layer")
-        checker.setControlName("expected_" + reference_image)
-        checker.setRenderedImage(file_name)
-        checker.setColorTolerance(2)
-        result = checker.compareImages(name, 20)
-        TestQgsAnnotationMarkerItem.report += checker.report()
-        return result
+        self.assertTrue(self.image_check('marker_item_transform', 'marker_item_transform', image))
 
 
 if __name__ == '__main__':

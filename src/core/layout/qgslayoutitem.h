@@ -38,7 +38,6 @@ class QgsStyleEntityVisitorInterface;
  * \ingroup core
  * \class QgsLayoutItemRenderContext
  * \brief Contains settings and helpers relating to a render of a QgsLayoutItem.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemRenderContext
 {
@@ -106,7 +105,6 @@ class CORE_EXPORT QgsLayoutItemRenderContext
  * \ingroup core
  * \class QgsLayoutItem
  * \brief Base class for graphical items within a QgsLayout.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectItem, public QgsLayoutUndoObjectInterface
 {
@@ -330,10 +328,11 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
      * Flags for controlling how an item behaves.
      * \since QGIS 3.4.3
      */
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       FlagOverridesPaint = 1 << 1,  //!< Item overrides the default layout item painting method
       FlagProvidesClipPath = 1 << 2, //!< Item can act as a clipping path provider (see clipPath())
+      FlagDisableSceneCaching = 1 << 3, //!< Item should not have QGraphicsItem caching enabled
     };
     Q_DECLARE_FLAGS( Flags, Flag )
 
@@ -841,10 +840,11 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
     /**
      * Returns the background color for this item. This is only used if hasBackground()
      * returns TRUE.
+     * \param useDataDefined If true, then returns the data defined override for the background color
      * \see setBackgroundColor()
      * \see hasBackground()
      */
-    QColor backgroundColor() const { return mBackgroundColor; }
+    QColor backgroundColor( bool useDataDefined = true ) const;
 
     /**
      * Sets the background \a color for this item.
@@ -1043,7 +1043,7 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
      * QgsLayoutObject::AllProperties then all data defined properties for the item will be
      * refreshed.
     */
-    virtual void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::AllProperties );
+    virtual void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::DataDefinedProperty::AllProperties );
 
     /**
      * Sets the layout item's \a rotation, in degrees clockwise.
@@ -1315,7 +1315,10 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
 
     //! Composition blend mode for item
     QPainter::CompositionMode mBlendMode = QPainter::CompositionMode_SourceOver;
-    std::unique_ptr< QgsLayoutEffect > mEffect;
+    //! Evaluated blend mode, including evaluated overrides for data defined blending
+    QPainter::CompositionMode mEvaluatedBlendMode = QPainter::CompositionMode_SourceOver;
+
+    QPainter::CompositionMode blendModeForRender() const;
 
     //! Item opacity, between 0 and 1
     double mOpacity = 1.0;
@@ -1364,6 +1367,9 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
     friend class TestQgsLayoutView;
     friend class QgsLayout;
     friend class QgsLayoutItemGroup;
+    friend class QgsLayoutItemMap;
+    friend class QgsLayoutItemLegend;
+    friend class QgsLayoutItemElevationProfile;
     friend class QgsCompositionConverter;
 };
 

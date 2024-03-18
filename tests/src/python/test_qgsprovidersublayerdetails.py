@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2020, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.core import (
     Qgis,
     QgsCoordinateTransformContext,
@@ -20,7 +19,8 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -29,7 +29,7 @@ from utilities import unitTestDataPath
 start_app()
 
 
-class TestQgsProviderSublayerDetails(unittest.TestCase):
+class TestQgsProviderSublayerDetails(QgisTestCase):
 
     def testGettersSetters(self):
         """
@@ -58,9 +58,9 @@ class TestQgsProviderSublayerDetails(unittest.TestCase):
         d.setFeatureCount(1000)
         self.assertEqual(d.featureCount(), 1000)
 
-        self.assertEqual(d.wkbType(), QgsWkbTypes.Unknown)
-        d.setWkbType(QgsWkbTypes.Point)
-        self.assertEqual(d.wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(d.wkbType(), QgsWkbTypes.Type.Unknown)
+        d.setWkbType(QgsWkbTypes.Type.Point)
+        self.assertEqual(d.wkbType(), QgsWkbTypes.Type.Point)
 
         d.setGeometryColumnName('geom_col')
         self.assertEqual(d.geometryColumnName(), 'geom_col')
@@ -122,9 +122,9 @@ class TestQgsProviderSublayerDetails(unittest.TestCase):
         d2.setFeatureCount(1000)
         self.assertEqual(d, d2)
 
-        d.setWkbType(QgsWkbTypes.Point)
+        d.setWkbType(QgsWkbTypes.Type.Point)
         self.assertNotEqual(d, d2)
-        d2.setWkbType(QgsWkbTypes.Point)
+        d2.setWkbType(QgsWkbTypes.Type.Point)
         self.assertEqual(d, d2)
 
         d.setGeometryColumnName('geom_col')

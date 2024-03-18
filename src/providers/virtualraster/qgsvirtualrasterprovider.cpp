@@ -35,7 +35,7 @@ QgsVirtualRasterProvider::QgsVirtualRasterProvider( const QString &uri, const Qg
 
   if ( ! decodedUriParams.crs.isValid() )
   {
-    QgsDebugMsg( "crs is not valid" );
+    QgsDebugError( "crs is not valid" );
     mValid = false;
     return;
   }
@@ -43,7 +43,7 @@ QgsVirtualRasterProvider::QgsVirtualRasterProvider( const QString &uri, const Qg
 
   if ( decodedUriParams.extent.isNull() )
   {
-    QgsDebugMsg( "extent is null" );
+    QgsDebugError( "extent is null" );
     mValid = false;
     return;
   }
@@ -121,6 +121,7 @@ QgsVirtualRasterProvider::QgsVirtualRasterProvider( const QgsVirtualRasterProvid
   , mYBlockSize( other.mYBlockSize )
   , mFormulaString( other.mFormulaString )
   , mLastError( other.mLastError )
+  , mRasterLayers{} // see note in other constructor above
 
 {
   for ( const auto &it : other.mRasterLayers )
@@ -170,7 +171,7 @@ QgsRasterBlock *QgsVirtualRasterProvider::block( int bandNo, const QgsRectangle 
       if ( rasterBlockFeedback->isCanceled() )
       {
         qDeleteAll( inputBlocks );
-        QgsDebugMsg( "Canceled = 3, User canceled calculation" );
+        QgsDebugMsgLevel( "Canceled = 3, User canceled calculation", 2 );
       }
     }
     else
@@ -206,12 +207,17 @@ QgsRasterBlock *QgsVirtualRasterProvider::block( int bandNo, const QgsRectangle 
     {
       qDeleteAll( inputBlocks );
       inputBlocks.clear();
-      QgsDebugMsg( "calcNode was not run in a correct way" );
+      QgsDebugError( "calcNode was not run in a correct way" );
     }
   }
 
   Q_ASSERT( tblock );
   return tblock.release();
+}
+
+Qgis::DataProviderFlags QgsVirtualRasterProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D;
 }
 
 QgsRectangle QgsVirtualRasterProvider::extent() const
@@ -336,7 +342,7 @@ QString QgsVirtualRasterProvider::lastError()
   return QStringLiteral( "Not implemented" );
 }
 
-QString QgsVirtualRasterProvider::htmlMetadata()
+QString QgsVirtualRasterProvider::htmlMetadata() const
 {
   //only test
   return "Virtual Raster data provider";

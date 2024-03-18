@@ -63,7 +63,7 @@ QgsGpsToolBar::QgsGpsToolBar( QgsAppGpsConnection *connection, QgsMapCanvas *can
       mConnection->disconnectGps();
   } );
 
-  mRecenterAction = new QAction( tr( "Recenter" ) );
+  mRecenterAction = new QAction( tr( "Recenter" ), this );
   mRecenterAction->setToolTip( tr( "Recenter map on GPS location" ) );
   mRecenterAction->setIcon( QgsApplication::getThemeIcon( QStringLiteral( "/gpsicons/mActionRecenter.svg" ) ) );
   mRecenterAction->setEnabled( false );
@@ -91,7 +91,7 @@ QgsGpsToolBar::QgsGpsToolBar( QgsAppGpsConnection *connection, QgsMapCanvas *can
 
   mDestinationLayerModel = new QgsMapLayerProxyModel( this );
   mDestinationLayerModel->setProject( QgsProject::instance() );
-  mDestinationLayerModel->setFilters( QgsMapLayerProxyModel::Filter::HasGeometry | QgsMapLayerProxyModel::Filter::WritableLayer );
+  mDestinationLayerModel->setFilters( Qgis::LayerFilter::HasGeometry | Qgis::LayerFilter::WritableLayer );
 
   mDestinationLayerMenu = new QMenu( this );
   connect( mDestinationLayerMenu, &QMenu::aboutToShow, this, &QgsGpsToolBar::destinationMenuAboutToShow );
@@ -123,7 +123,7 @@ QgsGpsToolBar::QgsGpsToolBar( QgsAppGpsConnection *connection, QgsMapCanvas *can
 
   addSeparator();
 
-  mShowInfoAction = new QAction( tr( "Information" ) );
+  mShowInfoAction = new QAction( tr( "Information" ), this );
   mShowInfoAction->setIcon( QgsApplication::getThemeIcon( QStringLiteral( "mActionPropertiesWidget.svg" ) ) );
   mShowInfoAction->setToolTip( tr( "Show GPS Information Panel" ) );
   mShowInfoAction->setCheckable( true );
@@ -145,11 +145,11 @@ QgsGpsToolBar::QgsGpsToolBar( QgsAppGpsConnection *connection, QgsMapCanvas *can
   mCreateFeatureAction->setEnabled( false );
   mAddTrackVertexAction->setEnabled( false );
   mResetFeatureAction->setEnabled( false );
-  connect( mConnection, &QgsAppGpsConnection::statusChanged, this, [ = ]( Qgis::GpsConnectionStatus status )
+  connect( mConnection, &QgsAppGpsConnection::statusChanged, this, [ = ]( Qgis::DeviceConnectionStatus status )
   {
     switch ( status )
     {
-      case Qgis::GpsConnectionStatus::Disconnected:
+      case Qgis::DeviceConnectionStatus::Disconnected:
         whileBlocking( mConnectAction )->setChecked( false );
         mConnectAction->setText( tr( "Connect GPS" ) );
         mConnectAction->setToolTip( tr( "Connect to GPS" ) );
@@ -161,7 +161,7 @@ QgsGpsToolBar::QgsGpsToolBar( QgsAppGpsConnection *connection, QgsMapCanvas *can
         delete mInformationButton;
         mInformationButton = nullptr;
         break;
-      case Qgis::GpsConnectionStatus::Connecting:
+      case Qgis::DeviceConnectionStatus::Connecting:
         whileBlocking( mConnectAction )->setChecked( true );
         mConnectAction->setToolTip( tr( "Connecting to GPS" ) );
         mConnectAction->setIcon( QgsApplication::getThemeIcon( QStringLiteral( "/gpsicons/mIconGpsConnect.svg" ) ) );
@@ -172,7 +172,7 @@ QgsGpsToolBar::QgsGpsToolBar( QgsAppGpsConnection *connection, QgsMapCanvas *can
         delete mInformationButton;
         mInformationButton = nullptr;
         break;
-      case Qgis::GpsConnectionStatus::Connected:
+      case Qgis::DeviceConnectionStatus::Connected:
         whileBlocking( mConnectAction )->setChecked( true );
         mConnectAction->setText( tr( "Disconnect GPS" ) );
         mConnectAction->setToolTip( tr( "Disconnect from GPS" ) );
@@ -431,7 +431,7 @@ void QgsGpsToolBar::destinationMenuAboutToShow()
     layerAction->setIcon( index.data( Qt::DecorationRole ).value< QIcon >() );
     layerAction->setCheckable( true );
 
-    const QString actionLayerId = index.data( QgsMapLayerModel::ItemDataRole::LayerIdRole ).toString();
+    const QString actionLayerId = index.data( static_cast< int >( QgsMapLayerModel::CustomRole::LayerId ) ).toString();
 
     if ( actionLayerId == currentLayerId && !QgsProject::instance()->gpsSettings()->destinationFollowsActiveLayer() )
       layerAction->setChecked( true );

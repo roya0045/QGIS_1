@@ -36,6 +36,7 @@ class QgsMapSettings;
 class QgsExpression;
 class QgsRenderContext;
 class QgsLayerTree;
+class QgsLayerTreeFilterSettings;
 
 /**
  * \ingroup core
@@ -51,7 +52,6 @@ class QgsLayerTree;
  * whether to allow changes to the layer tree.
  *
  * \see QgsLayerTreeView
- * \since QGIS 2.4
  */
 class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
 {
@@ -93,7 +93,7 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
 
     // New stuff
 
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       // display flags
       ShowLegend                 = 0x0001,  //!< Add legend nodes for layer nodes
@@ -138,14 +138,12 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
 
     /**
      * Returns legend node for given index. Returns NULLPTR for invalid index
-     * \since QGIS 2.6
      */
     static QgsLayerTreeModelLegendNode *index2legendNode( const QModelIndex &index );
 
     /**
      * Returns index for a given legend node. If the legend node does not belong to the layer tree, the result is undefined.
      * If the legend node is belongs to the tree but it is filtered out, invalid model index is returned.
-     * \since QGIS 2.6
      */
     QModelIndex legendNode2index( QgsLayerTreeModelLegendNode *legendNode );
 
@@ -154,20 +152,17 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      * (by default it returns also legend node embedded in parent layer node (if any) unless skipNodeEmbeddedInParent is TRUE)
      * \note Parameter skipNodeEmbeddedInParent added in QGIS 2.18
      * \see layerOriginalLegendNodes()
-     * \since QGIS 2.6
      */
     QList<QgsLayerTreeModelLegendNode *> layerLegendNodes( QgsLayerTreeLayer *nodeLayer, bool skipNodeEmbeddedInParent = false );
 
     /**
      * Returns original (unfiltered) list of legend nodes attached to a particular layer node
      * \see layerLegendNodes()
-     * \since QGIS 2.14
      */
     QList<QgsLayerTreeModelLegendNode *> layerOriginalLegendNodes( QgsLayerTreeLayer *nodeLayer );
 
     /**
      * Returns legend node that may be embedded in parent (i.e. its icon will be used for layer's icon).
-     * \since QGIS 2.18
      */
     QgsLayerTreeModelLegendNode *legendNodeEmbeddedInParent( QgsLayerTreeLayer *nodeLayer ) const;
 
@@ -177,7 +172,6 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      * \param layerId map layer ID
      * \param ruleKey legend node rule key
      * \returns QgsLayerTreeModelLegendNode if found
-     * \since QGIS 2.14
      */
     QgsLayerTreeModelLegendNode *findLegendNode( const QString &layerId, const QString &ruleKey ) const;
 
@@ -186,7 +180,6 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
 
     /**
      * Reset the model and use a new root group node
-     * \since QGIS 2.6
      */
     void setRootGroup( QgsLayerTree *newRootGroup );
 
@@ -216,7 +209,6 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      * The \a scale value indicates the scale denominator, e.g. 1000.0 for a 1:1000 map.
      * Setting \a scale <= 0 will disable the functionality.
      * \see legendFilterByScale()
-     * \since QGIS 2.6
      */
     void setLegendFilterByScale( double scale );
 
@@ -225,7 +217,6 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      * The  scale value indicates the scale denominator, e.g. 1000.0 for a 1:1000 map.
      * A scale <= 0 indicates that no scale filtering is being performed.
      * \see setLegendFilterByScale()
-     * \since QGIS 2.6
      */
     double legendFilterByScale() const { return mLegendFilterByScale; }
 
@@ -233,9 +224,9 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      * Force only display of legend nodes which are valid for given map settings.
      * Setting NULLPTR or invalid map settings will disable the functionality.
      * Ownership of map settings pointer does not change, a copy is made.
-     * \since QGIS 2.6
+     * \deprecated QGIS 3.32. Use setFilterSettings() instead.
      */
-    void setLegendFilterByMap( const QgsMapSettings *settings );
+    Q_DECL_DEPRECATED void setLegendFilterByMap( const QgsMapSettings *settings ) SIP_DEPRECATED;
 
     /**
      * Filter display of legend nodes for given map settings
@@ -243,41 +234,77 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
      * \param useExtent Whether to use the extent of the map settings as a first spatial filter on legend nodes
      * \param polygon If not empty, this polygon will be used instead of the map extent to filter legend nodes
      * \param useExpressions Whether to use legend node filter expressions
-     * \since QGIS 2.14
+     * \deprecated QGIS 3.32. Use setFilterSettings() instead.
      */
-    void setLegendFilter( const QgsMapSettings *settings, bool useExtent = true, const QgsGeometry &polygon = QgsGeometry(), bool useExpressions = true );
+    Q_DECL_DEPRECATED void setLegendFilter( const QgsMapSettings *settings, bool useExtent = true, const QgsGeometry &polygon = QgsGeometry(), bool useExpressions = true ) SIP_DEPRECATED;
 
     /**
      * Returns the current map settings used for the current legend filter (or NULLPTR if none is enabled)
-     * \since QGIS 2.14
      */
-    const QgsMapSettings *legendFilterMapSettings() const { return mLegendFilterMapSettings.get(); }
+    const QgsMapSettings *legendFilterMapSettings() const;
+
+    /**
+     * Sets the filter \a settings to use to filter legend nodes.
+     *
+     * Set to NULLPTR to disable legend filter.
+     *
+     * \see filterSettings()
+     *
+     * \since QGIS 3.32
+     */
+    void setFilterSettings( const QgsLayerTreeFilterSettings *settings = nullptr );
+
+    /**
+     * Returns the filter settings to use to filter legend nodes. May be NULLPTR.
+     *
+     * \see setFilterSettings()
+     *
+     * \since QGIS 3.32
+     */
+    const QgsLayerTreeFilterSettings *filterSettings() const;
 
     /**
      * Give the layer tree model hints about the currently associated map view
      * so that legend nodes that use map units can be scaled correctly
-     * \since QGIS 2.6
      */
     void setLegendMapViewData( double mapUnitsPerPixel, int dpi, double scale );
 
     /**
      * Gets hints about map view - to be used in legend nodes. Arguments that are not NULLPTR will receive values.
      * If there are no valid map view data (from previous call to setLegendMapViewData()), returned values are zeros.
-     * \since QGIS 2.6
      */
     void legendMapViewData( double *mapUnitsPerPixel SIP_OUT, int *dpi SIP_OUT, double *scale  SIP_OUT ) const;
 
     /**
      * Gets map of map layer style overrides (key: layer ID, value: style name) where a different style should be used instead of the current one
-     * \since QGIS 2.10
      */
     QMap<QString, QString> layerStyleOverrides() const;
 
     /**
      * Sets map of map layer style overrides (key: layer ID, value: style name) where a different style should be used instead of the current one
-     * \since QGIS 2.10
      */
     void setLayerStyleOverrides( const QMap<QString, QString> &overrides );
+
+    /**
+     * Adds additional target screen \a properties to use when generating icons for Qt::DecorationRole data.
+     *
+     * This allows icons to be generated at an icon device pixel ratio and DPI which
+     * corresponds exactly to the view's screen properties in which this model is used.
+     *
+     * \since QGIS 3.32
+     */
+    void addTargetScreenProperties( const QgsScreenProperties &properties );
+
+    /**
+     * Returns the target screen properties to use when generating icons.
+     *
+     * This allows icons to be generated at an icon device pixel ratio and DPI which
+     * corresponds exactly to the view's screen properties in which this model is used.
+     *
+     * \see addTargetScreenProperties()
+     * \since QGIS 3.32
+     */
+    QSet< QgsScreenProperties > targetScreenProperties() const;
 
     /**
      * Scales an layer tree model icon size to compensate for display pixel density, making the icon
@@ -346,7 +373,6 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
 
     /**
      * Updates model when node's name has changed
-     * \since QGIS 3.0
      */
     void nodeNameChanged( QgsLayerTreeNode *node, const QString &name );
 
@@ -386,7 +412,6 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
     /**
      * Updates layer data for scale dependent layers, should be called when map scale changes.
      * Emits dataChanged() for all scale dependent layers.
-     * \since QGIS 2.16
      */
     void refreshScaleBasedLayers( const QModelIndex &index = QModelIndex(), double previousScale = 0.0 );
 
@@ -425,7 +450,7 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
     //! Current index - will be underlined
     QPersistentModelIndex mCurrentIndex;
     //! Minimal number of nodes when legend should be automatically collapsed. -1 = disabled
-    int mAutoCollapseLegendNodesCount;
+    int mAutoCollapseLegendNodesCount = -1;
 
     /**
      * Structure that stores tree representation of map layer's legend.
@@ -501,21 +526,20 @@ class CORE_EXPORT QgsLayerTreeModel : public QAbstractItemModel
     QFont mFontGroup;
 
     //! scale denominator for filtering of legend nodes (<= 0 means no filtering)
-    double mLegendFilterByScale;
+    double mLegendFilterByScale = 0;
 
     QPointer< QgsMapHitTestTask > mHitTestTask;
 
-    bool mUseHitTest = false;
     QMap<QString, QSet<QString>> mHitTestResults;
-    std::unique_ptr<QgsMapSettings> mLegendFilterMapSettings;
 
-    //! whether to use map filtering
-    bool mLegendFilterUsesExtent;
+    std::unique_ptr< QgsLayerTreeFilterSettings > mFilterSettings;
 
-    double mLegendMapViewMupp;
-    int mLegendMapViewDpi;
-    double mLegendMapViewScale;
+    double mLegendMapViewMupp = 0;
+    int mLegendMapViewDpi = 0;
+    double mLegendMapViewScale = 0;
     QTimer mDeferLegendInvalidationTimer;
+
+    QSet< QgsScreenProperties > mTargetScreenProperties;
 
   private slots:
     void legendNodeSizeChanged();
@@ -552,9 +576,9 @@ class EmbeddedWidgetLegendNode : public QgsLayerTreeModelLegendNode
 
     QVariant data( int role ) const override
     {
-      if ( role == RuleKeyRole )
+      if ( role == static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) )
         return mRuleKey;
-      else if ( role == QgsLayerTreeModelLegendNode::NodeTypeRole )
+      else if ( role == static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::NodeType ) )
         return QgsLayerTreeModelLegendNode::EmbeddedWidget;
       return QVariant();
     }

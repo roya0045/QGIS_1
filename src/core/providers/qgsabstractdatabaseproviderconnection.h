@@ -57,7 +57,7 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
      * Flags can be useful for filtering the tables returned
      * from tables().
      */
-    enum TableFlag
+    enum class TableFlag SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsAbstractDatabaseProviderConnection, TableFlag ) : int SIP_ENUM_BASETYPE( IntFlag )
     {
       Aspatial = 1 << 1,          //!< Aspatial table (it does not contain any geometry column)
       Vector = 1 << 2,            //!< Vector table (it does contain one geometry column)
@@ -479,8 +479,10 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
 
     /**
      * The Capability enum represents the operations supported by the connection.
+     *
+     * \see Qgis::DatabaseProviderConnectionCapability2
      */
-    enum Capability
+    enum Capability SIP_ENUM_BASETYPE( IntFlag )
     {
       CreateVectorTable = 1 << 1,                     //!< Can CREATE a vector (or aspatial) table/layer
       DropRasterTable = 1 << 2,                       //!< Can DROP a raster table/layer
@@ -518,11 +520,11 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
     Q_FLAG( Capabilities )
 
     /**
-     * The GeometryColumnCapability enum represents the geomery column features supported by the connection.
+     * The GeometryColumnCapability enum represents the geometry column features supported by the connection.
      *
      * \since QGIS 3.16
      */
-    enum GeometryColumnCapability
+    enum GeometryColumnCapability SIP_ENUM_BASETYPE( IntFlag )
     {
       Z = 1 << 1,                    //!< Supports Z dimension
       M = 1 << 2,                    //!< Supports M dimension
@@ -557,9 +559,19 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
     // Public interface
 
     /**
-     * Returns connection capabilities
+     * Returns connection capabilities.
+     *
+     * \see capabilities2()
      */
     Capabilities capabilities() const;
+
+    /**
+     * Returns extended connection capabilities.
+     *
+     * \see capabilities()
+     * \since QGIS 3.32
+     */
+    Qgis::DatabaseProviderConnectionCapabilities2 capabilities2() const;
 
     /**
      * Returns connection geometry column capabilities (Z, M, SinglePart, Curves).
@@ -768,19 +780,22 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
      *
      * \param schema name of the schema (ignored if not supported by the backend)
      * \param flags filter tables by flags, this option completely overrides search options stored in the connection
+     * \param feedback can be used to cancel the request (since QGIS 3.32)
      * \throws QgsProviderConnectionException if any errors are encountered.
      * \note Not available in Python bindings
      */
-    virtual QList<QgsAbstractDatabaseProviderConnection::TableProperty> tables( const QString &schema = QString(), const QgsAbstractDatabaseProviderConnection::TableFlags &flags = QgsAbstractDatabaseProviderConnection::TableFlags() ) const SIP_SKIP;
+    virtual QList<QgsAbstractDatabaseProviderConnection::TableProperty> tables( const QString &schema = QString(), const QgsAbstractDatabaseProviderConnection::TableFlags &flags = QgsAbstractDatabaseProviderConnection::TableFlags(), QgsFeedback *feedback = nullptr ) const SIP_SKIP;
 
     /**
      * Returns information on a \a table in the given \a schema.
+     *
+     * Since QGIS 3.32 the optional \a feedback argument can be used to cancel the request.
      *
      * \throws QgsProviderConnectionException if any errors are encountered or if the table does not exist.
      * \note Not available in Python bindings
      * \since QGIS 3.12
      */
-    virtual QgsAbstractDatabaseProviderConnection::TableProperty table( const QString &schema, const QString &table ) const SIP_THROW( QgsProviderConnectionException );
+    virtual QgsAbstractDatabaseProviderConnection::TableProperty table( const QString &schema, const QString &table, QgsFeedback *feedback = nullptr ) const SIP_THROW( QgsProviderConnectionException );
 
     /**
      * Returns information on the tables in the given schema.
@@ -804,6 +819,8 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
     /**
      * Returns the fields of a \a table and \a schema.
      *
+     * Since QGIS 3.32 the optional \a feedback argument can be used to cancel the request.
+     *
      * \note the default implementation creates a temporary vector layer, providers may
      * choose to override this method for a greater efficiency of to overcome provider's
      * behavior when the layer does not expose all fields (GPKG for example hides geometry
@@ -811,7 +828,7 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
      * \throws QgsProviderConnectionException if any errors are encountered.
      * \since QGIS 3.16
      */
-    virtual QgsFields fields( const QString &schema, const QString &table ) const SIP_THROW( QgsProviderConnectionException );
+    virtual QgsFields fields( const QString &schema, const QString &table, QgsFeedback *feedback = nullptr ) const SIP_THROW( QgsProviderConnectionException );
 
     /**
      * Returns a list of native types supported by the connection.
@@ -903,6 +920,32 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
      * \since QGIS 3.26
      */
     virtual void addFieldDomain( const QgsFieldDomain &domain, const QString &schema ) const SIP_THROW( QgsProviderConnectionException );
+
+    /**
+     * Sets the \a alias for the existing field with the specified name.
+     *
+     * \param fieldName name of the field to be modified
+     * \param schema name of the schema (schema is ignored if not supported by the backend).
+     * \param tableName name of the table
+     * \param alias alias to set for the field. Set to an empty string to remove a previously set alias.
+     *
+     * \throws QgsProviderConnectionException if any errors are encountered.
+     * \since QGIS 3.32
+     */
+    virtual void setFieldAlias( const QString &fieldName, const QString &schema, const QString &tableName, const QString &alias ) const SIP_THROW( QgsProviderConnectionException );
+
+    /**
+     * Sets the \a comment for the existing field with the specified name.
+     *
+     * \param fieldName name of the field to be modified
+     * \param schema name of the schema (schema is ignored if not supported by the backend).
+     * \param tableName name of the table
+     * \param comment comment to set for the field. Set to an empty string to remove a previously set comment.
+     *
+     * \throws QgsProviderConnectionException if any errors are encountered.
+     * \since QGIS 3.32
+     */
+    virtual void setFieldComment( const QString &fieldName, const QString &schema, const QString &tableName, const QString &comment ) const SIP_THROW( QgsProviderConnectionException );
 
     /**
      * Returns a list of relationship cardinalities which are supported by the provider.
@@ -1092,9 +1135,18 @@ class CORE_EXPORT QgsAbstractDatabaseProviderConnection : public QgsAbstractProv
      * \throws QgsProviderConnectionException if the capability is not supported
      */
     void checkCapability( Capability capability ) const;
+
+    /**
+     * Checks if \a capability is supported.
+     *
+     * \throws QgsProviderConnectionException if the capability is not supported
+     */
+    void checkCapability( Qgis::DatabaseProviderConnectionCapability2 capability ) const;
 ///@endcond
 
     Capabilities mCapabilities = Capabilities() SIP_SKIP;
+    Qgis::DatabaseProviderConnectionCapabilities2 mCapabilities2 = Qgis::DatabaseProviderConnectionCapabilities2() SIP_SKIP;
+
     GeometryColumnCapabilities mGeometryColumnCapabilities = GeometryColumnCapabilities() SIP_SKIP;
     Qgis::SqlLayerDefinitionCapabilities mSqlLayerDefinitionCapabilities = Qgis::SqlLayerDefinitionCapabilities() SIP_SKIP;
     QString mProviderKey;

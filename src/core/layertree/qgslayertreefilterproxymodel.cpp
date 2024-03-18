@@ -23,7 +23,7 @@
 QgsLayerTreeFilterProxyModel::QgsLayerTreeFilterProxyModel( QObject *parent )
   : QSortFilterProxyModel( parent )
 {
-  connect( QgsProject::instance(), &QgsProject::readProject, this, [ = ]
+  connect( QgsProject::instance(), &QgsProject::readProject, this, [this]
   {
     beginResetModel();
     endResetModel();
@@ -107,7 +107,7 @@ void QgsLayerTreeFilterProxyModel::setLayerTreeModel( QgsLayerTreeModel *layerTr
   QSortFilterProxyModel::setSourceModel( layerTreeModel );
 }
 
-void QgsLayerTreeFilterProxyModel::setFilters( const QgsMapLayerProxyModel::Filters &filters )
+void QgsLayerTreeFilterProxyModel::setFilters( Qgis::LayerFilters filters )
 {
   mFilters = filters;
   invalidateFilter();

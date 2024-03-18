@@ -9,7 +9,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '30/07/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import QListView
 from qgis.core import (
@@ -21,7 +20,8 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.gui import QgsExpressionBuilderWidget
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -61,7 +61,7 @@ def createReferencedLayer():
     return layer
 
 
-class TestQgsExpressionBuilderWidget(unittest.TestCase):
+class TestQgsExpressionBuilderWidget(QgisTestCase):
 
     def setUp(self):
         self.referencedLayer = createReferencedLayer()
@@ -73,11 +73,11 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
         w = QgsExpressionBuilderWidget()
         m = w.model()
         # check that some standard expression functions are shown
-        items = m.findItems('lower', Qt.MatchRecursive)
+        items = m.findItems('lower', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems('upper', Qt.MatchRecursive)
+        items = m.findItems('upper', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems('asdasdasda#$@#$', Qt.MatchRecursive)
+        items = m.findItems('asdasdasda#$@#$', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 0)
 
     def testVariables(self):
@@ -93,16 +93,16 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
 
         # check that variables are added when setting context
         w.setExpressionContext(c)
-        items = m.findItems('my_var1', Qt.MatchRecursive)
+        items = m.findItems('my_var1', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems('my_var2', Qt.MatchRecursive)
+        items = m.findItems('my_var2', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems('not_my_var', Qt.MatchRecursive)
+        items = m.findItems('not_my_var', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 0)
         # double check that functions are still only there once
-        items = m.findItems('lower', Qt.MatchRecursive)
+        items = m.findItems('lower', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems('upper', Qt.MatchRecursive)
+        items = m.findItems('upper', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
 
     def testLayers(self):
@@ -116,9 +116,9 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
         m = w.model()
 
         # check that layers are shown
-        items = m.findItems('layer1', Qt.MatchRecursive)
+        items = m.findItems('layer1', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems('layer2', Qt.MatchRecursive)
+        items = m.findItems('layer2', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
 
         # change project
@@ -127,11 +127,11 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
         p2.addMapLayers([layer3])
         w.setProject(p2)
         m = w.model()
-        items = m.findItems('layer1', Qt.MatchRecursive)
+        items = m.findItems('layer1', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 0)
-        items = m.findItems('layer2', Qt.MatchRecursive)
+        items = m.findItems('layer2', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 0)
-        items = m.findItems('layer3', Qt.MatchRecursive)
+        items = m.findItems('layer3', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
 
     def testRelations(self):
@@ -160,9 +160,9 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
         m = w.model()
 
         # check that relations are shown
-        items = m.findItems('Relation Number One', Qt.MatchRecursive)
+        items = m.findItems('Relation Number One', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems('Relation Number Two', Qt.MatchRecursive)
+        items = m.findItems('Relation Number Two', Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
 
     def testStoredExpressions(self):
@@ -206,11 +206,11 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
 
         w.setLayer(layer)
 
-        items = m.findItems("layer", Qt.MatchRecursive)
+        items = m.findItems("layer", Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems("layer_id", Qt.MatchRecursive)
+        items = m.findItems("layer_id", Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
-        items = m.findItems("layer_name", Qt.MatchRecursive)
+        items = m.findItems("layer_name", Qt.MatchFlag.MatchRecursive)
         self.assertEqual(len(items), 1)
 
         p.removeMapLayer(layer)
@@ -229,7 +229,7 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
         self.assertTrue(valuesModel)
 
         layer = QgsVectorLayer(
-            "None?field=myarray:string[]&field=mystr:string&field=myint:integer&field=myintarray:int[]&field=mydoublearray:double[]",
+            "None?field=myarray:string[]&field=mystr:string&field=myint:integer&field=myintarray:int[]&field=mydoublearray:double[]&field=mybool:boolean(0,0)",
             "arraylayer", "memory")
 
         self.assertTrue(layer.isValid())
@@ -237,11 +237,11 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
         # add some features, one has invalid geometry
         pr = layer.dataProvider()
         f1 = QgsFeature(1)
-        f1.setAttributes([["one 'item'", 'B'], "another 'item'", 0, [1, 2], [1.1, 2.1]])
+        f1.setAttributes([["one 'item'", 'B'], "another 'item'", 0, [1, 2], [1.1, 2.1], True])
         f2 = QgsFeature(2)
-        f2.setAttributes([['C'], "", 1, [3, 4], [-0.1, 2.0]])
+        f2.setAttributes([['C'], "", 1, [3, 4], [-0.1, 2.0], False])
         f3 = QgsFeature(3)
-        f3.setAttributes([[], "test", 2, [], []])
+        f3.setAttributes([[], "test", 2, [], [], False])
         f4 = QgsFeature(4)
         self.assertTrue(pr.addFeatures([f1, f2, f3, f4]))
 
@@ -257,7 +257,7 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
 
         w.loadAllValues()
 
-        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.UserRole + 1)) for i in range(4)])
+        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.UserRole + 1)) for i in range(4)])
         self.assertEqual(datas, [(" [array()]", "array()"),
                                  ("C [array('C')]", "array('C')"),
                                  ("NULL [NULL]", "NULL"),
@@ -273,7 +273,7 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
 
         w.loadAllValues()
 
-        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.UserRole + 1)) for i in range(4)])
+        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.UserRole + 1)) for i in range(4)])
 
         self.assertEqual(datas, [("", "''"),
                                  ("NULL [NULL]", "NULL"),
@@ -290,7 +290,7 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
 
         w.loadAllValues()
 
-        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.UserRole + 1)) for i in range(4)])
+        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.UserRole + 1)) for i in range(4)])
 
         self.assertEqual(datas, [("0", "0"),
                                  ("1", "1"),
@@ -307,7 +307,7 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
 
         w.loadAllValues()
 
-        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.UserRole + 1)) for i in range(4)])
+        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.UserRole + 1)) for i in range(4)])
         self.assertEqual(datas, [(" [array()]", "array()"),
                                  ("1, 2 [array(1, 2)]", "array(1, 2)"),
                                  ("3, 4 [array(3, 4)]", "array(3, 4)"),
@@ -324,12 +324,32 @@ class TestQgsExpressionBuilderWidget(unittest.TestCase):
 
         w.loadAllValues()
 
-        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.UserRole + 1)) for i in range(4)])
+        datas = sorted([(valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.UserRole + 1)) for i in range(4)])
         self.assertEqual(datas, [(" [array()]", "array()"),
                                  ("-0.1, 2 [array(-0.1, 2)]", "array(-0.1, 2)"),
                                  ("1.1, 2.1 [array(1.1, 2.1)]", "array(1.1, 2.1)"),
                                  ("NULL [NULL]", "NULL"),
                                  ])
+
+        # test boolean
+        items = w.expressionTree().findExpressions("mybool")
+        self.assertEqual(len(items), 1)
+        currentIndex = w.expressionTree().model().mapFromSource(items[0].index())
+        self.assertTrue(currentIndex.isValid())
+        w.expressionTree().setCurrentIndex(currentIndex)
+        self.assertTrue(w.expressionTree().currentItem())
+
+        w.loadAllValues()
+
+        datas = [(valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.DisplayRole), valuesModel.data(valuesModel.index(i, 0), Qt.ItemDataRole.UserRole + 1)) for i in range(4)]
+        datas.remove((None, None))
+        datas.sort()
+        datas.append((None, None))
+
+        self.assertEqual(datas, [("NULL [NULL]", "NULL"),
+                                 ("false", "false"),
+                                 ("true", "true"),
+                                 (None, None)])
 
 
 if __name__ == '__main__':

@@ -104,7 +104,7 @@ QgsLayoutPdfExportOptionsDialog::QgsLayoutPdfExportOptionsDialog( QWidget *paren
       showContextMenuForGeoPdfStructure( point, mGeoPdfStructureProxyModel->mapToSource( index ) );
   } );
 
-  connect( buttonBox, &QDialogButtonBox::helpRequested, this, &QgsLayoutPdfExportOptionsDialog::showHelp );
+  connect( mHelpButtonBox, &QDialogButtonBox::helpRequested, this, &QgsLayoutPdfExportOptionsDialog::showHelp );
   QgsGui::enableAutoGeometryRestore( this );
 }
 
@@ -256,9 +256,19 @@ QStringList QgsLayoutPdfExportOptionsDialog::geoPdfLayerOrder() const
   QStringList order;
   for ( int row = 0; row < mGeoPdfStructureProxyModel->rowCount(); ++row )
   {
-    order << mGeoPdfStructureProxyModel->data( mGeoPdfStructureProxyModel->index( row, 0 ), QgsGeoPdfLayerTreeModel::LayerIdRole ).toString();
+    order << mGeoPdfStructureProxyModel->data( mGeoPdfStructureProxyModel->index( row, 0 ), static_cast< int >( QgsMapLayerModel::CustomRole::LayerId ) ).toString();
   }
   return order;
+}
+
+void QgsLayoutPdfExportOptionsDialog::setOpenAfterExporting( bool enabled )
+{
+  mOpenAfterExportingCheckBox->setChecked( enabled );
+}
+
+bool QgsLayoutPdfExportOptionsDialog::openAfterExporting() const
+{
+  return mOpenAfterExportingCheckBox->isChecked();
 }
 
 void QgsLayoutPdfExportOptionsDialog::showHelp()

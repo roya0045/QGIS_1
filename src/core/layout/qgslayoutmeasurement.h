@@ -20,6 +20,7 @@
 
 #include "qgis_core.h"
 #include "qgis.h"
+#include "qgsunittypes.h"
 
 /**
  * \ingroup core
@@ -27,7 +28,6 @@
  * \brief This class provides a method of storing measurements for use in QGIS layouts
  * using a variety of different measurement units.
  * \see QgsLayoutMeasurementConverter
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutMeasurement
 {

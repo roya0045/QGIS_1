@@ -10,39 +10,29 @@ __date__ = '08/03/2023'
 __copyright__ = 'Copyright 2023, The QGIS Project'
 
 import os
-from time import sleep
 
-from qgis.PyQt.QtCore import QDir, QRectF, QSize
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtXml import QDomDocument
+from qgis.PyQt.QtCore import QSize
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsMapHitTest,
-    QgsLineSymbol,
-    QgsMapLayerLegendUtils,
     QgsMapSettings,
-    QgsMapThemeCollection,
     QgsMarkerSymbol,
-    QgsPrintLayout,
-    QgsProject,
-    QgsProperty,
     QgsRectangle,
-    QgsRendererCategory,
     QgsRuleBasedRenderer,
     QgsApplication,
     QgsVectorLayer,
-    QgsMapHitTestTask
+    QgsMapHitTestTask,
+    QgsLayerTreeFilterSettings
 )
-from qgis.testing import start_app, unittest
-from qgslayoutchecker import QgsLayoutChecker
-from test_qgslayoutitem import LayoutItemTestCase
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from utilities import unitTestDataPath
 
 start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsMapHitTest(unittest.TestCase):
+class TestQgsMapHitTest(QgisTestCase):
 
     def test_hit_test(self):
         point_path = os.path.join(TEST_DATA_DIR, 'points.shp')
@@ -154,7 +144,8 @@ class TestQgsMapHitTest(unittest.TestCase):
         map_settings.setExtent(QgsRectangle(-12360166, 3146940, -11269206, 3816372))
         map_settings.setLayers([point_layer])
 
-        map_hit_test_task = QgsMapHitTestTask(map_settings)
+        filter_settings = QgsLayerTreeFilterSettings(map_settings)
+        map_hit_test_task = QgsMapHitTestTask(filter_settings)
 
         def catch_results():
             TestQgsMapHitTest.results = map_hit_test_task.results()

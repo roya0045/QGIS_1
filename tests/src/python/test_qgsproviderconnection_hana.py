@@ -9,8 +9,6 @@ the Free Software Foundation; either version 2 of the License, or
 __author__ = 'Maxim Rylov'
 __date__ = '02/04/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
-# This will get replaced with a git SHA1 when you do a git archive
-__revision__ = '$Format:%H$'
 
 import os
 
@@ -37,6 +35,7 @@ class TestPyQgsProviderConnectionHana(unittest.TestCase, TestPyQgsProviderConnec
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestPyQgsProviderConnectionHana, cls).setUpClass()
 
         TestPyQgsProviderConnectionBase.setUpClass()
 
@@ -58,6 +57,7 @@ class TestPyQgsProviderConnectionHana(unittest.TestCase, TestPyQgsProviderConnec
 
         QgsHanaProviderUtils.cleanUp(cls.conn, cls.schemaName)
         cls.conn.close()
+        super(TestPyQgsProviderConnectionHana, cls).tearDownClass()
 
     def getUniqueSchemaName(self, name):
         return 'qgis_test_' + QgsHanaProviderUtils.generateSchemaName(self.conn, name)
@@ -92,18 +92,18 @@ class TestPyQgsProviderConnectionHana(unittest.TestCase, TestPyQgsProviderConnec
         conn = md.createConnection(self.uri, {})
         # Retrieve capabilities
         capabilities = conn.capabilities()
-        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.CreateSchema))
-        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.DropSchema))
-        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.CreateVectorTable))
-        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.DropVectorTable))
-        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.RenameVectorTable))
-        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Tables))
-        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Schemas))
+        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Capability.CreateSchema))
+        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Capability.DropSchema))
+        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Capability.CreateVectorTable))
+        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Capability.DropVectorTable))
+        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Capability.RenameVectorTable))
+        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Capability.Tables))
+        self.assertTrue(bool(capabilities & QgsAbstractDatabaseProviderConnection.Capability.Schemas))
 
-        table_names = self._table_names(conn.tables(self.schemaName, QgsAbstractDatabaseProviderConnection.Vector))
+        table_names = self._table_names(conn.tables(self.schemaName, QgsAbstractDatabaseProviderConnection.TableFlag.Vector))
         self.assertEqual(table_names.sort(), ['some_data', 'some_poly_data'].sort())
 
-        view_names = self._table_names(conn.tables(self.schemaName, QgsAbstractDatabaseProviderConnection.View))
+        view_names = self._table_names(conn.tables(self.schemaName, QgsAbstractDatabaseProviderConnection.TableFlag.View))
         self.assertEqual(view_names, ['some_data_view'])
 
     def testTrueFalse(self):

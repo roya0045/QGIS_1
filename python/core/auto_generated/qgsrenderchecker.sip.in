@@ -72,6 +72,20 @@ Returns the HTML report describing the results of the test run.
 
 If ``ignoreSuccess`` is ``True`` then the report will always be empty if
 the test was successful.
+
+.. seealso:: :py:func:`markdownReport`
+%End
+
+    QString markdownReport( bool ignoreSuccess = true ) const;
+%Docstring
+Returns the markdown report describing the results of the test run.
+
+If ``ignoreSuccess`` is ``True`` then the report will always be empty if
+the test was successful.
+
+.. seealso:: :py:func:`report`
+
+.. versionadded:: 3.34
 %End
 
     float matchPercent() const;
@@ -148,10 +162,6 @@ This method will return either the path set with :py:func:`~QgsRenderChecker.set
 %End
 
     void setMapSettings( const QgsMapSettings &mapSettings );
-%Docstring
-
-.. versionadded:: 2.4
-%End
 
     void setColorTolerance( unsigned int colorTolerance );
 %Docstring
@@ -160,8 +170,6 @@ Default value is 0.
 
 :param colorTolerance: is maximum difference for each color component
                        including alpha to be considered correct.
-
-.. versionadded:: 2.1
 %End
 
     void setSizeTolerance( int xTolerance, int yTolerance );
@@ -170,8 +178,6 @@ Sets the largest allowable difference in size between the rendered and the expec
 
 :param xTolerance: x tolerance in pixels
 :param yTolerance: y tolerance in pixels
-
-.. versionadded:: 2.12
 %End
 
     enum class Flag
@@ -263,6 +269,13 @@ Gets access to buffered dash messages.
 Only will return something if you call enableDashBuffering( ``True`` ); before.
 
 :return: buffered dash messages
+%End
+
+    static QString sourcePath();
+%Docstring
+Returns the path to the QGIS source code.
+
+.. versionadded:: 3.36
 %End
 
   protected:

@@ -1,5 +1,9 @@
 name: 🧹 Code Layout
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -8,19 +12,22 @@ on:
       - queued_ltr_backports
   pull_request:
 
+permissions:
+  contents: read
+
 env:
-  DOXYGEN_VERSION: 1.9.6
+  DOXYGEN_VERSION: 1.9.8
 
 jobs:
   documentation_checks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10' 
+          python-version: '3.10'
       - name: Install requirements
         run: |
           wget https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz
@@ -41,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Requirements
         run: |
           sudo apt install -y \
@@ -55,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Requirements
         run: |
             sudo apt install -y \
@@ -68,15 +75,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run Banned Keywords Test
         run: ./tests/code_layout/test_banned_keywords.sh
+
+  class_name_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run class naming conventions check
+        run: ./tests/code_layout/test_class_names.sh
 
   def_window_title_check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Def Window Title Test
         run: ./tests/code_layout/test_defwindowtitle.sh
 
@@ -84,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run QgsScrollArea check
         run: ./tests/code_layout/test_qgsscrollarea.sh
 
@@ -92,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: No brace initialization of QVariant variables
         run: ./tests/code_layout/test_qvariant_no_brace_init.sh
 
@@ -100,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: No module-wide imports of Qt modules
         run: ./tests/code_layout/test_qt_imports.sh
 
@@ -108,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Requirements
         run: |
           sudo apt install -y \
@@ -122,7 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 100
       - name: Install Requirements
@@ -138,25 +153,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Requirements
         run: |
           sudo apt install -y \
               expect \
               silversearcher-ag
-      - uses: trilom/file-changes-action@v1.2.4
+      - uses: tj-actions/changed-files@v42
         id: changed_files
         with:
-          output: ' '
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          separator: ' '
+          files_ignore: |
+            **/*.sip.in
+            **/*.png
+            **/*.svg
+            **/*.tif*
+            **/*.gpkg
+            **/*.qgz
+            **/*.qgs
       - name: Spell Test
-        run: ./scripts/spell_check/check_spelling.sh -r ${{ steps.changed_files.outputs.files_modified }} ${{ steps.changed_files.outputs.files_added }}
+        run: ./scripts/spell_check/check_spelling.sh -r "${{ steps.changed_files.outputs.all_changed_files }}"
 
   sip_check:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python 3.7
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.7
       - name: Install Requirements
@@ -180,7 +202,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install autopep8 nose2 mock termcolor
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Sip Checks
         run: ./tests/code_layout/sipify/test_sipify.sh
       - name: Sip Include Test
@@ -188,11 +210,11 @@ jobs:
       - name: Sip Files Up To Date
         run: ./tests/code_layout/sipify/test_sipfiles.sh
 
-  cppcheck_18_04:
-    runs-on: ubuntu-18.04
+  cppcheck:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Requirements
         run: |

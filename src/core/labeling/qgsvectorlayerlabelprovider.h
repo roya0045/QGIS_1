@@ -35,7 +35,6 @@ class QgsSymbol;
  *
  * \note this class is not a part of public API yet. See notes in QgsLabelingEngine
  * \note not available in Python bindings
- * \since QGIS 2.12
  */
 class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
 {
@@ -100,7 +99,6 @@ class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
      * \param fet point feature
      * \param context render context
      * \param symbols symbols rendered for point feature
-     * \since QGIS 2.14
      */
     static QgsGeometry getPointObstacleGeometry( QgsFeature &fet, QgsRenderContext &context, const QgsSymbolList &symbols );
 
@@ -116,7 +114,7 @@ class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
      * a call to prepare() which uses the list of fields.
      * \since QGIS 3.14
      */
-    void setFields( const QgsFields &fields ) { mFields = fields; }
+    void setFields( const QgsFields &fields );
 
   protected:
     //! initialization method - called from constructors
@@ -147,6 +145,8 @@ class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
   private:
 
     friend class TestQgsLabelingEngine;
+    friend class QgsVectorTileBasicLabelProvider;
+
     void drawCallout( QgsRenderContext &context, pal::LabelPosition *label ) const;
 };
 

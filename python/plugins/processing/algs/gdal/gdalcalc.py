@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     gdalcalc.py
@@ -60,7 +58,8 @@ class gdalcalc(GdalAlgorithm):
     OPTIONS = 'OPTIONS'
     EXTRA = 'EXTRA'
     RTYPE = 'RTYPE'
-    TYPE = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64']
+
+    TYPE = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64', 'CInt16', 'CInt32', 'CFloat32', 'CFloat64', 'Int8']
 
     def __init__(self):
         super().__init__()
@@ -140,8 +139,8 @@ class gdalcalc(GdalAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.NO_DATA,
-                self.tr('Set output nodata value'),
-                type=QgsProcessingParameterNumber.Double,
+                self.tr('Set output NoData value'),
+                type=QgsProcessingParameterNumber.Type.Double,
                 defaultValue=None,
                 optional=True))
 
@@ -172,7 +171,7 @@ class gdalcalc(GdalAlgorithm):
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         options_param.setMetadata({
             'widget_wrapper': {
                 'class': 'processing.algs.gdal.ui.RasterOptionsWidget.RasterOptionsWidgetWrapper'}})
@@ -182,7 +181,7 @@ class gdalcalc(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         self.addParameter(
@@ -220,9 +219,15 @@ class gdalcalc(GdalAlgorithm):
             f'--calc "{formula}"',
             '--format',
             GdalUtils.getFormatShortNameFromFilename(out),
-            '--type',
-            self.TYPE[self.parameterAsEnum(parameters, self.RTYPE, context)]
         ]
+
+        rtype = self.parameterAsEnum(parameters, self.RTYPE, context)
+        if self.TYPE[rtype] in ['CInt16', 'CInt32', 'CFloat32', 'CFloat64'] and GdalUtils.version() < 3050300:
+            raise QgsProcessingException(self.tr('{} data type requires GDAL version 3.5.3 or later').format(self.TYPE[rtype]))
+        if self.TYPE[rtype] == 'Int8' and GdalUtils.version() < 3070000:
+            raise QgsProcessingException(self.tr('Int8 data type requires GDAL version 3.7 or later'))
+
+        arguments.append('--type ' + self.TYPE[rtype])
 
         if noData is not None:
             arguments.append('--NoDataValue')

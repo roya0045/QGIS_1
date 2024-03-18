@@ -20,6 +20,8 @@
 #include "qgsmaplayerserverproperties.h"
 #include "qgsmessagelog.h"
 #include "qgswmsserviceexception.h"
+#include "qgsfontutils.h"
+
 #include <QRegularExpression>
 
 const QString EXTERNAL_LAYER_PREFIX = QStringLiteral( "EXTERNAL_WMS:" );
@@ -378,6 +380,11 @@ namespace QgsWms
                                       QVariant( true ) );
     save( pRuleLabel );
 
+    const QgsWmsParameter pShowRuleDetails( QgsWmsParameter::SHOWRULEDETAILS,
+                                            QVariant::Bool,
+                                            QVariant( false ) );
+    save( pShowRuleDetails );
+
     const QgsWmsParameter pScale( QgsWmsParameter::SCALE,
                                   QVariant::Double,
                                   QVariant( -1 ) );
@@ -534,9 +541,13 @@ namespace QgsWms
     save( pWithGeometry );
 
     const QgsWmsParameter pWithMapTip( QgsWmsParameter::WITH_MAPTIP,
-                                       QVariant::Bool,
-                                       QVariant( false ) );
+                                       QVariant::String );
     save( pWithMapTip );
+
+    const QgsWmsParameter pWithDisplayName( QgsWmsParameter::WITH_DISPLAY_NAME,
+                                            QVariant::Bool,
+                                            QVariant( false ) );
+    save( pWithDisplayName );
 
     const QgsWmsParameter pWmtver( QgsWmsParameter::WMTVER );
     save( pWmtver );
@@ -594,11 +605,7 @@ namespace QgsWms
     const thread_local QRegularExpression composerParamRegExp( QStringLiteral( "^MAP\\d+:" ), QRegularExpression::CaseInsensitiveOption );
     if ( key.contains( composerParamRegExp ) )
     {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
-      const int mapId = key.midRef( 3, key.indexOf( ':' ) - 3 ).toInt();
-#else
-      const int mapId = QStringView {key}.mid( 3, key.indexOf( ':' ) - 3 ).toInt();
-#endif
+      const int mapId = QStringView {key} .mid( 3, key.indexOf( ':' ) - 3 ).toInt();
       const QString theKey = key.mid( key.indexOf( ':' ) + 1 );
       const QgsWmsParameter::Name name = QgsWmsParameter::name( theKey );
 
@@ -983,6 +990,11 @@ namespace QgsWms
     return mWmsParameters.value( QgsWmsParameter::RULE ).toString();
   }
 
+  bool QgsWmsParameters::showRuleDetailsAsBool() const
+  {
+    return mWmsParameters.value( QgsWmsParameter::SHOWRULEDETAILS ).toBool();
+  }
+
   QString QgsWmsParameters::ruleLabel() const
   {
     return mWmsParameters.value( QgsWmsParameter::RULELABEL ).toString();
@@ -1259,7 +1271,7 @@ namespace QgsWms
       font.setPointSizeF( layerFontSizeAsDouble() );
 
     if ( !layerFontFamily().isEmpty() )
-      font.setFamily( layerFontFamily() );
+      QgsFontUtils::setFontFamily( font, layerFontFamily() );
 
     return font;
   }
@@ -1276,7 +1288,7 @@ namespace QgsWms
       font.setPointSizeF( itemFontSizeAsDouble() );
 
     if ( !itemFontFamily().isEmpty() )
-      font.setFamily( itemFontFamily() );
+      QgsFontUtils::setFontFamily( font, itemFontFamily() );
 
     return font;
   }
@@ -1348,7 +1360,7 @@ namespace QgsWms
 
   QStringList QgsWmsParameters::highlightLabelString() const
   {
-    return mWmsParameters.value( QgsWmsParameter::HIGHLIGHT_LABELSTRING ).toStringList( ';' );
+    return mWmsParameters.value( QgsWmsParameter::HIGHLIGHT_LABELSTRING ).toStringList( ';', false );
   }
 
   QStringList QgsWmsParameters::highlightLabelSize() const
@@ -1574,7 +1586,7 @@ namespace QgsWms
   bool QgsWmsParameters::isForce2D() const
   {
     bool force2D = false;
-    const QMap<DxfFormatOption, QString> options = dxfFormatOptions();
+    const QMap<DxfFormatOption, QString> options = formatOptions<QgsWmsParameters::DxfFormatOption>();
 
     if ( options.contains( DxfFormatOption::FORCE_2D ) )
     {
@@ -1587,7 +1599,7 @@ namespace QgsWms
   bool QgsWmsParameters::noMText() const
   {
     bool noMText = false;
-    const QMap<DxfFormatOption, QString> options = dxfFormatOptions();
+    const QMap<DxfFormatOption, QString> options = formatOptions<QgsWmsParameters::DxfFormatOption>();
 
     if ( options.contains( DxfFormatOption::NO_MTEXT ) )
     {
@@ -2092,9 +2104,37 @@ namespace QgsWms
     return mWmsParameters.value( QgsWmsParameter::WITH_GEOMETRY ).toBool();
   }
 
+  QString QgsWmsParameters::withMapTipAsString() const
+  {
+    return mWmsParameters.value( QgsWmsParameter::WITH_MAPTIP ).toString();
+  }
+
   bool QgsWmsParameters::withMapTip() const
   {
-    return mWmsParameters.value( QgsWmsParameter::WITH_MAPTIP ).toBool();
+    const QString mStr = withMapTipAsString();
+
+    if ( mStr.startsWith( QLatin1String( "true" ), Qt::CaseInsensitive ) ||
+         mStr.startsWith( QLatin1String( "on" ), Qt::CaseInsensitive ) ||
+         mStr.startsWith( QLatin1String( "yes" ), Qt::CaseInsensitive ) ||
+         mStr.startsWith( QLatin1Char( '1' ) ) )
+      return true;
+    else
+      return false;
+  }
+
+  bool QgsWmsParameters::htmlInfoOnlyMapTip() const
+  {
+    const QString mStr = withMapTipAsString();
+
+    if ( mStr.startsWith( QLatin1String( "html_fi_only_maptip" ), Qt::CaseInsensitive ) )
+      return true;
+    else
+      return false;
+  }
+
+  bool QgsWmsParameters::withDisplayName() const
+  {
+    return mWmsParameters.value( QgsWmsParameter::WITH_DISPLAY_NAME ).toBool();
   }
 
   QString QgsWmsParameters::wmtver() const
@@ -2146,7 +2186,7 @@ namespace QgsWms
   QStringList QgsWmsParameters::dxfLayerAttributes() const
   {
     QStringList attributes;
-    const QMap<DxfFormatOption, QString> options = dxfFormatOptions();
+    const QMap<DxfFormatOption, QString> options = formatOptions<QgsWmsParameters::DxfFormatOption>();
 
     if ( options.contains( DxfFormatOption::LAYERATTRIBUTES ) )
     {
@@ -2159,7 +2199,7 @@ namespace QgsWms
   bool QgsWmsParameters::dxfUseLayerTitleAsName() const
   {
     bool use = false;
-    const QMap<DxfFormatOption, QString> options = dxfFormatOptions();
+    const QMap<DxfFormatOption, QString> options = formatOptions<QgsWmsParameters::DxfFormatOption>();
 
     if ( options.contains( DxfFormatOption::USE_TITLE_AS_LAYERNAME ) )
     {
@@ -2171,7 +2211,7 @@ namespace QgsWms
 
   double QgsWmsParameters::dxfScale() const
   {
-    const QMap<DxfFormatOption, QString> options = dxfFormatOptions();
+    const QMap<DxfFormatOption, QString> options = formatOptions<QgsWmsParameters::DxfFormatOption>();
 
     double scale = -1;
     if ( options.contains( DxfFormatOption::SCALE ) )
@@ -2182,11 +2222,11 @@ namespace QgsWms
     return scale;
   }
 
-  QgsDxfExport::SymbologyExport QgsWmsParameters::dxfMode() const
+  Qgis::FeatureSymbologyExport QgsWmsParameters::dxfMode() const
   {
-    const QMap<DxfFormatOption, QString> options = dxfFormatOptions();
+    const QMap<DxfFormatOption, QString> options = formatOptions<QgsWmsParameters::DxfFormatOption>();
 
-    QgsDxfExport::SymbologyExport symbol = QgsDxfExport::NoSymbology;
+    Qgis::FeatureSymbologyExport symbol = Qgis::FeatureSymbologyExport::NoSymbology;
 
     if ( ! options.contains( DxfFormatOption::MODE ) )
     {
@@ -2196,11 +2236,11 @@ namespace QgsWms
     const QString mode = options[ DxfFormatOption::MODE ];
     if ( mode.compare( QLatin1String( "SymbolLayerSymbology" ), Qt::CaseInsensitive ) == 0 )
     {
-      symbol = QgsDxfExport::SymbolLayerSymbology;
+      symbol = Qgis::FeatureSymbologyExport::PerSymbolLayer;
     }
     else if ( mode.compare( QLatin1String( "FeatureSymbology" ), Qt::CaseInsensitive ) == 0 )
     {
-      symbol = QgsDxfExport::FeatureSymbology;
+      symbol = Qgis::FeatureSymbologyExport::PerFeature;
     }
 
     return symbol;
@@ -2210,35 +2250,156 @@ namespace QgsWms
   {
     QString codec = QStringLiteral( "ISO-8859-1" );
 
-    if ( dxfFormatOptions().contains( DxfFormatOption::CODEC ) )
+    if ( formatOptions<QgsWmsParameters::DxfFormatOption>().contains( DxfFormatOption::CODEC ) )
     {
-      codec = dxfFormatOptions()[ DxfFormatOption::CODEC ];
+      codec = formatOptions<QgsWmsParameters::DxfFormatOption>()[ DxfFormatOption::CODEC ];
     }
 
     return codec;
   }
 
-  QMap<QgsWmsParameters::DxfFormatOption, QString> QgsWmsParameters::dxfFormatOptions() const
+  bool QgsWmsParameters::writeGeoPdf() const
   {
-    QMap<QgsWmsParameters::DxfFormatOption, QString> options;
-
-    const QMetaEnum metaEnum( QMetaEnum::fromType<QgsWmsParameters::DxfFormatOption>() );
-    const QStringList opts = mWmsParameters.value( QgsWmsParameter::FORMAT_OPTIONS ).toStringList( ';' );
-
-    for ( auto it = opts.constBegin(); it != opts.constEnd(); ++it )
+    bool geoPdf = false;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::WRITE_GEO_PDF ) )
     {
-      const int equalIdx = it->indexOf( ':' );
-      if ( equalIdx > 0 && equalIdx < ( it->length() - 1 ) )
+      geoPdf = QVariant( options[PdfFormatOption::WRITE_GEO_PDF] ).toBool();
+    }
+    return geoPdf;
+  }
+
+  bool QgsWmsParameters::pdfForceVectorOutput() const
+  {
+    bool forceVector = false;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::FORCE_VECTOR_OUTPUT ) )
+    {
+      forceVector = QVariant( options[PdfFormatOption::FORCE_VECTOR_OUTPUT] ).toBool();
+    }
+    return forceVector;
+  }
+
+  bool QgsWmsParameters::pdfAppendGeoreference() const
+  {
+    bool appendGeoref = true;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::APPEND_GEOREFERENCE ) )
+    {
+      appendGeoref = QVariant( options[PdfFormatOption::APPEND_GEOREFERENCE] ).toBool();
+    }
+    return appendGeoref;
+  }
+
+  bool QgsWmsParameters::pdfSimplifyGeometries() const
+  {
+    bool simplify = true;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::SIMPLIFY_GEOMETRY ) )
+    {
+      simplify = QVariant( options[PdfFormatOption::SIMPLIFY_GEOMETRY] ).toBool();
+    }
+    return simplify;
+  }
+
+  bool QgsWmsParameters::pdfExportMetadata() const
+  {
+    bool exportMetadata = false;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::EXPORT_METADATA ) )
+    {
+      exportMetadata = QVariant( options[PdfFormatOption::EXPORT_METADATA] ).toBool();
+    }
+    return exportMetadata;
+  }
+
+  Qgis::TextRenderFormat QgsWmsParameters::pdfTextRenderFormat() const
+  {
+    Qgis::TextRenderFormat format = Qgis::TextRenderFormat::AlwaysOutlines;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::TEXT_RENDER_FORMAT ) )
+    {
+      if ( options[PdfFormatOption::TEXT_RENDER_FORMAT].compare( QStringLiteral( "AlwaysText" ), Qt::CaseInsensitive ) == 0 )
       {
-        const QString name = it->left( equalIdx ).toUpper();
-        const QgsWmsParameters::DxfFormatOption option =
-          ( QgsWmsParameters::DxfFormatOption ) metaEnum.keyToValue( name.toStdString().c_str() );
-        const QString value = it->right( it->length() - equalIdx - 1 );
-        options.insert( option, value );
+        format = Qgis::TextRenderFormat::AlwaysText;
       }
     }
+    return format;
+  }
 
-    return options;
+  bool QgsWmsParameters::pdfLosslessImageCompression() const
+  {
+    bool losslessCompression = false;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::LOSSLESS_IMAGE_COMPRESSION ) )
+    {
+      losslessCompression = QVariant( options[PdfFormatOption::LOSSLESS_IMAGE_COMPRESSION] ).toBool();
+    }
+    return losslessCompression;
+  }
+
+  bool QgsWmsParameters::pdfDisableTiledRasterRendering() const
+  {
+    bool disableTiledRaster = false;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::DISABLE_TILED_RASTER_RENDERING ) )
+    {
+      disableTiledRaster = QVariant( options[PdfFormatOption::DISABLE_TILED_RASTER_RENDERING] ).toBool();
+    }
+    return disableTiledRaster;
+  }
+
+  bool QgsWmsParameters::pdfUseIso32000ExtensionFormatGeoreferencing() const
+  {
+    bool useIso32000 = true;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::USE_ISO_32000_EXTENSION_FORMAT_GEOREFERENCING ) )
+    {
+      useIso32000 = QVariant( options[PdfFormatOption::USE_ISO_32000_EXTENSION_FORMAT_GEOREFERENCING] ).toBool();
+    }
+    return useIso32000;
+  }
+
+  bool QgsWmsParameters::pdfUseOgcBestPracticeFormatGeoreferencing() const
+  {
+    bool useOgcGeoreferencing = false;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::USE_OGC_BEST_PRACTICE_FORMAT_GEOREFERENCING ) )
+    {
+      useOgcGeoreferencing = QVariant( options[PdfFormatOption::USE_OGC_BEST_PRACTICE_FORMAT_GEOREFERENCING] ).toBool();
+    }
+    return useOgcGeoreferencing;
+  }
+
+  QStringList QgsWmsParameters::pdfExportMapThemes() const
+  {
+    QStringList themes;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::EXPORT_THEMES ) )
+    {
+      themes = options[PdfFormatOption::EXPORT_THEMES].split( ',' );
+    }
+    return themes;
+  }
+
+  QVector<qreal> QgsWmsParameters::pdfPredefinedMapScales() const
+  {
+    QVector<qreal> scales;
+    const QMap<QgsWmsParameters::PdfFormatOption, QString> options = formatOptions<QgsWmsParameters::PdfFormatOption>();
+    if ( options.contains( PdfFormatOption::PREDEFINED_MAP_SCALES ) )
+    {
+      const QStringList scaleList = options[PdfFormatOption::PREDEFINED_MAP_SCALES].split( ',' );
+      for ( const QString &it : std::as_const( scaleList ) )
+      {
+        bool ok = false;
+        qreal scale = it.toDouble( &ok );
+        if ( ok )
+        {
+          scales.append( scale );
+        }
+      }
+    }
+    return scales;
   }
 
   QMap<QString, QString> QgsWmsParameters::dimensionValues() const

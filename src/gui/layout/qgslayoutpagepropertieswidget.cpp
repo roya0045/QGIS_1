@@ -68,11 +68,11 @@ QgsLayoutPagePropertiesWidget::QgsLayoutPagePropertiesWidget( QWidget *parent, Q
   connect( mExcludePageCheckBox, &QCheckBox::toggled, this, &QgsLayoutPagePropertiesWidget::excludeExportsToggled );
 
   connect( mSymbolButton, &QgsSymbolButton::changed, this, &QgsLayoutPagePropertiesWidget::symbolChanged );
-  registerDataDefinedButton( mPaperSizeDDBtn, QgsLayoutObject::PresetPaperSize );
-  registerDataDefinedButton( mWidthDDBtn, QgsLayoutObject::ItemWidth );
-  registerDataDefinedButton( mHeightDDBtn, QgsLayoutObject::ItemHeight );
-  registerDataDefinedButton( mOrientationDDBtn, QgsLayoutObject::PaperOrientation );
-  registerDataDefinedButton( mExcludePageDDBtn, QgsLayoutObject::ExcludeFromExports );
+  registerDataDefinedButton( mPaperSizeDDBtn, QgsLayoutObject::DataDefinedProperty::PresetPaperSize );
+  registerDataDefinedButton( mWidthDDBtn, QgsLayoutObject::DataDefinedProperty::ItemWidth );
+  registerDataDefinedButton( mHeightDDBtn, QgsLayoutObject::DataDefinedProperty::ItemHeight );
+  registerDataDefinedButton( mOrientationDDBtn, QgsLayoutObject::DataDefinedProperty::PaperOrientation );
+  registerDataDefinedButton( mExcludePageDDBtn, QgsLayoutObject::DataDefinedProperty::ExcludeFromExports );
 
   connect( mPaperSizeDDBtn, &QgsPropertyOverrideButton::changed, this, &QgsLayoutPagePropertiesWidget::refreshLayout );
   connect( mWidthDDBtn, &QgsPropertyOverrideButton::changed, this, &QgsLayoutPagePropertiesWidget::refreshLayout );
@@ -86,6 +86,18 @@ QgsLayoutPagePropertiesWidget::QgsLayoutPagePropertiesWidget( QWidget *parent, Q
   if ( mPage->layout() )
   {
     connect( &mPage->layout()->reportContext(), &QgsLayoutReportContext::layerChanged, mSymbolButton, &QgsSymbolButton::setLayer );
+
+    QgsLayoutPageCollection *pages = mPage->layout()->pageCollection();
+    if ( pages->pageCount() > 1 )
+    {
+      const int pageNumber = mPage->layout()->pageCollection()->pageNumber( mPage );
+      mTitleLabel->setText( tr( "Page (%1/%2)" ).arg( pageNumber + 1 ).arg( pages->pageCount() ) );
+    }
+    else
+    {
+      mTitleLabel->setText( tr( "Page" ) );
+    }
+
   }
 
   showCurrentPageSize();

@@ -28,6 +28,9 @@
 #include <QObject>
 #include <QDomElement>
 
+class QgsMapLayer;
+
+
 /**
  * \class QgsMapLayerElevationProperties
  * \ingroup core
@@ -45,6 +48,7 @@ class CORE_EXPORT QgsMapLayerElevationProperties : public QObject
 #include "qgsrasterlayerelevationproperties.h"
 #include "qgsvectorlayerelevationproperties.h"
 #include "qgsmeshlayerelevationproperties.h"
+#include "qgstiledscenelayerelevationproperties.h"
 #endif
 
     Q_OBJECT
@@ -67,6 +71,10 @@ class CORE_EXPORT QgsMapLayerElevationProperties : public QObject
     {
       sipType = sipType_QgsMeshLayerElevationProperties;
     }
+    else if ( qobject_cast<QgsTiledSceneLayerElevationProperties *>( sipCpp ) )
+    {
+      sipType = sipType_QgsTiledSceneLayerElevationProperties;
+    }
     else
     {
       sipType = 0;
@@ -76,20 +84,23 @@ class CORE_EXPORT QgsMapLayerElevationProperties : public QObject
 
   public:
 
+    // *INDENT-OFF*
+
     /**
      * Data definable properties.
      * \since QGIS 3.26
      */
-    enum Property
-    {
+    enum class Property SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsMapLayerElevationProperties, Property ) : int
+      {
       ZOffset, //! Z offset
       ExtrusionHeight, //!< Extrusion height
     };
+    // *INDENT-ON*
 
     /**
      * Flags attached to the elevation property.
      */
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       FlagDontInvalidateCachedRendersWhenRangeChanges = 1  //!< Any cached rendering will not be invalidated when z range context is modified.
     };

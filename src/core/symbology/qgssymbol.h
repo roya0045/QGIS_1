@@ -20,6 +20,7 @@
 #include "qgis.h"
 #include "qgspropertycollection.h"
 #include "qgsrendercontext.h"
+#include "qgsscreenproperties.h"
 
 class QgsSymbolLayer;
 class QgsLegendPatchShape;
@@ -122,14 +123,17 @@ class CORE_EXPORT QgsSymbol
      */
     static Qgis::SymbolType symbolTypeForGeometryType( Qgis::GeometryType type );
 
+    // *INDENT-OFF*
+
     /**
      * Data definable properties.
      * \since QGIS 3.18
      */
-    enum Property
+    enum class Property SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsSymbol, Property ) : int
     {
-      PropertyOpacity, //!< Opacity
+      Opacity SIP_MONKEYPATCH_COMPAT_NAME( PropertyOpacity ), //!< Opacity
     };
+    // *INDENT-ON*
 
     /**
      * Returns the symbol property definitions.
@@ -158,7 +162,6 @@ class CORE_EXPORT QgsSymbol
      * \returns symbol layers list
      * \see symbolLayer
      * \see symbolLayerCount
-     * \since QGIS 2.7
      */
     QgsSymbolLayerList symbolLayers() const { return mLayers; }
 
@@ -168,7 +171,6 @@ class CORE_EXPORT QgsSymbol
      * Returns the symbol layer at the specified index
      * \see symbolLayers
      * \see symbolLayerCount
-     * \since QGIS 2.7
      */
     QgsSymbolLayer *symbolLayer( int layer );
 
@@ -188,7 +190,6 @@ class CORE_EXPORT QgsSymbol
      *
      * \see symbolLayers
      * \see symbolLayerCount
-     * \since QGIS 2.7
      */
     SIP_PYOBJECT symbolLayer( int layer ) SIP_TYPEHINT( QgsSymbolLayer );
     % MethodCode
@@ -210,7 +211,6 @@ class CORE_EXPORT QgsSymbol
      * \returns count of symbol layers
      * \see symbolLayers
      * \see symbolLayer
-     * \since QGIS 2.7
      */
     int symbolLayerCount() const { return mLayers.count(); }
 
@@ -371,17 +371,16 @@ class CORE_EXPORT QgsSymbol
      * \param painter destination painter
      * \param size size of the icon
      * \param customContext the context in which the rendering happens
-     * \param selected set to TRUE to render the symbol in a selected state
+     * \param selected set to TRUE to render the symbol in a selected state (since QGIS 3.10)
      * \param expressionContext optional custom expression context
      * \param patchShape optional patch shape to use for symbol preview. If not specified a default shape will be used instead.
+     * \param screen can be used to specify the destination screen properties for the icon. This allows the icon to be generated using the correct DPI and device pixel ratio for the target screen (since QGIS 3.32)
      *
      * \see exportImage()
      * \see asImage()
-     * \note Parameter selected added in QGIS 3.10
-     * \since QGIS 2.6
      */
     void drawPreviewIcon( QPainter *painter, QSize size, QgsRenderContext *customContext = nullptr, bool selected = false, const QgsExpressionContext *expressionContext = nullptr,
-                          const QgsLegendPatchShape *patchShape = nullptr );
+                          const QgsLegendPatchShape *patchShape = nullptr, const QgsScreenProperties &screen = QgsScreenProperties() );
 
     /**
      * Export the symbol as an image format, to the specified \a path and with the given \a size.
@@ -411,11 +410,12 @@ class CORE_EXPORT QgsSymbol
      * \param expressionContext optional expression context, for evaluation of
      * data defined symbol properties
      * \param flags optional flags to control how preview image is generated
+     * \param screen can be used to specify the destination screen properties for the icon. This allows the icon to be generated using the correct DPI and device pixel ratio for a target screen (since QGIS 3.32)
      *
      * \see asImage()
      * \see drawPreviewIcon()
      */
-    QImage bigSymbolPreviewImage( QgsExpressionContext *expressionContext = nullptr, Qgis::SymbolPreviewFlags flags = Qgis::SymbolPreviewFlag::FlagIncludeCrosshairsForMarkerSymbols ) SIP_PYNAME( bigSymbolPreviewImageV2 );
+    QImage bigSymbolPreviewImage( QgsExpressionContext *expressionContext = nullptr, Qgis::SymbolPreviewFlags flags = Qgis::SymbolPreviewFlag::FlagIncludeCrosshairsForMarkerSymbols, const QgsScreenProperties &screen = QgsScreenProperties() ) SIP_PYNAME( bigSymbolPreviewImageV2 );
 
     /**
      * \deprecated use bigSymbolPreviewImageV2 instead.
@@ -536,7 +536,6 @@ class CORE_EXPORT QgsSymbol
      * side effects for certain symbol types.
      * \param clipFeaturesToExtent set to TRUE to enable clipping (defaults to TRUE)
      * \see clipFeaturesToExtent
-     * \since QGIS 2.9
      */
     void setClipFeaturesToExtent( bool clipFeaturesToExtent ) { mClipFeaturesToExtent = clipFeaturesToExtent; }
 
@@ -547,7 +546,6 @@ class CORE_EXPORT QgsSymbol
      * side effects for certain symbol types.
      * \returns TRUE if features will be clipped
      * \see setClipFeaturesToExtent
-     * \since QGIS 2.9
      */
     bool clipFeaturesToExtent() const { return mClipFeaturesToExtent; }
 
@@ -638,7 +636,6 @@ class CORE_EXPORT QgsSymbol
 
     /**
      * Returns whether the symbol utilizes any data defined properties.
-     * \since QGIS 2.12
      */
     bool hasDataDefinedProperties() const;
 
@@ -778,7 +775,6 @@ class CORE_EXPORT QgsSymbol
 
     /**
      * Render editing vertex marker at specified point
-     * \since QGIS 2.16
      */
     void renderVertexMarker( QPointF pt, QgsRenderContext &context, Qgis::VertexMarkerType currentVertexMarkerType, double currentVertexMarkerSize );
 

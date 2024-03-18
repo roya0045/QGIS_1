@@ -157,7 +157,7 @@ QString QgsRasterPixelsToPolygonsAlgorithm::shortHelpString() const
 {
   return QObject::tr( "This algorithm converts a raster layer to a vector layer, by creating polygon features "
                       "for each individual pixel's extent in the raster layer.\n\n"
-                      "Any nodata pixels are skipped in the output." );
+                      "Any NoData pixels are skipped in the output." );
 }
 
 QString QgsRasterPixelsToPolygonsAlgorithm::shortDescription() const
@@ -175,9 +175,9 @@ QString QgsRasterPixelsToPolygonsAlgorithm::outputName() const
   return QObject::tr( "Vector polygons" );
 }
 
-QgsProcessing::SourceType QgsRasterPixelsToPolygonsAlgorithm::outputType() const
+Qgis::ProcessingSourceType QgsRasterPixelsToPolygonsAlgorithm::outputType() const
 {
-  return QgsProcessing::TypeVectorPolygon;
+  return Qgis::ProcessingSourceType::VectorPolygon;
 }
 
 Qgis::WkbType QgsRasterPixelsToPolygonsAlgorithm::sinkType() const
@@ -216,7 +216,7 @@ QString QgsRasterPixelsToPointsAlgorithm::shortHelpString() const
 {
   return QObject::tr( "This algorithm converts a raster layer to a vector layer, by creating point features "
                       "for each individual pixel's center in the raster layer.\n\n"
-                      "Any nodata pixels are skipped in the output." );
+                      "Any NoData pixels are skipped in the output." );
 }
 
 QString QgsRasterPixelsToPointsAlgorithm::shortDescription() const
@@ -234,9 +234,9 @@ QString QgsRasterPixelsToPointsAlgorithm::outputName() const
   return QObject::tr( "Vector points" );
 }
 
-QgsProcessing::SourceType QgsRasterPixelsToPointsAlgorithm::outputType() const
+Qgis::ProcessingSourceType QgsRasterPixelsToPointsAlgorithm::outputType() const
 {
-  return QgsProcessing::TypeVectorPoint;
+  return Qgis::ProcessingSourceType::VectorPoint;
 }
 
 Qgis::WkbType QgsRasterPixelsToPointsAlgorithm::sinkType() const

@@ -19,7 +19,8 @@ from qgis.core import (
     QgsApplication,
     QgsAuthMethodConfig,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 AUTHDBDIR = tempfile.mkdtemp()
 os.environ['QGIS_AUTH_DB_DIR_PATH'] = AUTHDBDIR
@@ -32,7 +33,7 @@ __copyright__ = 'Copyright 2020, The QGIS Project'
 qgis_app = start_app()
 
 
-class TestAuthManager(unittest.TestCase):
+class TestAuthManager(QgisTestCase):
 
     @classmethod
     def setUpAuth(cls, username, password):
@@ -50,6 +51,7 @@ class TestAuthManager(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         cls.authm = QgsApplication.authManager()
         assert not cls.authm.isDisabled(), cls.authm.disabledMessage()
 
@@ -60,11 +62,6 @@ class TestAuthManager(unittest.TestCase):
         db2 = QFileInfo(AUTHDBDIR + '/qgis-auth.db').canonicalFilePath()
         msg = 'Auth db temp path does not match db path of manager'
         assert db1 == db2, msg
-
-    @classmethod
-    def tearDownClass(cls):
-        """Run after all tests"""
-        pass
 
     def setUp(self):
         """Run before each test."""

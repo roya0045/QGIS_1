@@ -582,7 +582,7 @@ QgsRuleBasedRenderer::Rule::RenderResult QgsRuleBasedRenderer::Rule::renderFeatu
     const auto constMSymbolNormZLevels = mSymbolNormZLevels;
     for ( int normZLevel : constMSymbolNormZLevels )
     {
-      //QgsDebugMsg(QString("add job at level %1").arg(normZLevel));
+      //QgsDebugMsgLevel(QString("add job at level %1").arg(normZLevel),2);
       renderQueue[normZLevel].jobs.append( new RenderJob( featToRender, mSymbol.get() ) );
       rendered = true;
     }
@@ -773,7 +773,7 @@ QgsRuleBasedRenderer::Rule *QgsRuleBasedRenderer::Rule::create( QDomElement &rul
     }
     else
     {
-      QgsDebugMsg( "symbol for rule " + symbolIdx + " not found!" );
+      QgsDebugError( "symbol for rule " + symbolIdx + " not found!" );
     }
   }
 
@@ -804,7 +804,7 @@ QgsRuleBasedRenderer::Rule *QgsRuleBasedRenderer::Rule::create( QDomElement &rul
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "failed to init a child rule!" ) );
+      QgsDebugError( QStringLiteral( "failed to init a child rule!" ) );
     }
     childRuleElem = childRuleElem.nextSiblingElement( QStringLiteral( "rule" ) );
   }
@@ -827,7 +827,7 @@ QgsRuleBasedRenderer::Rule *QgsRuleBasedRenderer::Rule::createFromSld( QDomEleme
 {
   if ( ruleElem.localName() != QLatin1String( "Rule" ) )
   {
-    QgsDebugMsg( QStringLiteral( "invalid element: Rule element expected, %1 found!" ).arg( ruleElem.tagName() ) );
+    QgsDebugError( QStringLiteral( "invalid element: Rule element expected, %1 found!" ).arg( ruleElem.tagName() ) );
     return nullptr;
   }
 
@@ -878,7 +878,7 @@ QgsRuleBasedRenderer::Rule *QgsRuleBasedRenderer::Rule::createFromSld( QDomEleme
       {
         if ( filter->hasParserError() )
         {
-          QgsDebugMsg( "parser error: " + filter->parserErrorString() );
+          QgsDebugError( "parser error: " + filter->parserErrorString() );
         }
         else
         {
@@ -934,7 +934,7 @@ QgsRuleBasedRenderer::Rule *QgsRuleBasedRenderer::Rule::createFromSld( QDomEleme
         break;
 
       default:
-        QgsDebugMsg( QStringLiteral( "invalid geometry type: found %1" ).arg( qgsEnumValueToKey( geomType ) ) );
+        QgsDebugError( QStringLiteral( "invalid geometry type: found %1" ).arg( qgsEnumValueToKey( geomType ) ) );
         return nullptr;
     }
   }
@@ -1032,12 +1032,12 @@ void QgsRuleBasedRenderer::stopRender( QgsRenderContext &context )
     const auto constMRenderQueue = mRenderQueue;
     for ( const RenderLevel &level : constMRenderQueue )
     {
-      //QgsDebugMsg(QString("level %1").arg(level.zIndex));
+      //QgsDebugMsgLevel(QString("level %1").arg(level.zIndex), 2);
       // go through all jobs at the level
       for ( const RenderJob *job : std::as_const( level.jobs ) )
       {
         context.expressionContext().setFeature( job->ftr.feat );
-        //QgsDebugMsg(QString("job fid %1").arg(job->f->id()));
+        //QgsDebugMsgLevel(QString("job fid %1").arg(job->f->id()), 2);
         // render feature - but only with symbol layers with specified zIndex
         QgsSymbol *s = job->symbol;
         int count = s->symbolLayerCount();
@@ -1618,7 +1618,7 @@ QgsRuleBasedRenderer *QgsRuleBasedRenderer::convertFromRenderer( const QgsFeatur
     std::unique_ptr< QgsRuleBasedRenderer::Rule > rootrule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
 
     QgsFeatureRequest req;
-    req.setFlags( QgsFeatureRequest::EmbeddedSymbols | QgsFeatureRequest::NoGeometry );
+    req.setFlags( Qgis::FeatureRequestFlag::EmbeddedSymbols | Qgis::FeatureRequestFlag::NoGeometry );
     req.setNoAttributes();
     QgsFeatureIterator it = layer->getFeatures( req );
     QgsFeature feature;
@@ -1663,11 +1663,11 @@ void QgsRuleBasedRenderer::convertToDataDefinedSymbology( QgsSymbol *symbol, con
         if ( ! sizeScaleField.isEmpty() )
         {
           sizeExpression = QStringLiteral( "%1*(%2)" ).arg( msl->size() ).arg( sizeScaleField );
-          msl->setDataDefinedProperty( QgsSymbolLayer::PropertySize, QgsProperty::fromExpression( sizeExpression ) );
+          msl->setDataDefinedProperty( QgsSymbolLayer::Property::Size, QgsProperty::fromExpression( sizeExpression ) );
         }
         if ( ! rotationField.isEmpty() )
         {
-          msl->setDataDefinedProperty( QgsSymbolLayer::PropertyAngle, QgsProperty::fromField( rotationField ) );
+          msl->setDataDefinedProperty( QgsSymbolLayer::Property::Angle, QgsProperty::fromField( rotationField ) );
         }
       }
       break;
@@ -1680,7 +1680,7 @@ void QgsRuleBasedRenderer::convertToDataDefinedSymbology( QgsSymbol *symbol, con
           {
             QgsLineSymbolLayer *lsl = static_cast<QgsLineSymbolLayer *>( symbol->symbolLayer( j ) );
             sizeExpression = QStringLiteral( "%1*(%2)" ).arg( lsl->width() ).arg( sizeScaleField );
-            lsl->setDataDefinedProperty( QgsSymbolLayer::PropertyStrokeWidth, QgsProperty::fromExpression( sizeExpression ) );
+            lsl->setDataDefinedProperty( QgsSymbolLayer::Property::StrokeWidth, QgsProperty::fromExpression( sizeExpression ) );
           }
           if ( symbol->symbolLayer( j )->layerType() == QLatin1String( "MarkerLine" ) )
           {
@@ -1689,7 +1689,7 @@ void QgsRuleBasedRenderer::convertToDataDefinedSymbology( QgsSymbol *symbol, con
             {
               QgsMarkerSymbolLayer *msl = static_cast<QgsMarkerSymbolLayer *>( marker->symbolLayer( k ) );
               sizeExpression = QStringLiteral( "%1*(%2)" ).arg( msl->size() ).arg( sizeScaleField );
-              msl->setDataDefinedProperty( QgsSymbolLayer::PropertySize, QgsProperty::fromExpression( sizeExpression ) );
+              msl->setDataDefinedProperty( QgsSymbolLayer::Property::Size, QgsProperty::fromExpression( sizeExpression ) );
             }
           }
         }

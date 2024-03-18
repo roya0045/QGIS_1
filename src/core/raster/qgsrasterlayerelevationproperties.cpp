@@ -44,10 +44,26 @@ QDomElement QgsRasterLayerElevationProperties::writeXml( QDomElement &parentElem
 {
   QDomElement element = document.createElement( QStringLiteral( "elevation" ) );
   element.setAttribute( QStringLiteral( "enabled" ), mEnabled ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  element.setAttribute( QStringLiteral( "mode" ), qgsEnumValueToKey( mMode ) );
   element.setAttribute( QStringLiteral( "symbology" ), qgsEnumValueToKey( mSymbology ) );
+  if ( !std::isnan( mElevationLimit ) )
+    element.setAttribute( QStringLiteral( "elevationLimit" ), qgsDoubleToString( mElevationLimit ) );
 
   writeCommonProperties( element, document, context );
-  element.setAttribute( QStringLiteral( "band" ), mBandNumber );
+
+  switch ( mMode )
+  {
+    case Qgis::RasterElevationMode::FixedElevationRange:
+      element.setAttribute( QStringLiteral( "lower" ), qgsDoubleToString( mFixedRange.lower() ) );
+      element.setAttribute( QStringLiteral( "upper" ), qgsDoubleToString( mFixedRange.upper() ) );
+      element.setAttribute( QStringLiteral( "includeLower" ), mFixedRange.includeLower() ? "1" : "0" );
+      element.setAttribute( QStringLiteral( "includeUpper" ), mFixedRange.includeUpper() ? "1" : "0" );
+      break;
+
+    case Qgis::RasterElevationMode::RepresentsElevationSurface:
+      element.setAttribute( QStringLiteral( "band" ), mBandNumber );
+      break;
+  }
 
   QDomElement profileLineSymbolElement = document.createElement( QStringLiteral( "profileLineSymbol" ) );
   profileLineSymbolElement.appendChild( QgsSymbolLayerUtils::saveSymbol( QString(), mProfileLineSymbol.get(), document, context ) );
@@ -65,10 +81,30 @@ bool QgsRasterLayerElevationProperties::readXml( const QDomElement &element, con
 {
   const QDomElement elevationElement = element.firstChildElement( QStringLiteral( "elevation" ) ).toElement();
   mEnabled = elevationElement.attribute( QStringLiteral( "enabled" ), QStringLiteral( "0" ) ).toInt();
+  mMode = qgsEnumKeyToValue( elevationElement.attribute( QStringLiteral( "mode" ) ), Qgis::RasterElevationMode::RepresentsElevationSurface );
   mSymbology = qgsEnumKeyToValue( elevationElement.attribute( QStringLiteral( "symbology" ) ), Qgis::ProfileSurfaceSymbology::Line );
+  if ( elevationElement.hasAttribute( QStringLiteral( "elevationLimit" ) ) )
+    mElevationLimit = elevationElement.attribute( QStringLiteral( "elevationLimit" ) ).toDouble();
+  else
+    mElevationLimit = std::numeric_limits< double >::quiet_NaN();
 
   readCommonProperties( elevationElement, context );
-  mBandNumber = elevationElement.attribute( QStringLiteral( "band" ), QStringLiteral( "1" ) ).toInt();
+
+  switch ( mMode )
+  {
+    case Qgis::RasterElevationMode::FixedElevationRange:
+    {
+      const double lower = elevationElement.attribute( QStringLiteral( "lower" ) ).toDouble();
+      const double upper = elevationElement.attribute( QStringLiteral( "upper" ) ).toDouble();
+      const bool includeLower = elevationElement.attribute( QStringLiteral( "includeLower" ) ).toInt();
+      const bool includeUpper = elevationElement.attribute( QStringLiteral( "includeUpper" ) ).toInt();
+      mFixedRange = QgsDoubleRange( lower, upper, includeLower, includeUpper );
+      break;
+    }
+    case Qgis::RasterElevationMode::RepresentsElevationSurface:
+      mBandNumber = elevationElement.attribute( QStringLiteral( "band" ), QStringLiteral( "1" ) ).toInt();
+      break;
+  }
 
   const QColor defaultColor = QgsApplication::colorSchemeRegistry()->fetchRandomStyleColor();
 
@@ -89,10 +125,13 @@ QgsRasterLayerElevationProperties *QgsRasterLayerElevationProperties::clone() co
 {
   std::unique_ptr< QgsRasterLayerElevationProperties > res = std::make_unique< QgsRasterLayerElevationProperties >( nullptr );
   res->setEnabled( mEnabled );
+  res->setMode( mMode );
   res->setProfileLineSymbol( mProfileLineSymbol->clone() );
   res->setProfileFillSymbol( mProfileFillSymbol->clone() );
   res->setProfileSymbology( mSymbology );
+  res->setElevationLimit( mElevationLimit );
   res->setBandNumber( mBandNumber );
+  res->setFixedRange( mFixedRange );
   res->copyCommonProperties( this );
   return res.release();
 }
@@ -100,22 +139,48 @@ QgsRasterLayerElevationProperties *QgsRasterLayerElevationProperties::clone() co
 QString QgsRasterLayerElevationProperties::htmlSummary() const
 {
   QStringList properties;
-  properties << tr( "Elevation band: %1" ).arg( mBandNumber );
-  properties << tr( "Scale: %1" ).arg( mZScale );
-  properties << tr( "Offset: %1" ).arg( mZOffset );
+  switch ( mMode )
+  {
+    case Qgis::RasterElevationMode::FixedElevationRange:
+      properties << tr( "Elevation range: %1 to %2" ).arg( mFixedRange.lower() ).arg( mFixedRange.upper() );
+      break;
+
+    case Qgis::RasterElevationMode::RepresentsElevationSurface:
+      properties << tr( "Elevation band: %1" ).arg( mBandNumber );
+      properties << tr( "Scale: %1" ).arg( mZScale );
+      properties << tr( "Offset: %1" ).arg( mZOffset );
+      break;
+  }
+
   return QStringLiteral( "<li>%1</li>" ).arg( properties.join( QLatin1String( "</li><li>" ) ) );
 }
 
-bool QgsRasterLayerElevationProperties::isVisibleInZRange( const QgsDoubleRange & ) const
+bool QgsRasterLayerElevationProperties::isVisibleInZRange( const QgsDoubleRange &range ) const
 {
-  // TODO -- test actual raster z range
-  return true;
+  switch ( mMode )
+  {
+    case Qgis::RasterElevationMode::FixedElevationRange:
+      return mFixedRange.overlaps( range );
+
+    case Qgis::RasterElevationMode::RepresentsElevationSurface:
+      // TODO -- test actual raster z range
+      return true;
+  }
+  BUILTIN_UNREACHABLE
 }
 
 QgsDoubleRange QgsRasterLayerElevationProperties::calculateZRange( QgsMapLayer * ) const
 {
-  // TODO -- determine actual z range from raster statistics
-  return QgsDoubleRange();
+  switch ( mMode )
+  {
+    case Qgis::RasterElevationMode::FixedElevationRange:
+      return mFixedRange;
+
+    case Qgis::RasterElevationMode::RepresentsElevationSurface:
+      // TODO -- determine actual z range from raster statistics
+      return QgsDoubleRange();
+  }
+  BUILTIN_UNREACHABLE
 }
 
 bool QgsRasterLayerElevationProperties::showByDefaultInElevationProfilePlots() const
@@ -133,6 +198,20 @@ void QgsRasterLayerElevationProperties::setEnabled( bool enabled )
   emit profileGenerationPropertyChanged();
 }
 
+Qgis::RasterElevationMode QgsRasterLayerElevationProperties::mode() const
+{
+  return mMode;
+}
+
+void QgsRasterLayerElevationProperties::setMode( Qgis::RasterElevationMode mode )
+{
+  if ( mMode == mode )
+    return;
+
+  mMode = mode;
+  emit changed();
+}
+
 void QgsRasterLayerElevationProperties::setBandNumber( int band )
 {
   if ( mBandNumber == band )
@@ -141,6 +220,28 @@ void QgsRasterLayerElevationProperties::setBandNumber( int band )
   mBandNumber = band;
   emit changed();
   emit profileGenerationPropertyChanged();
+}
+
+QgsDoubleRange QgsRasterLayerElevationProperties::elevationRangeForPixelValue( int band, double pixelValue ) const
+{
+  if ( !mEnabled || std::isnan( pixelValue ) )
+    return QgsDoubleRange();
+
+  switch ( mMode )
+  {
+    case Qgis::RasterElevationMode::FixedElevationRange:
+      return mFixedRange;
+
+    case Qgis::RasterElevationMode::RepresentsElevationSurface:
+    {
+      if ( band != mBandNumber )
+        return QgsDoubleRange();
+
+      const double z = pixelValue * mZScale + mZOffset;
+      return QgsDoubleRange( z, z );
+    }
+  }
+  BUILTIN_UNREACHABLE
 }
 
 QgsLineSymbol *QgsRasterLayerElevationProperties::profileLineSymbol() const
@@ -163,11 +264,109 @@ QgsFillSymbol *QgsRasterLayerElevationProperties::profileFillSymbol() const
 void QgsRasterLayerElevationProperties::setProfileFillSymbol( QgsFillSymbol *symbol )
 {
   mProfileFillSymbol.reset( symbol );
+  emit changed();
+  emit profileRenderingPropertyChanged();
 }
 
 void QgsRasterLayerElevationProperties::setProfileSymbology( Qgis::ProfileSurfaceSymbology symbology )
 {
+  if ( mSymbology == symbology )
+    return;
+
   mSymbology = symbology;
+  emit changed();
+  emit profileRenderingPropertyChanged();
+}
+
+double QgsRasterLayerElevationProperties::elevationLimit() const
+{
+  return mElevationLimit;
+}
+
+void QgsRasterLayerElevationProperties::setElevationLimit( double limit )
+{
+  if ( qgsDoubleNear( mElevationLimit, limit ) )
+    return;
+
+  mElevationLimit = limit;
+  emit changed();
+  emit profileRenderingPropertyChanged();
+}
+
+bool QgsRasterLayerElevationProperties::layerLooksLikeDem( QgsRasterLayer *layer )
+{
+  // multiple bands => unlikely to be a DEM
+  if ( layer->bandCount() > 1 )
+    return false;
+
+  // raster attribute table => unlikely to be a DEM
+  if ( layer->attributeTable( 1 ) )
+    return false;
+
+  if ( QgsRasterDataProvider *dataProvider = layer->dataProvider() )
+  {
+    // filter out data types which aren't likely to be DEMs
+    switch ( dataProvider->dataType( 1 ) )
+    {
+      case Qgis::DataType::Byte:
+      case Qgis::DataType::UnknownDataType:
+      case Qgis::DataType::CInt16:
+      case Qgis::DataType::CInt32:
+      case Qgis::DataType::CFloat32:
+      case Qgis::DataType::CFloat64:
+      case Qgis::DataType::ARGB32:
+      case Qgis::DataType::ARGB32_Premultiplied:
+        return false;
+
+      case Qgis::DataType::Int8:
+      case Qgis::DataType::UInt16:
+      case Qgis::DataType::Int16:
+      case Qgis::DataType::UInt32:
+      case Qgis::DataType::Int32:
+      case Qgis::DataType::Float32:
+      case Qgis::DataType::Float64:
+        break;
+    }
+  }
+
+  // Check the layer's name for DEM-ish hints.
+  // See discussion at https://github.com/qgis/QGIS/pull/30245 - this list must NOT be translated,
+  // but adding hardcoded localized variants of the strings is encouraged.
+  static const QStringList sPartialCandidates{ QStringLiteral( "dem" ),
+      QStringLiteral( "dtm" ),
+      QStringLiteral( "dsm" ),
+      QStringLiteral( "height" ),
+      QStringLiteral( "elev" ),
+      QStringLiteral( "srtm" ),
+      // French hints
+      QStringLiteral( "mne" ),
+      QStringLiteral( "mnt" ),
+      QStringLiteral( "mns" ),
+      QStringLiteral( "rge" ),
+      QStringLiteral( "alti" ),
+      // German hints
+      QStringLiteral( "dhm" ),
+      QStringLiteral( "dgm" ),
+      QStringLiteral( "dom" ),
+      QStringLiteral( "Höhe" ),
+      QStringLiteral( "Hoehe" ) };
+  const QString layerName = layer->name();
+  for ( const QString &candidate : sPartialCandidates )
+  {
+    if ( layerName.contains( candidate, Qt::CaseInsensitive ) )
+      return true;
+  }
+
+  // these candidates must occur with word boundaries (we don't want to find "aster" in "raster"!)
+  static const QStringList sWordCandidates{ QStringLiteral( "aster" ) };
+  for ( const QString &candidate : sWordCandidates )
+  {
+    const thread_local QRegularExpression re( QStringLiteral( "\\b%1\\b" ).arg( candidate ) );
+    if ( re.match( layerName, Qt::CaseInsensitive ).hasMatch() )
+      return true;
+  }
+
+  return false;
 }
 
 void QgsRasterLayerElevationProperties::setDefaultProfileLineSymbol( const QColor &color )
@@ -181,4 +380,18 @@ void QgsRasterLayerElevationProperties::setDefaultProfileFillSymbol( const QColo
   std::unique_ptr< QgsSimpleFillSymbolLayer > profileFillLayer = std::make_unique< QgsSimpleFillSymbolLayer >( color );
   profileFillLayer->setStrokeStyle( Qt::NoPen );
   mProfileFillSymbol = std::make_unique< QgsFillSymbol>( QgsSymbolLayerList( { profileFillLayer.release() } ) );
+}
+
+QgsDoubleRange QgsRasterLayerElevationProperties::fixedRange() const
+{
+  return mFixedRange;
+}
+
+void QgsRasterLayerElevationProperties::setFixedRange( const QgsDoubleRange &range )
+{
+  if ( range == mFixedRange )
+    return;
+
+  mFixedRange = range;
+  emit changed();
 }

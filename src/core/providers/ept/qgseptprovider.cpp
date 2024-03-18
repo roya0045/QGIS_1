@@ -49,6 +49,15 @@ QgsEptProvider::QgsEptProvider(
     profile = std::make_unique< QgsScopedRuntimeProfile >( tr( "Open data source" ), QStringLiteral( "projectload" ) );
 
   loadIndex( );
+  if ( mIndex && !mIndex->isValid() )
+  {
+    appendError( mIndex->error() );
+  }
+}
+
+Qgis::DataProviderFlags QgsEptProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D;
 }
 
 QgsEptProvider::~QgsEptProvider() = default;
@@ -209,17 +218,19 @@ QVariantMap QgsEptProviderMetadata::decodeUri( const QString &uri ) const
   return uriComponents;
 }
 
-QString QgsEptProviderMetadata::filters( QgsProviderMetadata::FilterType type )
+QString QgsEptProviderMetadata::filters( Qgis::FileFilterType type )
 {
   switch ( type )
   {
-    case QgsProviderMetadata::FilterType::FilterVector:
-    case QgsProviderMetadata::FilterType::FilterRaster:
-    case QgsProviderMetadata::FilterType::FilterMesh:
-    case QgsProviderMetadata::FilterType::FilterMeshDataset:
+    case Qgis::FileFilterType::Vector:
+    case Qgis::FileFilterType::Raster:
+    case Qgis::FileFilterType::Mesh:
+    case Qgis::FileFilterType::MeshDataset:
+    case Qgis::FileFilterType::VectorTile:
+    case Qgis::FileFilterType::TiledScene:
       return QString();
 
-    case QgsProviderMetadata::FilterType::FilterPointCloud:
+    case Qgis::FileFilterType::PointCloud:
       return QObject::tr( "Entwine Point Clouds" ) + QStringLiteral( " (ept.json EPT.JSON)" );
   }
   return QString();

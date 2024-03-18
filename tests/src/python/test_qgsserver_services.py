@@ -40,7 +40,7 @@ class Response(QgsServerResponse):
     def __init__(self):
         QgsServerResponse.__init__(self)
         self._buffer = QBuffer()
-        self._buffer.open(QIODevice.ReadWrite)
+        self._buffer.open(QIODevice.OpenModeFlag.ReadWrite)
 
     def setStatusCode(self, code):
         self.code = code
@@ -95,11 +95,13 @@ class TestServices(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.app = QgsApplication([], False)
 
     @classmethod
     def tearDownClass(cls):
         cls.app.exitQgis()
+        super().tearDownClass()
 
     def test_register(self):
 

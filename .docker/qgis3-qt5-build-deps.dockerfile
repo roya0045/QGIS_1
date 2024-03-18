@@ -24,9 +24,11 @@ RUN  apt-get update \
     dh-python \
     git \
     gdal-bin \
+    gnupg \
     gpsbabel \
     graphviz \
     libaio1 \
+    libdraco4 \
     libexiv2-27 \
     libfcgi0ldbl \
     libgsl27 \
@@ -71,6 +73,7 @@ RUN  apt-get update \
     python3-pyqt5.qtwebkit \
     python3-pyqt5.qtpositioning \
     python3-pyqt5.qtmultimedia \
+    python3-pyqt5.qtserialport \
     python3-sip \
     python3-termcolor \
     python3-yaml \
@@ -109,7 +112,10 @@ RUN  apt-get update \
   && apt-get clean
 
 # Node.js and Yarn for server landingpage webapp
-RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+RUN mkdir -p /etc/apt/keyrings
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+RUN apt-get update
 RUN apt-get install -y nodejs
 RUN corepack enable
 
@@ -146,7 +152,7 @@ RUN  apt-get update \
 
 # HANA: client side
 # Install hdbsql tool
-RUN curl -v -j -k -L -H "Cookie: eula_3_1_agreed=tools.hana.ondemand.com/developer-license-3_1.txt" https://tools.hana.ondemand.com/additional/hanaclient-latest-linux-x64.tar.gz --output hanaclient-latest-linux-x64.tar.gz \
+RUN curl -j -k -L -H "Cookie: eula_3_1_agreed=tools.hana.ondemand.com/developer-license-3_1.txt" https://tools.hana.ondemand.com/additional/hanaclient-latest-linux-x64.tar.gz --output hanaclient-latest-linux-x64.tar.gz \
   && tar -xvf hanaclient-latest-linux-x64.tar.gz \
   && mkdir /usr/sap \
   && ./client/hdbinst -a client --sapmnt=/usr/sap \
@@ -160,11 +166,6 @@ ENV PATH="/usr/sap/hdbclient:${PATH}"
 # RUN apt-get update
 # RUN ACCEPT_EULA=Y apt-get install -y --allow-unauthenticated msodbcsql17 mssql-tools
 
-# OTB: download and install otb packages for QGIS tests
-RUN curl -k https://www.orfeo-toolbox.org/packages/archives/OTB/OTB-7.1.0-Linux64.run -o /tmp/OTB-Linux64.run && sh /tmp/OTB-Linux64.run --target /opt/otb
-ENV OTB_INSTALL_DIR=/opt/otb
-
-
 FROM binary-only
 
 RUN  apt-get update \
@@ -175,6 +176,7 @@ RUN  apt-get update \
     cmake \
     flex \
     grass-dev \
+    libdraco-dev \
     libexiv2-dev \
     libexpat1-dev \
     libfcgi-dev \

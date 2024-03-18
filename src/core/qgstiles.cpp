@@ -129,6 +129,12 @@ QPointF QgsTileMatrix::mapToTileCoordinates( const QgsPointXY &mapPoint ) const
 // QgsTileMatrixSet
 //
 
+QgsTileMatrixSet::QgsTileMatrixSet()
+{
+  mTileAvailabilityFunction = []( QgsTileXYZ ) { return Qgis::TileAvailability::Available; };
+  mTileReplacementFunction = []( QgsTileXYZ id, QgsTileXYZ & replacement ) { replacement = id; return Qgis::TileAvailability::Available; };
+}
+
 bool QgsTileMatrixSet::isEmpty() const
 {
   return mTileMatrices.isEmpty();
@@ -204,6 +210,11 @@ void QgsTileMatrixSet::dropMatricesOutsideZoomRange( int minimumZoom, int maximu
   }
 }
 
+Qgis::TileAvailability QgsTileMatrixSet::tileAvailability( QgsTileXYZ id ) const
+{
+  return mTileAvailabilityFunction( id );
+}
+
 QgsCoordinateReferenceSystem QgsTileMatrixSet::crs() const
 {
   if ( mTileMatrices.empty() )
@@ -249,12 +260,27 @@ double QgsTileMatrixSet::scaleToZoom( double scale ) const
   if ( zoomUnder < 0 )
     return zoomOver;
   if ( zoomOver < 0 )
-    return zoomUnder;
+  {
+    // allow overzooming, so the styling is applied correctly
+    scaleOver = tileMatrix( maximumZoom() ).scale() / 2;
+    zoomOver = maximumZoom() + 1;
+    while ( true )
+    {
+      if ( scaleOver < scale && scale < scaleUnder )
+      {
+        return ( scaleUnder - scale ) / ( scaleUnder - scaleOver ) * ( zoomOver - zoomUnder ) + zoomUnder;
+      }
+      scaleUnder = scaleOver;
+      zoomUnder = zoomOver;
+      scaleOver = scaleOver / 2;
+      zoomOver += 1;
+    }
+  }
   else
     return ( scaleUnder - scale ) / ( scaleUnder - scaleOver ) * ( zoomOver - zoomUnder ) + zoomUnder;
 }
 
-int QgsTileMatrixSet::scaleToZoomLevel( double scale ) const
+int QgsTileMatrixSet::scaleToZoomLevel( double scale, bool clamp ) const
 {
   int tileZoom = 0;
   switch ( mScaleToTileZoomMethod )
@@ -267,7 +293,7 @@ int QgsTileMatrixSet::scaleToZoomLevel( double scale ) const
       break;
   }
 
-  return std::clamp( tileZoom, minimumZoom(), maximumZoom() );
+  return clamp ? std::clamp( tileZoom, minimumZoom(), maximumZoom() ) : tileZoom;
 }
 
 double QgsTileMatrixSet::scaleForRenderContext( const QgsRenderContext &context ) const
@@ -282,6 +308,7 @@ double QgsTileMatrixSet::scaleForRenderContext( const QgsRenderContext &context 
 double QgsTileMatrixSet::calculateTileScaleForMap( double actualMapScale, const QgsCoordinateReferenceSystem &mapCrs, const QgsRectangle &mapExtent, const QSize mapSize, const double mapDpi ) const
 {
   switch ( mScaleToTileZoomMethod )
+    // cppcheck-suppress missingReturn
   {
     case Qgis::ScaleToTileZoomLevelMethod::MapBox:
       return actualMapScale;
@@ -397,3 +424,32 @@ QDomElement QgsTileMatrixSet::writeXml( QDomDocument &document, const QgsReadWri
 
   return setElement;
 }
+
+QVector<QgsTileXYZ> QgsTileMatrixSet::tilesInRange( QgsTileRange range, int zoomLevel ) const
+{
+  QVector<QgsTileXYZ> tiles;
+  tiles.reserve( ( range.endColumn() - range.startColumn() + 1 ) * ( range.endRow() - range.startRow() + 1 ) );
+
+  for ( int tileRow = range.startRow(); tileRow <= range.endRow(); ++tileRow )
+  {
+    for ( int tileColumn = range.startColumn(); tileColumn <= range.endColumn(); ++tileColumn )
+    {
+      QgsTileXYZ tile( tileColumn, tileRow, zoomLevel );
+      QgsTileXYZ replacement;
+      switch ( mTileReplacementFunction( tile, replacement ) )
+      {
+        case Qgis::TileAvailability::NotAvailable:
+          break;
+
+        case Qgis::TileAvailability::Available:
+        case Qgis::TileAvailability::AvailableNoChildren:
+        case Qgis::TileAvailability::UseLowerZoomLevelTile:
+          if ( !tiles.contains( replacement ) )
+            tiles.append( replacement );
+          break;
+      }
+    }
+  }
+  return tiles;
+}
+

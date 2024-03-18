@@ -20,7 +20,8 @@ from qgis.core import (
     QgsAuthMethodConfig,
 )
 from qgis.gui import QgsAuthSettingsWidget
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 __author__ = 'Alessandro Pasotti'
 __date__ = '27/09/2017'
@@ -33,12 +34,13 @@ os.environ['QGIS_AUTH_DB_DIR_PATH'] = QGIS_AUTH_DB_DIR_PATH
 qgis_app = start_app()
 
 
-class TestAuthenticationWidget(unittest.TestCase):
+class TestAuthenticationWidget(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests:
         Creates an auth configuration"""
+        super().setUpClass()
         # Enable auth
         # os.environ['QGIS_AUTH_PASSWORD_FILE'] = QGIS_AUTH_PASSWORD_FILE
         authm = QgsApplication.authManager()
@@ -55,6 +57,7 @@ class TestAuthenticationWidget(unittest.TestCase):
     def tearDownClass(cls):
         """Run after all tests"""
         rmtree(QGIS_AUTH_DB_DIR_PATH)
+        super().tearDownClass()
 
     def setUp(self):
         """Run before each test."""

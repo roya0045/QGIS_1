@@ -9,7 +9,6 @@ __author__ = 'Alexander Bruy'
 __date__ = '20/01/2011'
 __copyright__ = 'Copyright 2012, The QGIS Project'
 
-import qgis  # NOQA
 
 from qgis.core import (
     QgsFeature,
@@ -18,12 +17,13 @@ from qgis.core import (
     QgsRectangle,
     QgsSpatialIndex,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsSpatialIndex(unittest.TestCase):
+class TestQgsSpatialIndex(QgisTestCase):
 
     def testIndex(self):
         idx = QgsSpatialIndex()
@@ -59,7 +59,7 @@ class TestQgsSpatialIndex(unittest.TestCase):
 
     def testGetGeometry(self):
         idx = QgsSpatialIndex()
-        idx2 = QgsSpatialIndex(QgsSpatialIndex.FlagStoreFeatureGeometries)
+        idx2 = QgsSpatialIndex(QgsSpatialIndex.Flag.FlagStoreFeatureGeometries)
         fid = 0
         for y in range(5):
             for x in range(10, 15):

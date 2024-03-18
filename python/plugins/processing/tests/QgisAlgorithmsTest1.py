@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     QgisAlgorithmTests.py
@@ -32,7 +30,8 @@ from qgis.core import (QgsApplication,
                        QgsProcessingFeedback,
                        QgsProcessingException)
 from qgis.analysis import (QgsNativeAlgorithms)
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from processing.tools.dataobjects import createContext
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.modeler.ModelerUtils import ModelerUtils
@@ -60,7 +59,7 @@ class TestAlg(QgsProcessingAlgorithm):
         return {}
 
 
-class TestQgisAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsTest):
+class TestQgisAlgorithms(QgisTestCase, AlgorithmsTestBase.AlgorithmsTest):
 
     @classmethod
     def setUpClass(cls):
@@ -78,7 +77,7 @@ class TestQgisAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsTest):
         for path in cls.cleanup_paths:
             shutil.rmtree(path)
 
-    def test_definition_file(self):
+    def definition_file(self):
         return 'qgis_algorithm_tests1.yaml'
 
     def testProcessingException(self):
@@ -99,9 +98,9 @@ class TestQgisAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsTest):
             exec(import_string)
             # and now we should be able to instantiate an object!
             if t.className() == 'QgsProcessingParameterProviderConnection':
-                exec('test = {}(\'id\',\'name\', \'provider\')\nself.assertIsNotNone(test)'.format(t.className()))
+                exec(f'test = {t.className()}(\'id\',\'name\', \'provider\')\nself.assertIsNotNone(test)')
             else:
-                exec('test = {}(\'id\',\'name\')\nself.assertIsNotNone(test)'.format(t.className()))
+                exec(f'test = {t.className()}(\'id\',\'name\')\nself.assertIsNotNone(test)')
 
 
 if __name__ == '__main__':

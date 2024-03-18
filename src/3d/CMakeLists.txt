@@ -13,11 +13,15 @@ set(QGIS_3D_SRCS
   qgs3dmapexportsettings.cpp
   qgs3dmapscene.cpp
   qgs3dmapsettings.cpp
+  qgs3dmaptool.cpp
+  qgs3dmapcanvas.cpp
   qgs3dsceneexporter.cpp
   qgs3dutils.cpp
   qgscameracontroller.cpp
   qgscamerapose.cpp
   qgsfeature3dhandler_p.cpp
+  qgsframegraph.cpp
+  qgsgltf3dutils.cpp
   qgsimagetexture.cpp
   qgslayoutitem3dmap.cpp
   qgsoffscreen3dengine.cpp
@@ -25,6 +29,8 @@ set(QGIS_3D_SRCS
   qgsrulebased3drenderer.cpp
   qgsrulebasedchunkloader_p.cpp
   qgstessellatedpolygongeometry.cpp
+  qgstiledscenechunkloader_p.cpp
+  qgstiledscenelayer3drenderer.cpp
   qgstilingscheme.cpp
   qgsvectorlayer3drenderer.cpp
   qgsvectorlayerchunkloader_p.cpp
@@ -32,7 +38,6 @@ set(QGIS_3D_SRCS
   qgswindow3dengine.cpp
   qgsskyboxentity.cpp
   qgsskyboxsettings.cpp
-  qgsshadowrenderingframegraph.cpp
   qgspostprocessingentity.cpp
   qgsrenderpassquad.cpp
   qgsambientocclusionrenderentity.cpp
@@ -45,6 +50,7 @@ set(QGIS_3D_SRCS
 
   qgspointcloudlayer3drenderer.cpp
   qgspointcloudlayerchunkloader_p.cpp
+  qgsvirtualpointcloudentity_p.cpp
 
   chunks/qgschunkboundsentity_p.cpp
   chunks/qgschunkedentity_p.cpp
@@ -60,6 +66,8 @@ set(QGIS_3D_SRCS
   materials/qgsabstractmaterialsettings.cpp
   materials/qgsgoochmaterialsettings.cpp
   materials/qgsmaterialregistry.cpp
+  materials/qgsmetalroughmaterial.cpp
+  materials/qgsmetalroughmaterialsettings.cpp
   materials/qgsnullmaterialsettings.cpp
   materials/qgsphongmaterialsettings.cpp
   materials/qgsphongtexturedmaterialsettings.cpp
@@ -74,7 +82,6 @@ set(QGIS_3D_SRCS
   symbols/qgslinematerial_p.cpp
   symbols/qgslinevertexdata_p.cpp
   symbols/qgsmesh3dsymbol.cpp
-  symbols/qgsmesh3dsymbol_p.cpp
   symbols/qgspoint3dbillboardmaterial.cpp
   symbols/qgspoint3dsymbol.cpp
   symbols/qgspoint3dsymbol_p.cpp
@@ -109,25 +116,30 @@ set(QGIS_3D_HDRS
   qgs3daxissettings.h
   qgs3dmapscene.h
   qgs3dmapsettings.h
+  qgs3dmaptool.h
   qgs3dsceneexporter.h
   qgs3dtypes.h
   qgs3dutils.h
+  qgs3dmapcanvas.h
   qgsaabb.h
   qgsabstract3dengine.h
   qgsabstractvectorlayer3drenderer.h
   qgscameracontroller.h
   qgscamerapose.h
+  qgsframegraph.h
+  qgsgltf3dutils.h
   qgslayoutitem3dmap.h
   qgsmeshlayer3drenderer.h
   qgsoffscreen3dengine.h
   qgsrulebased3drenderer.h
   qgstessellatedpolygongeometry.h
+  qgstiledscenechunkloader_p.h
+  qgstiledscenelayer3drenderer.h
   qgstilingscheme.h
   qgsvectorlayer3drenderer.h
   qgswindow3dengine.h
   qgsskyboxentity.h
   qgsskyboxsettings.h
-  qgsshadowrenderingframegraph.h
   qgspostprocessingentity.h
   qgspreviewquad.h
   qgsshadowsettings.h
@@ -144,6 +156,8 @@ set(QGIS_3D_HDRS
   materials/qgsabstractmaterialsettings.h
   materials/qgsgoochmaterialsettings.h
   materials/qgsmaterialregistry.h
+  materials/qgsmetalroughmaterial.h
+  materials/qgsmetalroughmaterialsettings.h
   materials/qgsnullmaterialsettings.h
   materials/qgsphongmaterialsettings.h
   materials/qgsphongtexturedmaterialsettings.h
@@ -174,6 +188,8 @@ set(QGIS_3D_PRIVATE_HDRS
   qgsrulebasedchunkloader_p.h
   qgsvectorlayerchunkloader_p.h
   qgspointcloudlayerchunkloader_p.h
+  qgsvirtualpointcloudentity_p.h
+  qgs3dmapsceneentity_p.h
   chunks/qgschunkboundsentity_p.h
   chunks/qgschunkedentity_p.h
   chunks/qgschunklist_p.h
@@ -181,7 +197,6 @@ set(QGIS_3D_PRIVATE_HDRS
   symbols/qgsline3dsymbol_p.h
   symbols/qgslinematerial_p.h
   symbols/qgslinevertexdata_p.h
-  symbols/qgsmesh3dsymbol_p.h
   symbols/qgspoint3dsymbol_p.h
   symbols/qgspolygon3dsymbol_p.h
   symbols/qgspointcloud3dsymbol_p.h
@@ -232,6 +247,7 @@ target_include_directories(qgis_3d PUBLIC
 
   ${CMAKE_BINARY_DIR}/src/3d
   ${CMAKE_SOURCE_DIR}/external/delaunator-cpp
+  ${CMAKE_SOURCE_DIR}/external/tinygltf
 )
 
 if (BUILD_WITH_QT6)

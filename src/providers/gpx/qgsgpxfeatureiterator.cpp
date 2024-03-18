@@ -29,6 +29,12 @@
 QgsGPXFeatureIterator::QgsGPXFeatureIterator( QgsGPXFeatureSource *source, bool ownSource, const QgsFeatureRequest &request )
   : QgsAbstractFeatureIteratorFromSource<QgsGPXFeatureSource>( source, ownSource, request )
 {
+  if ( !mSource->mData )
+  {
+    close();
+    return;
+  }
+
   if ( mRequest.destinationCrs().isValid() && mRequest.destinationCrs() != mSource->mCrs )
   {
     mTransform = QgsCoordinateTransform( mSource->mCrs, mRequest.destinationCrs(), mRequest.transformContext() );
@@ -74,7 +80,7 @@ bool QgsGPXFeatureIterator::rewind()
   if ( mClosed )
     return false;
 
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid )
   {
     mFetchedFid = false;
   }
@@ -109,7 +115,7 @@ bool QgsGPXFeatureIterator::fetchFeature( QgsFeature &feature )
   if ( mClosed )
     return false;
 
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid )
   {
     bool res = readFid( feature );
     close();
@@ -258,7 +264,7 @@ bool QgsGPXFeatureIterator::readWaypoint( const QgsWaypoint &wpt, QgsFeature &fe
   }
 
   // some wkb voodoo
-  if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) || !mFilterRect.isNull() )
+  if ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) || !mFilterRect.isNull() )
   {
     QgsGeometry *g = readWaypointGeometry( wpt );
     feature.setGeometry( *g );
@@ -298,7 +304,7 @@ bool QgsGPXFeatureIterator::readRoute( const QgsRoute &rte, QgsFeature &feature 
     }
   }
 
-  if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) || !mFilterRect.isNull() )
+  if ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) || !mFilterRect.isNull() )
   {
     feature.setGeometry( *geometry );
     delete geometry;
@@ -320,7 +326,7 @@ bool QgsGPXFeatureIterator::readRoute( const QgsRoute &rte, QgsFeature &feature 
 
 bool QgsGPXFeatureIterator::readTrack( const QgsTrack &trk, QgsFeature &feature )
 {
-  //QgsDebugMsg( QStringLiteral( "GPX feature track segments: %1" ).arg( trk.segments.size() ) );
+  //QgsDebugMsgLevel( QStringLiteral( "GPX feature track segments: %1" ).arg( trk.segments.size() ), 2 );
 
   QgsGeometry *geometry = readTrackGeometry( trk );
 
@@ -340,7 +346,7 @@ bool QgsGPXFeatureIterator::readTrack( const QgsTrack &trk, QgsFeature &feature 
     }
   }
 
-  if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) || !mFilterRect.isNull() )
+  if ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) || !mFilterRect.isNull() )
   {
     feature.setGeometry( *geometry );
     delete geometry;
@@ -391,6 +397,9 @@ void QgsGPXFeatureIterator::readAttributes( QgsFeature &feature, const QgsWaypoi
         break;
       case QgsGPXProvider::URLNameAttr:
         feature.setAttribute( i, QVariant( wpt.urlname ) );
+        break;
+      case QgsGPXProvider::TimeAttr:
+        feature.setAttribute( i, QVariant( wpt.time ) );
         break;
     }
   }
@@ -515,14 +524,14 @@ QgsGeometry *QgsGPXFeatureIterator::readTrackGeometry( const QgsTrack &trk )
   if ( totalPoints == 0 )
     return nullptr;
 
-  //QgsDebugMsg( "GPX feature track total points: " + QString::number( totalPoints ) );
+  //QgsDebugMsgLevel( "GPX feature track total points: " + QString::number( totalPoints ), 2 );
 
   // some wkb voodoo
   const int size = 1 + 2 * sizeof( int ) + 2 * sizeof( double ) * totalPoints;
   unsigned char *geo = new unsigned char[size];
   if ( !geo )
   {
-    QgsDebugMsg( QStringLiteral( "Track too large!" ) );
+    QgsDebugError( QStringLiteral( "Track too large!" ) );
     return nullptr;
   }
 

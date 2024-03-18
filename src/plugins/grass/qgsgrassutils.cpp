@@ -21,6 +21,8 @@
 #include "qgslogger.h"
 
 #include <QFileInfo>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 
 QString QgsGrassUtils::vectorLayerName( QString map, QString layer,
                                         int nLayers )
@@ -41,7 +43,7 @@ void QgsGrassUtils::addVectorLayers( QgisInterface *iface,
   }
   catch ( QgsGrass::Exception &e )
   {
-    QgsDebugMsg( e.what() );
+    QgsDebugError( e.what() );
     return;
   }
 
@@ -52,9 +54,9 @@ void QgsGrassUtils::addVectorLayers( QgisInterface *iface,
     QString uri = gisbase + "/" + location + "/"
                   + mapset + "/" + map + "/" + layers[i];
 
-    QgsDebugMsg( QString( "layer = %1" ).arg( layers[i].toLocal8Bit().constData() ) );
-    QgsDebugMsg( QString( "uri = %1" ).arg( uri.toLocal8Bit().constData() ) );
-    QgsDebugMsg( QString( "name = %1" ).arg( name.toLocal8Bit().constData() ) );
+    QgsDebugMsgLevel( QString( "layer = %1" ).arg( layers[i].toLocal8Bit().constData() ), 3 );
+    QgsDebugMsgLevel( QString( "uri = %1" ).arg( uri.toLocal8Bit().constData() ), 3 );
+    QgsDebugMsgLevel( QString( "name = %1" ).arg( name.toLocal8Bit().constData() ), 3 );
 
     iface->addVectorLayer( uri, name, QStringLiteral( "grass" ) );
   }
@@ -99,7 +101,7 @@ QString QgsGrassElementDialog::getItem( QString element,
   layout->addWidget( mLabel );
 
   mLineEdit = new QLineEdit( text );
-  QRegExp rx;
+  QRegularExpression rx;
   if ( element == QLatin1String( "vector" ) )
   {
     rx.setPattern( QStringLiteral( "[A-Za-z_][A-Za-z0-9_]+" ) );
@@ -108,7 +110,7 @@ QString QgsGrassElementDialog::getItem( QString element,
   {
     rx.setPattern( QStringLiteral( "[A-Za-z0-9_.]+" ) );
   }
-  QRegExpValidator *val = new QRegExpValidator( rx, this );
+  QRegularExpressionValidator *val = new QRegularExpressionValidator( rx, this );
   mLineEdit->setValidator( val );
 
   layout->addWidget( mLineEdit );

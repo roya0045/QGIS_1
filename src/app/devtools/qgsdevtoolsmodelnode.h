@@ -39,6 +39,9 @@ class QgsDevToolsModelNode
     {
       RoleStatus = Qt::UserRole + 1, //!< Request status role
       RoleId, //!< Request ID role
+      RoleElapsedTime, //!< Elapsed time
+      RoleMaximumTime, //!< Maximum encountered elapsed time
+      RoleSort, //!< Sort order role
     };
 
     virtual ~QgsDevToolsModelNode();
@@ -93,8 +96,10 @@ class QgsDevToolsModelGroup : public QgsDevToolsModelNode
 
     /**
      * Adds a \a child node to this node.
+     *
+     * Returns a pointer to the newly added node.
      */
-    void addChild( std::unique_ptr< QgsDevToolsModelNode > child );
+    QgsDevToolsModelNode *addChild( std::unique_ptr< QgsDevToolsModelNode > child );
 
     /**
      * Returns the index of the specified \a child node.

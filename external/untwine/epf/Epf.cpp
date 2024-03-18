@@ -17,10 +17,10 @@
 #include "Reprocessor.hpp"
 #include "Writer.hpp"
 #include "../untwine/Common.hpp"
-#include "../untwine/Las.hpp"
 
-#include <unordered_set>
+#include <cmath>
 #include <filesystem>
+#include <unordered_set>
 
 #include <pdal/pdal_features.hpp>
 #include <pdal/Dimension.hpp>
@@ -31,61 +31,26 @@
 #include <pdal/util/FileUtils.hpp>
 #include <pdal/util/ProgramArgs.hpp>
 
-
 namespace
 {
 
-// PDAL's directoryList had a bug, so we've imported a working
-// version here so that we can still use older PDAL releases.
-
-#ifndef __APPLE_CC__
-std::vector<std::string> directoryList(const std::string& dir)
+pdal::Dimension::Type getDimensionType(const std::string& name)
 {
-    namespace fs = std::filesystem;
+    using namespace pdal;
 
-    std::vector<std::string> files;
+    if (name == untwine::UntwineBitsDimName)
+        return untwine::UntwineBitsType;
 
+    Dimension::Type type = Dimension::Type::Double;
     try
     {
-        fs::directory_iterator it(untwine::toNative(dir));
-        fs::directory_iterator end;
-        while (it != end)
-        {
-            files.push_back(untwine::fromNative(it->path()));
-            it++;
-        }
+        type = Dimension::defaultType(Dimension::id(name));
     }
-    catch (fs::filesystem_error&)
-    {
-        files.clear();
-    }
-    return files;
+    catch (pdal_error&)
+    {}
+
+    return type;
 }
-#else
-
-#include <dirent.h>
-
-// Provide simple opendir/readdir solution for OSX because directory_iterator is
-// not available until OSX 10.15
-std::vector<std::string> directoryList(const std::string& dir)
-{
-
-    DIR *dpdf;
-    struct dirent *epdf;
-
-    std::vector<std::string> files;
-    dpdf = opendir(dir.c_str());
-    if (dpdf != NULL){
-       while ((epdf = readdir(dpdf))){
-           files.push_back(untwine::fromNative(epdf->d_name));
-       }
-    }
-    closedir(dpdf);
-
-    return files;
-
-}
-#endif
 
 } // unnamed namespace
 
@@ -104,15 +69,11 @@ Epf::Epf(BaseInfo& common) : m_b(common), m_pool(NumFileProcessors)
 Epf::~Epf()
 {}
 
-
 void Epf::run(ProgressWriter& progress)
 {
     using namespace pdal;
 
     BOX3D totalBounds;
-
-    if (pdal::FileUtils::fileExists(m_b.opts.tempDir + "/" + MetadataFilename))
-        throw FatalError("Output directory already contains EPT data.");
 
     m_grid.setCubic(m_b.opts.doCube);
 
@@ -135,21 +96,17 @@ void Epf::run(ProgressWriter& progress)
         for (const FileDimInfo& fdi : fi.dimInfo)
             allDimNames.insert(fdi.name);
 
+    // Create an OUTPUT layout.
     // Register the dimensions, either as the default type or double if we don't know
     // what it is.
     PointLayoutPtr layout(new PointLayout());
-    for (const std::string& dimName : allDimNames)
+    for (std::string dimName : allDimNames)
     {
-        Dimension::Type type;
-        try
-        {
-            type = Dimension::defaultType(Dimension::id(dimName));
-        }
-        catch (pdal::pdal_error&)
-        {
-            type = Dimension::Type::Double;
-        }
-        layout->registerOrAssignDim(dimName, type);
+        // If this is a "bit" dimension, don't add it, but instead register the proxy
+        // untwine bits dimension.
+        if (isUntwineBitsDim(dimName))
+            dimName = UntwineBitsDimName;
+        layout->registerOrAssignDim(dimName, getDimensionType(dimName));
     }
     layout->finalize();
 
@@ -158,9 +115,20 @@ void Epf::run(ProgressWriter& progress)
     {
         for (FileDimInfo& di : fi.dimInfo)
         {
-            di.dim = layout->findDim(di.name);
-            di.type = layout->dimType(di.dim);
-            di.offset = layout->dimOffset(di.dim);
+            // If this dimension is one of the bit dimensions, set the shift and offset accordingly.
+            int bitPos = getUntwineBitPos(di.name);
+            if (bitPos != -1)
+            {
+                di.type = UntwineBitsType;
+                di.offset = layout->dimOffset(layout->findDim(UntwineBitsDimName));
+                di.shift = bitPos;
+            }
+            else
+            {
+                Dimension::Id dim = layout->findDim(di.name);
+                di.type = layout->dimType(dim);
+                di.offset = layout->dimOffset(dim);
+            }
         }
     }
 
@@ -261,15 +229,13 @@ void Epf::fillMetadata(const pdal::PointLayoutPtr layout)
     else
         m_b.pointFormatId = 6;
 
-    const Dimension::IdList& lasDims = pdrfDims(m_b.pointFormatId);
     for (Dimension::Id id : layout->dims())
     {
         FileDimInfo di;
         di.name = layout->dimName(id);
         di.type = layout->dimType(id);
         di.offset = layout->dimOffset(id);
-        di.dim = id;
-        di.extraDim = !Utils::contains(lasDims, id);
+        di.extraDim = isExtraDim(di.name);
         m_b.pointSize += pdal::Dimension::size(di.type);
         m_b.dimInfo.push_back(di);
     }
@@ -291,24 +257,28 @@ void Epf::fillMetadata(const pdal::PointLayoutPtr layout)
     m_b.scale[1] = calcScale(m_b.scale[1], m_b.trueBounds.miny, m_b.trueBounds.maxy);
     m_b.scale[2] = calcScale(m_b.scale[2], m_b.trueBounds.minz, m_b.trueBounds.maxz);
 
-    // Find an offset such that (offset - min) / scale is close to an integer. This helps
-    // to eliminate warning messages in lasinfo that complain because of being unable
-    // to write nominal double values precisely using a 32-bit integer.
-    // The hope is also that raw input values are written as the same raw values
-    // on output. This may not be possible if the input files have different scaling or
-    // incompatible offsets.
+    // The hope is that raw input values are written as the same raw values
+    // on output. This may not be possible if the input files have different
+    // scaling or incompatible offsets.
     auto calcOffset = [](double minval, double maxval, double scale)
     {
         double interval = maxval - minval;
         double spacings = interval / scale;  // Number of quantized values in our range.
         double halfspacings = spacings / 2;  // Half of that number.
         double offset = (int32_t)halfspacings * scale; // Round to an int value and scale down.
-        return minval + offset;              // Add the base (min) value.
+        return std::round(minval + offset);  // Add the base (min) value and round to an integer.
     };
 
-    m_b.offset[0] = calcOffset(m_b.trueBounds.minx, m_b.trueBounds.maxx, m_b.scale[0]);
-    m_b.offset[1] = calcOffset(m_b.trueBounds.miny, m_b.trueBounds.maxy, m_b.scale[1]);
-    m_b.offset[2] = calcOffset(m_b.trueBounds.minz, m_b.trueBounds.maxz, m_b.scale[2]);
+    // Preserve offsets if we have them and --single_file with single input is used
+    if (!m_b.preserveHeaderFields() ||
+            std::isnan(m_b.offset[0]) ||
+            std::isnan(m_b.offset[1]) ||
+            std::isnan(m_b.offset[2]))
+    {
+        m_b.offset[0] = calcOffset(m_b.trueBounds.minx, m_b.trueBounds.maxx, m_b.scale[0]);
+        m_b.offset[1] = calcOffset(m_b.trueBounds.miny, m_b.trueBounds.maxy, m_b.scale[1]);
+        m_b.offset[2] = calcOffset(m_b.trueBounds.minz, m_b.trueBounds.maxz, m_b.scale[2]);
+    }
 }
 
 PointCount Epf::createFileInfo(const StringList& input, StringList dimNames,
@@ -364,6 +334,8 @@ PointCount Epf::createFileInfo(const StringList& input, StringList dimNames,
 
         QuickInfo qi = s->preview();
 
+        // Detect LAS input with LAS version < 4 so that we can handle the legacy
+        // classification bits.
         if (!qi.valid())
             throw FatalError("Couldn't get quick info for '" + filename + "'.");
 
@@ -388,11 +360,54 @@ PointCount Epf::createFileInfo(const StringList& input, StringList dimNames,
         if (m.valid())
             zOffsets.push_back(m.value<double>());
 
+        if (m_b.preserveHeaderFields())
+        {
+            m = root.findChild("global_encoding");
+            if (m.valid())
+                m_b.globalEncoding = m.value<int>();
+            m = root.findChild("creation_doy");
+            if (m.valid())
+                m_b.creationDoy = m.value<int>();
+            m = root.findChild("creation_year");
+            if (m.valid())
+                m_b.creationYear = m.value<int>();
+            m = root.findChild("filesource_id");
+            if (m.valid())
+                m_b.fileSourceId = m.value<int>();
+            m = root.findChild("software_id");
+            if (m.valid())
+                m_b.generatingSoftware = m.value<std::string>();
+            m = root.findChild("system_id");
+            if (m.valid())
+                m_b.systemId = m.value<std::string>();
+        }
+        else
+        {
+            std::time_t now;
+            std::time(&now);
+            std::tm* ptm = std::gmtime(&now);
+            if (ptm)
+            {
+                m_b.creationDoy = ptm->tm_yday + 1;
+                m_b.creationYear = ptm->tm_year + 1900;
+            }
+        }
+
         FileInfo fi;
         fi.bounds = qi.m_bounds;
         fi.numPoints = qi.m_pointCount;
         fi.filename = filename;
         fi.driver = driver;
+
+        // Detect LAS input with LAS version < 4 so that we can handle the legacy
+        // classification bits.
+        if (driver == "readers.las")
+        {
+            pdal::MetadataNode minor = root.findChild("minor_version");
+            pdal::MetadataNode major = root.findChild("major_version");
+            if (minor.valid() && major.valid())
+                fi.fileVersion = 10 * major.value<int>() + minor.value<int>();
+        }
 
         // Accept dimension names if there are no limits or this name is in the list
         // of desired dimensions.

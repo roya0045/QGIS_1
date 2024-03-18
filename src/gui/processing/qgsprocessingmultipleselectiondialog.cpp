@@ -23,6 +23,7 @@
 #include "qgspluginlayer.h"
 #include "qgspointcloudlayer.h"
 #include "qgsannotationlayer.h"
+#include "qgsvectortilelayer.h"
 #include "qgsproject.h"
 #include "processing/models/qgsprocessingmodelchildparametersource.h"
 #include <QStandardItemModel>
@@ -32,6 +33,8 @@
 #include <QToolButton>
 #include <QFileDialog>
 #include <QDirIterator>
+#include "qgsmimedatautils.h"
+#include <QDragEnterEvent>
 
 ///@cond NOT_STABLE
 
@@ -196,6 +199,63 @@ void QgsProcessingMultipleSelectionPanelWidget::populateList( const QVariantList
   mSelectionList->setModel( mModel );
 }
 
+QList< int> QgsProcessingMultipleSelectionPanelWidget::existingMapLayerFromMimeData( const QMimeData *data ) const
+{
+  const QgsMimeDataUtils::UriList uriList = QgsMimeDataUtils::decodeUriList( data );
+  QList<int> indexes;
+  for ( const QgsMimeDataUtils::Uri &u : uriList )
+  {
+    // is this uri from the current project?
+    if ( QgsMapLayer *layer = u.mapLayer() )
+    {
+      for ( int i = 0; i < mModel->rowCount(); ++i )
+      {
+        // try to match project layers to current layers
+        QString userRole = mModel->item( i )->data( Qt::UserRole ).toString();
+        if ( userRole == layer->id() || userRole == layer->source() )
+        {
+          indexes.append( i );
+        }
+      }
+    }
+  }
+  return indexes;
+}
+
+void QgsProcessingMultipleSelectionPanelWidget::dragEnterEvent( QDragEnterEvent *event )
+{
+  if ( !( event->possibleActions() & Qt::CopyAction ) )
+    return;
+
+  const QList< int> indexes = existingMapLayerFromMimeData( event->mimeData() );
+  if ( !indexes.isEmpty() )
+  {
+    // dragged an acceptable layer, phew
+    event->setDropAction( Qt::CopyAction );
+    event->accept();
+  }
+}
+
+void QgsProcessingMultipleSelectionPanelWidget::dropEvent( QDropEvent *event )
+{
+  if ( !( event->possibleActions() & Qt::CopyAction ) )
+    return;
+
+  const QList< int> indexes = existingMapLayerFromMimeData( event->mimeData() );
+  if ( !indexes.isEmpty() )
+  {
+    // dropped an acceptable layer, phew
+    setFocus( Qt::MouseFocusReason );
+    event->setDropAction( Qt::CopyAction );
+    event->accept();
+
+    for ( const int i : indexes )
+    {
+      mModel->item( i )->setCheckState( Qt::Checked );
+    }
+    emit selectionChanged();
+  }
+}
 
 void QgsProcessingMultipleSelectionPanelWidget::addOption( const QVariant &value, const QString &title, bool selected, bool updateExistingTitle )
 {
@@ -270,7 +330,7 @@ QgsProcessingMultipleInputPanelWidget::QgsProcessingMultipleInputPanelWidget( co
   QPushButton *addDirButton = new QPushButton( tr( "Add Directory…" ) );
   connect( addDirButton, &QPushButton::clicked, this, &QgsProcessingMultipleInputPanelWidget::addDirectory );
   buttonBox()->addButton( addDirButton, QDialogButtonBox::ActionRole );
-
+  setAcceptDrops( true );
   for ( const QgsProcessingModelChildParameterSource &source : modelSources )
   {
     addOption( QVariant::fromValue( source ), source.friendlyIdentifier( model ), false, true );
@@ -279,7 +339,7 @@ QgsProcessingMultipleInputPanelWidget::QgsProcessingMultipleInputPanelWidget( co
 
 void QgsProcessingMultipleInputPanelWidget::setProject( QgsProject *project )
 {
-  if ( mParameter->layerType() != QgsProcessing::TypeFile )
+  if ( mParameter->layerType() != Qgis::ProcessingSourceType::File )
     populateFromProject( project );
 }
 
@@ -335,9 +395,82 @@ void QgsProcessingMultipleInputPanelWidget::addDirectory()
   while ( it.hasNext() )
   {
     const QString fullPath = it.next();
+    if ( fullPath.endsWith( QLatin1String( ".dbf" ), Qt::CaseInsensitive ) )
+    {
+      if ( QFileInfo::exists( QStringLiteral( "%1.shp" ).arg( fullPath.chopped( 4 ) ) ) ||
+           QFileInfo::exists( QStringLiteral( "%1.SHP" ).arg( fullPath.chopped( 4 ) ) ) )
+      {
+        // Skip DBFs that are sidecar files to a Shapefile
+        continue;
+      }
+    }
+    else if ( fullPath.endsWith( QLatin1String( ".aux.xml" ), Qt::CaseInsensitive ) ||
+              fullPath.endsWith( QLatin1String( ".shp.xml" ), Qt::CaseInsensitive ) )
+    {
+      // Skip XMLs that are sidecar files  to datasets
+      continue;
+    }
     addOption( fullPath, fullPath, true );
   }
   emit selectionChanged();
+}
+
+QList< int> QgsProcessingMultipleInputPanelWidget::existingMapLayerFromMimeData( const QMimeData *data ) const
+{
+  const QgsMimeDataUtils::UriList uriList = QgsMimeDataUtils::decodeUriList( data );
+  QList<int> indexes;
+  for ( const QgsMimeDataUtils::Uri &u : uriList )
+  {
+    // is this uri from the current project?
+    if ( QgsMapLayer *layer = u.mapLayer() )
+    {
+      for ( int i = 0; i < mModel->rowCount(); ++i )
+      {
+        // try to match project layers to current layers
+        const QString userRole = mModel->item( i )->data( Qt::UserRole ).toString();
+        if ( userRole == layer->id() || userRole == layer->source() )
+        {
+          indexes.append( i );
+        }
+      }
+    }
+  }
+  return indexes;
+}
+
+void QgsProcessingMultipleInputPanelWidget::dragEnterEvent( QDragEnterEvent *event )
+{
+  if ( !( event->possibleActions() & Qt::CopyAction ) )
+    return;
+
+  const QList< int> indexes = existingMapLayerFromMimeData( event->mimeData() );
+  if ( !indexes.isEmpty() )
+  {
+    // dragged an acceptable layer, phew
+    event->setDropAction( Qt::CopyAction );
+    event->accept();
+  }
+}
+
+void QgsProcessingMultipleInputPanelWidget::dropEvent( QDropEvent *event )
+{
+  if ( !( event->possibleActions() & Qt::CopyAction ) )
+    return;
+
+  const QList< int> indexes = existingMapLayerFromMimeData( event->mimeData() );
+  if ( !indexes.isEmpty() )
+  {
+    // dropped an acceptable layer, phew
+    setFocus( Qt::MouseFocusReason );
+    event->setDropAction( Qt::CopyAction );
+    event->accept();
+
+    for ( const int i : indexes )
+    {
+      mModel->item( i )->setCheckState( Qt::Checked );
+    }
+    emit selectionChanged();
+  }
 }
 
 void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *project )
@@ -395,10 +528,10 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
 
   switch ( mParameter->layerType() )
   {
-    case QgsProcessing::TypeFile:
+    case Qgis::ProcessingSourceType::File:
       break;
 
-    case QgsProcessing::TypeRaster:
+    case Qgis::ProcessingSourceType::Raster:
     {
       const QList<QgsRasterLayer *> options = QgsProcessingUtils::compatibleRasterLayers( project, false );
       for ( const QgsRasterLayer *layer : options )
@@ -408,7 +541,7 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
       break;
     }
 
-    case QgsProcessing::TypeMesh:
+    case Qgis::ProcessingSourceType::Mesh:
     {
       const QList<QgsMeshLayer *> options = QgsProcessingUtils::compatibleMeshLayers( project, false );
       for ( const QgsMeshLayer *layer : options )
@@ -419,7 +552,7 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
       break;
     }
 
-    case QgsProcessing::TypePlugin:
+    case Qgis::ProcessingSourceType::Plugin:
     {
       const QList<QgsPluginLayer *> options = QgsProcessingUtils::compatiblePluginLayers( project, false );
       for ( const QgsPluginLayer *layer : options )
@@ -430,7 +563,7 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
       break;
     }
 
-    case QgsProcessing::TypeAnnotation:
+    case Qgis::ProcessingSourceType::Annotation:
     {
       const QList<QgsAnnotationLayer *> options = QgsProcessingUtils::compatibleAnnotationLayers( project, false );
       for ( const QgsAnnotationLayer *layer : options )
@@ -441,7 +574,7 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
       break;
     }
 
-    case QgsProcessing::TypePointCloud:
+    case Qgis::ProcessingSourceType::PointCloud:
     {
       const QList<QgsPointCloudLayer *> options = QgsProcessingUtils::compatiblePointCloudLayers( project, false );
       for ( const QgsPointCloudLayer *layer : options )
@@ -452,10 +585,21 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
       break;
     }
 
-    case QgsProcessing::TypeVector:
-    case QgsProcessing::TypeVectorAnyGeometry:
+    case Qgis::ProcessingSourceType::VectorTile:
     {
-      const QList<QgsVectorLayer *> options = QgsProcessingUtils::compatibleVectorLayers( project, QList< int >() );
+      const QList<QgsVectorTileLayer *> options = QgsProcessingUtils::compatibleVectorTileLayers( project, false );
+      for ( const QgsVectorTileLayer *layer : options )
+      {
+        addLayer( layer );
+      }
+
+      break;
+    }
+
+    case Qgis::ProcessingSourceType::Vector:
+    case Qgis::ProcessingSourceType::VectorAnyGeometry:
+    {
+      const QList<QgsVectorLayer *> options = QgsProcessingUtils::compatibleVectorLayers( project, QList< int >() << static_cast<int>( mParameter->layerType() ) );
       for ( const QgsVectorLayer *layer : options )
       {
         addLayer( layer );
@@ -464,7 +608,7 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
       break;
     }
 
-    case QgsProcessing::TypeMapLayer:
+    case Qgis::ProcessingSourceType::MapLayer:
     {
       const QList<QgsVectorLayer *> vectors = QgsProcessingUtils::compatibleVectorLayers( project, QList< int >() );
       for ( const QgsVectorLayer *layer : vectors )
@@ -500,11 +644,11 @@ void QgsProcessingMultipleInputPanelWidget::populateFromProject( QgsProject *pro
       break;
     }
 
-    case QgsProcessing::TypeVectorPoint:
-    case QgsProcessing::TypeVectorLine:
-    case QgsProcessing::TypeVectorPolygon:
+    case Qgis::ProcessingSourceType::VectorPoint:
+    case Qgis::ProcessingSourceType::VectorLine:
+    case Qgis::ProcessingSourceType::VectorPolygon:
     {
-      const QList<QgsVectorLayer *> vectors = QgsProcessingUtils::compatibleVectorLayers( project, QList< int >() << mParameter->layerType() );
+      const QList<QgsVectorLayer *> vectors = QgsProcessingUtils::compatibleVectorLayers( project, QList< int >() << static_cast< int >( mParameter->layerType() ) );
       for ( const QgsVectorLayer *layer : vectors )
       {
         addLayer( layer );
@@ -530,6 +674,7 @@ QgsProcessingMultipleInputDialog::QgsProcessingMultipleInputDialog( const QgsPro
   connect( mWidget->buttonBox(), &QDialogButtonBox::accepted, this, &QDialog::accept );
   connect( mWidget->buttonBox(), &QDialogButtonBox::rejected, this, &QDialog::reject );
   setLayout( vLayout );
+  setAcceptDrops( true );
 }
 
 QVariantList QgsProcessingMultipleInputDialog::selectedOptions() const

@@ -451,7 +451,7 @@ void TestQgsMapRendererJob::testRenderedFeatureHandlers()
   QStringList wkts;
   for ( const QgsGeometry &g : std::as_const( geometries1 ) )
   {
-    QgsDebugMsg( g.asWkt( 1 ) );
+    QgsDebugMsgLevel( g.asWkt( 1 ), 1 );
     wkts << g.asWkt( 1 );
   }
   wkts.sort();
@@ -771,7 +771,7 @@ void TestQgsMapRendererJob::stagedRendererWithStagedLabeling()
   settings.fieldName = QStringLiteral( "Name" );
   settings.placement = Qgis::LabelPlacement::OverPoint;
   settings.zIndex = 2;
-  settings.obstacleSettings().setType( QgsLabelObstacleSettings::PolygonInterior );
+  settings.obstacleSettings().setType( QgsLabelObstacleSettings::ObstacleType::PolygonInterior );
   polygonsLayer->setLabeling( new QgsVectorLayerSimpleLabeling( settings ) );
   polygonsLayer->setLabelsEnabled( true );
 
@@ -1116,7 +1116,7 @@ void TestQgsMapRendererJob::testMapShading()
   std::unique_ptr< QgsVectorLayer > vectorLayer =
     std::make_unique< QgsVectorLayer >(
       QStringLiteral( "Polygon?crs=%1&field=id:integer&field=name:string(20)&index=no" )
-      .arg( pointCloudLayer->crs().toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ) ),
+      .arg( pointCloudLayer->crs().toWkt( Qgis::CrsWktVariant::Preferred ) ),
       QStringLiteral( "vector-layer" ),
       QStringLiteral( "memory" ) );
   QVERIFY( vectorLayer->isValid() );
@@ -1190,6 +1190,20 @@ void TestQgsMapRendererJob::testMapShading()
   renderJob->waitForFinished();
   img = renderJob->renderedImage();
   QVERIFY( imageCheck( QStringLiteral( "render_shading_5" ), img ) );
+
+  // test elevation map when rendering point cloud with triangulation
+  QgsElevationShadingRenderer shadingRenderer2;
+  shadingRenderer2.setActive( true );
+  shadingRenderer2.setActiveHillshading( true );
+  shadingRenderer2.setActiveEyeDomeLighting( false );
+  pointCloudLayer->renderer()->setRenderAsTriangles( true );
+  mapSettings.setLayers( QList< QgsMapLayer * >() << pointCloudLayer.get() );
+  mapSettings.setElevationShadingRenderer( shadingRenderer2 );
+  renderJob.reset( new QgsMapRendererSequentialJob( mapSettings ) );
+  renderJob->start();
+  renderJob->waitForFinished();
+  img = renderJob->renderedImage();
+  QVERIFY( imageCheck( QStringLiteral( "render_shading_point_cloud_triangles" ), img ) );
 }
 
 bool TestQgsMapRendererJob::imageCheck( const QString &testName, const QImage &image, int mismatchCount )

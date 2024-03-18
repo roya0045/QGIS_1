@@ -9,7 +9,6 @@ __author__ = '(C) 2020 by Nyall Dawson'
 __date__ = '05/04/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QRectF, Qt
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
@@ -24,11 +23,11 @@ from qgis.core import (
     QgsProject,
     QgsReadWriteContext,
     QgsRectangle,
-    QgsUnitTypes,
+    QgsUnitTypes
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
-from qgslayoutchecker import QgsLayoutChecker
 from test_qgslayoutitem import LayoutItemTestCase
 from utilities import unitTestDataPath
 
@@ -36,15 +35,20 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
+class TestQgsLayoutMarker(QgisTestCase, LayoutItemTestCase):
+
+    @classmethod
+    def control_path_prefix(cls):
+        return "layout_marker"
 
     @classmethod
     def setUpClass(cls):
+        super(TestQgsLayoutMarker, cls).setUpClass()
         cls.item_class = QgsLayoutItemMarker
 
     def __init__(self, methodName):
         """Run once on class initialization."""
-        unittest.TestCase.__init__(self, methodName)
+        QgisTestCase.__init__(self, methodName)
 
         # style
         props = {}
@@ -72,14 +76,14 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         marker = QgsLayoutItemMarker(layout)
 
         self.assertEqual(
-            marker.type(), QgsLayoutItemRegistry.LayoutMarker)
+            marker.type(), QgsLayoutItemRegistry.ItemType.LayoutMarker)
 
     def testRender(self):
         """Test marker rendering."""
         layout = QgsLayout(QgsProject.instance())
         layout.initializeDefaults()
         marker = QgsLayoutItemMarker(layout)
-        marker.attemptMove(QgsLayoutPoint(100, 50, QgsUnitTypes.LayoutMillimeters))
+        marker.attemptMove(QgsLayoutPoint(100, 50, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         props = {}
         props["color"] = "0,255,255"
         props["outline_width"] = "4"
@@ -89,11 +93,13 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         style = QgsMarkerSymbol.createSimple(props)
         marker.setSymbol(style)
         layout.addLayoutItem(marker)
-        checker = QgsLayoutChecker(
-            'layout_marker_render', layout)
-        checker.setControlPathPrefix("layout_marker")
-        myTestResult, myMessage = checker.testLayout()
-        assert myTestResult, myMessage
+
+        self.assertTrue(
+            self.render_layout_check(
+                'layout_marker_render',
+                layout
+            )
+        )
 
     def testReadWriteXml(self):
         pr = QgsProject()
@@ -113,7 +119,7 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         marker.setSymbol(style)
 
         marker.setLinkedMap(map)
-        marker.setNorthMode(QgsLayoutNorthArrowHandler.TrueNorth)
+        marker.setNorthMode(QgsLayoutNorthArrowHandler.NorthMode.TrueNorth)
         marker.setNorthOffset(15)
 
         # save original item to xml
@@ -126,11 +132,11 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         marker2.finalizeRestoreFromXml()
 
         self.assertEqual(marker2.symbol().symbolLayer(0).color().name(), '#008000')
-        self.assertEqual(marker2.symbol().symbolLayer(0).strokeStyle(), Qt.NoPen)
+        self.assertEqual(marker2.symbol().symbolLayer(0).strokeStyle(), Qt.PenStyle.NoPen)
         self.assertEqual(marker2.symbol().symbolLayer(0).size(), 4.4)
 
         self.assertEqual(marker2.linkedMap(), map)
-        self.assertEqual(marker2.northMode(), QgsLayoutNorthArrowHandler.TrueNorth)
+        self.assertEqual(marker2.northMode(), QgsLayoutNorthArrowHandler.NorthMode.TrueNorth)
         self.assertEqual(marker2.northOffset(), 15.0)
 
     def testBounds(self):
@@ -138,7 +144,7 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         l = QgsLayout(pr)
 
         shape = QgsLayoutItemMarker(l)
-        shape.attemptMove(QgsLayoutPoint(10, 20, QgsUnitTypes.LayoutMillimeters))
+        shape.attemptMove(QgsLayoutPoint(10, 20, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         props = {}
         props["shape"] = "square"
         props["size"] = "6"
@@ -176,7 +182,7 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         marker.setLinkedMap(map)
         self.assertEqual(marker.linkedMap(), map)
 
-        marker.setNorthMode(QgsLayoutNorthArrowHandler.GridNorth)
+        marker.setNorthMode(QgsLayoutNorthArrowHandler.NorthMode.GridNorth)
         map.setItemRotation(45)
         self.assertEqual(marker.northArrowRotation(), 45)
         map.setMapRotation(-34)
@@ -204,7 +210,7 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         marker.setLinkedMap(map)
         self.assertEqual(marker.linkedMap(), map)
 
-        marker.setNorthMode(QgsLayoutNorthArrowHandler.GridNorth)
+        marker.setNorthMode(QgsLayoutNorthArrowHandler.NorthMode.GridNorth)
         map.setMapRotation(45)
         self.assertEqual(marker.northArrowRotation(), 45)
 
@@ -229,7 +235,7 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         marker.setLinkedMap(map)
         self.assertEqual(marker.linkedMap(), map)
 
-        marker.setNorthMode(QgsLayoutNorthArrowHandler.TrueNorth)
+        marker.setNorthMode(QgsLayoutNorthArrowHandler.NorthMode.TrueNorth)
         self.assertAlmostEqual(marker.northArrowRotation(), 37.20, 1)
 
         # shift map
@@ -252,7 +258,7 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         map.setExtent(QgsRectangle(0, -256, 256, 0))
 
         marker = QgsLayoutItemMarker(layout)
-        marker.attemptMove(QgsLayoutPoint(100, 50, QgsUnitTypes.LayoutMillimeters))
+        marker.attemptMove(QgsLayoutPoint(100, 50, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         props = {}
         props["color"] = "0,255,255"
         props["outline_style"] = "no"
@@ -263,7 +269,7 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         marker.setLinkedMap(map)
         self.assertEqual(marker.linkedMap(), map)
 
-        marker.setNorthMode(QgsLayoutNorthArrowHandler.GridNorth)
+        marker.setNorthMode(QgsLayoutNorthArrowHandler.NorthMode.GridNorth)
         map.setMapRotation(35)
         self.assertEqual(marker.northArrowRotation(), 35)
 
@@ -273,11 +279,13 @@ class TestQgsLayoutMarker(unittest.TestCase, LayoutItemTestCase):
         style = QgsMarkerSymbol.createSimple(props)
         marker.setSymbol(style)
         layout.addLayoutItem(marker)
-        checker = QgsLayoutChecker(
-            'layout_marker_render_north', layout)
-        checker.setControlPathPrefix("layout_marker")
-        myTestResult, myMessage = checker.testLayout()
-        assert myTestResult, myMessage
+
+        self.assertTrue(
+            self.render_layout_check(
+                'layout_marker_render_north',
+                layout
+            )
+        )
 
 
 if __name__ == '__main__':

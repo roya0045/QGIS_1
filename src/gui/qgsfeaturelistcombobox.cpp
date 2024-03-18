@@ -62,6 +62,7 @@ QgsFeatureListComboBox::QgsFeatureListComboBox( QWidget *parent )
   setModel( mModel );
 
   connect( mLineEdit, &QgsFilterLineEdit::textEdited, this, &QgsFeatureListComboBox::onCurrentTextChanged );
+  connect( mLineEdit, &QgsFilterLineEdit::cleared, this, &QgsFeatureListComboBox::onFilterLineEditCleared );
 
   connect( mModel, &QgsFeatureFilterModel::currentFeatureChanged, this, &QgsFeatureListComboBox::currentFeatureChanged );
 
@@ -106,6 +107,13 @@ void QgsFeatureListComboBox::onCurrentTextChanged( const QString &text )
   mModel->setFilterValue( text );
 }
 
+void QgsFeatureListComboBox::onFilterLineEditCleared()
+{
+  // Reset the combobox when the search is cleared
+  const QString clearedValue = allowNull() ? mLineEdit->nullValue() : mLineEdit->defaultValue();
+  mModel->setFilterValue( clearedValue );
+}
+
 void QgsFeatureListComboBox::onFilterUpdateCompleted()
 {
   if ( mPopupRequested )
@@ -129,8 +137,8 @@ void QgsFeatureListComboBox::onCurrentIndexChanged( int i )
   if ( !mLineEdit->hasStateStored() )
     mIsCurrentlyEdited = false;
   const QModelIndex modelIndex = mModel->index( i, 0, QModelIndex() );
-  mModel->setExtraIdentifierValues( mModel->data( modelIndex, QgsFeatureFilterModel::IdentifierValuesRole ).toList() );
-  mLineEdit->setText( mModel->data( modelIndex, QgsFeatureFilterModel::ValueRole ).toString() );
+  mModel->setExtraIdentifierValues( mModel->data( modelIndex, static_cast< int >( QgsFeatureFilterModel::CustomRole::IdentifierValues ) ).toList() );
+  mLineEdit->setText( mModel->data( modelIndex, static_cast< int >( QgsFeatureFilterModel::CustomRole::Value ) ).toString() );
   mLineEdit->setFont( mModel->data( modelIndex, Qt::FontRole ).value<QFont>() );
   QPalette palette = mLineEdit->palette();
   palette.setBrush( mLineEdit->foregroundRole(), mModel->data( modelIndex, Qt::ForegroundRole ).value<QBrush>() );
@@ -139,8 +147,8 @@ void QgsFeatureListComboBox::onCurrentIndexChanged( int i )
 
 void QgsFeatureListComboBox::onActivated( QModelIndex modelIndex )
 {
-  setIdentifierValues( mModel->data( modelIndex, QgsFeatureFilterModel::IdentifierValuesRole ).toList() );
-  mLineEdit->setText( mModel->data( modelIndex, QgsFeatureFilterModel::ValueRole ).toString() );
+  setIdentifierValues( mModel->data( modelIndex, static_cast< int >( QgsFeatureFilterModel::CustomRole::IdentifierValues ) ).toList() );
+  mLineEdit->setText( mModel->data( modelIndex, static_cast< int >( QgsFeatureFilterModel::CustomRole::Value ) ).toString() );
 }
 
 void QgsFeatureListComboBox::storeLineEditState()
@@ -180,7 +188,7 @@ void QgsFeatureListComboBox::onDataChanged( const QModelIndex &topLeft, const QM
     if ( currentIndex >= topLeft.row() && currentIndex <= bottomRight.row() )
     {
       const QModelIndex modelIndex = mModel->index( currentIndex, 0, QModelIndex() );
-      mLineEdit->setText( mModel->data( modelIndex, QgsFeatureFilterModel::ValueRole ).toString() );
+      mLineEdit->setText( mModel->data( modelIndex, static_cast< int >( QgsFeatureFilterModel::CustomRole::Value ) ).toString() );
     }
   }
 }
@@ -218,14 +226,14 @@ void QgsFeatureListComboBox::focusOutEvent( QFocusEvent *event )
 {
   Q_UNUSED( event )
   QComboBox::focusOutEvent( event );
-  mLineEdit->setText( mModel->data( currentModelIndex(), QgsFeatureFilterModel::ValueRole ).toString() );
+  mLineEdit->setText( mModel->data( currentModelIndex(), static_cast< int >( QgsFeatureFilterModel::CustomRole::Value ) ).toString() );
 }
 
 void QgsFeatureListComboBox::keyPressEvent( QKeyEvent *event )
 {
   if ( event->key() == Qt::Key_Escape )
   {
-    mLineEdit->setText( mModel->data( currentModelIndex(), QgsFeatureFilterModel::ValueRole ).toString() );
+    mLineEdit->setText( mModel->data( currentModelIndex(), static_cast< int >( QgsFeatureFilterModel::CustomRole::Value ) ).toString() );
   }
   QComboBox::keyReleaseEvent( event );
 }

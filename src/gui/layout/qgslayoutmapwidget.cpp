@@ -92,6 +92,12 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   connect( mStartDateTime, &QDateTimeEdit::dateTimeChanged, this, &QgsLayoutMapWidget::updateTemporalExtent );
   connect( mEndDateTime, &QDateTimeEdit::dateTimeChanged, this, &QgsLayoutMapWidget::updateTemporalExtent );
 
+  mZLowerSpin->setClearValueMode( QgsDoubleSpinBox::ClearValueMode::MinimumValue, tr( "Not set" ) );
+  mZUpperSpin->setClearValueMode( QgsDoubleSpinBox::ClearValueMode::MinimumValue, tr( "Not set" ) );
+  connect( mElevationRangeCheckBox, &QgsCollapsibleGroupBoxBasic::toggled, this, &QgsLayoutMapWidget::mElevationRangeCheckBox_toggled );
+  connect( mZLowerSpin, qOverload< double >( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::updateZRange );
+  connect( mZUpperSpin, qOverload< double >( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::updateZRange );
+
   mStartDateTime->setDateTimeRange( QDateTime( QDate( 1, 1, 1 ), QTime( 0, 0, 0 ) ), mStartDateTime->maximumDateTime() );
   mEndDateTime->setDateTimeRange( QDateTime( QDate( 1, 1, 1 ), QTime( 0, 0, 0 ) ), mStartDateTime->maximumDateTime() );
   mStartDateTime->setDisplayFormat( "yyyy-MM-dd HH:mm:ss" );
@@ -179,19 +185,21 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   }
 
 
-  registerDataDefinedButton( mScaleDDBtn, QgsLayoutObject::MapScale );
-  registerDataDefinedButton( mMapRotationDDBtn, QgsLayoutObject::MapRotation );
-  registerDataDefinedButton( mXMinDDBtn, QgsLayoutObject::MapXMin );
-  registerDataDefinedButton( mYMinDDBtn, QgsLayoutObject::MapYMin );
-  registerDataDefinedButton( mXMaxDDBtn, QgsLayoutObject::MapXMax );
-  registerDataDefinedButton( mYMaxDDBtn, QgsLayoutObject::MapYMax );
-  registerDataDefinedButton( mAtlasMarginDDBtn, QgsLayoutObject::MapAtlasMargin );
-  registerDataDefinedButton( mStylePresetsDDBtn, QgsLayoutObject::MapStylePreset );
-  registerDataDefinedButton( mLayersDDBtn, QgsLayoutObject::MapLayers );
-  registerDataDefinedButton( mCRSDDBtn, QgsLayoutObject::MapCrs );
-  registerDataDefinedButton( mStartDateTimeDDBtn, QgsLayoutObject::StartDateTime );
-  registerDataDefinedButton( mEndDateTimeDDBtn, QgsLayoutObject::EndDateTime );
-  registerDataDefinedButton( mGeometryOverrideDDBtn, QgsLayoutObject::AtlasGeometryOverride );
+  registerDataDefinedButton( mScaleDDBtn, QgsLayoutObject::DataDefinedProperty::MapScale );
+  registerDataDefinedButton( mMapRotationDDBtn, QgsLayoutObject::DataDefinedProperty::MapRotation );
+  registerDataDefinedButton( mXMinDDBtn, QgsLayoutObject::DataDefinedProperty::MapXMin );
+  registerDataDefinedButton( mYMinDDBtn, QgsLayoutObject::DataDefinedProperty::MapYMin );
+  registerDataDefinedButton( mXMaxDDBtn, QgsLayoutObject::DataDefinedProperty::MapXMax );
+  registerDataDefinedButton( mYMaxDDBtn, QgsLayoutObject::DataDefinedProperty::MapYMax );
+  registerDataDefinedButton( mAtlasMarginDDBtn, QgsLayoutObject::DataDefinedProperty::MapAtlasMargin );
+  registerDataDefinedButton( mStylePresetsDDBtn, QgsLayoutObject::DataDefinedProperty::MapStylePreset );
+  registerDataDefinedButton( mLayersDDBtn, QgsLayoutObject::DataDefinedProperty::MapLayers );
+  registerDataDefinedButton( mCRSDDBtn, QgsLayoutObject::DataDefinedProperty::MapCrs );
+  registerDataDefinedButton( mStartDateTimeDDBtn, QgsLayoutObject::DataDefinedProperty::StartDateTime );
+  registerDataDefinedButton( mEndDateTimeDDBtn, QgsLayoutObject::DataDefinedProperty::EndDateTime );
+  registerDataDefinedButton( mZLowerDDBtn, QgsLayoutObject::DataDefinedProperty::MapZRangeLower );
+  registerDataDefinedButton( mZUpperDDBtn, QgsLayoutObject::DataDefinedProperty::MapZRangeUpper );
+  registerDataDefinedButton( mGeometryOverrideDDBtn, QgsLayoutObject::DataDefinedProperty::AtlasGeometryOverride );
 
   updateGuiElements();
   loadGridEntries();
@@ -468,7 +476,7 @@ void QgsLayoutMapWidget::aboutToShowBookmarkMenu()
   QMap< QString, QMenu * > groupMenus;
   for ( int i = 0; i < mBookmarkModel->rowCount(); ++i )
   {
-    const QString group = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), QgsBookmarkManagerModel::RoleGroup ).toString();
+    const QString group = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Group ) ).toString();
     QMenu *destMenu = mBookmarkMenu;
     if ( !group.isEmpty() )
     {
@@ -479,8 +487,8 @@ void QgsLayoutMapWidget::aboutToShowBookmarkMenu()
         groupMenus[ group ] = destMenu;
       }
     }
-    QAction *action = new QAction( mBookmarkModel->data( mBookmarkModel->index( i, 0 ), QgsBookmarkManagerModel::RoleName ).toString(), mBookmarkMenu );
-    const QgsReferencedRectangle extent = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), QgsBookmarkManagerModel::RoleExtent ).value< QgsReferencedRectangle >();
+    QAction *action = new QAction( mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Name ) ).toString(), mBookmarkMenu );
+    const QgsReferencedRectangle extent = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Extent ) ).value< QgsReferencedRectangle >();
     connect( action, &QAction::triggered, this, [ = ]
     {
       if ( !mMapItem )
@@ -557,6 +565,41 @@ void QgsLayoutMapWidget::updateTemporalExtent()
 
   mMapItem->layout()->undoStack()->beginCommand( mMapItem, tr( "Set Temporal Range" ) );
   mMapItem->setTemporalRange( range );
+  mMapItem->layout()->undoStack()->endCommand();
+
+  updatePreview();
+}
+
+void QgsLayoutMapWidget::mElevationRangeCheckBox_toggled( bool checked )
+{
+  if ( !mMapItem )
+  {
+    return;
+  }
+
+  mMapItem->layout()->undoStack()->beginCommand( mMapItem, tr( "Toggle Z Range" ) );
+  mMapItem->setZRangeEnabled( checked );
+  mMapItem->layout()->undoStack()->endCommand();
+
+  updatePreview();
+}
+
+void QgsLayoutMapWidget::updateZRange()
+{
+  if ( !mMapItem )
+  {
+    return;
+  }
+
+  mMapItem->layout()->undoStack()->beginCommand( mMapItem, tr( "Set Z Range" ) );
+  double zLower = mZLowerSpin->value();
+  if ( zLower == mZLowerSpin->clearValue() )
+    zLower = std::numeric_limits< double >::lowest();
+  double zUpper = mZUpperSpin->value();
+  if ( zUpper == mZUpperSpin->clearValue() )
+    zUpper = std::numeric_limits< double >::max();
+
+  mMapItem->setZRange( QgsDoubleRange( zLower, zUpper ) );
   mMapItem->layout()->undoStack()->endCommand();
 
   updatePreview();
@@ -928,6 +971,17 @@ void QgsLayoutMapWidget::updateGuiElements()
     mStartDateTime->setDateTime( mMapItem->temporalRange().begin() );
     mEndDateTime->setDateTime( mMapItem->temporalRange().end() );
   }
+
+  whileBlocking( mElevationRangeCheckBox )->setChecked( mMapItem->zRangeEnabled() );
+  mElevationRangeCheckBox->setCollapsed( !mMapItem->zRangeEnabled() );
+  if ( mMapItem->zRange().lower() != std::numeric_limits< double >::lowest() )
+    whileBlocking( mZLowerSpin )->setValue( mMapItem->zRange().lower() );
+  else
+    whileBlocking( mZLowerSpin )->clear();
+  if ( mMapItem->zRange().upper() != std::numeric_limits< double >::max() )
+    whileBlocking( mZUpperSpin )->setValue( mMapItem->zRange().upper() );
+  else
+    whileBlocking( mZUpperSpin )->clear();
 
   populateDataDefinedButtons();
   loadGridEntries();
@@ -1536,7 +1590,8 @@ void QgsLayoutMapWidget::storeCurrentLayerSet()
   if ( !mMapItem )
     return;
 
-  const QList<QgsMapLayer *> layers = mMapCanvas->mapSettings().layers();
+  QList<QgsMapLayer *> layers = mMapCanvas->mapSettings().layers();
+
   mMapItem->setLayers( layers );
 
   if ( mMapItem->keepLayerStyles() )
@@ -1753,7 +1808,7 @@ QgsLayoutMapLabelingWidget::QgsLayoutMapLabelingWidget( QgsLayoutItemMap *map )
   connect( mShowPartialLabelsCheckBox, &QCheckBox::toggled, this, &QgsLayoutMapLabelingWidget::showPartialsToggled );
   connect( mShowUnplacedCheckBox, &QCheckBox::toggled, this, &QgsLayoutMapLabelingWidget::showUnplacedToggled );
 
-  registerDataDefinedButton( mLabelMarginDDBtn, QgsLayoutObject::MapLabelMargin );
+  registerDataDefinedButton( mLabelMarginDDBtn, QgsLayoutObject::DataDefinedProperty::MapLabelMargin );
 
   setNewItem( map );
 }
@@ -1988,8 +2043,11 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
   mClipItemComboBox->setCurrentLayout( map->layout() );
   mClipItemComboBox->setItemFlags( QgsLayoutItem::FlagProvidesClipPath );
 
-  connect( mRadioClipSelectedLayers, &QRadioButton::toggled, mLayersTreeView, &QWidget::setEnabled );
+  connect( mRadioClipSelectedLayers, &QRadioButton::toggled, this, &QgsLayoutMapClippingWidget::toggleLayersSelectionGui );
   mLayersTreeView->setEnabled( false );
+  mSelectAllButton->setEnabled( false );
+  mDeselectAllButton->setEnabled( false );
+  mInvertSelectionButton->setEnabled( false );
   mRadioClipAllLayers->setChecked( true );
 
   connect( mClipToAtlasCheckBox, &QGroupBox::toggled, this, [ = ]( bool active )
@@ -2031,6 +2089,11 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
       mBlockUpdates = false;
     }
   } );
+  // layers selection buttons
+  connect( mSelectAllButton, &QPushButton::clicked, this, &QgsLayoutMapClippingWidget::selectAll );
+  connect( mDeselectAllButton, &QPushButton::clicked, this, &QgsLayoutMapClippingWidget::deselectAll );
+  connect( mInvertSelectionButton, &QPushButton::clicked, this, &QgsLayoutMapClippingWidget::invertSelection );
+
   connect( mRadioClipAllLayers, &QCheckBox::toggled, this, [ = ]( bool active )
   {
     if ( active && !mBlockUpdates )
@@ -2186,4 +2249,41 @@ void QgsLayoutMapClippingWidget::atlasToggled( bool atlasEnabled )
     mClipToAtlasCheckBox->setEnabled( false );
     mClipToAtlasCheckBox->setChecked( false );
   }
+}
+
+void QgsLayoutMapClippingWidget::invertSelection()
+{
+  for ( int i = 0; i < mLayerModel->rowCount( QModelIndex() ); i++ )
+  {
+    QModelIndex index = mLayerModel->index( i, 0 );
+    Qt::CheckState currentState = Qt::CheckState( mLayerModel->data( index, Qt::CheckStateRole ).toInt() );
+    Qt::CheckState newState = ( currentState == Qt::Checked ) ? Qt::Unchecked : Qt::Checked;
+    mLayerModel->setData( index, newState, Qt::CheckStateRole );
+  }
+}
+
+void QgsLayoutMapClippingWidget::selectAll()
+{
+  for ( int i = 0; i < mLayerModel->rowCount( QModelIndex() ); i++ )
+  {
+    QModelIndex index = mLayerModel->index( i, 0 );
+    mLayerModel->setData( index, Qt::Checked, Qt::CheckStateRole );
+  }
+}
+
+void QgsLayoutMapClippingWidget::deselectAll()
+{
+  for ( int i = 0; i < mLayerModel->rowCount( QModelIndex() ); i++ )
+  {
+    QModelIndex index = mLayerModel->index( i, 0 );
+    mLayerModel->setData( index, Qt::Unchecked, Qt::CheckStateRole );
+  }
+}
+
+void QgsLayoutMapClippingWidget::toggleLayersSelectionGui( bool toggled )
+{
+  mLayersTreeView->setEnabled( toggled );
+  mSelectAllButton->setEnabled( toggled );
+  mDeselectAllButton->setEnabled( toggled );
+  mInvertSelectionButton->setEnabled( toggled );
 }

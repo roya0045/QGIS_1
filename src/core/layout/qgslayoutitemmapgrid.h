@@ -41,7 +41,6 @@ class QgsLineSymbol;
  * QgsLayoutItemMap. The grid stack controls which grids are drawn and the
  * order they are drawn in.
  * \see QgsLayoutItemMapGrid
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemMapGridStack : public QgsLayoutItemMapItemStack
 {
@@ -135,7 +134,6 @@ class CORE_EXPORT QgsLayoutItemMapGridStack : public QgsLayoutItemMapItemStack
  * \brief An individual grid which is drawn above the map content in a
  * QgsLayoutItemMap.
  * \see QgsLayoutItemMapGridStack
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemMapGrid : public QgsLayoutItemMapItem
 {
@@ -254,7 +252,7 @@ class CORE_EXPORT QgsLayoutItemMapGrid : public QgsLayoutItemMapItem
     /**
      * Flags for controlling which side of the map a frame is drawn on
      */
-    enum FrameSideFlag
+    enum FrameSideFlag SIP_ENUM_BASETYPE( IntFlag )
     {
       FrameLeft = 0x01, //!< Left side of map
       FrameRight = 0x02, //!< Right side of map
@@ -889,35 +887,35 @@ class CORE_EXPORT QgsLayoutItemMapGrid : public QgsLayoutItemMapItem
     void setRotatedAnnotationsLengthMode( const TickLengthMode mode ) { mRotatedAnnotationsLengthMode = mode; }
 
     /**
-     * Returns the grid frame style.
+     * Returns the annotation length calculation mode.
      * \see setRotatedAnnotationsLengthMode()
      * \since QGIS 3.16
      */
     TickLengthMode rotatedAnnotationsLengthMode() const { return mRotatedAnnotationsLengthMode; }
 
     /**
-     * Sets the \a minimum angle (in degrees) below which annotated are not drawn.
+     * Sets the \a minimum angle (in degrees) below which annotations are not drawn.
      * \see rotatedAnnotationsMinimumAngle()
      * \since QGIS 3.16
      */
     void setRotatedAnnotationsMinimumAngle( const double angle ) { mRotatedAnnotationsMinimumAngle = angle; }
 
     /**
-     * Gets the \a minimum angle (in degrees) below which annotated are not drawn.
+     * Gets the \a minimum angle (in degrees) below which annotations are not drawn.
      * \see setRotatedAnnotationsMinimumAngle()
      * \since QGIS 3.16
      */
     double rotatedAnnotationsMinimumAngle() const { return mRotatedAnnotationsMinimumAngle; }
 
     /**
-     * Sets the \a margin to corners (in canvas units) below which outwards facing ticks are not drawn.
+     * Sets the \a margin to corners (in canvas units) below which outwards facing annotations are not drawn.
      * \see rotatedAnnotationsMarginToCorner()
      * \since QGIS 3.16
      */
     void setRotatedAnnotationsMarginToCorner( const double margin ) { mRotatedAnnotationsMarginToCorner = margin; }
 
     /**
-     * Gets the \a margin to corners (in canvas units) below which outwards facing ticks are not drawn.
+     * Gets the \a margin to corners (in canvas units) below which outwards facing annotations are not drawn.
      * \see setRotatedAnnotationsMarginToCorner()
      * \since QGIS 3.16
      */
@@ -1303,6 +1301,9 @@ class CORE_EXPORT QgsLayoutItemMapGrid : public QgsLayoutItemMapItem
     double mapWidth() const;
 
     friend class TestQgsLayoutMapGrid;
+
+    // Needs access to evaluated properties to compute frame bleed
+    friend class QgsLayoutItemMap;
 
 };
 

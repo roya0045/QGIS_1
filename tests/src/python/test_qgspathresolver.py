@@ -13,14 +13,14 @@ import gc
 import os
 import tempfile
 
-import qgis  # NOQA
 from qgis.core import (
     QgsApplication,
     QgsPathResolver,
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -29,7 +29,7 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsPathResolver(unittest.TestCase):
+class TestQgsPathResolver(QgisTestCase):
 
     def testCustomPreprocessor(self):
         self.assertEqual(QgsPathResolver().readPath('aaaaa'), 'aaaaa')
@@ -171,9 +171,9 @@ class TestQgsPathResolver(unittest.TestCase):
         readerId = QgsPathResolver.setPathPreprocessor(self.__test_path_reader)
         writerId = QgsPathResolver.setPathWriter(self.__test__path_writer)
 
-        lines_shp_path = os.path.join(TEST_DATA_DIR, 'lines.shp')
+        uri = os.path.join(TEST_DATA_DIR, 'points_gpkg.gpkg') + "|layername=points_gpkg|subset=1=1 /* foo */"
 
-        lines_layer = QgsVectorLayer(lines_shp_path, 'Lines', 'ogr')
+        lines_layer = QgsVectorLayer(uri, 'Points', 'ogr')
         self.assertTrue(lines_layer.isValid())
         p = QgsProject()
         p.addMapLayer(lines_layer)
@@ -183,13 +183,13 @@ class TestQgsPathResolver(unittest.TestCase):
         self.assertTrue(p.write(temp_project_path))
 
         with open(temp_project_path) as f:
-            self.assertTrue("@TEST_DATA_DIR@" in f.read())
+            self.assertIn("@TEST_DATA_DIR@", f.read())
 
         p2 = QgsProject()
         self.assertTrue(p2.read(temp_project_path))
-        l = p2.mapLayersByName('Lines')[0]
+        l = p2.mapLayersByName('Points')[0]
         self.assertEqual(l.isValid(), True)
-        self.assertEqual(l.source(), lines_shp_path)
+        self.assertEqual(l.source(), uri)
 
         QgsPathResolver.removePathPreprocessor(readerId)
         QgsPathResolver.removePathWriter(writerId)

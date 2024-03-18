@@ -12,14 +12,14 @@ __copyright__ = 'Copyright 2021, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QDir, QVariant
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsVectorFileWriter,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -27,7 +27,7 @@ TEST_DATA_DIR = unitTestDataPath()
 start_app()
 
 
-class TestQgsVectorFileWriterPG(unittest.TestCase):
+class TestQgsVectorFileWriterPG(QgisTestCase):
 
     def testWriteWithBoolField(self):
 
@@ -53,7 +53,7 @@ class TestQgsVectorFileWriterPG(unittest.TestCase):
                                                              crs,
                                                              'GPKG')
 
-        self.assertEqual(rc, QgsVectorFileWriter.NoError)
+        self.assertEqual(rc, QgsVectorFileWriter.WriterError.NoError)
 
         # open the resulting geopackage
         vl = QgsVectorLayer(filename + '.gpkg', '', 'ogr')

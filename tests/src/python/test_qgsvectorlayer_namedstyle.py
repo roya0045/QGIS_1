@@ -9,8 +9,6 @@ the Free Software Foundation; either version 2 of the License, or
 __author__ = 'Alessandro Pasotti'
 __date__ = '22/01/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
-# This will get replaced with a git SHA1 when you do a git archive
-__revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import QgsMapLayer, QgsReadWriteContext, QgsVectorLayer
@@ -18,11 +16,6 @@ from qgis.testing import unittest
 
 
 class TestPyQgsVectorLayerNamedStyle(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        """Run before all tests"""
-        pass
 
     def testLoadWriteRenderingScaleVisibility(self):
         """Test write and load scale visibility, see GH #33840"""
@@ -34,7 +27,7 @@ class TestPyQgsVectorLayerNamedStyle(unittest.TestCase):
         style = QDomDocument()
         style.setContent("<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'><qgis></qgis>")
         node = style.firstChild()
-        self.assertTrue(vl.writeStyle(node, style, "Error writing style", QgsReadWriteContext(), QgsMapLayer.Rendering))
+        self.assertTrue(vl.writeStyle(node, style, "Error writing style", QgsReadWriteContext(), QgsMapLayer.StyleCategory.Rendering))
 
         style_content = style.toString()
         del vl
@@ -44,7 +37,7 @@ class TestPyQgsVectorLayerNamedStyle(unittest.TestCase):
         self.assertFalse(vl2.hasScaleBasedVisibility())
         style2 = QDomDocument()
         style2.setContent(style_content)
-        self.assertTrue(vl2.readStyle(style.namedItem('qgis'), "Error reading style", QgsReadWriteContext(), QgsMapLayer.Rendering))
+        self.assertTrue(vl2.readStyle(style.namedItem('qgis'), "Error reading style", QgsReadWriteContext(), QgsMapLayer.StyleCategory.Rendering))
         self.assertTrue(vl2.hasScaleBasedVisibility())
         self.assertEqual(vl2.minimumScale(), 125.0)
         self.assertEqual(vl2.maximumScale(), 1.25)

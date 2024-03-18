@@ -9,7 +9,6 @@ __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '26/04/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QVariant
 from qgis.core import (
     QgsCoordinateReferenceSystem,
@@ -29,7 +28,8 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -58,7 +58,7 @@ def createLayerWithFivePoints():
     return layer
 
 
-class TestQgsFeatureSink(unittest.TestCase):
+class TestQgsFeatureSink(QgisTestCase):
 
     def testFromIterator(self):
         """
@@ -111,8 +111,8 @@ class TestQgsFeatureSink(unittest.TestCase):
         fields.append(QgsField('fldtxt2', QVariant.String))
 
         mapping_def = QgsRemappingSinkDefinition()
-        mapping_def.setDestinationWkbType(QgsWkbTypes.Point)
-        self.assertEqual(mapping_def.destinationWkbType(), QgsWkbTypes.Point)
+        mapping_def.setDestinationWkbType(QgsWkbTypes.Type.Point)
+        self.assertEqual(mapping_def.destinationWkbType(), QgsWkbTypes.Type.Point)
         mapping_def.setSourceCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         mapping_def.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:3857'))
         self.assertEqual(mapping_def.sourceCrs().authid(), 'EPSG:4326')
@@ -128,10 +128,10 @@ class TestQgsFeatureSink(unittest.TestCase):
         mapping_def2 = QgsRemappingSinkDefinition(mapping_def)
         self.assertTrue(mapping_def == mapping_def2)
         self.assertFalse(mapping_def != mapping_def2)
-        mapping_def2.setDestinationWkbType(QgsWkbTypes.Polygon)
+        mapping_def2.setDestinationWkbType(QgsWkbTypes.Type.Polygon)
         self.assertFalse(mapping_def == mapping_def2)
         self.assertTrue(mapping_def != mapping_def2)
-        mapping_def2.setDestinationWkbType(QgsWkbTypes.Point)
+        mapping_def2.setDestinationWkbType(QgsWkbTypes.Type.Point)
         mapping_def2.setSourceCrs(QgsCoordinateReferenceSystem('EPSG:3111'))
         self.assertFalse(mapping_def == mapping_def2)
         self.assertTrue(mapping_def != mapping_def2)
@@ -156,7 +156,7 @@ class TestQgsFeatureSink(unittest.TestCase):
 
         def2 = QgsRemappingSinkDefinition()
         def2.loadVariant(var)
-        self.assertEqual(def2.destinationWkbType(), QgsWkbTypes.Point)
+        self.assertEqual(def2.destinationWkbType(), QgsWkbTypes.Type.Point)
         self.assertEqual(def2.sourceCrs().authid(), 'EPSG:4326')
         self.assertEqual(def2.destinationCrs().authid(), 'EPSG:3857')
         self.assertEqual(def2.destinationFields()[0].name(), 'fldtxt')
@@ -176,7 +176,7 @@ class TestQgsFeatureSink(unittest.TestCase):
         store = QgsFeatureStore(fields, QgsCoordinateReferenceSystem('EPSG:3857'))
 
         mapping_def = QgsRemappingSinkDefinition()
-        mapping_def.setDestinationWkbType(QgsWkbTypes.Point)
+        mapping_def.setDestinationWkbType(QgsWkbTypes.Type.Point)
         mapping_def.setSourceCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         mapping_def.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:3857'))
         mapping_def.setDestinationFields(fields)

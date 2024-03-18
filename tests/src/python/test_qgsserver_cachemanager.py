@@ -18,7 +18,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QBuffer, QByteArray, QIODevice, QSize
 from qgis.PyQt.QtGui import QImage
 from qgis.PyQt.QtXml import QDomDocument
@@ -116,7 +115,7 @@ class PyServerCache(QgsServerCacheFilter):
 
         ba = QByteArray()
         buff = QBuffer(ba)
-        buff.open(QIODevice.WriteOnly)
+        buff.open(QIODevice.OpenModeFlag.WriteOnly)
         img.save(buff, 'PNG')
         return ba
 

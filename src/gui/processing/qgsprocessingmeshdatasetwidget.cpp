@@ -782,14 +782,17 @@ QgsProcessingMeshDatasetGroupsParameterDefinitionWidget::QgsProcessingMeshDatase
 
   const QgsProcessingParameterMeshDatasetGroups *datasetGroupDef =
     static_cast< const QgsProcessingParameterMeshDatasetGroups *>( definition );
-  int currentIndex = mParentLayerComboBox->findData( datasetGroupDef->meshLayerParameterName() );
-  if ( currentIndex != -1 )
-    mParentLayerComboBox->setCurrentIndex( currentIndex );
-  else if ( !datasetGroupDef->meshLayerParameterName().isEmpty() )
+  if ( datasetGroupDef )
   {
-    // if no layer parameter candidates found, we just add the existing one as a placeholder
-    mParentLayerComboBox->addItem( datasetGroupDef->meshLayerParameterName(), datasetGroupDef->meshLayerParameterName() );
-    mParentLayerComboBox->setCurrentIndex( mParentLayerComboBox->count() - 1 );
+    int currentIndex = mParentLayerComboBox->findData( datasetGroupDef->meshLayerParameterName() );
+    if ( currentIndex != -1 )
+      mParentLayerComboBox->setCurrentIndex( currentIndex );
+    else if ( !datasetGroupDef->meshLayerParameterName().isEmpty() )
+    {
+      // if no layer parameter candidates found, we just add the existing one as a placeholder
+      mParentLayerComboBox->addItem( datasetGroupDef->meshLayerParameterName(), datasetGroupDef->meshLayerParameterName() );
+      mParentLayerComboBox->setCurrentIndex( mParentLayerComboBox->count() - 1 );
+    }
   }
 
   setLayout( vlayout );
@@ -798,7 +801,7 @@ QgsProcessingMeshDatasetGroupsParameterDefinitionWidget::QgsProcessingMeshDatase
 QgsProcessingParameterDefinition *QgsProcessingMeshDatasetGroupsParameterDefinitionWidget::createParameter(
   const QString &name,
   const QString &description,
-  QgsProcessingParameterDefinition::Flags flags ) const
+  Qgis::ProcessingParameterFlags flags ) const
 {
   QSet<int> supportedDataType;
   supportedDataType.insert( QgsMeshDatasetGroupMetadata::DataOnEdges );
@@ -878,7 +881,7 @@ QgsProcessingMeshDatasetTimeParameterDefinitionWidget::QgsProcessingMeshDatasetT
   setLayout( vlayout );
 }
 
-QgsProcessingParameterDefinition *QgsProcessingMeshDatasetTimeParameterDefinitionWidget::createParameter( const QString &name, const QString &description, QgsProcessingParameterDefinition::Flags flags ) const
+QgsProcessingParameterDefinition *QgsProcessingMeshDatasetTimeParameterDefinitionWidget::createParameter( const QString &name, const QString &description, Qgis::ProcessingParameterFlags flags ) const
 {
   std::unique_ptr<QgsProcessingParameterMeshDatasetTime> param = std::make_unique<QgsProcessingParameterMeshDatasetTime>(
         name, description, mMeshLayerParameterName, mParentDatasetComboBox->currentData().toString() );

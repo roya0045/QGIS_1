@@ -17,8 +17,6 @@
 #include "qgsexpressionutils.h"
 #include "qgsexpression.h"
 
-#include "qgsgeometry.h"
-#include "qgsfeaturerequest.h"
 #include "qgsstringutils.h"
 #include "qgsvariantutils.h"
 
@@ -234,7 +232,7 @@ QVariant QgsExpressionNodeBinaryOperator::evalNode( QgsExpression *parent, const
         return QVariant( sL + sR );
       }
       //intentional fall-through
-      FALLTHROUGH
+      [[fallthrough]];
     case boMinus:
     case boMul:
     case boDiv:
@@ -473,6 +471,18 @@ QVariant QgsExpressionNodeBinaryOperator::evalNode( QgsExpression *parent, const
         ENSURE_NO_EVAL_ERROR
         return compare( fL - fR ) ? TVL_True : TVL_False;
       }
+
+      else if ( vL.type() == QVariant::Bool || vR.type() == QVariant::Bool )
+      {
+        // if one of value is boolean, then the other must also be boolean,
+        // in order to avoid confusion between different expression evaluations
+        // amongst providers and QVariant, that can consider or not the string
+        // 'false' as boolean or text
+        if ( vL.type() == QVariant::Bool && vR.type() == QVariant::Bool )
+          return vL.toBool() == vR.toBool() ? TVL_True : TVL_False;
+        return TVL_False;
+      }
+
       // warning - QgsExpression::isIntervalSafe is VERY expensive and should not be used here
       else if ( vL.userType() == QMetaType::type( "QgsInterval" ) && vR.userType() == QMetaType::type( "QgsInterval" ) )
       {
@@ -1072,7 +1082,13 @@ QVariant QgsExpressionNodeFunction::evalNode( QgsExpression *parent, const QgsEx
 QgsExpressionNodeFunction::QgsExpressionNodeFunction( int fnIndex, QgsExpressionNode::NodeList *args )
   : mFnIndex( fnIndex )
 {
+  // lock the function mutex once upfront -- we'll be doing this when calling QgsExpression::Functions() anyway,
+  // and it's cheaper to hold the recursive lock once upfront like while we handle ALL the function's arguments,
+  // since those might be QgsExpressionNodeFunction nodes and would need to re-obtain the lock otherwise.
+  QMutexLocker locker( &QgsExpression::QgsExpression::sFunctionsMutex );
+
   const QgsExpressionFunction::ParameterList &functionParams = QgsExpression::QgsExpression::Functions()[mFnIndex]->parameters();
+  const int functionParamsSize = functionParams.size();
   if ( functionParams.isEmpty() )
   {
     // function does not support parameters
@@ -1082,6 +1098,7 @@ QgsExpressionNodeFunction::QgsExpressionNodeFunction( int fnIndex, QgsExpression
   {
     // no arguments specified, but function has parameters. Build a list of default parameter values for the arguments list.
     mArgs = new NodeList();
+    mArgs->reserve( functionParamsSize );
     for ( const QgsExpressionFunction::Parameter &param : functionParams )
     {
       // insert default value for QgsExpressionFunction::Parameter
@@ -1091,27 +1108,34 @@ QgsExpressionNodeFunction::QgsExpressionNodeFunction( int fnIndex, QgsExpression
   else
   {
     mArgs = new NodeList();
+    mArgs->reserve( functionParamsSize );
 
     int idx = 0;
+    const QStringList argNames = args->names();
+    const QList<QgsExpressionNode *> argList = args->list();
     //first loop through unnamed arguments
-    while ( idx < args->names().size() && args->names().at( idx ).isEmpty() )
     {
-      mArgs->append( args->list().at( idx )->clone() );
-      idx++;
+      const int argNamesSize = argNames.size();
+      while ( idx < argNamesSize && argNames.at( idx ).isEmpty() )
+      {
+        mArgs->append( argList.at( idx )->clone() );
+        idx++;
+      }
     }
 
     //next copy named QgsExpressionFunction::Parameters in order expected by function
-    for ( ; idx < functionParams.count(); ++idx )
+    for ( ; idx < functionParamsSize; ++idx )
     {
-      int nodeIdx = args->names().indexOf( functionParams.at( idx ).name().toLower() );
+      const QgsExpressionFunction::Parameter &parameter = functionParams.at( idx );
+      int nodeIdx = argNames.indexOf( parameter.name().toLower() );
       if ( nodeIdx < 0 )
       {
         //QgsExpressionFunction::Parameter not found - insert default value for QgsExpressionFunction::Parameter
-        mArgs->append( new QgsExpressionNodeLiteral( functionParams.at( idx ).defaultValue() ) );
+        mArgs->append( new QgsExpressionNodeLiteral( parameter.defaultValue() ) );
       }
       else
       {
-        mArgs->append( args->list().at( nodeIdx )->clone() );
+        mArgs->append( argList.at( nodeIdx )->clone() );
       }
     }
 
@@ -1377,6 +1401,12 @@ QString QgsExpressionNodeLiteral::valueAsString() const
       return QString::number( mValue.toLongLong() );
     case QVariant::String:
       return QgsExpression::quotedString( mValue.toString() );
+    case QVariant::Time:
+      return QgsExpression::quotedString( mValue.toTime().toString( Qt::ISODate ) );
+    case QVariant::Date:
+      return QgsExpression::quotedString( mValue.toDate().toString( Qt::ISODate ) );
+    case QVariant::DateTime:
+      return QgsExpression::quotedString( mValue.toDateTime().toString( Qt::ISODate ) );
     case QVariant::Bool:
       return mValue.toBool() ? QStringLiteral( "TRUE" ) : QStringLiteral( "FALSE" );
     default:

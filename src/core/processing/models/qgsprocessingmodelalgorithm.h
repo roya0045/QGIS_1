@@ -33,7 +33,6 @@
  * \class QgsProcessingModelAlgorithm
  * \ingroup core
  * \brief Model based algorithm with processing.
-  * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingModelAlgorithm : public QgsProcessingAlgorithm
 {
@@ -298,6 +297,41 @@ class CORE_EXPORT QgsProcessingModelAlgorithm : public QgsProcessingAlgorithm
     void setParameterOrder( const QStringList &order );
 
     /**
+     * Returns an ordered list of outputs for the model.
+     *
+     * \see setOutputOrder()
+     * \since QGIS 3.32
+     */
+    QList< QgsProcessingModelOutput > orderedOutputs() const;
+
+    /**
+     * Sets the \a order for sorting outputs for the model.
+     *
+     * The \a order list should consist of "output child algorithm id:output name" formatted strings corresponding to existing
+     * model outputs.
+     *
+     * \see orderedOutputs()
+     * \since QGIS 3.32
+     */
+    void setOutputOrder( const QStringList &order );
+
+    /**
+     * Returns the destination layer tree group name for outputs created by the model.
+     *
+     * \see setOutputGroup()
+     * \since QGIS 3.32
+     */
+    QString outputGroup() const;
+
+    /**
+     * Sets the destination layer tree \a group name for outputs created by the model.
+     *
+     * \see outputGroup()
+     * \since QGIS 3.32
+     */
+    void setOutputGroup( const QString &group );
+
+    /**
      * Updates the model's parameter definitions to include all relevant destination
      * parameters as required by child algorithm ModelOutputs.
      * Must be called whenever child algorithm ModelOutputs are altered.
@@ -427,7 +461,6 @@ class CORE_EXPORT QgsProcessingModelAlgorithm : public QgsProcessingAlgorithm
     /**
      * \brief Definition of a expression context variable available during model execution.
      * \ingroup core
-     * \since QGIS 3.0
      */
     class CORE_EXPORT VariableDefinition
     {
@@ -466,7 +499,7 @@ class CORE_EXPORT QgsProcessingModelAlgorithm : public QgsProcessingAlgorithm
      * algorithm \a results must be passed.
      * \see createExpressionContextScopeForChildAlgorithm()
      */
-    QMap< QString, QgsProcessingModelAlgorithm::VariableDefinition > variablesForChildAlgorithm( const QString &childId, QgsProcessingContext &context, const QVariantMap &modelParameters = QVariantMap(),
+    QMap< QString, QgsProcessingModelAlgorithm::VariableDefinition > variablesForChildAlgorithm( const QString &childId, QgsProcessingContext *context = nullptr, const QVariantMap &modelParameters = QVariantMap(),
         const QVariantMap &results = QVariantMap() ) const;
 
     /**
@@ -585,6 +618,8 @@ class CORE_EXPORT QgsProcessingModelAlgorithm : public QgsProcessingAlgorithm
     QMap< QString, QgsProcessingModelGroupBox > mGroupBoxes;
 
     QStringList mParameterOrder;
+    QStringList mOutputOrder;
+    QString mOutputGroup;
 
     void dependsOnChildAlgorithmsRecursive( const QString &childId, QSet<QString> &depends ) const;
     void dependentChildAlgorithmsRecursive( const QString &childId, QSet<QString> &depends, const QString &branch ) const;
@@ -606,7 +641,7 @@ class CORE_EXPORT QgsProcessingModelAlgorithm : public QgsProcessingAlgorithm
      * I.e. we only reject outputs which we know can NEVER be acceptable, but
      * if there's doubt then we default to returning TRUE.
      */
-    static bool vectorOutputIsCompatibleType( const QList<int> &acceptableDataTypes, QgsProcessing::SourceType outputType );
+    static bool vectorOutputIsCompatibleType( const QList<int> &acceptableDataTypes, Qgis::ProcessingSourceType outputType );
 
     /**
      * Tries to reattach all child algorithms to their linked algorithms.

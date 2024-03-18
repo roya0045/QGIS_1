@@ -111,8 +111,8 @@ void QgsMssqlConnectionItem::refresh()
   stop();
 
   // Clear all children
-  const QVector<QgsDataItem *> allChidren = children();
-  for ( QgsDataItem *item : allChidren )
+  const QVector<QgsDataItem *> allChildren = children();
+  for ( QgsDataItem *item : allChildren )
   {
     removeChildItem( item );
     delete item;
@@ -169,6 +169,15 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
       layer.srid = q.value( 3 ).toString();
       layer.type = q.value( 4 ).toString();
       layer.isView = q.value( 5 ).toBool();
+      const int dimensions { q.value( 6 ).toInt( ) };
+      if ( dimensions >= 3 )
+      {
+        layer.type = layer.type.append( 'Z' );
+      }
+      if ( dimensions == 4 )
+      {
+        layer.type = layer.type.append( 'M' );
+      }
       layer.pkCols = QStringList(); //TODO
       layer.isGeography = false;
 
@@ -332,7 +341,7 @@ void QgsMssqlConnectionItem::setLayerType( QgsMssqlLayerProperty layerProperty )
 
   if ( !schemaItem )
   {
-    QgsDebugMsg( QStringLiteral( "schema item for %1 not found." ).arg( layerProperty.schemaName ) );
+    QgsDebugError( QStringLiteral( "schema item for %1 not found." ).arg( layerProperty.schemaName ) );
     return;
   }
 
@@ -343,13 +352,8 @@ void QgsMssqlConnectionItem::setLayerType( QgsMssqlLayerProperty layerProperty )
       return; // already added
   }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList typeList = layerProperty.type.split( ',', QString::SkipEmptyParts );
-  QStringList sridList = layerProperty.srid.split( ',', QString::SkipEmptyParts );
-#else
   QStringList typeList = layerProperty.type.split( ',', Qt::SkipEmptyParts );
   QStringList sridList = layerProperty.srid.split( ',', Qt::SkipEmptyParts );
-#endif
   Q_ASSERT( typeList.size() == sridList.size() );
 
   for ( int i = 0; i < typeList.size(); i++ )
@@ -357,7 +361,7 @@ void QgsMssqlConnectionItem::setLayerType( QgsMssqlLayerProperty layerProperty )
     Qgis::WkbType wkbType = QgsMssqlTableModel::wkbTypeFromMssql( typeList[i] );
     if ( wkbType == Qgis::WkbType::Unknown )
     {
-      QgsDebugMsg( QStringLiteral( "unsupported geometry type:%1" ).arg( typeList[i] ) );
+      QgsDebugError( QStringLiteral( "unsupported geometry type:%1" ).arg( typeList[i] ) );
       continue;
     }
 
@@ -504,7 +508,7 @@ QString QgsMssqlLayerItem::createUri()
 
   if ( !connItem )
   {
-    QgsDebugMsg( QStringLiteral( "connection item not found." ) );
+    QgsDebugError( QStringLiteral( "connection item not found." ) );
     return QString();
   }
 
@@ -667,9 +671,9 @@ QString QgsMssqlDataItemProvider::dataProviderKey() const
   return QStringLiteral( "mssql" );
 }
 
-int QgsMssqlDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsMssqlDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Database;
+  return Qgis::DataItemProviderCapability::Databases;
 }
 
 QgsDataItem *QgsMssqlDataItemProvider::createDataItem( const QString &pathIn, QgsDataItem *parentItem )

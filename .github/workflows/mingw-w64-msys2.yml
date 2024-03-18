@@ -1,4 +1,8 @@
-name: 🪟 MSYS2 MinGW-w64 Windows 64bit Build
+name: MSYS2 MinGW-w64 Windows 64bit Build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
@@ -17,6 +21,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   mingw-w64-msys2-build:
     name: MSYS2 MinGW-w64 Windows Build
@@ -33,7 +40,7 @@ jobs:
         shell: msys2 {0}
     steps:
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install core & build dependencies
         uses: msys2/setup-msys2@v2
@@ -41,37 +48,20 @@ jobs:
           msystem: UCRT64
           install: base-devel
           pacboy: >-
-            protobuf:p gdal:p libzip:p qca-qt5:p gsl:p exiv2:p hdf5:p libxml2:p netcdf:p opencl-icd:p
-            pdal:p proj:p qt5-3d:p qt5-base:p qt5-declarative:p qt5-gamepad:p qt5-location:p
-            qt5-serialport:p qt5-svg:p qtkeychain-qt5:p qtwebkit:p qscintilla-qt5:p qwt-qt5:p
-            spatialindex:p cc:p cmake:p ninja:p opencl-clhpp:p qt5-tools:p python:p ccache:p
+            draco:p exiv2:p gdal:p gsl:p hdf5:p libxml2:p libzip:p netcdf:p opencl-icd:p pdal:p
+            protobuf:p proj:p qca-qt5:p qscintilla-qt5:p qt5-3d:p qt5-base:p qt5-declarative:p
+            qt5-gamepad:p qt5-location:p qt5-serialport:p qt5-svg:p qtkeychain-qt5:p qtwebkit:p
+            qwt-qt5:p spatialindex:p cc:p cmake:p ninja:p opencl-clhpp:p qt5-tools:p python:p ccache:p
           update: true
           release: false
 
-      - name: Prepare build cache for pull request
-        uses: pat-s/always-upload-cache@v3.0.11
-        if: github.event_name == 'pull_request'
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
         with:
           path: build
-          key: mingw-w64-msys2-ccache-${{ github.actor }}-${{ github.head_ref }}-${{ github.sha }}
-          # The head_ref or source branch of the pull request in a workflow run.
-          # The base_ref or target branch of the pull request in a workflow run.
+          key: build-ccache-mingw64-msys2-${{ github.event.pull_request.base.ref || github.ref_name }}
           restore-keys: |
-            mingw-w64-msys2-ccache-${{ github.actor }}-${{ github.head_ref }}-
-            mingw-w64-msys2-ccache-${{ github.base_ref }}-
-            mingw-w64-msys2-ccache-refs/heads/master-
-
-      - name: Prepare build cache for branch/tag
-        # use a fork of actions/cache@v2 to upload cache even when the build or test failed
-        uses: pat-s/always-upload-cache@v3.0.11
-        if: github.event_name != 'pull_request'
-        with:
-          path: build
-          # The branch or tag ref that triggered the workflow run. For branches this in the format refs/heads/<branch_name>, and for tags it is refs/tags/<tag_name>
-          key: mingw-w64-msys2-ccache-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            mingw-w64-msys2-ccache-${{ github.ref }}-
-            mingw-w64-msys2-ccache-refs/heads/master-
+            build-ccache-mingw64-msys2-master
 
       - name: Configure QGIS
         run: |
@@ -81,11 +71,10 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DPython_EXECUTABLE=${MINGW_PREFIX}/bin/python \
             -DWITH_3D=ON \
+            -DWITH_DRACO=ON \
+            -DWITH_PDAL=OFF \
             -DWITH_CUSTOM_WIDGETS=ON \
-            -DWITH_QWTPOLAR=ON \
-            -DQWTPOLAR_LIBRARY=${MINGW_PREFIX}/lib/libqwt-qt5.dll.a \
-            -DQWTPOLAR_INCLUDE_DIR=${MINGW_PREFIX}/include/qwt-qt5 \
-            -DWITH_INTERNAL_QWTPOLAR=OFF \
+            -DWITH_QWTPOLAR=OFF \
             -DWITH_BINDINGS=OFF \
             -DWITH_GRASS=OFF \
             -DUSE_CCACHE=ON \
@@ -95,3 +84,11 @@ jobs:
       - name: Build QGIS
         run: |
           cmake --build build
+          ccache -s
+
+      - name: Save build cache for push only
+        uses: actions/cache/save@v4
+        if: ${{ github.event_name == 'push' }}
+        with:
+          path: build
+          key: build-ccache-mingw64-msys2-${{ github.ref_name }}-${{ github.run_id }}

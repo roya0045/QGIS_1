@@ -880,10 +880,10 @@ class CORE_EXPORT QgsProcessingParameterTypeVectorDestination : public QgsProces
       return QStringLiteral( "QgsProcessingParameterVectorDestination" );
     }
 
-    ParameterFlags flags() const override
+    Qgis::ProcessingParameterTypeFlags flags() const override
     {
-      ParameterFlags flags = QgsProcessingParameterType::flags();
-      flags.setFlag( ParameterFlag::ExposeToModeler, false );
+      Qgis::ProcessingParameterTypeFlags flags = QgsProcessingParameterType::flags();
+      flags.setFlag( Qgis::ProcessingParameterTypeFlag::ExposeToModeler, false );
       return flags;
     }
 
@@ -940,10 +940,10 @@ class CORE_EXPORT QgsProcessingParameterTypeFileDestination : public QgsProcessi
       return QStringLiteral( "QgsProcessingParameterFileDestination" );
     }
 
-    ParameterFlags flags() const override
+    Qgis::ProcessingParameterTypeFlags flags() const override
     {
-      ParameterFlags flags = QgsProcessingParameterType::flags();
-      flags.setFlag( ParameterFlag::ExposeToModeler, false );
+      Qgis::ProcessingParameterTypeFlags flags = QgsProcessingParameterType::flags();
+      flags.setFlag( Qgis::ProcessingParameterTypeFlag::ExposeToModeler, false );
       return flags;
     }
 
@@ -1000,10 +1000,10 @@ class CORE_EXPORT QgsProcessingParameterTypeFolderDestination : public QgsProces
       return QStringLiteral( "QgsProcessingParameterFolderDestination" );
     }
 
-    ParameterFlags flags() const override
+    Qgis::ProcessingParameterTypeFlags flags() const override
     {
-      ParameterFlags flags = QgsProcessingParameterType::flags();
-      flags.setFlag( ParameterFlag::ExposeToModeler, false );
+      Qgis::ProcessingParameterTypeFlags flags = QgsProcessingParameterType::flags();
+      flags.setFlag( Qgis::ProcessingParameterTypeFlag::ExposeToModeler, false );
       return flags;
     }
 
@@ -1059,10 +1059,10 @@ class CORE_EXPORT QgsProcessingParameterTypeRasterDestination : public QgsProces
       return QStringLiteral( "QgsProcessingParameterRasterDestination" );
     }
 
-    ParameterFlags flags() const override
+    Qgis::ProcessingParameterTypeFlags flags() const override
     {
-      ParameterFlags flags = QgsProcessingParameterType::flags();
-      flags.setFlag( ParameterFlag::ExposeToModeler, false );
+      Qgis::ProcessingParameterTypeFlags flags = QgsProcessingParameterType::flags();
+      flags.setFlag( Qgis::ProcessingParameterTypeFlag::ExposeToModeler, false );
       return flags;
     }
 
@@ -1565,10 +1565,10 @@ class CORE_EXPORT QgsProcessingParameterTypeFeatureSink : public QgsProcessingPa
       return new QgsProcessingParameterFeatureSink( name );
     }
 
-    ParameterFlags flags() const override
+    Qgis::ProcessingParameterTypeFlags flags() const override
     {
-      ParameterFlags flags = QgsProcessingParameterType::flags();
-      flags.setFlag( ParameterFlag::ExposeToModeler, false );
+      Qgis::ProcessingParameterTypeFlags flags = QgsProcessingParameterType::flags();
+      flags.setFlag( Qgis::ProcessingParameterTypeFlag::ExposeToModeler, false );
       return flags;
     }
 
@@ -2225,10 +2225,10 @@ class CORE_EXPORT QgsProcessingParameterTypePointCloudDestination : public QgsPr
       return QStringLiteral( "QgsProcessingParameterPointCloudDestination" );
     }
 
-    ParameterFlags flags() const override
+    Qgis::ProcessingParameterTypeFlags flags() const override
     {
-      ParameterFlags flags = QgsProcessingParameterType::flags();
-      flags.setFlag( ParameterFlag::ExposeToModeler, false );
+      Qgis::ProcessingParameterTypeFlags flags = QgsProcessingParameterType::flags();
+      flags.setFlag( Qgis::ProcessingParameterTypeFlag::ExposeToModeler, false );
       return flags;
     }
 
@@ -2242,6 +2242,118 @@ class CORE_EXPORT QgsProcessingParameterTypePointCloudDestination : public QgsPr
     QStringList acceptedStringValues() const override
     {
       return QStringList() << QObject::tr( "Path for new point cloud layer" );
+    }
+};
+
+/**
+ * \brief A point cloud layer attribute parameter for Processing algorithms.
+ *
+ * \ingroup core
+ * \note No Python bindings available. Get your copy from QgsApplication.processingRegistry().parameterType('attribute')
+ * \since QGIS 3.32
+ */
+class CORE_EXPORT QgsProcessingParameterTypePointCloudAttribute : public QgsProcessingParameterType
+{
+    QgsProcessingParameterDefinition *create( const QString &name ) const override SIP_FACTORY
+    {
+      return new QgsProcessingParameterPointCloudAttribute( name );
+    }
+
+    QString description() const override
+    {
+      return QCoreApplication::translate( "Processing", "A point cloud attribute parameter, for selecting an attribute from a point cloud source." );
+    }
+
+    QString name() const override
+    {
+      return QCoreApplication::translate( "Processing", "Point Cloud Attribute" );
+    }
+
+    QString id() const override
+    {
+      return QStringLiteral( "attribute" );
+    }
+
+    QString pythonImportString() const override
+    {
+      return QStringLiteral( "from qgis.core import QgsProcessingParameterPointCloudAttribute" );
+    }
+
+    QString className() const override
+    {
+      return QStringLiteral( "QgsProcessingParameterPointCloudAttribute" );
+    }
+
+    QStringList acceptedPythonTypes() const override
+    {
+      return QStringList() << QStringLiteral( "str" )
+             << QStringLiteral( "QgsProperty" );
+    }
+
+    QStringList acceptedStringValues() const override
+    {
+      return QStringList() << QObject::tr( "The name of an attribute" )
+             << QObject::tr( "; delimited list of attribute names" );
+    }
+};
+
+/**
+ * \brief A vector tile layer destination parameter, for specifying the destination path for a vector tile layer
+ * created by the algorithm.
+ *
+ * \ingroup core
+ * \note No Python bindings available. Get your copy from QgsApplication.processingRegistry().parameterType('vectorTileDestination')
+ * \since QGIS 3.32
+ */
+class CORE_EXPORT QgsProcessingParameterTypeVectorTileDestination : public QgsProcessingParameterType
+{
+    QgsProcessingParameterDefinition *create( const QString &name ) const override SIP_FACTORY
+    {
+      return new QgsProcessingParameterVectorTileDestination( name );
+    }
+
+    QString description() const override
+    {
+      return QCoreApplication::translate( "Processing", "A vector tiles layer destination parameter." );
+    }
+
+    QString name() const override
+    {
+      return QCoreApplication::translate( "Processing", "Vector Tile Destination" );
+    }
+
+    QString id() const override
+    {
+      return QStringLiteral( "vectorTileDestination" );
+    }
+
+    QString pythonImportString() const override
+    {
+      return QStringLiteral( "from qgis.core import QgsProcessingParameterVectorTileDestination" );
+    }
+
+    QString className() const override
+    {
+      return QStringLiteral( "QgsProcessingParameterVectorTileDestination" );
+    }
+
+    Qgis::ProcessingParameterTypeFlags flags() const override
+    {
+      Qgis::ProcessingParameterTypeFlags flags = QgsProcessingParameterType::flags();
+      flags.setFlag( Qgis::ProcessingParameterTypeFlag::ExposeToModeler, false );
+      return flags;
+    }
+
+    QStringList acceptedPythonTypes() const override
+    {
+      return QStringList() << QStringLiteral( "str" )
+             << QStringLiteral( "QgsProperty" )
+             << QStringLiteral( "QgsProcessingOutputLayerDefinition" );
+    }
+
+    QStringList acceptedStringValues() const override
+    {
+      return QStringList() << QObject::tr( "Path for new vector tile layer" );
     }
 };
 

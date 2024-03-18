@@ -216,6 +216,8 @@ QgsNetworkAccessManager::QgsNetworkAccessManager( QObject *parent )
 {
   setProxyFactory( new QgsNetworkProxyFactory() );
   setCookieJar( new QgsNetworkCookieJar( this ) );
+  enableStrictTransportSecurityStore( true );
+  setStrictTransportSecurityEnabled( true );
 }
 
 void QgsNetworkAccessManager::setSslErrorHandler( std::unique_ptr<QgsSslErrorHandler> handler )
@@ -319,7 +321,7 @@ QNetworkReply *QgsNetworkAccessManager::createRequest( QNetworkAccessManager::Op
     const QgsAuthConfigSslServer servconfig = QgsApplication::authManager()->sslCertCustomConfigByHost( hostport.trimmed() );
     if ( !servconfig.isNull() )
     {
-      QgsDebugMsg( QStringLiteral( "Adding SSL custom config to request for %1" ).arg( hostport ) );
+      QgsDebugMsgLevel( QStringLiteral( "Adding SSL custom config to request for %1" ).arg( hostport ), 2 );
       sslconfig.setProtocol( servconfig.sslProtocol() );
       sslconfig.setPeerVerifyMode( servconfig.sslPeerVerifyMode() );
       sslconfig.setPeerVerifyDepth( servconfig.sslPeerVerifyDepth() );
@@ -356,6 +358,7 @@ QNetworkReply *QgsNetworkAccessManager::createRequest( QNetworkAccessManager::Op
   QNetworkReply *reply = QNetworkAccessManager::createRequest( op, req, outgoingData );
   reply->setProperty( "requestId", requestId );
 
+  emit requestCreated( QgsNetworkRequestParameters( op, reply->request(), requestId, content ) );
   Q_NOWARN_DEPRECATED_PUSH
   emit requestCreated( reply );
   Q_NOWARN_DEPRECATED_POP
@@ -426,7 +429,7 @@ void QgsNetworkAccessManager::onReplySslErrors( const QList<QSslError> &errors )
   Q_ASSERT( reply );
   Q_ASSERT( reply->manager() == this );
 
-  QgsDebugMsg( QStringLiteral( "Stopping network reply timeout whilst SSL error is handled" ) );
+  QgsDebugMsgLevel( QStringLiteral( "Stopping network reply timeout whilst SSL error is handled" ), 2 );
   pauseTimeout( reply );
 
   emit requestEncounteredSslErrors( getRequestId( reply ), errors );
@@ -484,7 +487,7 @@ void QgsNetworkAccessManager::restartTimeout( QNetworkReply *reply )
   if ( timer )
   {
     Q_ASSERT( !timer->isActive() );
-    QgsDebugMsg( QStringLiteral( "Restarting network reply timeout" ) );
+    QgsDebugMsgLevel( QStringLiteral( "Restarting network reply timeout" ), 2 );
     timer->setSingleShot( true );
     timer->start( timeout() );
   }
@@ -509,7 +512,7 @@ void QgsNetworkAccessManager::onAuthRequired( QNetworkReply *reply, QAuthenticat
   Q_ASSERT( reply );
   Q_ASSERT( reply->manager() == this );
 
-  QgsDebugMsg( QStringLiteral( "Stopping network reply timeout whilst auth request is handled" ) );
+  QgsDebugMsgLevel( QStringLiteral( "Stopping network reply timeout whilst auth request is handled" ), 2 );
   pauseTimeout( reply );
 
   emit requestRequiresAuth( getRequestId( reply ), auth->realm() );
@@ -631,6 +634,9 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
     connect( this, qOverload< QgsNetworkRequestParameters >( &QgsNetworkAccessManager::requestAboutToBeCreated ),
              sMainNAM, qOverload< QgsNetworkRequestParameters >( &QgsNetworkAccessManager::requestAboutToBeCreated ) );
 
+    connect( this, qOverload< const QgsNetworkRequestParameters & >( &QgsNetworkAccessManager::requestCreated ),
+             sMainNAM, qOverload< const QgsNetworkRequestParameters & >( &QgsNetworkAccessManager::requestCreated ) );
+
     connect( this, qOverload< QgsNetworkReplyContent >( &QgsNetworkAccessManager::finished ),
              sMainNAM, qOverload< QgsNetworkReplyContent >( &QgsNetworkAccessManager::finished ) );
 
@@ -651,9 +657,11 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
   else
   {
 #ifndef QT_NO_SSL
-    setSslErrorHandler( std::make_unique< QgsSslErrorHandler >() );
+    if ( !mSslErrorHandler )
+      setSslErrorHandler( std::make_unique< QgsSslErrorHandler >() );
 #endif
-    setAuthHandler( std::make_unique< QgsNetworkAuthenticationHandler>() );
+    if ( !mAuthHandler )
+      setAuthHandler( std::make_unique< QgsNetworkAuthenticationHandler>() );
   }
 #ifndef QT_NO_SSL
   connect( this, &QgsNetworkAccessManager::sslErrorsOccurred, sMainNAM, &QgsNetworkAccessManager::handleSslErrors );
@@ -717,21 +725,21 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache( Qt::ConnectionType conn
       {
         proxyType = QNetworkProxy::FtpCachingProxy;
       }
-      QgsDebugMsg( QStringLiteral( "setting proxy %1 %2:%3 %4/%5" )
-                   .arg( proxyType )
-                   .arg( proxyHost ).arg( proxyPort )
-                   .arg( proxyUser, proxyPassword )
-                 );
+      QgsDebugMsgLevel( QStringLiteral( "setting proxy %1 %2:%3 %4/%5" )
+                        .arg( proxyType )
+                        .arg( proxyHost ).arg( proxyPort )
+                        .arg( proxyUser, proxyPassword ), 2
+                      );
       proxy = QNetworkProxy( proxyType, proxyHost, proxyPort, proxyUser, proxyPassword );
     }
     // Setup network proxy authentication configuration
     const QString authcfg = settings.value( QStringLiteral( "proxy/authcfg" ), "" ).toString();
     if ( !authcfg.isEmpty( ) )
     {
-      QgsDebugMsg( QStringLiteral( "setting proxy from stored authentication configuration %1" ).arg( authcfg ) );
+      QgsDebugMsgLevel( QStringLiteral( "setting proxy from stored authentication configuration %1" ).arg( authcfg ), 2 );
       // Never crash! Never.
-      if ( QgsApplication::authManager() )
-        QgsApplication::authManager()->updateNetworkProxy( proxy, authcfg );
+      if ( QgsAuthManager *authManager = QgsApplication::authManager() )
+        authManager->updateNetworkProxy( proxy, authcfg );
     }
   }
 
@@ -863,7 +871,7 @@ QgsNetworkRequestParameters::QgsNetworkRequestParameters( QNetworkAccessManager:
 void QgsSslErrorHandler::handleSslErrors( QNetworkReply *reply, const QList<QSslError> & )
 {
   Q_UNUSED( reply )
-  QgsDebugMsg( QStringLiteral( "SSL errors occurred accessing URL:\n%1" ).arg( reply->request().url().toString() ) );
+  QgsDebugError( QStringLiteral( "SSL errors occurred accessing URL:\n%1" ).arg( reply->request().url().toString() ) );
 }
 
 //
@@ -873,18 +881,18 @@ void QgsSslErrorHandler::handleSslErrors( QNetworkReply *reply, const QList<QSsl
 void QgsNetworkAuthenticationHandler::handleAuthRequest( QNetworkReply *reply, QAuthenticator * )
 {
   Q_UNUSED( reply )
-  QgsDebugMsg( QStringLiteral( "Network reply required authentication, but no handler was in place to provide this authentication request while accessing the URL:\n%1" ).arg( reply->request().url().toString() ) );
+  QgsDebugError( QStringLiteral( "Network reply required authentication, but no handler was in place to provide this authentication request while accessing the URL:\n%1" ).arg( reply->request().url().toString() ) );
 }
 
 void QgsNetworkAuthenticationHandler::handleAuthRequestOpenBrowser( const QUrl &url )
 {
   Q_UNUSED( url )
-  QgsDebugMsg( QStringLiteral( "Network authentication required external browser to open URL %1, but no handler was in place" ).arg( url.toString() ) );
+  QgsDebugError( QStringLiteral( "Network authentication required external browser to open URL %1, but no handler was in place" ).arg( url.toString() ) );
 }
 
 void QgsNetworkAuthenticationHandler::handleAuthRequestCloseBrowser()
 {
-  QgsDebugMsg( QStringLiteral( "Network authentication required external browser closed, but no handler was in place" ) );
+  QgsDebugError( QStringLiteral( "Network authentication required external browser closed, but no handler was in place" ) );
 }
 
 // For QgsNetworkCookieJar

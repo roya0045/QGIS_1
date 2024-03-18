@@ -35,7 +35,7 @@ QgsRasterInterface::QgsRasterInterface( QgsRasterInterface *input )
 
 void QgsRasterInterface::initStatistics( QgsRasterBandStats &statistics,
     int bandNo,
-    int stats,
+    Qgis::RasterBandStatistics stats,
     const QgsRectangle &boundingBox,
     int sampleSize ) const
 {
@@ -91,7 +91,7 @@ void QgsRasterInterface::initStatistics( QgsRasterBandStats &statistics,
 }
 
 bool QgsRasterInterface::hasStatistics( int bandNo,
-                                        int stats,
+                                        Qgis::RasterBandStatistics stats,
                                         const QgsRectangle &extent,
                                         int sampleSize )
 {
@@ -114,7 +114,7 @@ bool QgsRasterInterface::hasStatistics( int bandNo,
 }
 
 QgsRasterBandStats QgsRasterInterface::bandStatistics( int bandNo,
-    int stats,
+    Qgis::RasterBandStatistics stats,
     const QgsRectangle &extent,
     int sampleSize, QgsRasterBlockFeedback *feedback )
 {
@@ -240,10 +240,15 @@ QgsRasterBandStats QgsRasterInterface::bandStatistics( int bandNo,
   QgsDebugMsgLevel( QStringLiteral( "MEAN %1" ).arg( myRasterBandStats.mean ), 4 );
   QgsDebugMsgLevel( QStringLiteral( "STDDEV %1" ).arg( myRasterBandStats.stdDev ), 4 );
 
-  myRasterBandStats.statsGathered = QgsRasterBandStats::All;
+  myRasterBandStats.statsGathered = Qgis::RasterBandStatistic::All;
   mStatistics.append( myRasterBandStats );
 
   return myRasterBandStats;
+}
+
+bool QgsRasterInterface::hasStatistics( int bandNo, int stats, const QgsRectangle &extent, int sampleSize )
+{
+  return hasStatistics( bandNo, static_cast< Qgis::RasterBandStatistics >( stats ), extent, sampleSize );
 }
 
 void QgsRasterInterface::initHistogram( QgsRasterHistogram &histogram,
@@ -274,7 +279,7 @@ void QgsRasterInterface::initHistogram( QgsRasterHistogram &histogram,
       // We need statistics -> avoid histogramDefaults in hasHistogram if possible
       // TODO: use approximated statistics if approximated histogram is requested
       // (theSampleSize > 0)
-      const QgsRasterBandStats stats = bandStatistics( bandNo, QgsRasterBandStats::Min, boundingBox, sampleSize );
+      const QgsRasterBandStats stats = bandStatistics( bandNo, Qgis::RasterBandStatistic::Min, boundingBox, sampleSize );
       histogram.minimum = stats.minimumValue;
     }
   }
@@ -286,7 +291,7 @@ void QgsRasterInterface::initHistogram( QgsRasterHistogram &histogram,
     }
     else
     {
-      const QgsRasterBandStats stats = bandStatistics( bandNo, QgsRasterBandStats::Max, boundingBox, sampleSize );
+      const QgsRasterBandStats stats = bandStatistics( bandNo, Qgis::RasterBandStatistic::Max, boundingBox, sampleSize );
       histogram.maximum = stats.maximumValue;
     }
   }
@@ -373,6 +378,10 @@ void QgsRasterInterface::initHistogram( QgsRasterHistogram &histogram,
   QgsDebugMsgLevel( QStringLiteral( "theHistogram.binCount = %1" ).arg( histogram.binCount ), 4 );
 }
 
+void QgsRasterInterface::initStatistics( QgsRasterBandStats &statistics, int bandNo, int stats, const QgsRectangle &boundingBox, int binCount ) const
+{
+  initStatistics( statistics, bandNo, static_cast< Qgis::RasterBandStatistics>( stats ), boundingBox, binCount );
+}
 
 bool QgsRasterInterface::hasHistogram( int bandNo,
                                        int binCount,
@@ -535,7 +544,7 @@ void QgsRasterInterface::cumulativeCut( int bandNo,
   upperValue = std::numeric_limits<double>::quiet_NaN();
 
   //get band stats to specify real histogram min/max (fix #9793 Byte bands)
-  const QgsRasterBandStats stats = bandStatistics( bandNo, QgsRasterBandStats::Min, extent, sampleSize );
+  const QgsRasterBandStats stats = bandStatistics( bandNo, Qgis::RasterBandStatistic::Min, extent, sampleSize );
   if ( stats.maximumValue < stats.minimumValue )
     return;
 
@@ -622,7 +631,8 @@ QString QgsRasterInterface::generateBandName( int bandNumber ) const
   if ( mInput )
     return mInput->generateBandName( bandNumber );
 
-  return tr( "Band" ) + QStringLiteral( " %1" ) .arg( bandNumber, 1 + static_cast< int >( std::log10( static_cast< double >( bandCount() ) ) ), 10, QChar( '0' ) );
+  // For bad layers bandCount is 0, no log!
+  return tr( "Band" ) + QStringLiteral( " %1" ) .arg( bandNumber, 1 + ( bandCount() > 0 ? static_cast< int >( std::log10( static_cast< double >( bandCount() ) ) ) : 0 ), 10, QChar( '0' ) );
 }
 
 QString QgsRasterInterface::colorInterpretationName( int bandNo ) const
@@ -642,6 +652,11 @@ QString QgsRasterInterface::displayBandName( int bandNumber ) const
     name.append( QStringLiteral( " (%1)" ).arg( colorInterp ) );
   }
   return name;
+}
+
+QgsRasterBandStats QgsRasterInterface::bandStatistics( int bandNo, int stats, const QgsRectangle &extent, int sampleSize, QgsRasterBlockFeedback *feedback )
+{
+  return bandStatistics( bandNo, static_cast < Qgis::RasterBandStatistics>( stats ), extent, sampleSize, feedback );
 }
 
 QgsRenderContext QgsRasterBlockFeedback::renderContext() const

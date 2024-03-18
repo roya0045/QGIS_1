@@ -11,8 +11,6 @@ __copyright__ = 'Copyright 2022, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
-from qgis.PyQt.QtCore import QDir
 from qgis.PyQt.QtGui import QColor
 from qgis.core import (
     Qgis,
@@ -26,29 +24,25 @@ from qgis.core import (
     QgsProfileRequest,
     QgsProfileSnapContext,
     QgsProviderRegistry,
-    QgsRenderChecker,
     QgsUnitTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
+class TestQgsPointCloudLayerProfileGenerator(QgisTestCase):
+
+    @classmethod
+    def control_path_prefix(cls):
+        return "profile_chart"
 
     @staticmethod
     def round_dict(val, places):
         return {round(k, places): round(val[k], places) for k in sorted(val.keys())}
-
-    def setUp(self):
-        self.report = "<h1>Python QgsPointCloudLayerProfileGenerator Tests</h1>\n"
-
-    def tearDown(self):
-        report_file_path = f"{QDir.tempPath()}/qgistest.html"
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(self.report)
 
     @unittest.skipIf('ept' not in QgsProviderRegistry.instance().providerList(), 'EPT provider not available')
     def testProfileGeneration(self):
@@ -56,7 +50,7 @@ class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
             os.path.join(unitTestDataPath(), 'point_clouds', 'ept', 'lone-star-laszip', 'ept.json'), 'test', 'ept')
         self.assertTrue(pcl.isValid())
         pcl.elevationProperties().setMaximumScreenError(30)
-        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderMillimeters)
+        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderUnit.RenderMillimeters)
 
         curve = QgsLineString()
         curve.fromWkt(
@@ -65,9 +59,9 @@ class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
         req.setCrs(pcl.crs())
         # zero tolerance => no points
         generator = pcl.createProfileGenerator(req)
-        self.assertTrue(generator.generateProfile())
+        self.assertFalse(generator.generateProfile())
         results = generator.takeResults()
-        self.assertFalse(results.distanceToHeightMap())
+        self.assertTrue(results is None)
 
         req.setTolerance(0.05)
         generator = pcl.createProfileGenerator(req)
@@ -176,6 +170,34 @@ class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
         self.assertAlmostEqual(results.zRange().lower(), 2325.1325, 2)
         self.assertAlmostEqual(results.zRange().upper(), 2335.0755, 2)
 
+        features = results.asFeatures(Qgis.ProfileExportType.Features3D)
+        self.assertEqual(len(features), 182)
+        self.assertEqual(features[0].layerIdentifier, pcl.id())
+        self.assertEqual(features[0].geometry.asWkt(1),
+                         'PointZ (515389.1 4918366.7 2326.1)')
+        self.assertEqual(features[-1].layerIdentifier, pcl.id())
+        self.assertEqual(features[-1].geometry.asWkt(1),
+                         'PointZ (515388.3 4918366.7 2334.7)')
+
+        features = results.asFeatures(Qgis.ProfileExportType.Profile2D)
+        self.assertEqual(len(features), 182)
+        self.assertEqual(features[0].layerIdentifier, pcl.id())
+        self.assertEqual(features[0].geometry.asWkt(1),
+                         'Point (1.1 2326.1)')
+        self.assertEqual(features[-1].layerIdentifier, pcl.id())
+        self.assertEqual(features[-1].geometry.asWkt(1),
+                         'Point (0.3 2334.7)')
+
+        features = results.asFeatures(Qgis.ProfileExportType.DistanceVsElevationTable)
+        self.assertEqual(len(features), 182)
+        self.assertEqual(features[0].layerIdentifier, pcl.id())
+        self.assertAlmostEqual(features[0].attributes['distance'], 1.129138, 2)
+        self.assertAlmostEqual(features[0].attributes['elevation'], 2326.052, 2)
+        self.assertEqual(features[0].geometry.asWkt(1), 'PointZ (515389.1 4918366.7 2326.1)')
+        self.assertEqual(features[-1].geometry.asWkt(1), 'PointZ (515388.3 4918366.7 2334.7)')
+        self.assertAlmostEqual(features[-1].attributes['distance'], 0.319292, 2)
+        self.assertAlmostEqual(features[-1].attributes['elevation'], 2334.69125, 2)
+
         # ensure maximum error is considered
         context.setMapUnitsPerDistancePixel(0.0001)
         self.assertTrue(generator.generateProfile(context))
@@ -219,7 +241,7 @@ class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
             os.path.join(unitTestDataPath(), 'point_clouds', 'ept', 'lone-star-laszip', 'ept.json'), 'test', 'ept')
         self.assertTrue(pcl.isValid())
         pcl.elevationProperties().setMaximumScreenError(30)
-        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderMillimeters)
+        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderUnit.RenderMillimeters)
 
         curve = QgsLineString()
         curve.fromWkt(
@@ -263,7 +285,7 @@ class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
             os.path.join(unitTestDataPath(), 'point_clouds', 'ept', 'lone-star-laszip', 'ept.json'), 'test', 'ept')
         self.assertTrue(pcl.isValid())
         pcl.elevationProperties().setMaximumScreenError(30)
-        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderMillimeters)
+        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderUnit.RenderMillimeters)
 
         curve = QgsLineString()
         curve.fromWkt(
@@ -398,11 +420,11 @@ class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
             os.path.join(unitTestDataPath(), 'point_clouds', 'ept', 'lone-star-laszip', 'ept.json'), 'test', 'ept')
         self.assertTrue(pcl.isValid())
         pcl.elevationProperties().setMaximumScreenError(30)
-        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderMillimeters)
+        pcl.elevationProperties().setMaximumScreenErrorUnit(QgsUnitTypes.RenderUnit.RenderMillimeters)
         pcl.elevationProperties().setPointSymbol(Qgis.PointCloudSymbol.Square)
         pcl.elevationProperties().setPointColor(QColor(255, 0, 255))
         pcl.elevationProperties().setPointSize(3)
-        pcl.elevationProperties().setPointSizeUnit(QgsUnitTypes.RenderMillimeters)
+        pcl.elevationProperties().setPointSizeUnit(QgsUnitTypes.RenderUnit.RenderMillimeters)
         pcl.elevationProperties().setRespectLayerColors(False)
 
         curve = QgsLineString()
@@ -416,22 +438,11 @@ class TestQgsPointCloudLayerProfileGenerator(unittest.TestCase):
         plot_renderer.waitForFinished()
 
         res = plot_renderer.renderToImage(400, 400, 0, curve.length(), 2320, 2330)
-        self.assertTrue(self.imageCheck('point_cloud_layer_fixed_color', 'point_cloud_layer_fixed_color', res))
-
-    def imageCheck(self, name, reference_image, image):
-        self.report += f"<h2>Render {name}</h2>\n"
-        temp_dir = QDir.tempPath() + '/'
-        file_name = temp_dir + 'profile_' + name + ".png"
-        image.save(file_name, "PNG")
-        checker = QgsRenderChecker()
-        checker.setControlPathPrefix("profile_chart")
-        checker.setControlName("expected_" + reference_image)
-        checker.setRenderedImage(file_name)
-        checker.setColorTolerance(2)
-        result = checker.compareImages(name, 20)
-        self.report += checker.report()
-        print(self.report)
-        return result
+        self.assertTrue(
+            self.image_check('point_cloud_layer_fixed_color', 'point_cloud_layer_fixed_color', res,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
 
 if __name__ == '__main__':

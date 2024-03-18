@@ -15,6 +15,7 @@
  ***************************************************************************/
 
 #include "qgisapp.h"
+#include "qgsmessagebar.h"
 #include "qgsmeasuredialog.h"
 #include "qgsmeasuretool.h"
 #include "qgsdistancearea.h"
@@ -23,6 +24,8 @@
 #include "qgscoordinatereferencesystem.h"
 #include "qgsunittypes.h"
 #include "qgssettings.h"
+#include "qgssettingsentryimpl.h"
+#include "qgssettingstree.h"
 #include "qgsgui.h"
 
 #include <QClipboard>
@@ -30,6 +33,12 @@
 #include <QLocale>
 #include <QPushButton>
 
+
+const QgsSettingsEntryBool *QgsMeasureDialog::settingClipboardHeader = new QgsSettingsEntryBool( QStringLiteral( "clipboard-header" ), QgsSettingsTree::sTreeMeasure, false, QObject::tr( "Whether the header should be copied to the clipboard along the coordinates, distances" ) );
+
+const QgsSettingsEntryString *QgsMeasureDialog::settingClipboardSeparator = new QgsSettingsEntryString( QStringLiteral( "clipboard-separator" ), QgsSettingsTree::sTreeMeasure, QStringLiteral( "\t" ), QObject::tr( "Separator between the measure columns copied to the clipboard" ) );
+
+const QgsSettingsEntryBool *QgsMeasureDialog::settingClipboardAlwaysUseDecimalPoint = new QgsSettingsEntryBool( QStringLiteral( "clipboard-use-decimal-point" ), QgsSettingsTree::sTreeMeasure, false, QObject::tr( "Whether to use the locale decimal separator or always use the decimal point. Needed to export data as csv with a locale that uses a comma as its decimal separator." ) );
 
 QgsMeasureDialog::QgsMeasureDialog( QgsMeasureTool *tool, Qt::WindowFlags f )
   : QDialog( tool->canvas()->topLevelWidget(), f )
@@ -56,9 +65,15 @@ QgsMeasureDialog::QgsMeasureDialog( QgsMeasureTool *tool, Qt::WindowFlags f )
 
   if ( !mMeasureArea )
   {
-    QPushButton *cpb = new QPushButton( tr( "Copy &All" ) );
+    QAction *copyAction = new QAction( tr( "Copy" ), this );
+    QPushButton *cpb = new QPushButton( tr( "Copy" ) );
     buttonBox->addButton( cpb, QDialogButtonBox::ActionRole );
-    connect( cpb, &QAbstractButton::clicked, this, &QgsMeasureDialog::copyMeasurements );
+    connect( cpb, &QAbstractButton::clicked, copyAction, &QAction::trigger );
+    connect( copyAction, &QAction::triggered, this, &QgsMeasureDialog::copyMeasurements );
+
+    // Add context menu in the table
+    mTable->setContextMenuPolicy( Qt::ActionsContextMenu );
+    mTable->addAction( copyAction );
   }
 
   repopulateComboBoxUnits( mMeasureArea );
@@ -107,8 +122,7 @@ void QgsMeasureDialog::projChanged()
     mDa.setEllipsoid( QgsProject::instance()->ellipsoid() );
   }
 
-  mTable->clear();
-  mTotal = 0.;
+  // Update the table and information displayed to the user
   updateUi();
 }
 
@@ -132,8 +146,6 @@ void QgsMeasureDialog::crsChanged()
     mUnitsCombo->setEnabled( true );
   }
 
-  mTable->clear();
-  mTotal = 0.;
   updateUi();
 }
 
@@ -143,13 +155,16 @@ void QgsMeasureDialog::updateSettings()
 
   mDecimalPlaces = settings.value( QStringLiteral( "qgis/measure/decimalplaces" ), 3 ).toInt();
   mCanvasUnits = mCanvas->mapUnits();
+
   // Configure QgsDistanceArea
   mDistanceUnits = QgsProject::instance()->distanceUnits();
   mMapDistanceUnits = QgsProject::instance()->crs().mapUnits();
   mAreaUnits = QgsProject::instance()->areaUnits();
   mDa.setSourceCrs( mCanvas->mapSettings().destinationCrs(), QgsProject::instance()->transformContext() );
-  projChanged();
+  updateUnitsMembers();
 
+  // Calling projChanged() will set the ellipsoid and clear then re-populate the table
+  projChanged();
 
   if ( mCartesian->isChecked() || !mCanvas->mapSettings().destinationCrs().isValid() ||
        ( mCanvas->mapSettings().destinationCrs().mapUnits() == Qgis::DistanceUnit::Degrees
@@ -168,6 +183,20 @@ void QgsMeasureDialog::unitsChanged( int index )
   if ( mMeasureArea )
   {
     mAreaUnits = static_cast< Qgis::AreaUnit >( mUnitsCombo->itemData( index ).toInt() );
+  }
+  else
+  {
+    mDistanceUnits = static_cast< Qgis::DistanceUnit >( mUnitsCombo->itemData( index ).toInt() );
+  }
+
+  updateUnitsMembers();
+  updateUi();
+}
+
+void QgsMeasureDialog:: updateUnitsMembers()
+{
+  if ( mMeasureArea )
+  {
     if ( mAreaUnits == Qgis::AreaUnit::Unknown )
     {
       mUseMapUnits = true;
@@ -180,7 +209,6 @@ void QgsMeasureDialog::unitsChanged( int index )
   }
   else
   {
-    mDistanceUnits = static_cast< Qgis::DistanceUnit >( mUnitsCombo->itemData( index ).toInt() );
     if ( mDistanceUnits == Qgis::DistanceUnit::Unknown )
     {
       mUseMapUnits = true;
@@ -191,25 +219,11 @@ void QgsMeasureDialog::unitsChanged( int index )
       mUseMapUnits = false;
     }
   }
-
-  mTable->clear();
-  mTotal = 0.;
-  updateUi();
-
-  if ( !mTool->done() )
-  {
-    // re-add temporary mouse cursor position
-    addPoint();
-    mouseMove( mLastMousePoint );
-  }
 }
 
 void QgsMeasureDialog::restart()
 {
   mTool->restart();
-
-  mTable->clear();
-  mTotal = 0.;
   updateUi();
 }
 
@@ -239,7 +253,9 @@ void QgsMeasureDialog::mouseMove( const QgsPointXY &point )
     QTreeWidgetItem *item = mTable->topLevelItem( mTable->topLevelItemCount() - 1 );
     if ( item )
     {
-      item->setText( 0, QLocale().toString( d, 'f', mDecimalPlaces ) );
+      item->setText( Columns::X, QLocale().toString( p2.x(), 'f', mDecimalPlacesCoordinates ) );
+      item->setText( Columns::Y, QLocale().toString( p2.y(), 'f', mDecimalPlacesCoordinates ) );
+      item->setText( Columns::Distance, QLocale().toString( d, 'f', mDecimalPlaces ) );
     }
   }
 }
@@ -256,8 +272,21 @@ void QgsMeasureDialog::addPoint()
   {
     if ( !mTool->done() )
     {
-      QTreeWidgetItem *item = new QTreeWidgetItem( QStringList( QLocale().toString( 0.0, 'f', mDecimalPlaces ) ) );
-      item->setTextAlignment( 0, Qt::AlignRight );
+      if ( numPoints == 1 )
+      {
+        // First point, so we add a first item, with no computed distance and only the coordinates
+        QTreeWidgetItem *item = new QTreeWidgetItem();
+        QgsPointXY lastPoint = mTool->points().last();
+        item->setText( Columns::X, QLocale().toString( lastPoint.x(), 'f', mDecimalPlacesCoordinates ) );
+        item->setText( Columns::Y, QLocale().toString( lastPoint.y(), 'f', mDecimalPlacesCoordinates ) );
+        mTable->addTopLevelItem( item );
+      }
+      QTreeWidgetItem *item = new QTreeWidgetItem();
+      QgsPointXY lastPoint = mTool->points().last();
+      item->setText( Columns::X, QLocale().toString( lastPoint.x(), 'f', mDecimalPlacesCoordinates ) );
+      item->setText( Columns::Y, QLocale().toString( lastPoint.y(), 'f', mDecimalPlacesCoordinates ) );
+      item->setText( Columns::Distance, QLocale().toString( 0.0, 'f', mDecimalPlaces ) );
+      item->setTextAlignment( Columns::Distance, Qt::AlignRight );
       mTable->addTopLevelItem( item );
       mTable->scrollToItem( item );
     }
@@ -304,7 +333,9 @@ void QgsMeasureDialog::removeLastPoint()
       d = convertLength( d, mDistanceUnits );
 
       QTreeWidgetItem *item = mTable->topLevelItem( mTable->topLevelItemCount() - 1 );
-      item->setText( 0, QLocale().toString( d, 'f', mDecimalPlaces ) );
+      item->setText( Columns::X, QLocale().toString( mLastMousePoint.x(), 'f', mDecimalPlacesCoordinates ) );
+      item->setText( Columns::Y, QLocale().toString( mLastMousePoint.y(), 'f', mDecimalPlacesCoordinates ) );
+      item->setText( Columns::Distance, QLocale().toString( d, 'f', mDecimalPlaces ) );
       editTotal->setText( formatDistance( mTotal + d ) );
     }
     else
@@ -368,6 +399,10 @@ QString QgsMeasureDialog::formatArea( double area, bool convertUnits ) const
 
 void QgsMeasureDialog::updateUi()
 {
+  // Clear the table
+  mTable->clear();
+  mTotal = 0.;
+
   // Set tooltip to indicate how we calculate measurements
   QString toolTip = tr( "The calculations are based on:" );
 
@@ -551,6 +586,15 @@ void QgsMeasureDialog::updateUi()
     }
   }
 
+  if ( mCanvas->mapSettings().destinationCrs().mapUnits() == Qgis::DistanceUnit::Degrees )
+  {
+    mDecimalPlacesCoordinates = 5;
+  }
+  else
+  {
+    mDecimalPlacesCoordinates = 3;
+  }
+
   editTotal->setToolTip( toolTip );
   mTable->setToolTip( toolTip );
   mNotesLabel->setText( toolTip );
@@ -567,15 +611,15 @@ void QgsMeasureDialog::updateUi()
     if ( mUseMapUnits )
     {
       mUnitsCombo->setCurrentIndex( mUnitsCombo->findData( static_cast< int >( Qgis::DistanceUnit::Unknown ) ) );
-      mTable->setHeaderLabels( QStringList( tr( "Segments [%1]" ).arg( QgsUnitTypes::toString( mMapDistanceUnits ) ) ) );
+      mTable->headerItem()->setText( Columns::Distance, tr( "Segments [%1]" ).arg( QgsUnitTypes::toString( mMapDistanceUnits ) ) );
     }
     else
     {
       mUnitsCombo->setCurrentIndex( mUnitsCombo->findData( static_cast< int >( mDistanceUnits ) ) );
       if ( mDistanceUnits != Qgis::DistanceUnit::Unknown )
-        mTable->setHeaderLabels( QStringList( tr( "Segments [%1]" ).arg( QgsUnitTypes::toString( mDistanceUnits ) ) ) );
+        mTable->headerItem()->setText( Columns::Distance,  tr( "Segments [%1]" ).arg( QgsUnitTypes::toString( mDistanceUnits ) ) );
       else
-        mTable->setHeaderLabels( QStringList( tr( "Segments" ) ) );
+        mTable->headerItem()->setText( Columns::Distance,  tr( "Segments" ) );
     }
   }
 
@@ -592,19 +636,25 @@ void QgsMeasureDialog::updateUi()
   }
   else
   {
+    // Repopulate the table
     QVector<QgsPointXY>::const_iterator it;
-    bool b = true; // first point
+    bool firstPoint = true;
 
-    QgsPointXY p1, p2;
+    QgsPointXY previousPoint, point;
     mTotal = 0;
     const QVector< QgsPointXY > tmpPoints = mTool->points();
     for ( it = tmpPoints.constBegin(); it != tmpPoints.constEnd(); ++it )
     {
-      p2 = *it;
-      if ( !b )
+      point = *it;
+
+      QTreeWidgetItem *item = new QTreeWidgetItem();
+      item->setText( Columns::X, QLocale().toString( point.x(), 'f', mDecimalPlacesCoordinates ) );
+      item->setText( Columns::Y, QLocale().toString( point.y(), 'f', mDecimalPlacesCoordinates ) );
+
+      if ( !firstPoint )
       {
         double d = -1;
-        d = mDa.measureLine( p1, p2 );
+        d = mDa.measureLine( previousPoint, point );
         if ( mConvertToDisplayUnits )
         {
           if ( mDistanceUnits == Qgis::DistanceUnit::Unknown && mMapDistanceUnits != Qgis::DistanceUnit::Unknown )
@@ -612,20 +662,28 @@ void QgsMeasureDialog::updateUi()
           else
             d = convertLength( d, mDistanceUnits );
         }
-
-        QTreeWidgetItem *item = new QTreeWidgetItem( QStringList( QLocale().toString( d, 'f', mDecimalPlaces ) ) );
-        item->setTextAlignment( 0, Qt::AlignRight );
-        mTable->addTopLevelItem( item );
-        mTable->scrollToItem( item );
+        item->setText( Columns::Distance, QLocale().toString( d, 'f', mDecimalPlaces ) );
+        item->setTextAlignment( Columns::Distance, Qt::AlignRight );
       }
-      p1 = p2;
-      b = false;
+
+      mTable->addTopLevelItem( item );
+      mTable->scrollToItem( item );
+
+      previousPoint = point;
+      firstPoint = false;
     }
 
     mTotal = mDa.measureLine( mTool->points() );
     mTable->show(); // Show the table with items
     mSpacer->changeSize( 40, 5, QSizePolicy::Fixed, QSizePolicy::Maximum );
     editTotal->setText( formatDistance( mTotal, mConvertToDisplayUnits ) );
+
+    if ( !mTool->done() )
+    {
+      // re-add temporary mouse cursor position
+      addPoint();
+      mouseMove( mLastMousePoint );
+    }
   }
 }
 
@@ -644,6 +702,7 @@ void QgsMeasureDialog::repopulateComboBoxUnits( bool isArea )
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::AreaUnit::SquareCentimeters ), static_cast< int >( Qgis::AreaUnit::SquareCentimeters ) );
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::AreaUnit::SquareMillimeters ), static_cast< int >( Qgis::AreaUnit::SquareMillimeters ) );
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::AreaUnit::SquareNauticalMiles ), static_cast< int >( Qgis::AreaUnit::SquareNauticalMiles ) );
+    mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::AreaUnit::SquareInches ), static_cast< int >( Qgis::AreaUnit::SquareInches ) );
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::AreaUnit::SquareDegrees ), static_cast< int >( Qgis::AreaUnit::SquareDegrees ) );
     mUnitsCombo->addItem( tr( "map units" ), static_cast< int >( Qgis::AreaUnit::Unknown ) );
   }
@@ -657,6 +716,7 @@ void QgsMeasureDialog::repopulateComboBoxUnits( bool isArea )
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::NauticalMiles ), static_cast< int >( Qgis::DistanceUnit::NauticalMiles ) );
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Centimeters ), static_cast< int >( Qgis::DistanceUnit::Centimeters ) );
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Millimeters ), static_cast< int >( Qgis::DistanceUnit::Millimeters ) );
+    mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Inches ), static_cast< int >( Qgis::DistanceUnit::Inches ) );
     mUnitsCombo->addItem( QgsUnitTypes::toString( Qgis::DistanceUnit::Degrees ), static_cast< int >( Qgis::DistanceUnit::Degrees ) );
     mUnitsCombo->addItem( tr( "map units" ), static_cast< int >( Qgis::DistanceUnit::Unknown ) );
   }
@@ -674,15 +734,51 @@ double QgsMeasureDialog::convertArea( double area, Qgis::AreaUnit toUnit ) const
 
 void QgsMeasureDialog::copyMeasurements()
 {
+  const bool includeHeader = settingClipboardHeader->value();
+  const bool alwaysUseDecimalPoint = settingClipboardAlwaysUseDecimalPoint->value();
+
+  // Get the separator
+  QString separator = settingClipboardSeparator->value();
+
+  // If the field separator is a comma and the locale uses a comma as decimal separator, change to a semicolon
+  if ( separator == QLatin1String( "," ) && !alwaysUseDecimalPoint && QLocale().decimalPoint() == QLatin1String( "," ) )
+    separator = QStringLiteral( ";" );
+
+  if ( separator.isEmpty() )
+    separator = QStringLiteral( "\t" );
+
   QClipboard *clipboard = QApplication::clipboard();
   QString text;
   QTreeWidgetItemIterator it( mTable );
+
+  if ( includeHeader )
+  {
+    text += mTable->headerItem()->text( Columns::X ) + separator;
+    text += mTable->headerItem()->text( Columns::Y ) + separator;
+    text += mTable->headerItem()->text( Columns::Distance ) + QStringLiteral( "\n" );
+  }
+
+
+  auto replaceDecimalSeparator = [ alwaysUseDecimalPoint ]( const QString & value ) -> QString
+  {
+    QString result = value;
+    if ( alwaysUseDecimalPoint && QLocale().decimalPoint() != QLatin1String( "." ) )
+      result.replace( QLocale().decimalPoint(), QStringLiteral( "." ) );
+    return result;
+  };
+
   while ( *it )
   {
-    text += ( *it )->text( 0 ) + QStringLiteral( "\n" );
+    text += replaceDecimalSeparator( ( *it )->text( Columns::X ) ) + separator;
+    text += replaceDecimalSeparator( ( *it )->text( Columns::Y ) ) + separator;
+    text += replaceDecimalSeparator( ( *it )->text( Columns::Distance ) ) + QStringLiteral( "\n" );
     it++;
   }
+
   clipboard->setText( text );
+
+  // Display a message to the user
+  QgisApp::instance()->messageBar()->pushInfo( tr( "Measure" ), tr( "Measurements copied to clipboard" ) );
 }
 
 void QgsMeasureDialog::reject()

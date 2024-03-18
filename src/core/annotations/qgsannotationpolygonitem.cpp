@@ -18,7 +18,9 @@
 #include "qgsannotationpolygonitem.h"
 #include "qgssymbol.h"
 #include "qgssymbollayerutils.h"
-#include "qgssurface.h"
+#include "qgscurvepolygon.h"
+#include "qgscurve.h"
+#include "qgspolygon.h"
 #include "qgsfillsymbol.h"
 #include "qgsannotationitemnode.h"
 #include "qgsannotationitemeditoperation.h"
@@ -217,7 +219,7 @@ bool QgsAnnotationPolygonItem::readXml( const QDomElement &element, const QgsRea
   return true;
 }
 
-QgsAnnotationPolygonItem *QgsAnnotationPolygonItem::clone()
+QgsAnnotationPolygonItem *QgsAnnotationPolygonItem::clone() const
 {
   std::unique_ptr< QgsAnnotationPolygonItem > item = std::make_unique< QgsAnnotationPolygonItem >( mPolygon->clone() );
   item->setSymbol( mSymbol->clone() );
@@ -228,6 +230,11 @@ QgsAnnotationPolygonItem *QgsAnnotationPolygonItem::clone()
 QgsRectangle QgsAnnotationPolygonItem::boundingBox() const
 {
   return mPolygon->boundingBox();
+}
+
+void QgsAnnotationPolygonItem::setGeometry( QgsCurvePolygon *geometry )
+{
+  mPolygon.reset( geometry );
 }
 
 const QgsFillSymbol *QgsAnnotationPolygonItem::symbol() const

@@ -29,12 +29,14 @@ model data is a merge of the bookmarks stored in both managers.
 %End
   public:
 
-    enum CustomRoles
+
+    enum class CustomRole
     {
-      RoleExtent,
-      RoleName,
-      RoleId,
-      RoleGroup,
+      Extent,
+      Name,
+      Id,
+      Group,
+      Rotation,
     };
 
     enum Columns
@@ -45,6 +47,7 @@ model data is a merge of the bookmarks stored in both managers.
       ColumnYMin,
       ColumnXMax,
       ColumnYMax,
+      ColumnRotation,
       ColumnCrs,
       ColumnStore,
     };

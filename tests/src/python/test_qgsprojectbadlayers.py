@@ -13,7 +13,6 @@ import filecmp
 import os
 from shutil import copyfile
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QSize, QTemporaryDir
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtXml import QDomDocument, QDomNode
@@ -27,7 +26,8 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import renderMapToImage, unitTestDataPath
 
@@ -35,7 +35,7 @@ app = start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsProjectBadLayers(unittest.TestCase):
+class TestQgsProjectBadLayers(QgisTestCase):
 
     def setUp(self):
         p = QgsProject.instance()
@@ -51,9 +51,9 @@ class TestQgsProjectBadLayers(unittest.TestCase):
         ms.setBackgroundColor(QColor(152, 219, 249))
         ms.setOutputSize(QSize(420, 280))
         ms.setOutputDpi(72)
-        ms.setFlag(QgsMapSettings.Antialiasing, True)
-        ms.setFlag(QgsMapSettings.UseAdvancedEffects, False)
-        ms.setFlag(QgsMapSettings.ForceVectorOutput, False)  # no caching?
+        ms.setFlag(QgsMapSettings.Flag.Antialiasing, True)
+        ms.setFlag(QgsMapSettings.Flag.UseAdvancedEffects, False)
+        ms.setFlag(QgsMapSettings.Flag.ForceVectorOutput, False)  # no caching?
         ms.setDestinationCrs(crs)
         return ms
 
@@ -113,9 +113,9 @@ class TestQgsProjectBadLayers(unittest.TestCase):
         vector = list(p.mapLayersByName('lines'))[0]
         raster = list(p.mapLayersByName('raster'))[0]
         raster_copy = list(p.mapLayersByName('raster_copy'))[0]
-        self.assertTrue(vector.originalXmlProperties() != '')
-        self.assertTrue(raster.originalXmlProperties() != '')
-        self.assertTrue(raster_copy.originalXmlProperties() != '')
+        self.assertTrue(vector.originalXmlProperties())
+        self.assertTrue(raster.originalXmlProperties())
+        self.assertTrue(raster_copy.originalXmlProperties())
         # Test setter
         raster.setOriginalXmlProperties('pippo')
         self.assertEqual(raster.originalXmlProperties(), 'pippo')

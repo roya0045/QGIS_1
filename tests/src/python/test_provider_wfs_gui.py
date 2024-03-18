@@ -26,7 +26,8 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.core import QgsSettings
 from qgis.gui import QgsGui
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
 def sanitize(endpoint, x):
@@ -42,11 +43,12 @@ def find_window(name):
     return None
 
 
-class TestPyQgsWFSProviderGUI(unittest.TestCase):
+class TestPyQgsWFSProviderGUI(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("QGIS_TestPyQgsWFSProviderGUI.com")
         QCoreApplication.setApplicationName("QGIS_TestPyQgsWFSProviderGUI")
@@ -61,6 +63,7 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         QgsSettings().clear()
         if cls.basetestpath is not None:
             shutil.rmtree(cls.basetestpath, True)
+        super().tearDownClass()
 
     def get_button(self, main_dialog, text):
         buttonBox = main_dialog.findChild(QDialogButtonBox, "buttonBox")
@@ -82,7 +85,7 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         loop = QEventLoop()
         name = my_object.objectName()
         my_object.destroyed.connect(loop.quit)
-        loop.exec_()
+        loop.exec()
         self.assertIsNone(find_window(name))
         return None
 
@@ -102,7 +105,7 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         # Create new connection
         btnNew = main_dialog.findChild(QWidget, "btnNew")
         self.assertIsNotNone(btnNew)
-        QTest.mouseClick(btnNew, Qt.LeftButton)
+        QTest.mouseClick(btnNew, Qt.MouseButton.LeftButton)
         new_conn = find_window('QgsNewHttpConnectionBase')
         self.assertIsNotNone(new_conn)
         txtName = new_conn.findChild(QLineEdit, "txtName")
@@ -119,7 +122,7 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         # Try to connect
         btnConnect = main_dialog.findChild(QWidget, "btnConnect")
         self.assertIsNotNone(btnConnect)
-        QTest.mouseClick(btnConnect, Qt.LeftButton)
+        QTest.mouseClick(btnConnect, Qt.MouseButton.LeftButton)
         # Depends on asynchronous signal
         QApplication.processEvents()
         # Second attempt for OAPIF request
@@ -135,7 +138,7 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         # Edit connection
         btnEdit = main_dialog.findChild(QWidget, "btnEdit")
         self.assertIsNotNone(btnEdit)
-        QTest.mouseClick(btnEdit, Qt.LeftButton)
+        QTest.mouseClick(btnEdit, Qt.MouseButton.LeftButton)
         new_conn = find_window('QgsNewHttpConnectionBase',)
         self.assertIsNotNone(new_conn)
         txtName = new_conn.findChild(QLineEdit, "txtName")
@@ -211,7 +214,7 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         # Try to connect
         btnConnect = main_dialog.findChild(QWidget, "btnConnect")
         self.assertIsNotNone(btnConnect)
-        QTest.mouseClick(btnConnect, Qt.LeftButton)
+        QTest.mouseClick(btnConnect, Qt.MouseButton.LeftButton)
 
         buttonAdd = self.get_button_add(main_dialog)
         for i in range(10):
@@ -224,14 +227,14 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         self.addWfsLayer_uri = None
         self.addWfsLayer_layer_name = None
         main_dialog.addVectorLayer.connect(self.slotAddWfsLayer)
-        QTest.mouseClick(buttonAdd, Qt.LeftButton)
-        self.assertEqual(self.addWfsLayer_uri, ' pagingEnabled=\'true\' preferCoordinatesForWfsT11=\'false\' restrictToRequestBBOX=\'1\' srsname=\'EPSG:4326\' typename=\'my:typename\' url=\'' + "http://" + expected_endpoint + '\' version=\'auto\'')
+        QTest.mouseClick(buttonAdd, Qt.MouseButton.LeftButton)
+        self.assertEqual(self.addWfsLayer_uri, ' pagingEnabled=\'default\' preferCoordinatesForWfsT11=\'false\' restrictToRequestBBOX=\'1\' srsname=\'EPSG:4326\' typename=\'my:typename\' url=\'' + "http://" + expected_endpoint + '\' version=\'auto\'')
         self.assertEqual(self.addWfsLayer_layer_name, 'my:typename')
 
         # Click on Build Query
         buttonBuildQuery = self.get_button_build_query(main_dialog)
         self.assertTrue(buttonBuildQuery.isEnabled())
-        QTest.mouseClick(buttonBuildQuery, Qt.LeftButton)
+        QTest.mouseClick(buttonBuildQuery, Qt.MouseButton.LeftButton)
         error_box = find_window('WFSFeatureTypeErrorBox')
         self.assertIsNotNone(error_box)
         # Close error box
@@ -258,7 +261,7 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
   <xsd:element name="typename" substitutionGroup="gml:_Feature" type="my:typenameType"/>
 </xsd:schema>
 """)
-        QTest.mouseClick(buttonBuildQuery, Qt.LeftButton)
+        QTest.mouseClick(buttonBuildQuery, Qt.MouseButton.LeftButton)
 
         # Check that the combos are properly initialized
         dialog = find_window('QgsSQLComposerDialogBase')
@@ -297,8 +300,8 @@ class TestPyQgsWFSProviderGUI(unittest.TestCase):
         self.addWfsLayer_uri = None
         self.addWfsLayer_layer_name = None
         main_dialog.addVectorLayer.connect(self.slotAddWfsLayer)
-        QTest.mouseClick(buttonAdd, Qt.LeftButton)
-        self.assertEqual(self.addWfsLayer_uri, ' pagingEnabled=\'true\' preferCoordinatesForWfsT11=\'false\' restrictToRequestBBOX=\'1\' srsname=\'EPSG:4326\' typename=\'my:typename\' url=\'' + "http://" + expected_endpoint + '\' version=\'auto\' sql=SELECT * FROM typename WHERE 1 = 1')
+        QTest.mouseClick(buttonAdd, Qt.MouseButton.LeftButton)
+        self.assertEqual(self.addWfsLayer_uri, ' pagingEnabled=\'default\' preferCoordinatesForWfsT11=\'false\' restrictToRequestBBOX=\'1\' srsname=\'EPSG:4326\' typename=\'my:typename\' url=\'' + "http://" + expected_endpoint + '\' version=\'auto\' sql=SELECT * FROM typename WHERE 1 = 1')
         self.assertEqual(self.addWfsLayer_layer_name, 'my:typename')
 
         # main_dialog.setProperty("hideDialogs", None)

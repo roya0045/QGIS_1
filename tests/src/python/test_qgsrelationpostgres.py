@@ -11,17 +11,18 @@ __copyright__ = 'Copyright 2020, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.core import QgsProject, QgsVectorLayer
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsRelationPostgresql(unittest.TestCase):
+class TestQgsRelationPostgresql(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
 
         cls.dbconn = 'service=\'qgis_test\''
         if 'QGIS_PGTEST_DB' in os.environ:

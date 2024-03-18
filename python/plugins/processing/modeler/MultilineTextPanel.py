@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     MultilineTextPanel.py
@@ -28,7 +26,7 @@ class MultilineTextPanel(QWidget):
     USE_TEXT = 0
 
     def __init__(self, options, parent=None):
-        super(MultilineTextPanel, self).__init__(parent)
+        super().__init__(parent)
         self.options = options
         self.verticalLayout = QVBoxLayout(self)
         self.verticalLayout.setSpacing(2)
@@ -37,8 +35,8 @@ class MultilineTextPanel(QWidget):
         self.combo.addItem(self.tr('[Use text below]'))
         for option in options:
             self.combo.addItem(option[0], option[1])
-        self.combo.setSizePolicy(QSizePolicy.Expanding,
-                                 QSizePolicy.Expanding)
+        self.combo.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                 QSizePolicy.Policy.Expanding)
         self.verticalLayout.addWidget(self.combo)
         self.textBox = QPlainTextEdit()
         self.verticalLayout.addWidget(self.textBox)

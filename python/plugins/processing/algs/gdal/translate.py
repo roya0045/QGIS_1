@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     translate.py
@@ -56,7 +54,7 @@ class translate(GdalAlgorithm):
 
     def initAlgorithm(self, config=None):
 
-        self.TYPES = [self.tr('Use Input Layer Data Type'), 'Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64', 'CInt16', 'CInt32', 'CFloat32', 'CFloat64']
+        self.TYPES = [self.tr('Use Input Layer Data Type'), 'Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64', 'CInt16', 'CInt32', 'CFloat32', 'CFloat64', 'Int8']
 
         self.addParameter(QgsProcessingParameterRasterLayer(self.INPUT, self.tr('Input layer')))
         self.addParameter(QgsProcessingParameterCrs(self.TARGET_CRS,
@@ -64,8 +62,8 @@ class translate(GdalAlgorithm):
                                                     defaultValue=None,
                                                     optional=True))
         self.addParameter(QgsProcessingParameterNumber(self.NODATA,
-                                                       self.tr('Assign a specified nodata value to output bands'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       self.tr('Assign a specified NoData value to output bands'),
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        defaultValue=None,
                                                        optional=True))
         self.addParameter(QgsProcessingParameterBoolean(self.COPY_SUBDATASETS,
@@ -76,7 +74,7 @@ class translate(GdalAlgorithm):
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         options_param.setMetadata({
             'widget_wrapper': {
                 'class': 'processing.algs.gdal.ui.RasterOptionsWidget.RasterOptionsWidgetWrapper'}})
@@ -86,7 +84,7 @@ class translate(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         dataType_param = QgsProcessingParameterEnum(self.DATA_TYPE,
@@ -94,7 +92,7 @@ class translate(GdalAlgorithm):
                                                     self.TYPES,
                                                     allowMultiple=False,
                                                     defaultValue=0)
-        dataType_param.setFlags(dataType_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        dataType_param.setFlags(dataType_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(dataType_param)
 
         self.addParameter(QgsProcessingParameterRasterDestination(self.OUTPUT,
@@ -146,10 +144,17 @@ class translate(GdalAlgorithm):
 
         data_type = self.parameterAsEnum(parameters, self.DATA_TYPE, context)
         if data_type:
+            if self.TYPES[data_type] == 'Int8' and GdalUtils.version() < 3070000:
+                raise QgsProcessingException(self.tr('Int8 data type requires GDAL version 3.7 or later'))
+
             arguments.append('-ot ' + self.TYPES[data_type])
 
+        output_format = QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1])
+        if not output_format:
+            raise QgsProcessingException(self.tr('Output format is invalid'))
+
         arguments.append('-of')
-        arguments.append(QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1]))
+        arguments.append(output_format)
 
         options = self.parameterAsString(parameters, self.OPTIONS, context)
         if options:

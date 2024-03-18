@@ -18,6 +18,8 @@
 #include "qgsalgorithmfixgeometries.h"
 #include "qgsvectorlayer.h"
 
+#include <geos_c.h>
+
 ///@cond PRIVATE
 
 QString QgsFixGeometriesAlgorithm::name() const
@@ -45,9 +47,9 @@ QString QgsFixGeometriesAlgorithm::groupId() const
   return QStringLiteral( "vectorgeometry" );
 }
 
-QgsProcessingFeatureSource::Flag QgsFixGeometriesAlgorithm::sourceFlags() const
+Qgis::ProcessingFeatureSourceFlags QgsFixGeometriesAlgorithm::sourceFlags() const
 {
-  return QgsProcessingFeatureSource::FlagSkipGeometryValidityChecks;
+  return Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks;
 }
 
 QString QgsFixGeometriesAlgorithm::outputName() const

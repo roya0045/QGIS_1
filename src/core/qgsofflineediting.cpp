@@ -370,18 +370,10 @@ void QgsOfflineEditing::initializeSpatialMetadata( sqlite3 *sqlite_handle )
   if ( ret == SQLITE_OK && rows == 1 && columns == 1 )
   {
     const QString version = QString::fromUtf8( results[1] );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    QStringList parts = version.split( ' ', QString::SkipEmptyParts );
-#else
     const QStringList parts = version.split( ' ', Qt::SkipEmptyParts );
-#endif
     if ( !parts.empty() )
     {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      QStringList verparts = parts.at( 0 ).split( '.', QString::SkipEmptyParts );
-#else
       const QStringList verparts = parts.at( 0 ).split( '.', Qt::SkipEmptyParts );
-#endif
       above41 = verparts.size() >= 2 && ( verparts.at( 0 ).toInt() > 4 || ( verparts.at( 0 ).toInt() == 4 && verparts.at( 1 ).toInt() >= 1 ) );
     }
   }
@@ -794,7 +786,7 @@ void QgsOfflineEditing::convertToOfflineLayer( QgsVectorLayer *layer, sqlite3 *d
 
     QgsFeatureIterator fit = layer->dataProvider()->getFeatures( req );
 
-    if ( req.filterType() == QgsFeatureRequest::FilterFids )
+    if ( req.filterType() == Qgis::FeatureRequestFilterType::Fids )
     {
       emit progressModeSet( QgsOfflineEditing::CopyFeatures, layer->selectedFeatureIds().size() );
     }
@@ -820,11 +812,7 @@ void QgsOfflineEditing::convertToOfflineLayer( QgsVectorLayer *layer, sqlite3 *d
       QgsAttributes newAttrs( containerType == GPKG ? attrs.count() + 1 : attrs.count() );
       for ( int it = 0; it < attrs.count(); ++it )
       {
-        QVariant attr = attrs.at( it );
-        if ( layer->fields().at( it ).type() == QVariant::StringList || layer->fields().at( it ).type() == QVariant::List )
-        {
-          attr = QgsJsonUtils::encodeValue( attr );
-        }
+        const QVariant attr = attrs.at( it );
         newAttrs[column++] = attr;
       }
       f.setAttributes( newAttrs );
@@ -842,7 +830,7 @@ void QgsOfflineEditing::convertToOfflineLayer( QgsVectorLayer *layer, sqlite3 *d
       const int layerId = getOrCreateLayerId( db, layer->id() );
       QList<QgsFeatureId> offlineFeatureIds;
 
-      QgsFeatureIterator fit = newLayer->getFeatures( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setNoAttributes() );
+      QgsFeatureIterator fit = newLayer->getFeatures( QgsFeatureRequest().setFlags( Qgis::FeatureRequestFlag::NoGeometry ).setNoAttributes() );
       while ( fit.nextFeature( f ) )
       {
         offlineFeatureIds << f.id();
@@ -1115,7 +1103,7 @@ void QgsOfflineEditing::updateFidLookup( QgsVectorLayer *remoteLayer, sqlite3 *d
   QMap < QgsFeatureId, QString > newRemoteFids;
   QgsFeature f;
 
-  QgsFeatureIterator fit = remoteLayer->getFeatures( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setNoAttributes() );
+  QgsFeatureIterator fit = remoteLayer->getFeatures( QgsFeatureRequest().setFlags( Qgis::FeatureRequestFlag::NoGeometry ).setNoAttributes() );
 
   emit progressModeSet( QgsOfflineEditing::ProcessFeatures, remoteLayer->featureCount() );
 
@@ -1189,13 +1177,13 @@ sqlite3_database_unique_ptr QgsOfflineEditing::openLoggingDb()
     const int rc = database.open( absoluteDbPath );
     if ( rc != SQLITE_OK )
     {
-      QgsDebugMsg( QStringLiteral( "Could not open the SpatiaLite logging database" ) );
+      QgsDebugError( QStringLiteral( "Could not open the SpatiaLite logging database" ) );
       showWarning( tr( "Could not open the SpatiaLite logging database" ) );
     }
   }
   else
   {
-    QgsDebugMsg( QStringLiteral( "dbPath is empty!" ) );
+    QgsDebugError( QStringLiteral( "dbPath is empty!" ) );
   }
   return database;
 }

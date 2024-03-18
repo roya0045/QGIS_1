@@ -9,18 +9,20 @@
 
 
 
+
 class QgsLayoutExporter
 {
 %Docstring(signature="appended")
 Handles rendering and exports of layouts to various formats.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
 #include "qgslayoutexporter.h"
 %End
   public:
+
+
+
 
     struct PageExportDetails
     {
@@ -209,7 +211,6 @@ Constructor for PdfExportSettings
       QStringList exportThemes;
 
       QVector<qreal> predefinedMapScales;
-
     };
 
     ExportResult exportToPdf( const QString &filePath, const QgsLayoutExporter::PdfExportSettings &settings );
@@ -269,6 +270,7 @@ Constructor for PrintExportSettings
 
     };
 
+%If (HAVE_QTPRINTER)
 
     ExportResult print( QPrinter &printer, const QgsLayoutExporter::PrintExportSettings &settings );
 %Docstring
@@ -287,6 +289,8 @@ Exports a layout ``iterator`` to a ``printer``, with the specified export ``sett
 Returns a result code indicating whether the export was successful or an
 error was encountered. If an error was obtained then ``error`` will be set
 to the error description.
+%End
+
 %End
 
     struct SvgExportSettings

@@ -11,12 +11,13 @@ __copyright__ = 'Copyright 2016, The QGIS Project'
 
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import QgsGeometry, QgsGeometryValidator, QgsPointXY
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 app = start_app()
 
 
-class TestQgsGeometryValidator(unittest.TestCase):
+class TestQgsGeometryValidator(QgisTestCase):
 
     def testIssue15660(self):
         """ Test crash when validating geometry (#15660) """
@@ -72,6 +73,59 @@ class TestQgsGeometryValidator(unittest.TestCase):
 
         self.assertEqual(spy[2][0].where(), QgsPointXY(1, 1))
         self.assertEqual(spy[2][0].what(), 'line 1 contains 3 duplicate node(s) starting at vertex 1')
+
+    def test_linestring_intersections(self):
+        # no intersections
+        g = QgsGeometry.fromWkt("LineString (0 0, 10 0, 10 10, 0 10)")
+        validator = QgsGeometryValidator(g)
+        spy = QSignalSpy(validator.errorFound)
+        validator.run()
+
+        self.assertEqual(len(spy), 0)
+
+        # accept closed linestring
+        g = QgsGeometry.fromWkt("LineString (0 0, 10 0, 10 10, 0 10, 0 0)")
+        validator = QgsGeometryValidator(g)
+        spy = QSignalSpy(validator.errorFound)
+        validator.run()
+
+        self.assertEqual(len(spy), 0)
+
+        # accept segment on segment
+        # well, this case is ambiguous
+        g = QgsGeometry.fromWkt("LineString (0 0, 10 0, 10 10, 0 10, 10 10)")
+        validator = QgsGeometryValidator(g)
+        spy = QSignalSpy(validator.errorFound)
+        validator.run()
+
+        self.assertEqual(len(spy), 0)
+
+        # self-intersection
+        g = QgsGeometry.fromWkt("LineString (0 0, 10 10, 0 10, 10 0)")
+        validator = QgsGeometryValidator(g)
+        spy = QSignalSpy(validator.errorFound)
+        validator.run()
+
+        self.assertEqual(len(spy), 1)
+        self.assertEqual(spy[0][0].where(), QgsPointXY(5, 5))
+        self.assertEqual(spy[0][0].what(), 'segments 0 and 2 of line 0 intersect at 5, 5')
+
+        # tests issue #54022
+        # Test number 1
+        g = QgsGeometry.fromWkt("LineString (10.516394879668999 59.73620343022049894, 10.51672588102520045 59.73642831668259845, 10.51671297289430029 59.73629479296509004, 10.516394879668999 59.73620343022049894)")
+        validator = QgsGeometryValidator(g)
+        spy = QSignalSpy(validator.errorFound)
+        validator.run()
+
+        self.assertEqual(len(spy), 0)
+
+        # Test number 2
+        g = QgsGeometry.fromWkt("LINESTRING (10.516394879668999 59.73620343022049894, 10.51672588102520045 59.73642831668259845, 10.51671297289430029 59.73619479296509004, 10.516394879668999 59.73620343022049894)")
+        validator = QgsGeometryValidator(g)
+        spy = QSignalSpy(validator.errorFound)
+        validator.run()
+
+        self.assertEqual(len(spy), 0)
 
     def test_ring_intersections(self):
         # no intersections

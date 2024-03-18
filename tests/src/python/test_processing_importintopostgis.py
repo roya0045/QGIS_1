@@ -20,7 +20,8 @@ from qgis.core import (
     QgsSettings,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -35,11 +36,12 @@ class ConsoleFeedBack(QgsProcessingFeedback):
         self._errors.append(error)
 
 
-class TestExportToPostGis(unittest.TestCase):
+class TestExportToPostGis(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(
             "QGIS_TestPyQgsExportToPostgis.com")
@@ -56,7 +58,7 @@ class TestExportToPostGis(unittest.TestCase):
         settings.setValue('database', 'qgis_test')
 
     def test_import(self):
-        """Test algorithm with CamelCaseSchema"""
+        """Test algorithm with CamelCase'singlequote'Schema"""
 
         alg = self.registry.createAlgorithmById("qgis:importintopostgis")
         self.assertIsNotNone(alg)
@@ -74,7 +76,7 @@ class TestExportToPostGis(unittest.TestCase):
             'LOWERCASE_NAMES': True,
             'OVERWRITE': True,
             'PRIMARY_KEY': None,
-            'SCHEMA': 'CamelCaseSchema',
+            'SCHEMA': "CamelCase'singlequote'Schema",
             'TABLENAME': table_name
         }
 
@@ -88,11 +90,11 @@ class TestExportToPostGis(unittest.TestCase):
         # Check that data have been imported correctly
         exported = QgsVectorLayer(unitTestDataPath() + '/points.shp', 'exported')
         self.assertTrue(exported.isValid())
-        imported = QgsVectorLayer(f"service='qgis_test' table=\"CamelCaseSchema\".\"{table_name}\" (geom)", 'imported', 'postgres')
+        imported = QgsVectorLayer(f"service='qgis_test' table=\"CamelCase'singlequote'Schema\".\"{table_name}\" (geom)", 'imported', 'postgres')
         self.assertTrue(imported.isValid())
         imported_fields = [f.name() for f in imported.fields()]
         for f in exported.fields():
-            self.assertTrue(f.name().lower() in imported_fields)
+            self.assertIn(f.name().lower(), imported_fields)
 
         # Check data
         imported_f = next(imported.getFeatures("class = 'Jet' AND heading = 85"))

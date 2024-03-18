@@ -46,14 +46,16 @@ QgsProcessingFieldMapPanelWidget::QgsProcessingFieldMapPanelWidget( QWidget *par
   mFieldsView->setDestinationEditable( true );
 
   mLayerCombo->setAllowEmptyLayer( true );
-  mLayerCombo->setFilters( QgsMapLayerProxyModel::VectorLayer );
+  mLayerCombo->setFilters( Qgis::LayerFilter::VectorLayer );
 
   connect( mResetButton, &QPushButton::clicked, this, &QgsProcessingFieldMapPanelWidget::loadFieldsFromLayer );
   connect( mAddButton, &QPushButton::clicked, this, &QgsProcessingFieldMapPanelWidget::addField );
   connect( mDeleteButton, &QPushButton::clicked, mFieldsView, &QgsFieldMappingWidget::removeSelectedFields );
   connect( mUpButton, &QPushButton::clicked, mFieldsView, &QgsFieldMappingWidget::moveSelectedFieldsUp );
   connect( mDownButton, &QPushButton::clicked, mFieldsView, &QgsFieldMappingWidget::moveSelectedFieldsDown );
+  connect( mInvertSelectionButton, &QPushButton::clicked, mFieldsView, &QgsFieldMappingWidget::invertSelection );
   connect( mLoadLayerFieldsButton, &QPushButton::clicked, this, &QgsProcessingFieldMapPanelWidget::loadLayerFields );
+
 
   connect( mFieldsView, &QgsFieldMappingWidget::changed, this, [ = ]
   {
@@ -110,6 +112,8 @@ QVariant QgsProcessingFieldMapPanelWidget::value() const
     def.insert( QStringLiteral( "precision" ), field.field.precision() );
     def.insert( QStringLiteral( "sub_type" ), static_cast< int >( field.field.subType() ) );
     def.insert( QStringLiteral( "expression" ), field.expression );
+    def.insert( QStringLiteral( "alias" ), field.field.alias() );
+    def.insert( QStringLiteral( "comment" ), field.field.comment() );
     results.append( def );
   }
   return results;
@@ -135,6 +139,8 @@ void QgsProcessingFieldMapPanelWidget::setValue( const QVariant &value )
                 map.value( QStringLiteral( "precision" ), 0 ).toInt(),
                 QString(),
                 static_cast< QVariant::Type >( map.value( QStringLiteral( "sub_type" ), QVariant::Invalid ).toInt() ) );
+    f.setAlias( map.value( QStringLiteral( "alias" ) ).toString() );
+    f.setComment( map.value( QStringLiteral( "comment" ) ).toString() );
 
     if ( map.contains( QStringLiteral( "constraints" ) ) )
     {
@@ -260,7 +266,7 @@ QgsProcessingFieldMapParameterDefinitionWidget::QgsProcessingFieldMapParameterDe
   setLayout( vlayout );
 }
 
-QgsProcessingParameterDefinition *QgsProcessingFieldMapParameterDefinitionWidget::createParameter( const QString &name, const QString &description, QgsProcessingParameterDefinition::Flags flags ) const
+QgsProcessingParameterDefinition *QgsProcessingFieldMapParameterDefinitionWidget::createParameter( const QString &name, const QString &description, Qgis::ProcessingParameterFlags flags ) const
 {
   auto param = std::make_unique< QgsProcessingParameterFieldMapping >( name, description, mParentLayerComboBox->currentData().toString() );
   param->setFlags( flags );

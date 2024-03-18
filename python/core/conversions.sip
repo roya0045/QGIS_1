@@ -1362,6 +1362,8 @@ template <TYPE>
 };
 
 %MappedType QList<qint64>
+        /TypeHintIn="Iterable[int]",
+        TypeHintOut="List[int]", TypeHintValue="[]"/
 {
 %TypeHeaderCode
 #include <QList>
@@ -1408,6 +1410,55 @@ template <TYPE>
 %End
 };
 
+
+%MappedType QVector<long long>
+    /TypeHintIn="Iterable[int]",
+    TypeHintOut="List[int]", TypeHintValue="[]"/
+{
+%TypeHeaderCode
+#include <QVector>
+    %End
+
+    %ConvertFromTypeCode
+        // Create the list.
+        PyObject *l;
+
+if ((l = PyList_New(sipCpp->size())) == NULL)
+    return NULL;
+
+// Set the list elements.
+QVector<long long>::iterator it = sipCpp->begin();
+for (int i = 0; it != sipCpp->end(); ++it, ++i)
+{
+    PyObject *tobj;
+
+    if ((tobj = PyLong_FromLongLong(*it)) == NULL)
+    {
+      Py_DECREF(l);
+      return NULL;
+    }
+    PyList_SET_ITEM(l, i, tobj);
+}
+
+return l;
+%End
+
+    %ConvertToTypeCode
+    // Check the type if that is all that is required.
+    if (sipIsErr == NULL)
+    return PyList_Check(sipPy);
+
+QVector<long long> *qlist = new QVector<long long>;
+qlist->reserve( PyList_GET_SIZE(sipPy) );
+for (int i = 0; i < PyList_GET_SIZE(sipPy); ++i)
+{
+    *qlist << PyLong_AsLongLong(PyList_GET_ITEM(sipPy, i));
+}
+
+*sipCppPtr = qlist;
+return sipGetState(sipTransferObj);
+%End
+};
 
 
 %MappedType QSet<qint64>
@@ -2008,6 +2059,108 @@ template<TYPE1, TYPE2>
 %End
 };
 
+
+%MappedType QMap<QgsFieldConstraints::Constraint, QgsFieldConstraints::ConstraintStrength>
+/TypeHint="Dict[QgsFieldConstraints.Constraint, QgsFieldConstraints.ConstraintStrength]", TypeHintValue="{}"/
+{
+%TypeHeaderCode
+#include <QMap>
+#include "qgsfieldconstraints.h"
+%End
+
+%ConvertFromTypeCode
+    // Create the dictionary.
+    PyObject *d = PyDict_New();
+
+    if (!d)
+        return NULL;
+
+    // Set the dictionary elements.
+    QMap<QgsFieldConstraints::Constraint, QgsFieldConstraints::ConstraintStrength>::const_iterator i = sipCpp->constBegin();
+
+    while (i != sipCpp->constEnd())
+    {
+        PyObject *kobj = sipConvertFromEnum(static_cast<int>(i.key()),
+                                            sipType_QgsFieldConstraints_Constraint);
+        PyObject *vobj = sipConvertFromEnum(static_cast<int>(i.value()),
+                                            sipType_QgsFieldConstraints_ConstraintStrength);
+
+        if (kobj == NULL || vobj == NULL || PyDict_SetItem(d, kobj, vobj) < 0)
+        {
+            Py_DECREF(d);
+
+            if (kobj)
+                Py_DECREF(kobj);
+
+            if (vobj)
+                Py_DECREF(vobj);
+
+            return NULL;
+        }
+
+        Py_DECREF(kobj);
+        Py_DECREF(vobj);
+
+        ++i;
+    }
+
+    return d;
+%End
+
+%ConvertToTypeCode
+    PyObject *key, *value;
+    Py_ssize_t i = 0;
+
+    // Check the type if that is all that is required.
+    if (sipIsErr == NULL)
+    {
+        return PyDict_Check(sipPy);
+    }
+
+    // Create a new QMap to hold the values
+    QMap<QgsFieldConstraints::Constraint, QgsFieldConstraints::ConstraintStrength> *map = new QMap<QgsFieldConstraints::Constraint, QgsFieldConstraints::ConstraintStrength>;
+
+    // Loop over the Python dictionary items
+    while (PyDict_Next(sipPy, &i, &key, &value))
+    {
+        // Convert the key and value Python objects to C++ types
+        int keyVal = sipConvertToEnum(key, sipType_QgsFieldConstraints_Constraint);
+
+        if (PyErr_Occurred())
+        {
+            PyErr_Format(PyExc_TypeError,
+                         "a key has type '%s' but 'QgsFieldConstraints.Constraint' is expected",
+                         sipPyTypeName(Py_TYPE(key)));
+
+            delete map;
+            *sipIsErr = 1;
+
+            return 0;
+        }
+
+        int valueVal = sipConvertToEnum(value, sipType_QgsFieldConstraints_ConstraintStrength);
+
+        if (PyErr_Occurred())
+        {
+            PyErr_Format(PyExc_TypeError,
+                         "a value has type '%s' but 'QgsFieldConstraints.ConstraintStrength' is expected",
+                         sipPyTypeName(Py_TYPE(value)));
+
+            delete map;
+            *sipIsErr = 1;
+
+            return 0;
+        }
+
+        // Add the key and value to the map
+        map->insert(static_cast<QgsFieldConstraints::Constraint>(keyVal), static_cast<QgsFieldConstraints::ConstraintStrength>(valueVal));
+    }
+
+    *sipCppPtr = map;
+
+    return sipGetState(sipTransferObj);
+%End
+};
 
 
 template<double, TYPE>
@@ -3068,6 +3221,10 @@ bool null_from_qvariant_converter( const QVariant *varp, PyObject **objp )
     return false;
   }
 }
+%End
+
+%ModuleHeaderCode
+#define SIP_PYQT_FROM_QVARIANT_BY_TYPE "pyqt5_from_qvariant_by_type"
 %End
 
 %PostInitialisationCode  //#spellok

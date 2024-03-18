@@ -56,22 +56,6 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
     static const QString POSTGRES_KEY;
     static const QString POSTGRES_DESCRIPTION;
 
-    enum Relkind
-    {
-      NotSet,
-      Unknown,
-      OrdinaryTable, // r
-      Index, // i
-      Sequence, // s
-      View, // v
-      MaterializedView, // m
-      CompositeType, // c
-      ToastTable, // t
-      ForeignTable, // f
-      PartitionedTable // p - PostgreSQL 10
-    };
-    Q_ENUM( Relkind )
-
     /**
      * Import a vector layer into the database
      * \param options options for provider, specified via a map of option name
@@ -146,6 +130,7 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
     void setExtent( QgsRectangle &newExtent );
 
     QgsRectangle extent() const override;
+    QgsBox3D extent3D() const override;
     void updateExtents() override;
 
     /**
@@ -170,8 +155,7 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
                                        QgsFeedback *feedback = nullptr ) const override;
     void enumValues( int index, QStringList &enumList ) const override;
     bool isValid() const override;
-    bool isSaveAndLoadStyleToDatabaseSupported() const override { return true; }
-    bool isDeleteStyleFromDatabaseSupported() const override { return true; }
+    Qgis::ProviderStyleStorageCapabilities styleStorageCapabilities() const override;
     QgsAttributeList attributeIndexes() const override;
     QgsAttributeList pkAttributeIndexes() const override { return mPrimaryKeyAttrs; }
     QString defaultValueClause( int fieldId ) const override;
@@ -197,7 +181,8 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
     bool setSubsetString( const QString &theSQL, bool updateFeatureCount = true ) override;
     bool supportsSubsetString() const override { return true; }
     QgsVectorDataProvider::Capabilities capabilities() const override;
-    SpatialIndexPresence hasSpatialIndex() const override;
+    Qgis::VectorDataProviderAttributeEditCapabilities attributeEditCapabilities() const override;
+    Qgis::SpatialIndexPresence hasSpatialIndex() const override;
 
     /**
      * The Postgres provider does its own transforms so we return
@@ -225,7 +210,6 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
     static QVariant convertValue( QVariant::Type type, QVariant::Type subType, const QString &value, const QString &typeName, QgsPostgresConn *conn );
 
     QList<QgsRelation> discoverRelations( const QgsVectorLayer *target, const QList<QgsVectorLayer *> &layers ) const override;
-    QgsAttrPalIndexNameHash palAttributeIndexNames() const override;
 
     /**
      * Returns true if the data source has metadata, false otherwise. For
@@ -235,7 +219,6 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
      *
      * \returns true if data source has metadata, false otherwise.
      *
-     * \since QGIS 3.0
      */
     bool hasMetadata() const override;
 
@@ -243,7 +226,6 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
      * Launch a listening thead to listen to postgres NOTIFY on "qgis" channel
      * the notification is transformed into a Qt signal.
      *
-     * \since QGIS 3.0
      */
     void setListening( bool isListening ) override;
 
@@ -256,7 +238,7 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
     /**
      * \returns relation kind
      */
-    Relkind relkind() const;
+    Qgis::PostgresRelKind relkind() const;
 
     /**
      * Change internal query with \a query
@@ -354,9 +336,6 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
     */
     void reloadProviderData() override;
 
-    //! Old-style mapping of index to name for QgsPalLabeling fix
-    QgsAttrPalIndexNameHash mAttrPalIndexName;
-
     QgsFields mAttributeFields;
     QHash<int, char> mIdentityFields;
     QString mDataComment;
@@ -397,7 +376,7 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
     /**
      * Kind of relation
      */
-    mutable Relkind mKind = Relkind::NotSet;
+    mutable Qgis::PostgresRelKind mKind = Qgis::PostgresRelKind::NotSet;
 
     /**
      * Data type for the primary key
@@ -417,7 +396,7 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
 
     QString mGeometryColumn;          //!< Name of the geometry column
     QString mBoundingBoxColumn;       //!< Name of the bounding box column
-    mutable QgsRectangle mLayerExtent;        //!< Rectangle that contains the extent (bounding box) of the layer
+    mutable QgsBox3D mLayerExtent;        //!< Rectangle that contains the extent (bounding box) of the layer
 
     Qgis::WkbType mDetectedGeomType = Qgis::WkbType::Unknown ;  //!< Geometry type detected in the database
     Qgis::WkbType mRequestedGeomType = Qgis::WkbType::Unknown ; //!< Geometry type requested in the uri
@@ -459,21 +438,6 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
 
     struct PGFieldNotFound {}; //! Exception to throw
 
-    struct PGException
-    {
-        explicit PGException( QgsPostgresResult &r )
-          : mWhat( r.PQresultErrorMessage() )
-        {}
-
-        QString errorMessage() const
-        {
-          return mWhat;
-        }
-
-      private:
-        QString mWhat;
-    };
-
     // A function that determines if the given columns contain unique entries
     bool uniqueData( const QString &quotedColNames );
 
@@ -484,7 +448,7 @@ class QgsPostgresProvider final: public QgsVectorDataProvider
 
     QString paramValue( const QString &fieldvalue, const QString &defaultValue ) const;
 
-    QgsPostgresConn *mConnectionRO = nullptr ; //!< Read-only database connection (initially)
+    mutable QgsPostgresConn *mConnectionRO = nullptr ; //!< Read-only database connection (initially)
     QgsPostgresConn *mConnectionRW = nullptr ; //!< Read-write database connection (on update)
 
     QgsPostgresConn *connectionRO() const;

@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2017, The QGIS Project'
 
 import os
 
-import qgis  # NOQA
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import (
     QgsCoordinateReferenceSystem,
@@ -22,7 +21,8 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.gui import QgsExtentGroupBox
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -30,11 +30,11 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsExtentGroupBox(unittest.TestCase):
+class TestQgsExtentGroupBox(QgisTestCase):
 
     def testGettersSetters(self):
         """ test widget getters/setters """
-        w = qgis.gui.QgsExtentGroupBox()
+        w = QgsExtentGroupBox()
 
         w.setOriginalExtent(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('epsg:3111'))
         self.assertEqual(w.originalExtent(), QgsRectangle(1, 2, 3, 4))
@@ -80,7 +80,7 @@ class TestQgsExtentGroupBox(unittest.TestCase):
         self.assertEqual(len(spy), 3)
 
     def test_SettingExtent(self):
-        w = qgis.gui.QgsExtentGroupBox()
+        w = QgsExtentGroupBox()
 
         spy = QSignalSpy(w.extentChanged)
 
@@ -89,17 +89,17 @@ class TestQgsExtentGroupBox(unittest.TestCase):
 
         w.setOutputExtentFromOriginal()
         self.assertEqual(w.outputExtent(), QgsRectangle(1, 2, 3, 4))
-        self.assertEqual(w.extentState(), QgsExtentGroupBox.OriginalExtent)
+        self.assertEqual(w.extentState(), QgsExtentGroupBox.ExtentState.OriginalExtent)
         self.assertEqual(len(spy), 1)
 
         w.setOutputExtentFromCurrent()
         self.assertEqual(w.outputExtent(), QgsRectangle(11, 12, 13, 14))
-        self.assertEqual(w.extentState(), QgsExtentGroupBox.CurrentExtent)
+        self.assertEqual(w.extentState(), QgsExtentGroupBox.ExtentState.CurrentExtent)
         self.assertEqual(len(spy), 2)
 
         w.setOutputExtentFromUser(QgsRectangle(21, 22, 23, 24), QgsCoordinateReferenceSystem('epsg:3111'))
         self.assertEqual(w.outputExtent(), QgsRectangle(21, 22, 23, 24))
-        self.assertEqual(w.extentState(), QgsExtentGroupBox.UserExtent)
+        self.assertEqual(w.extentState(), QgsExtentGroupBox.ExtentState.UserExtent)
         self.assertEqual(len(spy), 3)
 
         shapefile = os.path.join(TEST_DATA_DIR, 'polys.shp')
@@ -110,18 +110,18 @@ class TestQgsExtentGroupBox(unittest.TestCase):
         # no layer - should be unchanged
         self.assertEqual(len(spy), 3)
         self.assertEqual(w.outputExtent(), QgsRectangle(21, 22, 23, 24))
-        self.assertEqual(w.extentState(), QgsExtentGroupBox.UserExtent)
+        self.assertEqual(w.extentState(), QgsExtentGroupBox.ExtentState.UserExtent)
         self.assertEqual(len(spy), 3)
 
         w.setOutputExtentFromLayer(layer)
         self.assertEqual(w.outputExtent().toString(4), QgsRectangle(-118.9229, 24.5079, -83.7900, 46.7262).toString(4))
-        self.assertEqual(w.extentState(), QgsExtentGroupBox.ProjectLayerExtent)
+        self.assertEqual(w.extentState(), QgsExtentGroupBox.ExtentState.ProjectLayerExtent)
         self.assertEqual(len(spy), 4)
 
         QgsProject.instance().removeAllMapLayers()
 
     def testSetOutputCrs(self):
-        w = qgis.gui.QgsExtentGroupBox()
+        w = QgsExtentGroupBox()
         w.setCheckable(True)
 
         # ensure setting output crs doesn't change state of group box
@@ -146,7 +146,7 @@ class TestQgsExtentGroupBox(unittest.TestCase):
         self.assertEqual(w.outputExtent().toString(20), QgsRectangle(1, 2, 3, 4).toString(20))
 
         # repeat, this time using original extents
-        w = qgis.gui.QgsExtentGroupBox()
+        w = QgsExtentGroupBox()
 
         w.setOutputCrs(QgsCoordinateReferenceSystem('epsg:4326'))
         w.setOriginalExtent(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('epsg:4326'))
@@ -182,7 +182,7 @@ class TestQgsExtentGroupBox(unittest.TestCase):
         self.assertEqual(w.outputExtent().toString(20), QgsRectangle(1, 2, 3, 4).toString(20))
 
         # custom extent
-        w = qgis.gui.QgsExtentGroupBox()
+        w = QgsExtentGroupBox()
 
         w.setOutputCrs(QgsCoordinateReferenceSystem('epsg:4326'))
         w.setOutputExtentFromUser(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('epsg:4326'))

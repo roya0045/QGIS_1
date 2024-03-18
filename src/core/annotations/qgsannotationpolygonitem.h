@@ -22,6 +22,7 @@
 #include "qgis_sip.h"
 #include "qgsannotationitem.h"
 
+class QgsCurvePolygon;
 
 /**
  * \ingroup core
@@ -52,7 +53,7 @@ class CORE_EXPORT QgsAnnotationPolygonItem : public QgsAnnotationItem
     static QgsAnnotationPolygonItem *create() SIP_FACTORY;
 
     bool readXml( const QDomElement &element, const QgsReadWriteContext &context ) override;
-    QgsAnnotationPolygonItem *clone() override SIP_FACTORY;
+    QgsAnnotationPolygonItem *clone() const override SIP_FACTORY;
     QgsRectangle boundingBox() const override;
 
     /**
@@ -71,7 +72,7 @@ class CORE_EXPORT QgsAnnotationPolygonItem : public QgsAnnotationItem
      *
      * \see geometry()
      */
-    void setGeometry( QgsCurvePolygon *geometry SIP_TRANSFER ) { mPolygon.reset( geometry ); }
+    void setGeometry( QgsCurvePolygon *geometry SIP_TRANSFER );
 
     /**
      * Returns the symbol used to render the item.

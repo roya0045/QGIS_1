@@ -516,7 +516,41 @@ static QVariant fcnLinearScale( const QVariantList &values, const QgsExpressionC
   return QVariant( m * val + c );
 }
 
-static QVariant fcnExpScale( const QVariantList &values, const QgsExpressionContext *, QgsExpression *parent, const QgsExpressionNodeFunction * )
+static QVariant fcnPolynomialScale( const QVariantList &values, const QgsExpressionContext *, QgsExpression *parent, const QgsExpressionNodeFunction * )
+{
+  double val = QgsExpressionUtils::getDoubleValue( values.at( 0 ), parent );
+  double domainMin = QgsExpressionUtils::getDoubleValue( values.at( 1 ), parent );
+  double domainMax = QgsExpressionUtils::getDoubleValue( values.at( 2 ), parent );
+  double rangeMin = QgsExpressionUtils::getDoubleValue( values.at( 3 ), parent );
+  double rangeMax = QgsExpressionUtils::getDoubleValue( values.at( 4 ), parent );
+  double exponent = QgsExpressionUtils::getDoubleValue( values.at( 5 ), parent );
+
+  if ( domainMin >= domainMax )
+  {
+    parent->setEvalErrorString( QObject::tr( "Domain max must be greater than domain min" ) );
+    return QVariant();
+  }
+  if ( exponent <= 0 )
+  {
+    parent->setEvalErrorString( QObject::tr( "Exponent must be greater than 0" ) );
+    return QVariant();
+  }
+
+  // outside of domain?
+  if ( val >= domainMax )
+  {
+    return rangeMax;
+  }
+  else if ( val <= domainMin )
+  {
+    return rangeMin;
+  }
+
+  // Return polynomially scaled value
+  return QVariant( ( ( rangeMax - rangeMin ) / std::pow( domainMax - domainMin, exponent ) ) * std::pow( val - domainMin, exponent ) + rangeMin );
+}
+
+static QVariant fcnExponentialScale( const QVariantList &values, const QgsExpressionContext *, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
   double val = QgsExpressionUtils::getDoubleValue( values.at( 0 ), parent );
   double domainMin = QgsExpressionUtils::getDoubleValue( values.at( 1 ), parent );
@@ -547,7 +581,8 @@ static QVariant fcnExpScale( const QVariantList &values, const QgsExpressionCont
   }
 
   // Return exponentially scaled value
-  return QVariant( ( ( rangeMax - rangeMin ) / std::pow( domainMax - domainMin, exponent ) ) * std::pow( val - domainMin, exponent ) + rangeMin );
+  double ratio = ( std::pow( exponent, val - domainMin ) - 1 ) / ( std::pow( exponent, domainMax - domainMin ) - 1 );
+  return QVariant( ( rangeMax - rangeMin ) * ratio + rangeMin );
 }
 
 static QVariant fcnMax( const QVariantList &values, const QgsExpressionContext *, QgsExpression *parent, const QgsExpressionNodeFunction * )
@@ -624,7 +659,7 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
   value = node->eval( parent, context );
   ENSURE_NO_EVAL_ERROR
   bool ok = false;
-  QgsAggregateCalculator::Aggregate aggregate = QgsAggregateCalculator::stringToAggregate( QgsExpressionUtils::getStringValue( value, parent ), &ok );
+  Qgis::Aggregate aggregate = QgsAggregateCalculator::stringToAggregate( QgsExpressionUtils::getStringValue( value, parent ), &ok );
   if ( !ok )
   {
     parent->setEvalErrorString( QObject::tr( "No such aggregate '%1'" ).arg( value.toString() ) );
@@ -689,6 +724,7 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
     }
     else
     {
+
       const QSet<QString> refVars = filterExp.referencedVariables() + subExp.referencedVariables();
       for ( const QString &varName : refVars )
       {
@@ -701,14 +737,27 @@ static QVariant fcnAggregate( const QVariantList &values, const QgsExpressionCon
       }
     }
 
+    if ( isStatic && ! parameters.orderBy.isEmpty() )
+    {
+      for ( const auto &orderByClause : std::as_const( parameters.orderBy ) )
+      {
+        const QgsExpression &orderByExpression { orderByClause.expression() };
+        if ( orderByExpression.referencedVariables().contains( QStringLiteral( "parent" ) ) || orderByExpression.referencedVariables().contains( QString() ) )
+        {
+          isStatic = false;
+          break;
+        }
+      }
+    }
+
     if ( !isStatic )
     {
-      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5%6:%7" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter,
+      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5%6:%7" ).arg( vl->id(), QString::number( static_cast< int >( aggregate ) ), subExpression, parameters.filter,
                  QString::number( context->feature().id() ), QString::number( qHash( context->feature() ) ), orderBy );
     }
     else
     {
-      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter, orderBy );
+      cacheKey = QStringLiteral( "aggfcn:%1:%2:%3:%4:%5" ).arg( vl->id(), QString::number( static_cast< int >( aggregate ) ), subExpression, parameters.filter, orderBy );
     }
 
     if ( context->hasCachedValue( cacheKey ) )
@@ -799,7 +848,7 @@ static QVariant fcnAggregateRelation( const QVariantList &values, const QgsExpre
   value = node->eval( parent, context );
   ENSURE_NO_EVAL_ERROR
   bool ok = false;
-  QgsAggregateCalculator::Aggregate aggregate = QgsAggregateCalculator::stringToAggregate( QgsExpressionUtils::getStringValue( value, parent ), &ok );
+  Qgis::Aggregate aggregate = QgsAggregateCalculator::stringToAggregate( QgsExpressionUtils::getStringValue( value, parent ), &ok );
   if ( !ok )
   {
     parent->setEvalErrorString( QObject::tr( "No such aggregate '%1'" ).arg( value.toString() ) );
@@ -873,7 +922,7 @@ static QVariant fcnAggregateRelation( const QVariantList &values, const QgsExpre
 }
 
 
-static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate, const QVariantList &values, QgsAggregateCalculator::AggregateParameters parameters, const QgsExpressionContext *context, QgsExpression *parent, int orderByPos = -1 )
+static QVariant fcnAggregateGeneric( Qgis::Aggregate aggregate, const QVariantList &values, QgsAggregateCalculator::AggregateParameters parameters, const QgsExpressionContext *context, QgsExpression *parent, int orderByPos = -1 )
 {
   if ( !context )
   {
@@ -969,12 +1018,12 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
   QString cacheKey;
   if ( !isStatic )
   {
-    cacheKey = QStringLiteral( "agg:%1:%2:%3:%4:%5%6:%7" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter,
+    cacheKey = QStringLiteral( "agg:%1:%2:%3:%4:%5%6:%7" ).arg( vl->id(), QString::number( static_cast< int >( aggregate ) ), subExpression, parameters.filter,
                QString::number( context->feature().id() ), QString::number( qHash( context->feature() ) ), orderBy );
   }
   else
   {
-    cacheKey = QStringLiteral( "agg:%1:%2:%3:%4:%5" ).arg( vl->id(), QString::number( aggregate ), subExpression, parameters.filter, orderBy );
+    cacheKey = QStringLiteral( "agg:%1:%2:%3:%4:%5" ).arg( vl->id(), QString::number( static_cast< int >( aggregate ) ), subExpression, parameters.filter, orderBy );
   }
 
   if ( context->hasCachedValue( cacheKey ) )
@@ -1007,92 +1056,92 @@ static QVariant fcnAggregateGeneric( QgsAggregateCalculator::Aggregate aggregate
 
 static QVariant fcnAggregateCount( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Count, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Count, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateCountDistinct( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::CountDistinct, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::CountDistinct, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateCountMissing( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::CountMissing, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::CountMissing, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMin( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Min, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Min, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMax( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Max, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Max, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateSum( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Sum, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Sum, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMean( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Mean, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Mean, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMedian( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Median, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Median, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateStdev( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::StDevSample, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::StDevSample, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateRange( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Range, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Range, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMinority( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Minority, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Minority, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMajority( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::Majority, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::Majority, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateQ1( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::FirstQuartile, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::FirstQuartile, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateQ3( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::ThirdQuartile, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::ThirdQuartile, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateIQR( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::InterQuartileRange, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::InterQuartileRange, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMinLength( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::StringMinimumLength, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::StringMinimumLength, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateMaxLength( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::StringMaximumLength, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::StringMaximumLength, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateCollectGeometry( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::GeometryCollect, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
+  return fcnAggregateGeneric( Qgis::Aggregate::GeometryCollect, values, QgsAggregateCalculator::AggregateParameters(), context, parent );
 }
 
 static QVariant fcnAggregateStringConcat( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
@@ -1109,7 +1158,7 @@ static QVariant fcnAggregateStringConcat( const QVariantList &values, const QgsE
     parameters.delimiter = value.toString();
   }
 
-  return fcnAggregateGeneric( QgsAggregateCalculator::StringConcatenate, values, parameters, context, parent, 4 );
+  return fcnAggregateGeneric( Qgis::Aggregate::StringConcatenate, values, parameters, context, parent, 4 );
 }
 
 static QVariant fcnAggregateStringConcatUnique( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
@@ -1126,12 +1175,12 @@ static QVariant fcnAggregateStringConcatUnique( const QVariantList &values, cons
     parameters.delimiter = value.toString();
   }
 
-  return fcnAggregateGeneric( QgsAggregateCalculator::StringConcatenateUnique, values, parameters, context, parent, 4 );
+  return fcnAggregateGeneric( Qgis::Aggregate::StringConcatenateUnique, values, parameters, context, parent, 4 );
 }
 
 static QVariant fcnAggregateArray( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
-  return fcnAggregateGeneric( QgsAggregateCalculator::ArrayAggregate, values, QgsAggregateCalculator::AggregateParameters(), context, parent, 3 );
+  return fcnAggregateGeneric( Qgis::Aggregate::ArrayAggregate, values, QgsAggregateCalculator::AggregateParameters(), context, parent, 3 );
 }
 
 static QVariant fcnMapScale( const QVariantList &, const QgsExpressionContext *context, QgsExpression *, const QgsExpressionNodeFunction * )
@@ -5352,6 +5401,74 @@ static QVariant fcnAzimuth( const QVariantList &values, const QgsExpressionConte
   }
 }
 
+static QVariant fcnBearing( const QVariantList &values, const QgsExpressionContext *context, QgsExpression *parent, const QgsExpressionNodeFunction * )
+{
+  const QgsGeometry geom1 = QgsExpressionUtils::getGeometry( values.at( 0 ), parent );
+  const QgsGeometry geom2 = QgsExpressionUtils::getGeometry( values.at( 1 ), parent );
+  QString sourceCrs = QgsExpressionUtils::getStringValue( values.at( 2 ), parent );
+  QString ellipsoid = QgsExpressionUtils::getStringValue( values.at( 3 ), parent );
+
+  if ( geom1.isNull() || geom2.isNull() || geom1.type() != Qgis::GeometryType::Point || geom2.type() != Qgis::GeometryType::Point )
+  {
+    parent->setEvalErrorString( QObject::tr( "Function `bearing` requires two valid point geometries." ) );
+    return QVariant();
+  }
+
+  const QgsPointXY point1 = geom1.asPoint();
+  const QgsPointXY point2 = geom2.asPoint();
+  if ( point1.isEmpty() || point2.isEmpty() )
+  {
+    parent->setEvalErrorString( QObject::tr( "Function `bearing` requires point geometries or multi point geometries with a single part." ) );
+    return QVariant();
+  }
+
+  QgsCoordinateTransformContext tContext;
+  if ( context )
+  {
+    tContext = context->variable( QStringLiteral( "_project_transform_context" ) ).value<QgsCoordinateTransformContext>();
+
+    if ( sourceCrs.isEmpty() )
+    {
+      sourceCrs = context->variable( QStringLiteral( "layer_crs" ) ).toString();
+    }
+
+    if ( ellipsoid.isEmpty() )
+    {
+      ellipsoid = context->variable( QStringLiteral( "project_ellipsoid" ) ).toString();
+    }
+  }
+
+  const QgsCoordinateReferenceSystem sCrs = QgsCoordinateReferenceSystem( sourceCrs );
+  if ( !sCrs.isValid() )
+  {
+    parent->setEvalErrorString( QObject::tr( "Function `bearing` requires a valid source CRS." ) );
+    return QVariant();
+  }
+
+  QgsDistanceArea da;
+  da.setSourceCrs( sCrs, tContext );
+  if ( !da.setEllipsoid( ellipsoid ) )
+  {
+    parent->setEvalErrorString( QObject::tr( "Function `bearing` requires a valid ellipsoid acronym or ellipsoid authority ID." ) );
+    return QVariant();
+  }
+
+  try
+  {
+    const double bearing = da.bearing( point1, point2 );
+    if ( std::isfinite( bearing ) )
+    {
+      return std::fmod( bearing + 2 * M_PI, 2 * M_PI );
+    }
+  }
+  catch ( QgsCsException &cse )
+  {
+    QgsMessageLog::logMessage( QObject::tr( "Error caught in bearing() function: %1" ).arg( cse.what() ) );
+    return QVariant();
+  }
+  return QVariant();
+}
+
 static QVariant fcnProject( const QVariantList &values, const QgsExpressionContext *, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
   QgsGeometry geom = QgsExpressionUtils::getGeometry( values.at( 0 ), parent );
@@ -5996,7 +6113,7 @@ static QVariant fncColorPart( const QVariantList &values, const QgsExpressionCon
 static QVariant fcnCreateRamp( const QVariantList &values, const QgsExpressionContext *, QgsExpression *parent, const QgsExpressionNodeFunction * )
 {
   const QVariantMap map = QgsExpressionUtils::getMapValue( values.at( 0 ), parent );
-  if ( map.count() < 1 )
+  if ( map.empty() )
   {
     parent->setEvalErrorString( QObject::tr( "A minimum of two colors is required to create a ramp" ) );
     return QVariant();
@@ -6030,6 +6147,9 @@ static QVariant fcnCreateRamp( const QVariantList &values, const QgsExpressionCo
     }
   }
   bool discrete = values.at( 1 ).toBool();
+
+  if ( colors.empty() )
+    return QVariant();
 
   return QVariant::fromValue( QgsGradientColorRamp( colors.first(), colors.last(), discrete, stops ) );
 }
@@ -6246,7 +6366,7 @@ static QVariant fcnGetFeature( const QVariantList &values, const QgsExpressionCo
     req.setFeedback( context->feedback() );
   if ( !parent->needsGeometry() )
   {
-    req.setFlags( QgsFeatureRequest::NoGeometry );
+    req.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   }
   QgsFeatureIterator fIt = featureSource->getFeatures( req );
 
@@ -6387,6 +6507,8 @@ static QVariant fcnGetLayerProperty( const QVariantList &values, const QgsExpres
       return layer->crs().toProj();
     else if ( QString::compare( layerProperty, QStringLiteral( "crs_description" ), Qt::CaseInsensitive ) == 0 )
       return layer->crs().description();
+    else if ( QString::compare( layerProperty, QStringLiteral( "crs_ellipsoid" ), Qt::CaseInsensitive ) == 0 )
+      return layer->crs().ellipsoidAcronym();
     else if ( QString::compare( layerProperty, QStringLiteral( "extent" ), Qt::CaseInsensitive ) == 0 )
     {
       QgsGeometry extentGeom = QgsGeometry::fromRect( layer->extent() );
@@ -6420,6 +6542,8 @@ static QVariant fcnGetLayerProperty( const QVariantList &values, const QgsExpres
           return QCoreApplication::translate( "expressions", "Point Cloud" );
         case Qgis::LayerType::Group:
           return QCoreApplication::translate( "expressions", "Group" );
+        case Qgis::LayerType::TiledScene:
+          return QCoreApplication::translate( "expressions", "Tiled Scene" );
       }
     }
     else
@@ -6501,20 +6625,20 @@ static QVariant fcnGetRasterBandStat( const QVariantList &values, const QgsExpre
       return QVariant();
     }
 
-    int stat = 0;
+    Qgis::RasterBandStatistic stat = Qgis::RasterBandStatistic::NoStatistic;
 
     if ( QString::compare( layerProperty, QStringLiteral( "avg" ), Qt::CaseInsensitive ) == 0 )
-      stat = QgsRasterBandStats::Mean;
+      stat = Qgis::RasterBandStatistic::Mean;
     else if ( QString::compare( layerProperty, QStringLiteral( "stdev" ), Qt::CaseInsensitive ) == 0 )
-      stat = QgsRasterBandStats::StdDev;
+      stat = Qgis::RasterBandStatistic::StdDev;
     else if ( QString::compare( layerProperty, QStringLiteral( "min" ), Qt::CaseInsensitive ) == 0 )
-      stat = QgsRasterBandStats::Min;
+      stat = Qgis::RasterBandStatistic::Min;
     else if ( QString::compare( layerProperty, QStringLiteral( "max" ), Qt::CaseInsensitive ) == 0 )
-      stat = QgsRasterBandStats::Max;
+      stat = Qgis::RasterBandStatistic::Max;
     else if ( QString::compare( layerProperty, QStringLiteral( "range" ), Qt::CaseInsensitive ) == 0 )
-      stat = QgsRasterBandStats::Range;
+      stat = Qgis::RasterBandStatistic::Range;
     else if ( QString::compare( layerProperty, QStringLiteral( "sum" ), Qt::CaseInsensitive ) == 0 )
-      stat = QgsRasterBandStats::Sum;
+      stat = Qgis::RasterBandStatistic::Sum;
     else
     {
       parent->setEvalErrorString( QObject::tr( "Invalid raster statistic: '%1'" ).arg( layerProperty ) );
@@ -6524,18 +6648,20 @@ static QVariant fcnGetRasterBandStat( const QVariantList &values, const QgsExpre
     QgsRasterBandStats stats = rl->dataProvider()->bandStatistics( band, stat );
     switch ( stat )
     {
-      case QgsRasterBandStats::Mean:
+      case Qgis::RasterBandStatistic::Mean:
         return stats.mean;
-      case QgsRasterBandStats::StdDev:
+      case Qgis::RasterBandStatistic::StdDev:
         return stats.stdDev;
-      case QgsRasterBandStats::Min:
+      case Qgis::RasterBandStatistic::Min:
         return stats.minimumValue;
-      case QgsRasterBandStats::Max:
+      case Qgis::RasterBandStatistic::Max:
         return stats.maximumValue;
-      case QgsRasterBandStats::Range:
+      case Qgis::RasterBandStatistic::Range:
         return stats.range;
-      case QgsRasterBandStats::Sum:
+      case Qgis::RasterBandStatistic::Sum:
         return stats.sum;
+      default:
+        break;
     }
     return QVariant();
   }, foundLayer );
@@ -7966,7 +8092,6 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
   // crashes in the WFS provider may occur, since it can parse expressions
   // in parallel.
   // The mutex needs to be recursive.
-  static QRecursiveMutex sFunctionsMutex;
   QMutexLocker locker( &sFunctionsMutex );
 
   QList<QgsExpressionFunction *> &functions = *sFunctions();
@@ -7990,6 +8115,7 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
         << new QgsStaticExpressionFunction( QStringLiteral( "radians" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "degrees" ) ), fcnRadians, QStringLiteral( "Math" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "degrees" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "radians" ) ), fcnDegrees, QStringLiteral( "Math" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "azimuth" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "point_a" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "point_b" ) ), fcnAzimuth, QStringLiteral( "GeometryGroup" ) )
+        << new QgsStaticExpressionFunction( QStringLiteral( "bearing" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "point_a" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "point_b" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "source_crs" ), true, QVariant() ) << QgsExpressionFunction::Parameter( QStringLiteral( "ellipsoid" ), true, QVariant() ), fcnBearing, QStringLiteral( "GeometryGroup" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "inclination" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "point_a" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "point_b" ) ), fcnInclination, QStringLiteral( "GeometryGroup" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "project" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "point" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "distance" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "azimuth" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "elevation" ), true, M_PI_2 ), fcnProject, QStringLiteral( "GeometryGroup" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "abs" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) ), fcnAbs, QStringLiteral( "Math" ) )
@@ -8019,7 +8145,8 @@ const QList<QgsExpressionFunction *> &QgsExpression::Functions()
         << new QgsStaticExpressionFunction( QStringLiteral( "min" ), -1, fcnMin, QStringLiteral( "Math" ), QString(), false, QSet<QString>(), false, QStringList(), /* handlesNull = */ true )
         << new QgsStaticExpressionFunction( QStringLiteral( "clamp" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "max" ) ), fcnClamp, QStringLiteral( "Math" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "scale_linear" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) )  << QgsExpressionFunction::Parameter( QStringLiteral( "domain_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "domain_max" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_max" ) ), fcnLinearScale, QStringLiteral( "Math" ) )
-        << new QgsStaticExpressionFunction( QStringLiteral( "scale_exp" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) )  << QgsExpressionFunction::Parameter( QStringLiteral( "domain_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "domain_max" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_max" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "exponent" ) ), fcnExpScale, QStringLiteral( "Math" ) )
+        << new QgsStaticExpressionFunction( QStringLiteral( "scale_polynomial" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) )  << QgsExpressionFunction::Parameter( QStringLiteral( "domain_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "domain_max" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_max" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "exponent" ) ), fcnPolynomialScale, QStringLiteral( "Math" ), QString(), false, QSet<QString>(), false, QStringList() << QStringLiteral( "scale_exp" ) )
+        << new QgsStaticExpressionFunction( QStringLiteral( "scale_exponential" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) )  << QgsExpressionFunction::Parameter( QStringLiteral( "domain_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "domain_max" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_min" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "range_max" ) ) << QgsExpressionFunction::Parameter( QStringLiteral( "exponent" ) ), fcnExponentialScale, QStringLiteral( "Math" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "floor" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) ), fcnFloor, QStringLiteral( "Math" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "ceil" ), QgsExpressionFunction::ParameterList() << QgsExpressionFunction::Parameter( QStringLiteral( "value" ) ), fcnCeil, QStringLiteral( "Math" ) )
         << new QgsStaticExpressionFunction( QStringLiteral( "pi" ), 0, fcnPi, QStringLiteral( "Math" ), QString(), false, QSet<QString>(), false, QStringList() << QStringLiteral( "$pi" ) )
@@ -9152,9 +9279,12 @@ bool QgsExpression::registerFunction( QgsExpressionFunction *function, bool tran
   {
     return false;
   }
+
+  QMutexLocker locker( &sFunctionsMutex );
   sFunctions()->append( function );
   if ( transferOwnership )
     sOwnedFunctions()->append( function );
+
   return true;
 }
 
@@ -9168,7 +9298,9 @@ bool QgsExpression::unregisterFunction( const QString &name )
   int fnIdx = functionIndex( name );
   if ( fnIdx != -1 )
   {
+    QMutexLocker locker( &sFunctionsMutex );
     sFunctions()->removeAt( fnIdx );
+    sFunctionIndexMap.clear();
     return true;
   }
   return false;
@@ -9237,9 +9369,11 @@ QVariant QgsArrayForeachExpressionFunction::run( QgsExpressionNode::NodeList *ar
   QgsExpressionContextScope *subScope = new QgsExpressionContextScope();
   subContext->appendScope( subScope );
 
-  for ( QVariantList::const_iterator it = array.constBegin(); it != array.constEnd(); ++it )
+  int i = 0;
+  for ( QVariantList::const_iterator it = array.constBegin(); it != array.constEnd(); ++it, ++i )
   {
     subScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "element" ), *it, true ) );
+    subScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "counter" ), i, true ) );
     result << args->at( 1 )->eval( parent, subContext );
   }
 
@@ -9277,6 +9411,7 @@ bool QgsArrayForeachExpressionFunction::prepare( const QgsExpressionNodeFunction
 
   QgsExpressionContextScope *subScope = new QgsExpressionContextScope();
   subScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "element" ), QVariant(), true ) );
+  subScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "counter" ), QVariant(), true ) );
   subContext.appendScope( subScope );
 
   args->at( 1 )->prepare( parent, &subContext );

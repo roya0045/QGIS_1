@@ -17,7 +17,8 @@ import tempfile
 
 from qgis.PyQt.QtCore import QCoreApplication, QObject
 from qgis.core import QgsApplication, QgsArcGisPortalUtils, QgsSettings
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
 def sanitize(endpoint, x):
@@ -59,11 +60,12 @@ class MessageLogger(QObject):
         return self.log
 
 
-class TestPyQgsArcGisPortalUtils(unittest.TestCase):
+class TestPyQgsArcGisPortalUtils(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestPyQgsAFSProvider.com")
@@ -80,6 +82,7 @@ class TestPyQgsArcGisPortalUtils(unittest.TestCase):
         """Run after all tests"""
         QgsSettings().clear()
         # shutil.rmtree(cls.basetestpath, True)
+        super().tearDownClass()
 
     def testUserInfoSelf(self):
         """
@@ -257,26 +260,26 @@ class TestPyQgsArcGisPortalUtils(unittest.TestCase):
           ]
         }""")
         res = QgsArcGisPortalUtils.retrieveGroupItemsOfType('http://' + endpoint, 'ab1', '',
-                                                            [QgsArcGisPortalUtils.FeatureService], pageSize=2)
+                                                            [QgsArcGisPortalUtils.ItemType.FeatureService], pageSize=2)
         # no errors
         self.assertFalse(res[1])
         self.assertFalse(res[2])
         self.assertEqual(res[0], [{'id': '74', 'title': 'Item 1', 'type': 'Feature Service'}])
         res = QgsArcGisPortalUtils.retrieveGroupItemsOfType('http://' + endpoint, 'ab1', '',
-                                                            [QgsArcGisPortalUtils.MapService], pageSize=2)
+                                                            [QgsArcGisPortalUtils.ItemType.MapService], pageSize=2)
         # no errors
         self.assertFalse(res[1])
         self.assertFalse(res[2])
         self.assertEqual(res[0], [{'id': '20', 'title': 'Item 2', 'type': 'Map Service'}])
         res = QgsArcGisPortalUtils.retrieveGroupItemsOfType('http://' + endpoint, 'ab1', '',
-                                                            [QgsArcGisPortalUtils.ImageService], pageSize=2)
+                                                            [QgsArcGisPortalUtils.ItemType.ImageService], pageSize=2)
         # no errors
         self.assertFalse(res[1])
         self.assertFalse(res[2])
         self.assertEqual(res[0], [{'id': '75', 'title': 'Item 3', 'type': 'Image Service'}])
         res = QgsArcGisPortalUtils.retrieveGroupItemsOfType('http://' + endpoint, 'ab1', '',
-                                                            [QgsArcGisPortalUtils.FeatureService,
-                                                             QgsArcGisPortalUtils.MapService], pageSize=2)
+                                                            [QgsArcGisPortalUtils.ItemType.FeatureService,
+                                                             QgsArcGisPortalUtils.ItemType.MapService], pageSize=2)
         # no errors
         self.assertFalse(res[1])
         self.assertFalse(res[2])

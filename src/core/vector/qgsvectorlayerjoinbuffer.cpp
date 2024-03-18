@@ -144,7 +144,7 @@ void QgsVectorLayerJoinBuffer::cacheJoinLayer( QgsVectorLayerJoinInfo &joinInfo 
     joinInfo.cachedAttributes.clear();
 
     QgsFeatureRequest request;
-    request.setFlags( QgsFeatureRequest::NoGeometry );
+    request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
     // maybe user requested just a subset of layer's attributes
     // so we do not have to cache everything
     QVector<int> subsetIndices;
@@ -222,7 +222,7 @@ QVector<int> QgsVectorLayerJoinBuffer::joinSubsetIndices( const QgsFields &joinL
     }
     else
     {
-      QgsDebugMsg( "Join layer subset field not found: " + joinedFieldName );
+      QgsDebugError( "Join layer subset field not found: " + joinedFieldName );
     }
   }
 
@@ -581,7 +581,7 @@ bool QgsVectorLayerJoinBuffer::addFeatures( QgsFeatureList &features, QgsFeature
         const QString filter = QgsExpression::createFieldEqualityExpression( info.joinFieldName(), idFieldValue.toString() );
 
         QgsFeatureRequest request;
-        request.setFlags( QgsFeatureRequest::NoGeometry );
+        request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
         request.setNoAttributes();
         request.setFilterExpression( filter );
         request.setLimit( 1 );

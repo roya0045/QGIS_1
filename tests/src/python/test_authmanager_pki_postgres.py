@@ -34,7 +34,8 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -45,7 +46,7 @@ __copyright__ = 'Copyright 2016, The QGIS Project'
 qgis_app = start_app()
 
 
-class TestAuthManager(unittest.TestCase):
+class TestAuthManager(QgisTestCase):
 
     @classmethod
     def setUpAuth(cls):
@@ -84,14 +85,10 @@ class TestAuthManager(unittest.TestCase):
     def setUpClass(cls):
         """Run before all tests:
         Creates an auth configuration"""
+        super().setUpClass()
 
         cls.certsdata_path = os.path.join(unitTestDataPath('auth_system'), 'certs_keys_2048')
         cls.setUpAuth()
-
-    @classmethod
-    def tearDownClass(cls):
-        """Run after all tests"""
-        super().tearDownClass()
 
     def setUp(self):
         """Run before each test."""
@@ -109,8 +106,8 @@ class TestAuthManager(unittest.TestCase):
         if layer_name is None:
             layer_name = 'pg_' + type_name
         uri = QgsDataSourceUri()
-        uri.setWkbType(QgsWkbTypes.Point)
-        uri.setConnection(cls.pg_host, cls.pg_port, cls.pg_dbname, cls.pg_user, cls.pg_pass, QgsDataSourceUri.SslVerifyFull, authcfg)
+        uri.setWkbType(QgsWkbTypes.Type.Point)
+        uri.setConnection(cls.pg_host, cls.pg_port, cls.pg_dbname, cls.pg_user, cls.pg_pass, QgsDataSourceUri.SslMode.SslVerifyFull, authcfg)
         uri.setKeyColumn('pk')
         uri.setSrid('EPSG:4326')
         uri.setDataSource('qgis_test', 'someData', "geom", "", "pk")
@@ -142,7 +139,7 @@ class TestAuthManager(unittest.TestCase):
             pkies = glob.glob(os.path.join(tempfile.gettempdir(), 'tmp*_{*}.pem'))
             for fn in pkies:
                 f = QFile(fn)
-                f.setPermissions(QFile.WriteOwner)
+                f.setPermissions(QFile.Permission.WriteOwner)
                 f.remove()
 
         # remove any temppki in temporary path to check that no

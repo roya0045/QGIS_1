@@ -29,7 +29,6 @@
 #include "qgswfsdatasourceuri.h"
 #include "qgswfsprovider.h"
 #include "qgssettings.h"
-#include "qgsstyle.h"
 
 #ifdef HAVE_GUI
 #include "qgswfssourceselect.h"
@@ -103,7 +102,7 @@ QVector<QgsDataItem *> QgsWfsConnectionItem::createChildrenOapif()
 QVector<QgsDataItem *> QgsWfsConnectionItem::createChildren()
 {
   const QgsDataSourceUri uri( mUri );
-  QgsDebugMsg( "mUri = " + mUri );
+  QgsDebugMsgLevel( "mUri = " + mUri, 2 );
 
   const bool synchronous = true;
   const bool forceRefresh = false;
@@ -202,9 +201,9 @@ QString QgsWfsDataItemProvider::dataProviderKey() const
   return QStringLiteral( "WFS" );
 }
 
-int QgsWfsDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsWfsDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Net;
+  return Qgis::DataItemProviderCapability::NetworkSources;
 }
 
 QgsDataItem *QgsWfsDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )

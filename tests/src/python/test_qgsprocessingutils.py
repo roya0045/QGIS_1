@@ -12,13 +12,15 @@ __date__ = '7.3.2022'
 __copyright__ = 'Copyright 2022, The QGIS Project'
 
 from qgis.core import QgsField, QgsFields, QgsProcessingUtils
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
-class TestQgsProcessingUtils(unittest.TestCase):
+class TestQgsProcessingUtils(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         start_app()
 
     def test_combineFields_no_name_conflict(self):

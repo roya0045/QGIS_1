@@ -24,12 +24,14 @@
 #include "qgsogrsourceselect.h"
 #include "qgsogrdbsourceselect.h"
 #include "qgsapplication.h"
-#include "qgsprovidermetadata.h"
 #include "qgsdataitemguiprovider.h"
 #include "qgsgeopackageitemguiprovider.h"
 #include "qgsogritemguiprovider.h"
 #include "qgsgeopackageprojectstorageguiprovider.h"
 #include "qgsprojectstorageguiprovider.h"
+#include "qgsprovidersourcewidgetprovider.h"
+#include "qgsogrfilesourcewidget.h"
+#include "qgsmaplayer.h"
 
 static const QString TEXT_PROVIDER_KEY = QStringLiteral( "ogr" );
 
@@ -43,6 +45,7 @@ class QgsOgrVectorSourceSelectProvider : public QgsSourceSelectProvider
     int ordering() const override { return QgsSourceSelectProvider::OrderLocalProvider + 10; }
     QIcon icon() const override { return QgsApplication::getThemeIcon( QStringLiteral( "/mActionAddOgrLayer.svg" ) ); }
     QgsAbstractDataSourceWidget *createDataSourceWidget( QWidget *parent = nullptr, Qt::WindowFlags fl = Qt::Widget, QgsProviderRegistry::WidgetMode widgetMode = QgsProviderRegistry::WidgetMode::Embedded ) const override;
+    QgsSourceSelectProvider::Capabilities capabilities() override;
 };
 
 
@@ -57,6 +60,16 @@ class QgsGeoPackageSourceSelectProvider : public QgsSourceSelectProvider
     int ordering() const override { return QgsSourceSelectProvider::OrderLocalProvider + 45; }
     QIcon icon() const override { return QgsApplication::getThemeIcon( QStringLiteral( "/mActionAddGeoPackageLayer.svg" ) ); }
     QgsAbstractDataSourceWidget *createDataSourceWidget( QWidget *parent = nullptr, Qt::WindowFlags fl = Qt::Widget, QgsProviderRegistry::WidgetMode widgetMode = QgsProviderRegistry::WidgetMode::Embedded ) const override;
+    QgsSourceSelectProvider::Capabilities capabilities() override;
+};
+
+class QgsOgrSourceWidgetProvider : public QgsProviderSourceWidgetProvider
+{
+  public:
+    QgsOgrSourceWidgetProvider();
+    QString providerKey() const override;
+    bool canHandleLayer( QgsMapLayer *layer ) const override;
+    QgsProviderSourceWidget *createWidget( QgsMapLayer *layer, QWidget *parent = nullptr ) override;
 };
 
 
@@ -84,10 +97,63 @@ QgsAbstractDataSourceWidget *QgsGeoPackageSourceSelectProvider::createDataSource
   return new QgsOgrDbSourceSelect( QStringLiteral( "GPKG" ), QObject::tr( "GeoPackage" ), QObject::tr( "GeoPackage Database (*.gpkg)" ), parent, fl, widgetMode );
 }
 
+QgsSourceSelectProvider::Capabilities QgsGeoPackageSourceSelectProvider::capabilities()
+{
+  return QgsSourceSelectProvider::Capability::ConfigureFromUri;
+}
+
 QgsAbstractDataSourceWidget *QgsOgrVectorSourceSelectProvider::createDataSourceWidget( QWidget *parent, Qt::WindowFlags fl, QgsProviderRegistry::WidgetMode widgetMode ) const
 {
   return new QgsOgrSourceSelect( parent, fl, widgetMode );
 }
+
+QgsSourceSelectProvider::Capabilities QgsOgrVectorSourceSelectProvider::capabilities()
+{
+  return QgsSourceSelectProvider::Capability::ConfigureFromUri;
+}
+
+
+//
+// QgsOgrSourceWidgetProvider
+//
+
+QgsOgrSourceWidgetProvider::QgsOgrSourceWidgetProvider()
+{
+
+}
+
+QString QgsOgrSourceWidgetProvider::providerKey() const
+{
+  return QStringLiteral( "ogr" );
+}
+
+bool QgsOgrSourceWidgetProvider::canHandleLayer( QgsMapLayer *layer ) const
+{
+  if ( layer->providerType() != QLatin1String( "ogr" ) )
+    return false;
+
+  const QVariantMap parts = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "ogr" ), layer->source() );
+  if ( parts.value( QStringLiteral( "path" ) ).toString().isEmpty() )
+    return false;
+
+  return true;
+}
+
+QgsProviderSourceWidget *QgsOgrSourceWidgetProvider::createWidget( QgsMapLayer *layer, QWidget *parent )
+{
+  if ( layer->providerType() != QLatin1String( "ogr" ) )
+    return nullptr;
+
+  const QVariantMap parts = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "ogr" ), layer->source() );
+  if ( parts.value( QStringLiteral( "path" ) ).toString().isEmpty() )
+    return nullptr;
+
+  return new QgsOgrFileSourceWidget( parent );
+}
+
+//
+// QgsOgrGuiProviderMetadata
+//
 
 QgsOgrGuiProviderMetadata::QgsOgrGuiProviderMetadata()
   : QgsProviderGuiMetadata( TEXT_PROVIDER_KEY )
@@ -119,7 +185,13 @@ QList<QgsProjectStorageGuiProvider *> QgsOgrGuiProviderMetadata::projectStorageG
   QList<QgsProjectStorageGuiProvider *> providers;
   providers << new QgsGeoPackageProjectStorageGuiProvider();
   return providers;
+}
 
+QList<QgsProviderSourceWidgetProvider *> QgsOgrGuiProviderMetadata::sourceWidgetProviders()
+{
+  QList<QgsProviderSourceWidgetProvider *> providers;
+  providers << new QgsOgrSourceWidgetProvider();
+  return providers;
 }
 
 ///@endcond

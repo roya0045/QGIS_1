@@ -327,7 +327,7 @@ void TestQgsDualView::testNoGeom()
   // check that both master model AND cache are using geometry
   QgsAttributeTableModel *model = dv->masterModel();
   QVERIFY( model->layerCache()->cacheGeometry() );
-  QVERIFY( !( model->request().flags() & QgsFeatureRequest::NoGeometry ) );
+  QVERIFY( !( model->request().flags() & Qgis::FeatureRequestFlag::NoGeometry ) );
 
   // request with NO geometry, but using filter rect (which should override and request geom)
   req = QgsFeatureRequest().setFilterRect( QgsRectangle( 1, 2, 3, 4 ) );
@@ -335,15 +335,15 @@ void TestQgsDualView::testNoGeom()
   dv->init( mPointsLayer, mCanvas, req );
   model = dv->masterModel();
   QVERIFY( model->layerCache()->cacheGeometry() );
-  QVERIFY( !( model->request().flags() & QgsFeatureRequest::NoGeometry ) );
+  QVERIFY( !( model->request().flags() & Qgis::FeatureRequestFlag::NoGeometry ) );
 
   // request with NO geometry
-  req = QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry );
+  req = QgsFeatureRequest().setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   dv.reset( new QgsDualView() );
   dv->init( mPointsLayer, mCanvas, req );
   model = dv->masterModel();
   QVERIFY( !model->layerCache()->cacheGeometry() );
-  QVERIFY( ( model->request().flags() & QgsFeatureRequest::NoGeometry ) );
+  QVERIFY( ( model->request().flags() & Qgis::FeatureRequestFlag::NoGeometry ) );
 }
 
 #ifdef WITH_QTWEBKIT
@@ -378,11 +378,11 @@ void TestQgsDualView::testHtmlWidget()
   QgsAttributeEditorHtmlElement *htmlElement = new QgsAttributeEditorHtmlElement( "HtmlWidget", nullptr );
   htmlElement->setHtmlCode( QStringLiteral( "The text is '<script>document.write(expression.evaluate(\"%1\"));</script>'" ).arg( expression ) );
   editFormConfig.addTab( htmlElement );
-  editFormConfig.setLayout( QgsEditFormConfig::TabLayout );
+  editFormConfig.setLayout( Qgis::AttributeFormLayout::DragAndDrop );
   layer.setEditFormConfig( editFormConfig );
 
   QgsFeatureRequest request;
-  request.setFlags( QgsFeatureRequest::NoGeometry );
+  request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
 
   QgsDualView dualView;
   dualView.setView( QgsDualView::AttributeEditor );

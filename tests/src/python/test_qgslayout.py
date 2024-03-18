@@ -13,7 +13,6 @@ import os
 import shutil
 import tempfile
 
-import qgis  # NOQA
 from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QPointF, Qt
 from qgis.PyQt.QtTest import QSignalSpy
@@ -36,28 +35,33 @@ from qgis.core import (
     QgsReadWriteContext,
     QgsUnitTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
+from utilities import unitTestDataPath
 
+TEST_DATA_DIR = unitTestDataPath()
 start_app()
 
 
-class TestQgsLayout(unittest.TestCase):
+class TestQgsLayout(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         cls.basetestpath = tempfile.mkdtemp()
 
     @classmethod
     def tearDownClass(cls):
         """Run after all tests"""
         shutil.rmtree(cls.basetestpath, True)
+        super().tearDownClass()
 
     def testReadWriteXml(self):
         p = QgsProject()
         l = QgsPrintLayout(p)
         l.setName('my layout')
-        l.setUnits(QgsUnitTypes.LayoutInches)
+        l.setUnits(QgsUnitTypes.LayoutUnit.LayoutInches)
         collection = l.pageCollection()
 
         # add a page
@@ -66,9 +70,9 @@ class TestQgsLayout(unittest.TestCase):
         collection.addPage(page)
 
         grid = l.gridSettings()
-        grid.setResolution(QgsLayoutMeasurement(5, QgsUnitTypes.LayoutPoints))
+        grid.setResolution(QgsLayoutMeasurement(5, QgsUnitTypes.LayoutUnit.LayoutPoints))
 
-        g1 = QgsLayoutGuide(Qt.Horizontal, QgsLayoutMeasurement(5, QgsUnitTypes.LayoutCentimeters),
+        g1 = QgsLayoutGuide(Qt.Orientation.Horizontal, QgsLayoutMeasurement(5, QgsUnitTypes.LayoutUnit.LayoutCentimeters),
                             l.pageCollection().page(0))
         l.guides().addGuide(g1)
 
@@ -91,17 +95,17 @@ class TestQgsLayout(unittest.TestCase):
         l2 = QgsPrintLayout(p)
         self.assertTrue(l2.readXml(elem, doc, QgsReadWriteContext()))
         self.assertEqual(l2.name(), 'my layout')
-        self.assertEqual(l2.units(), QgsUnitTypes.LayoutInches)
+        self.assertEqual(l2.units(), QgsUnitTypes.LayoutUnit.LayoutInches)
 
         collection2 = l2.pageCollection()
         self.assertEqual(collection2.pageCount(), 1)
         self.assertAlmostEqual(collection2.page(0).pageSize().width(), 105, 4)
         self.assertEqual(collection2.page(0).pageSize().height(), 148)
         self.assertEqual(l2.gridSettings().resolution().length(), 5.0)
-        self.assertEqual(l2.gridSettings().resolution().units(), QgsUnitTypes.LayoutPoints)
-        self.assertEqual(l2.guides().guidesOnPage(0)[0].orientation(), Qt.Horizontal)
+        self.assertEqual(l2.gridSettings().resolution().units(), QgsUnitTypes.LayoutUnit.LayoutPoints)
+        self.assertEqual(l2.guides().guidesOnPage(0)[0].orientation(), Qt.Orientation.Horizontal)
         self.assertEqual(l2.guides().guidesOnPage(0)[0].position().length(), 5.0)
-        self.assertEqual(l2.guides().guidesOnPage(0)[0].position().units(), QgsUnitTypes.LayoutCentimeters)
+        self.assertEqual(l2.guides().guidesOnPage(0)[0].position().units(), QgsUnitTypes.LayoutUnit.LayoutCentimeters)
         self.assertEqual(l2.snapper().snapTolerance(), 7)
 
         # check restored items
@@ -120,13 +124,13 @@ class TestQgsLayout(unittest.TestCase):
         # add some items
         item1 = QgsLayoutItemLabel(l)
         item1.setId('xxyyxx')
-        item1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutMillimeters))
-        item1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
+        item1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        item1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         l.addItem(item1)
         item2 = QgsLayoutItemLabel(l)
         item2.setId('zzyyzz')
-        item2.attemptMove(QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutCentimeters))
-        item2.attemptResize(QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutCentimeters))
+        item2.attemptMove(QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
+        item2.attemptResize(QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
         l.addItem(item2)
 
         doc = QDomDocument("testdoc")
@@ -139,14 +143,14 @@ class TestQgsLayout(unittest.TestCase):
         items = l2.items()
         self.assertTrue([i for i in items if i.id() == 'xxyyxx'])
         self.assertTrue([i for i in items if i.id() == 'zzyyzz'])
-        self.assertTrue(new_items[0] in l2.items())
-        self.assertTrue(new_items[1] in l2.items())
+        self.assertIn(new_items[0], l2.items())
+        self.assertIn(new_items[1], l2.items())
         new_item1 = [i for i in items if i.id() == 'xxyyxx'][0]
         new_item2 = [i for i in items if i.id() == 'zzyyzz'][0]
-        self.assertEqual(new_item1.positionWithUnits(), QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutMillimeters))
-        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
-        self.assertEqual(new_item2.positionWithUnits(), QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutCentimeters))
-        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutCentimeters))
+        self.assertEqual(new_item1.positionWithUnits(), QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        self.assertEqual(new_item2.positionWithUnits(), QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
+        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
 
         # test with a group
         group = QgsLayoutItemGroup(l)
@@ -161,9 +165,9 @@ class TestQgsLayout(unittest.TestCase):
         items = l3.items()
         self.assertTrue([i for i in items if i.id() == 'xxyyxx'])
         self.assertTrue([i for i in items if i.id() == 'zzyyzz'])
-        self.assertTrue(new_items[0] in l3.items())
-        self.assertTrue(new_items[1] in l3.items())
-        self.assertTrue(new_items[2] in l3.items())
+        self.assertIn(new_items[0], l3.items())
+        self.assertIn(new_items[1], l3.items())
+        self.assertIn(new_items[2], l3.items())
 
         # f*** you sip, I'll just manually cast
         new_group = sip.cast(l3.itemByUuid(group.uuid()), QgsLayoutItemGroup)
@@ -178,10 +182,10 @@ class TestQgsLayout(unittest.TestCase):
         items = l3.items()
         new_item1 = [i for i in items if i.id() == 'xxyyxx'][0]
         new_item2 = [i for i in items if i.id() == 'zzyyzz'][0]
-        self.assertEqual(new_item1.positionWithUnits(), QgsLayoutPoint(10, 30, QgsUnitTypes.LayoutMillimeters))
-        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
-        self.assertEqual(new_item2.positionWithUnits(), QgsLayoutPoint(2.0, 4.0, QgsUnitTypes.LayoutCentimeters))
-        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutCentimeters))
+        self.assertEqual(new_item1.positionWithUnits(), QgsLayoutPoint(10, 30, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        self.assertEqual(new_item2.positionWithUnits(), QgsLayoutPoint(2.0, 4.0, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
+        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
 
         # paste in place
         l4 = QgsLayout(p)
@@ -196,11 +200,11 @@ class TestQgsLayout(unittest.TestCase):
         self.assertEqual(len(new_items), 3)
         new_item1 = [i for i in new_items if i.id() == 'xxyyxx'][0]
         new_item2 = [i for i in new_items if i.id() == 'zzyyzz'][0]
-        self.assertEqual(new_item1.pagePositionWithUnits(), QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutMillimeters))
-        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
+        self.assertEqual(new_item1.pagePositionWithUnits(), QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         self.assertEqual(new_item1.page(), 0)
-        self.assertEqual(new_item2.pagePositionWithUnits(), QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutCentimeters))
-        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutCentimeters))
+        self.assertEqual(new_item2.pagePositionWithUnits(), QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
+        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
         self.assertEqual(new_item2.page(), 0)
 
         # paste in place, page 2
@@ -208,12 +212,12 @@ class TestQgsLayout(unittest.TestCase):
         self.assertEqual(len(new_items), 3)
         new_item1 = [i for i in new_items if i.id() == 'xxyyxx'][0]
         new_item2 = [i for i in new_items if i.id() == 'zzyyzz'][0]
-        self.assertEqual(new_item1.pagePositionWithUnits(), QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutMillimeters))
+        self.assertEqual(new_item1.pagePositionWithUnits(), QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         self.assertEqual(new_item1.page(), 1)
-        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
-        self.assertEqual(new_item2.pagePositionWithUnits(), QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutCentimeters))
+        self.assertEqual(new_item1.sizeWithUnits(), QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        self.assertEqual(new_item2.pagePositionWithUnits(), QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
         self.assertEqual(new_item2.page(), 1)
-        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutCentimeters))
+        self.assertEqual(new_item2.sizeWithUnits(), QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
 
         # TODO - test restoring multiframe
 
@@ -227,13 +231,13 @@ class TestQgsLayout(unittest.TestCase):
         # add some items
         item1 = QgsLayoutItemLabel(l)
         item1.setId('xxyyxx')
-        item1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutMillimeters))
-        item1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
+        item1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        item1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         l.addItem(item1)
         item2 = QgsLayoutItemLabel(l)
         item2.setId('zzyyzz')
-        item2.attemptMove(QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutCentimeters))
-        item2.attemptResize(QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutCentimeters))
+        item2.attemptMove(QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
+        item2.attemptResize(QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
         l.addItem(item2)
 
         # multiframe
@@ -242,8 +246,8 @@ class TestQgsLayout(unittest.TestCase):
         l.addMultiFrame(multiframe1)
         frame1 = QgsLayoutFrame(l, multiframe1)
         frame1.setId('frame1')
-        frame1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutMillimeters))
-        frame1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
+        frame1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        frame1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         multiframe1.addFrame(frame1)
 
         multiframe2 = QgsLayoutItemHtml(l)
@@ -251,8 +255,8 @@ class TestQgsLayout(unittest.TestCase):
         l.addMultiFrame(multiframe2)
         frame2 = QgsLayoutFrame(l, multiframe2)
         frame2.setId('frame2')
-        frame2.attemptMove(QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutCentimeters))
-        frame2.attemptResize(QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutCentimeters))
+        frame2.attemptMove(QgsLayoutPoint(1.4, 1.8, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
+        frame2.attemptResize(QgsLayoutSize(2.8, 2.2, QgsUnitTypes.LayoutUnit.LayoutCentimeters))
         multiframe2.addFrame(frame2)
 
         uuids = {item1.uuid(), item2.uuid(), frame1.uuid(), frame2.uuid(), multiframe1.uuid(), multiframe2.uuid()}
@@ -279,10 +283,10 @@ class TestQgsLayout(unittest.TestCase):
         self.assertTrue([i for i in items if i.id() == 'frame2'])
         self.assertTrue([i for i in multiframes if i.html() == 'mf1'])
         self.assertTrue([i for i in multiframes if i.html() == 'mf2'])
-        self.assertTrue(new_items[0] in l2.items())
-        self.assertTrue(new_items[1] in l2.items())
-        self.assertTrue(new_items[2] in l2.items())
-        self.assertTrue(new_items[3] in l2.items())
+        self.assertIn(new_items[0], l2.items())
+        self.assertIn(new_items[1], l2.items())
+        self.assertIn(new_items[2], l2.items())
+        self.assertIn(new_items[3], l2.items())
 
         # double check that new items have a unique uid
         self.assertNotIn(new_items[0].uuid(), uuids)
@@ -323,14 +327,14 @@ class TestQgsLayout(unittest.TestCase):
         self.assertTrue([i for i in items if i.id() == 'frame2'])
         self.assertTrue([i for i in multiframes2 if i.html() == 'mf1'])
         self.assertTrue([i for i in multiframes2 if i.html() == 'mf2'])
-        self.assertTrue(new_items[0] in l2.items())
-        self.assertTrue(new_items[1] in l2.items())
-        self.assertTrue(new_items[2] in l2.items())
-        self.assertTrue(new_items[3] in l2.items())
-        self.assertTrue(new_items2[0] in l2.items())
-        self.assertTrue(new_items2[1] in l2.items())
-        self.assertTrue(new_items2[2] in l2.items())
-        self.assertTrue(new_items2[3] in l2.items())
+        self.assertIn(new_items[0], l2.items())
+        self.assertIn(new_items[1], l2.items())
+        self.assertIn(new_items[2], l2.items())
+        self.assertIn(new_items[3], l2.items())
+        self.assertIn(new_items2[0], l2.items())
+        self.assertIn(new_items2[1], l2.items())
+        self.assertIn(new_items2[2], l2.items())
+        self.assertIn(new_items2[3], l2.items())
         self.assertNotIn(new_items2[0].uuid(), uuids)
         uuids.add(new_items[0].uuid())
         self.assertNotIn(new_items2[1].uuid(), uuids)
@@ -369,10 +373,10 @@ class TestQgsLayout(unittest.TestCase):
         self.assertTrue([i for i in items if isinstance(i, QgsLayoutItem) and i.id() == 'zzyyzz'])
         self.assertTrue([i for i in items if isinstance(i, QgsLayoutItem) and i.id() == 'frame1'])
         self.assertTrue([i for i in items if isinstance(i, QgsLayoutItem) and i.id() == 'frame2'])
-        self.assertTrue(new_items3[0] in l2.items())
-        self.assertTrue(new_items3[1] in l2.items())
-        self.assertTrue(new_items3[2] in l2.items())
-        self.assertTrue(new_items3[3] in l2.items())
+        self.assertIn(new_items3[0], l2.items())
+        self.assertIn(new_items3[1], l2.items())
+        self.assertIn(new_items3[2], l2.items())
+        self.assertIn(new_items3[3], l2.items())
         new_multiframe1 = [i for i in new_multiframes if i.html() == 'mf1'][0]
         new_multiframe2 = [i for i in new_multiframes if i.html() == 'mf2'][0]
 
@@ -452,18 +456,18 @@ class TestQgsLayout(unittest.TestCase):
 
         # add some items
         item1 = QgsLayoutItemMap(l)
-        item1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutMillimeters))
-        item1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
+        item1.attemptMove(QgsLayoutPoint(4, 8, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        item1.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         l.addItem(item1)
 
         item2 = QgsLayoutItemMap(l)
-        item2.attemptMove(QgsLayoutPoint(6, 10, QgsUnitTypes.LayoutMillimeters))
-        item2.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
+        item2.attemptMove(QgsLayoutPoint(6, 10, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        item2.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         l.addItem(item2)
 
         item3 = QgsLayoutItemMap(l)
-        item3.attemptMove(QgsLayoutPoint(8, 12, QgsUnitTypes.LayoutMillimeters))
-        item3.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutMillimeters))
+        item3.attemptMove(QgsLayoutPoint(8, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
+        item3.attemptResize(QgsLayoutSize(18, 12, QgsUnitTypes.LayoutUnit.LayoutMillimeters))
         item3.setLocked(True)
         l.addItem(item3)
 
@@ -577,6 +581,19 @@ class TestQgsLayout(unittest.TestCase):
         self.assertEqual(item1.zValue(), 3)
         self.assertEqual(item2.zValue(), 1)
         self.assertEqual(item3.zValue(), 2)
+
+    def testConverGroupedHtmlLabelItem(self):
+        p = QgsProject.instance()
+        p.read(os.path.join(TEST_DATA_DIR, 'projects', 'test-project-print_layout_with_group-qgis_330.qgz'))
+        lm = p.layoutManager()
+
+        self.assertEqual(len(lm.printLayouts()), 1)
+        layout = lm.printLayouts()[0]
+        self.assertEqual(len(layout.multiFrames()), 1)
+        multi_frame = layout.multiFrames()[0]
+
+        self.assertEqual(multi_frame.html(), '<b>Lorem ipsum</b> - <i> Lorem ipsum, Lorem ipsum.</i>')
+        self.assertTrue(multi_frame.frame(0).isGroupMember())
 
 
 if __name__ == '__main__':

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     GdalUtils.py
@@ -81,7 +79,7 @@ class GdalUtils:
         isDarwin = False
         try:
             isDarwin = platform.system() == 'Darwin'
-        except IOError:  # https://travis-ci.org/m-kuhn/QGIS#L1493-L1526
+        except OSError:  # https://travis-ci.org/m-kuhn/QGIS#L1493-L1526
             pass
         if isDarwin and os.path.isfile(os.path.join(QgsApplication.prefixPath(), "bin", "gdalinfo")):
             # Looks like there's a bundled gdal. Let's use it.
@@ -92,11 +90,11 @@ class GdalUtils:
             settings = QgsSettings()
             path = settings.value('/GdalTools/gdalPath', '')
             if not path.lower() in envval.lower().split(os.pathsep):
-                envval += '{}{}'.format(os.pathsep, path)
+                envval += f'{os.pathsep}{path}'
                 os.putenv('PATH', envval)
 
         fused_command = ' '.join([str(c) for c in commands])
-        QgsMessageLog.logMessage(fused_command, 'Processing', Qgis.Info)
+        QgsMessageLog.logMessage(fused_command, 'Processing', Qgis.MessageLevel.Info)
         feedback.pushInfo(GdalUtils.tr('GDAL command:'))
         feedback.pushCommandInfo(fused_command)
         feedback.pushInfo(GdalUtils.tr('GDAL command output:'))
@@ -156,11 +154,11 @@ class GdalUtils:
         res = proc.run(feedback)
         if feedback.isCanceled() and res != 0:
             feedback.pushInfo(GdalUtils.tr('Process was canceled and did not complete'))
-        elif not feedback.isCanceled() and proc.exitStatus() == QProcess.CrashExit:
+        elif not feedback.isCanceled() and proc.exitStatus() == QProcess.ExitStatus.CrashExit:
             raise QgsProcessingException(GdalUtils.tr('Process was unexpectedly terminated'))
         elif res == 0:
             feedback.pushInfo(GdalUtils.tr('Process completed successfully'))
-        elif proc.processError() == QProcess.FailedToStart:
+        elif proc.processError() == QProcess.ProcessError.FailedToStart:
             raise QgsProcessingException(GdalUtils.tr('Process {} failed to start. Either {} is missing, or you may have insufficient permissions to run the program.').format(command, command))
         else:
             feedback.reportError(GdalUtils.tr('Process returned error code {}').format(res))
@@ -352,15 +350,15 @@ class GdalUtils:
             # #(Shape) sql='
             dsUri = layer.dataProvider().uri()
             ogrstr = 'MSSQL:'
-            ogrstr += 'database={0};'.format(dsUri.database())
-            ogrstr += 'server={0};'.format(dsUri.host())
+            ogrstr += f'database={dsUri.database()};'
+            ogrstr += f'server={dsUri.host()};'
             if dsUri.username() != "":
-                ogrstr += 'uid={0};'.format(dsUri.username())
+                ogrstr += f'uid={dsUri.username()};'
             else:
                 ogrstr += 'trusted_connection=yes;'
             if dsUri.password() != '':
-                ogrstr += 'pwd={0};'.format(dsUri.password())
-            ogrstr += 'tables={0}'.format(dsUri.table())
+                ogrstr += f'pwd={dsUri.password()};'
+            ogrstr += f'tables={dsUri.table()}'
             format = 'MSSQL'
         elif provider == "oracle":
             # OCI:user/password@host:port/service:table
@@ -395,7 +393,7 @@ class GdalUtils:
         elif provider.lower() == "wfs":
             uri = QgsDataSourceUri(layer.source())
             baseUrl = uri.param('url').split('?')[0]
-            ogrstr = "WFS:{}".format(baseUrl)
+            ogrstr = f"WFS:{baseUrl}"
             format = 'WFS'
         else:
             ogrstr = str(layer.source()).split("|")[0]
@@ -486,7 +484,7 @@ class GdalUtils:
         if crs.authid().upper().startswith('EPSG:') or crs.authid().upper().startswith('IGNF:') or crs.authid().upper().startswith('ESRI:'):
             return crs.authid()
 
-        return crs.toWkt(QgsCoordinateReferenceSystem.WKT_PREFERRED_GDAL)
+        return crs.toWkt(QgsCoordinateReferenceSystem.WktVariant.WKT_PREFERRED_GDAL)
 
     @classmethod
     def tr(cls, string, context=''):

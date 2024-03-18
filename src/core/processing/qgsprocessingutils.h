@@ -23,6 +23,7 @@
 #include "qgsrasterlayer.h"
 #include "qgsfeaturesink.h"
 #include "qgsfeaturesource.h"
+#include "qgsprocessing.h"
 #include "qgsproxyfeaturesink.h"
 #include "qgsremappingproxyfeaturesink.h"
 
@@ -37,6 +38,8 @@ class QgsProcessingAlgorithm;
 class QgsVectorTileLayer;
 class QgsPointCloudLayer;
 class QgsAnnotationLayer;
+class QgsVectorTileLayer;
+class QgsTiledSceneLayer;
 
 #include <QString>
 #include <QVariant>
@@ -45,10 +48,11 @@ class QgsAnnotationLayer;
  * \class QgsProcessingUtils
  * \ingroup core
  * \brief Utility functions for use with processing classes.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingUtils
 {
+    Q_GADGET
+
   public:
 
     /**
@@ -62,6 +66,8 @@ class CORE_EXPORT QgsProcessingUtils
      * \see compatiblePluginLayers()
      * \see compatiblePointCloudLayers()
      * \see compatibleAnnotationLayers()
+     * \see compatibleVectorTileLayers()
+     * \see compatibleTiledSceneLayers()
      * \see compatibleLayers()
      */
     static QList< QgsRasterLayer * > compatibleRasterLayers( QgsProject *project, bool sort = true );
@@ -82,6 +88,8 @@ class CORE_EXPORT QgsProcessingUtils
      * \see compatiblePluginLayers()
      * \see compatiblePointCloudLayers()
      * \see compatibleAnnotationLayers()
+     * \see compatibleVectorTileLayers()
+     * \see compatibleTiledSceneLayers()
      * \see compatibleLayers()
      */
     static QList< QgsVectorLayer * > compatibleVectorLayers( QgsProject *project,
@@ -100,6 +108,8 @@ class CORE_EXPORT QgsProcessingUtils
      * \see compatiblePluginLayers()
      * \see compatiblePointCloudLayers()
      * \see compatibleAnnotationLayers()
+     * \see compatibleVectorTileLayers()
+     * \see compatibleTiledSceneLayers()
      * \see compatibleLayers()
      *
      * \since QGIS 3.6
@@ -118,6 +128,8 @@ class CORE_EXPORT QgsProcessingUtils
      * \see compatibleMeshLayers()
      * \see compatiblePointCloudLayers()
      * \see compatibleAnnotationLayers()
+     * \see compatibleVectorTileLayers()
+     * \see compatibleTiledSceneLayers()
      * \see compatibleLayers()
      *
      * \since QGIS 3.22
@@ -136,6 +148,8 @@ class CORE_EXPORT QgsProcessingUtils
      * \see compatibleMeshLayers()
      * \see compatiblePluginLayers()
      * \see compatibleAnnotationLayers()
+     * \see compatibleVectorTileLayers()
+     * \see compatibleTiledSceneLayers()
      * \see compatibleLayers()
      *
      * \since QGIS 3.22
@@ -154,11 +168,53 @@ class CORE_EXPORT QgsProcessingUtils
      * \see compatibleMeshLayers()
      * \see compatiblePluginLayers()
      * \see compatiblePointCloudLayers()
+     * \see compatibleVectorTileLayers()
+     * \see compatibleTiledSceneLayers()
      * \see compatibleLayers()
      *
      * \since QGIS 3.22
      */
     static QList<QgsAnnotationLayer *> compatibleAnnotationLayers( QgsProject *project, bool sort = true );
+
+    /**
+     * Returns a list of vector tile layers from a \a project which are compatible with the processing
+     * framework.
+     *
+     * If the \a sort argument is TRUE then the layers will be sorted by their QgsMapLayer::name()
+     * value.
+     *
+     * \see compatibleRasterLayers()
+     * \see compatibleVectorLayers()
+     * \see compatibleMeshLayers()
+     * \see compatiblePluginLayers()
+     * \see compatiblePointCloudLayers()
+     * \see compatibleAnnotationLayers()
+     * \see compatibleTiledSceneLayers()
+     * \see compatibleLayers()
+     *
+     * \since QGIS 3.32
+     */
+    static QList<QgsVectorTileLayer *> compatibleVectorTileLayers( QgsProject *project, bool sort = true );
+
+    /**
+     * Returns a list of tiled scene layers from a \a project which are compatible with the processing
+     * framework.
+     *
+     * If the \a sort argument is TRUE then the layers will be sorted by their QgsMapLayer::name()
+     * value.
+     *
+     * \see compatibleRasterLayers()
+     * \see compatibleVectorLayers()
+     * \see compatibleMeshLayers()
+     * \see compatiblePluginLayers()
+     * \see compatiblePointCloudLayers()
+     * \see compatibleAnnotationLayers()
+     * \see compatibleVectorTileLayers()
+     * \see compatibleLayers()
+     *
+     * \since QGIS 3.34
+     */
+    static QList<QgsTiledSceneLayer *> compatibleTiledSceneLayers( QgsProject *project, bool sort = true );
 
     /**
      * Returns a list of map layers from a \a project which are compatible with the processing
@@ -204,7 +260,10 @@ class CORE_EXPORT QgsProcessingUtils
       Mesh, //!< Mesh layer type, since QGIS 3.6
       PointCloud, //!< Point cloud layer type, since QGIS 3.22
       Annotation, //!< Annotation layer type, since QGIS 3.22
+      VectorTile, //!< Vector tile layer type, since QGIS 3.32
+      TiledScene, //!< Tiled scene layer type, since QGIS 3.34
     };
+    Q_ENUM( LayerHint )
 
     /**
      * Interprets a string as a map layer within the supplied \a context.
@@ -218,7 +277,7 @@ class CORE_EXPORT QgsProcessingUtils
      *
      * The \a typeHint can be used to dictate the type of map layer expected.
      */
-    static QgsMapLayer *mapLayerFromString( const QString &string, QgsProcessingContext &context, bool allowLoadingNewLayers = true, QgsProcessingUtils::LayerHint typeHint = QgsProcessingUtils::LayerHint::UnknownType );
+    static QgsMapLayer *mapLayerFromString( const QString &string, QgsProcessingContext &context, bool allowLoadingNewLayers = true, QgsProcessingUtils::LayerHint typeHint = QgsProcessingUtils::LayerHint::UnknownType, QgsProcessing::LayerOptionsFlags flags = QgsProcessing::LayerOptionsFlags() );
 
     /**
      * Converts a variant \a value to a new feature source.
@@ -247,13 +306,22 @@ class CORE_EXPORT QgsProcessingUtils
      * Normalizes a layer \a source string for safe comparison across different
      * operating system environments.
      */
-    static QString normalizeLayerSource( const QString &source );
+    static QString normalizeLayerSource( const QString &source ) SIP_HOLDGIL;
+
+    /**
+     * Returns a string representation of the source for a \a layer. The returned
+     * value is suitable for storage for subsequent executions of an algorithm
+     * using the same layer source.
+     *
+     * \since QGIS 3.34
+     */
+    static QString layerToStringIdentifier( const QgsMapLayer *layer ) SIP_HOLDGIL;
 
     /**
      * Converts a variant to a Python literal.
      *
      * \see stringToPythonLiteral()
-     * \since QGSIS 3.6
+     * \since QGIS 3.6
      */
     static QString variantToPythonLiteral( const QVariant &value );
 
@@ -262,7 +330,7 @@ class CORE_EXPORT QgsProcessingUtils
      *
      * \see variantToPythonLiteral()
      */
-    static QString stringToPythonLiteral( const QString &string );
+    static QString stringToPythonLiteral( const QString &string ) SIP_HOLDGIL;
 
     /**
      * Creates a feature sink ready for adding features. The \a destination specifies a destination
@@ -446,20 +514,20 @@ class CORE_EXPORT QgsProcessingUtils
      * length of field names, so be aware that the results of calling this method may
      * be truncated when saving to these formats.
      */
-    static QgsFields combineFields( const QgsFields &fieldsA, const QgsFields &fieldsB, const QString &fieldsBPrefix = QString() );
+    static QgsFields combineFields( const QgsFields &fieldsA, const QgsFields &fieldsB, const QString &fieldsBPrefix = QString() ) SIP_HOLDGIL;
 
     /**
      * Returns a list of field indices parsed from the given list of field names. Unknown field names are ignored.
      * If the list of field names is empty, it is assumed that all fields are required.
      * \since QGIS 3.2
      */
-    static QList<int> fieldNamesToIndices( const QStringList &fieldNames, const QgsFields &fields );
+    static QList<int> fieldNamesToIndices( const QStringList &fieldNames, const QgsFields &fields ) SIP_HOLDGIL;
 
     /**
      * Returns a subset of fields based on the indices of desired fields.
      * \since QGIS 3.2
      */
-    static QgsFields indicesToFields( const QList<int> &indices, const QgsFields &fields );
+    static QgsFields indicesToFields( const QList<int> &indices, const QgsFields &fields ) SIP_HOLDGIL;
 
     /**
      * Returns the default vector extension to use, in the absence of all other constraints (e.g.
@@ -470,6 +538,7 @@ class CORE_EXPORT QgsProcessingUtils
      *
      * \see defaultRasterExtension()
      * \see defaultPointCloudExtension()
+     * \see defaultVectorTileExtension()
      * \since QGIS 3.10
      */
     static QString defaultVectorExtension();
@@ -483,6 +552,7 @@ class CORE_EXPORT QgsProcessingUtils
      *
      * \see defaultVectorExtension()
      * \see defaultPointCloudExtension()
+     * \see defaultVectorTileExtension()
      * \since QGIS 3.10
      */
     static QString defaultRasterExtension();
@@ -495,9 +565,23 @@ class CORE_EXPORT QgsProcessingUtils
      *
      * \see defaultVectorExtension()
      * \see defaultRasterExtension()
+     * \see defaultVectorTileExtension()
      * \since QGIS 3.24
      */
     static QString defaultPointCloudExtension();
+
+    /**
+     * Returns the default vector tile extension to use, in the absence of all other constraints (e.g.
+     * provider based support for extensions).
+     *
+     * This method returns a fallback value of "mbtiles".
+     *
+     * \see defaultVectorExtension()
+     * \see defaultRasterExtension()
+     * \see defaultPointCloudExtension()
+     * \since QGIS 3.32
+     */
+    static QString defaultVectorTileExtension();
 
     /**
      * Removes any raw pointer values from an input \a map, replacing them with
@@ -516,6 +600,16 @@ class CORE_EXPORT QgsProcessingUtils
      */
     static QVariantMap preprocessQgisProcessParameters( const QVariantMap &parameters, bool &ok, QString &error );
 
+    /**
+     * Returns the default encoding.
+     *
+     * The default encoding could be the one from "/Processing/encoding" or when it's not an allowed encoding name
+     * like "System", the default encoding system (mostly UTF-8 on Unix-like, windows-1252 on Windows).
+     *
+     * \since QGIS 3.32
+     */
+    static QString resolveDefaultEncoding( const QString &defaultEncoding = "System" );
+
   private:
     static bool canUseLayer( const QgsRasterLayer *layer );
     static bool canUseLayer( const QgsMeshLayer *layer );
@@ -523,6 +617,7 @@ class CORE_EXPORT QgsProcessingUtils
     static bool canUseLayer( const QgsVectorTileLayer *layer );
     static bool canUseLayer( const QgsPointCloudLayer *layer );
     static bool canUseLayer( const QgsAnnotationLayer *layer );
+    static bool canUseLayer( const QgsTiledSceneLayer *layer );
     static bool canUseLayer( const QgsVectorLayer *layer,
                              const QList< int > &sourceTypes = QList< int >() );
 
@@ -562,7 +657,7 @@ class CORE_EXPORT QgsProcessingUtils
      *
      * \since QGIS 3.8
      */
-    static QgsMapLayer *loadMapLayerFromString( const QString &string, const QgsCoordinateTransformContext &transformContext, LayerHint typeHint = LayerHint::UnknownType );
+    static QgsMapLayer *loadMapLayerFromString( const QString &string, const QgsCoordinateTransformContext &transformContext, LayerHint typeHint = LayerHint::UnknownType, QgsProcessing::LayerOptionsFlags flags = QgsProcessing::LayerOptionsFlags() );
 
     /**
      * Interprets a string as a map layer. The method will attempt to
@@ -586,18 +681,10 @@ class CORE_EXPORT QgsProcessingUtils
  * \ingroup core
  * \brief QgsFeatureSource subclass which proxies methods to an underlying QgsFeatureSource, modifying
  * results according to the settings in a QgsProcessingContext.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
 {
   public:
-
-    //! Flags controlling how QgsProcessingFeatureSource fetches features
-    enum Flag
-    {
-      FlagSkipGeometryValidityChecks = 1 << 1, //!< Invalid geometry checks should always be skipped. This flag can be useful for algorithms which always require invalid geometries, regardless of any user settings (e.g. "repair geometry" type algorithms).
-    };
-    Q_DECLARE_FLAGS( Flags, Flag )
 
     /**
      * Constructor for QgsProcessingFeatureSource, accepting an original feature source \a originalSource
@@ -621,9 +708,9 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
      * An optional \a request can be used to optimise the returned
      * iterator, eg by restricting the returned attributes or geometry.
      */
-    QgsFeatureIterator getFeatures( const QgsFeatureRequest &request, Flags flags ) const;
+    QgsFeatureIterator getFeatures( const QgsFeatureRequest &request, Qgis::ProcessingFeatureSourceFlags flags ) const;
 
-    QgsFeatureSource::FeatureAvailability hasFeatures() const override;
+    Qgis::FeatureAvailability hasFeatures() const override;
 
     QgsFeatureIterator getFeatures( const QgsFeatureRequest &request = QgsFeatureRequest() ) const override;
     QgsCoordinateReferenceSystem sourceCrs() const override;
@@ -636,7 +723,7 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
     QVariant maximumValue( int fieldIndex ) const override;
     QgsRectangle sourceExtent() const override;
     QgsFeatureIds allFeatureIds() const override;
-    SpatialIndexPresence hasSpatialIndex() const override;
+    Qgis::SpatialIndexPresence hasSpatialIndex() const override;
 
     /**
      * Returns an expression context scope suitable for this source.
@@ -646,15 +733,31 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
     /**
      * Overrides the default geometry check method for the source.
      *
+     * \see invalidGeometryCheck()
      * \since QGIS 3.14
      */
-    void setInvalidGeometryCheck( QgsFeatureRequest::InvalidGeometryCheck method );
+    void setInvalidGeometryCheck( Qgis::InvalidGeometryCheck method );
+
+    /**
+     * Returns the geometry check method for the source.
+     *
+     * \see setInvalidGeometryCheck()
+     * \since QGIS 3.36
+     */
+    Qgis::InvalidGeometryCheck invalidGeometryCheck() const;
 
   private:
 
     QgsFeatureSource *mSource = nullptr;
     bool mOwnsSource = false;
-    QgsFeatureRequest::InvalidGeometryCheck mInvalidGeometryCheck = QgsFeatureRequest::GeometryNoCheck;
+    QgsCoordinateReferenceSystem mSourceCrs;
+    QgsFields mSourceFields;
+    Qgis::WkbType mSourceWkbType = Qgis::WkbType::Unknown;
+    QString mSourceName;
+    QgsRectangle mSourceExtent;
+    Qgis::SpatialIndexPresence mSourceSpatialIndexPresence = Qgis::SpatialIndexPresence::Unknown;
+
+    Qgis::InvalidGeometryCheck mInvalidGeometryCheck = Qgis::InvalidGeometryCheck::NoCheck;
     std::function< void( const QgsFeature & ) > mInvalidGeometryCallback;
     std::function< void( const QgsFeature & ) > mTransformErrorCallback;
 
@@ -673,7 +776,6 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
  * \ingroup core
  * \brief QgsProxyFeatureSink subclass which reports feature addition errors to a QgsProcessingContext.
  * \note Not available in Python bindings.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingFeatureSink : public QgsProxyFeatureSink
 {

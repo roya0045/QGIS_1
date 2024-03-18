@@ -29,6 +29,10 @@
 #include "qgspointcloudproviderguimetadata.h"
 #include "qgsmaplayerconfigwidgetfactory.h"
 
+#include "qgstiledsceneproviderguimetadata.h"
+#include "qgsmbtilesvectortileguiprovider.h"
+#include "qgsvtpkvectortileguiprovider.h"
+#include "qgssensorthingsguiprovider.h"
 #ifdef HAVE_EPT
 #include "qgseptproviderguimetadata.h"
 #endif
@@ -91,6 +95,12 @@ void QgsProviderGuiRegistry::loadStaticProviders( )
   QgsProviderGuiMetadata *vt = new QgsVectorTileProviderGuiMetadata();
   mProviders[ vt->key() ] = vt;
 
+  QgsProviderGuiMetadata *mbtilesVectorTiles = new QgsMbtilesVectorTileGuiProviderMetadata();
+  mProviders[ mbtilesVectorTiles->key() ] = mbtilesVectorTiles;
+
+  QgsProviderGuiMetadata *vtpkVectorTiles = new QgsVtpkVectorTileGuiProviderMetadata();
+  mProviders[ vtpkVectorTiles->key() ] = vtpkVectorTiles;
+
 #ifdef HAVE_EPT
   QgsProviderGuiMetadata *ept = new QgsEptProviderGuiMetadata();
   mProviders[ ept->key() ] = ept;
@@ -107,6 +117,12 @@ void QgsProviderGuiRegistry::loadStaticProviders( )
     QgsProviderGuiMetadata *pointcloud = new QgsPointCloudProviderGuiMetadata();
     mProviders[ pointcloud->key() ] = pointcloud;
   }
+
+  QgsProviderGuiMetadata *tiledScene = new QgsTiledSceneProviderGuiMetadata();
+  mProviders[ tiledScene->key() ] = tiledScene;
+
+  QgsProviderGuiMetadata *sensorThings = new QgsSensorThingsProviderGuiMetadata();
+  mProviders[ sensorThings->key() ] = sensorThings;
 
 #ifdef HAVE_STATIC_PROVIDERS
   QgsProviderGuiMetadata *wms = new QgsWmsProviderGuiMetadata();
@@ -136,7 +152,7 @@ void QgsProviderGuiRegistry::loadDynamicProviders( const QString &pluginPath )
 {
 #ifdef HAVE_STATIC_PROVIDERS
   Q_UNUSED( pluginPath )
-  QgsDebugMsg( QStringLiteral( "Forced only static GUI providers" ) );
+  QgsDebugMsgLevel( QStringLiteral( "Forced only static GUI providers" ), 2 );
 #else
   typedef QgsProviderGuiMetadata *factory_function( );
 
@@ -157,7 +173,7 @@ void QgsProviderGuiRegistry::loadDynamicProviders( const QString &pluginPath )
 
   if ( mLibraryDirectory.count() == 0 )
   {
-    QgsDebugMsg( QStringLiteral( "No dynamic QGIS GUI provider plugins found in:\n%1\n" ).arg( mLibraryDirectory.path() ) );
+    QgsDebugError( QStringLiteral( "No dynamic QGIS GUI provider plugins found in:\n%1\n" ).arg( mLibraryDirectory.path() ) );
   }
 
   // provider file regex pattern, only files matching the pattern are loaded if the variable is defined
@@ -176,7 +192,7 @@ void QgsProviderGuiRegistry::loadDynamicProviders( const QString &pluginPath )
       const QRegularExpressionMatch fileNameMatch = fileRegexp.match( fi.fileName() );
       if ( !fileNameMatch.hasMatch() )
       {
-        QgsDebugMsg( "provider " + fi.fileName() + " skipped because doesn't match pattern " + filePattern );
+        QgsDebugMsgLevel( "provider " + fi.fileName() + " skipped because doesn't match pattern " + filePattern, 2 );
         continue;
       }
     }
@@ -219,11 +235,9 @@ QgsProviderGuiRegistry::~QgsProviderGuiRegistry()
 
 void QgsProviderGuiRegistry::registerGuis( QMainWindow *parent )
 {
-  GuiProviders::const_iterator it = mProviders.begin();
-  while ( it != mProviders.end() )
+  for ( auto it = mProviders.begin(); it != mProviders.end(); ++it )
   {
     it->second->registerGui( parent );
-    ++it;
   }
 }
 

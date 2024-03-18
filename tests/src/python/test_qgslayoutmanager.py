@@ -9,7 +9,6 @@ __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '15/03/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
@@ -19,7 +18,8 @@ from qgis.core import (
     QgsProject,
     QgsReport,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -27,7 +27,7 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsLayoutManager(unittest.TestCase):
+class TestQgsLayoutManager(QgisTestCase):
 
     def setUp(self):
         """Run before each test."""
@@ -229,15 +229,15 @@ class TestQgsLayoutManager(unittest.TestCase):
     def testGenerateUniqueTitle(self):
         project = QgsProject()
         manager = QgsLayoutManager(project)
-        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.PrintLayout), 'Layout 1')
-        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Report), 'Report 1')
+        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Type.PrintLayout), 'Layout 1')
+        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Type.Report), 'Report 1')
 
         layout = QgsPrintLayout(project)
         layout.setName(manager.generateUniqueTitle())
         manager.addLayout(layout)
 
         self.assertEqual(manager.generateUniqueTitle(), 'Layout 2')
-        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Report), 'Report 1')
+        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Type.Report), 'Report 1')
         layout2 = QgsPrintLayout(project)
         layout2.setName(manager.generateUniqueTitle())
         manager.addLayout(layout2)
@@ -245,13 +245,13 @@ class TestQgsLayoutManager(unittest.TestCase):
         self.assertEqual(manager.generateUniqueTitle(), 'Layout 3')
 
         report1 = QgsReport(project)
-        report1.setName(manager.generateUniqueTitle(QgsMasterLayoutInterface.Report))
+        report1.setName(manager.generateUniqueTitle(QgsMasterLayoutInterface.Type.Report))
         manager.addLayout(report1)
-        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Report), 'Report 2')
+        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Type.Report), 'Report 2')
 
         manager.clear()
         self.assertEqual(manager.generateUniqueTitle(), 'Layout 1')
-        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Report), 'Report 1')
+        self.assertEqual(manager.generateUniqueTitle(QgsMasterLayoutInterface.Type.Report), 'Report 1')
 
     def testRenameSignal(self):
         project = QgsProject()

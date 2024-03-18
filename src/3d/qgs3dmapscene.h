@@ -22,6 +22,7 @@
 
 #include "qgsrectangle.h"
 #include "qgscameracontroller.h"
+#include "qgs3dmapsceneentity_p.h"
 
 #ifndef SIP_RUN
 namespace Qt3DRender
@@ -53,7 +54,6 @@ class QgsChunkedEntity;
 class QgsSkyboxEntity;
 class QgsSkyboxSettings;
 class Qgs3DMapExportSettings;
-class QgsShadowRenderingFrameGraph;
 class QgsPostprocessingEntity;
 class QgsChunkNode;
 class QgsDoubleRange;
@@ -63,7 +63,6 @@ class QgsDoubleRange;
  * \ingroup 3d
  * \brief Entity that encapsulates our 3D scene - contains all other entities (such as terrain) as children.
  * \note Not available in Python bindings
- * \since QGIS 3.0
  */
 #ifndef SIP_RUN
 class _3D_EXPORT Qgs3DMapScene : public Qt3DCore::QEntity
@@ -79,7 +78,7 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
     Qgs3DMapScene( Qgs3DMapSettings &map, QgsAbstract3DEngine *engine ) SIP_SKIP;
 
     //! Returns camera controller
-    QgsCameraController *cameraController() { return mCameraController; }
+    QgsCameraController *cameraController() const { return mCameraController; }
 
     /**
      * Returns terrain entity (may be temporarily NULLPTR)
@@ -102,7 +101,7 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
      *
      * \since QGIS 3.26
      */
-    QVector<QgsPointXY> viewFrustum2DExtent();
+    QVector<QgsPointXY> viewFrustum2DExtent() const;
 
     //! Returns number of pending jobs of the terrain entity
     int terrainPendingJobsCount() const;
@@ -127,7 +126,7 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
      * Given screen error (in pixels) and distance from camera (in 3D world coordinates), this function
      * estimates the error in world space. Takes into account camera's field of view and the screen (3D view) size.
      */
-    float worldSpaceError( float epsilon, float distance );
+    float worldSpaceError( float epsilon, float distance ) const;
 
     //! Exports the scene according to the scene export settings
     void exportScene( const Qgs3DMapExportSettings &exportSettings );
@@ -144,7 +143,7 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
      *
      * \since QGIS 3.32
      */
-    QList<QgsMapLayer *> layers() SIP_SKIP { return mLayerEntities.keys(); }
+    QList<QgsMapLayer *> layers() const SIP_SKIP { return mLayerEntities.keys(); }
 
     /**
      * Returns the entity belonging to \a layer
@@ -158,11 +157,11 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
      *
      * \since QGIS 3.20
      */
-    QgsRectangle sceneExtent();
+    QgsRectangle sceneExtent() const;
 
     /**
      * Returns the scene's elevation range
-     * \note Only terrain and point cloud layers are taken into account
+     * \note Only some layer types are considered by this method (eg terrain, point cloud and mesh layers)
      *
      * \since QGIS 3.30
      */
@@ -173,14 +172,14 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
      *
      * \since QGIS 3.26
      */
-    Qgs3DAxis *get3DAxis() SIP_SKIP { return m3DAxis; }
+    Qgs3DAxis *get3DAxis() const SIP_SKIP { return m3DAxis; }
 
     /**
      * Returns the abstract 3D engine
      *
      * \since QGIS 3.26
      */
-    QgsAbstract3DEngine *engine() SIP_SKIP { return mEngine; }
+    QgsAbstract3DEngine *engine() const SIP_SKIP { return mEngine; }
 
     /**
      * Returns the 3D map settings.
@@ -193,10 +192,10 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
      * Returns a map of 3D map scenes (by name) open in the QGIS application.
      *
      * \note Only available from the QGIS desktop application.
-     *
+     * \deprecated since QGIS 3.36, use QgisAppInterface::mapCanvases3D() instead.
      * \since QGIS 3.30
      */
-    static QMap< QString, Qgs3DMapScene * > openScenes();
+    Q_DECL_DEPRECATED static QMap< QString, Qgs3DMapScene * > openScenes() SIP_DEPRECATED;
 
 #ifndef SIP_RUN
     //! Static function for returning open 3D map scenes
@@ -229,6 +228,13 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
      */
     void viewed2DExtentFrom3DChanged( QVector<QgsPointXY> extent );
 
+    /**
+     *  Emitted when one of the entities reaches its GPU memory limit
+     *  and it is not possible to lower the GPU memory use by unloading
+     *  data that's not currently needed.
+     */
+    void gpuMemoryLimitReached();
+
   public slots:
     //! Updates the temporale entities
     void updateTemporal();
@@ -243,7 +249,6 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
     void onBackgroundColorChanged();
     void updateLights();
     void updateCameraLens();
-    void onRenderersChanged();
     void onSkyboxSettingsChanged();
     void onShadowSettingsChanged();
     void onAmbientOcclusionSettingsChanged();
@@ -270,9 +275,10 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
     void addCameraRotationCenterEntity( QgsCameraController *controller );
     void setSceneState( SceneState state );
     void updateSceneState();
-    void updateScene();
+    void updateScene( bool forceUpdate = false );
     void finalizeNewEntity( Qt3DCore::QEntity *newEntity );
     int maximumTextureSize() const;
+    Qgs3DMapSceneEntity::SceneContext buildSceneContext( ) const;
 
   private:
     Qgs3DMapSettings &mMap;
@@ -281,12 +287,11 @@ class _3D_EXPORT Qgs3DMapScene : public QObject
     Qt3DLogic::QFrameAction *mFrameAction = nullptr;
     QgsCameraController *mCameraController = nullptr;
     QgsTerrainEntity *mTerrain = nullptr;
-    QList<QgsChunkedEntity *> mChunkEntities;
+    QList<Qgs3DMapSceneEntity *> mSceneEntities;
     //! Entity that shows view center - useful for debugging camera issues
     Qt3DCore::QEntity *mEntityCameraViewCenter = nullptr;
     //! Keeps track of entities that belong to a particular layer
     QMap<QgsMapLayer *, Qt3DCore::QEntity *> mLayerEntities;
-    QMap<const QgsAbstract3DRenderer *, Qt3DCore::QEntity *> mRenderersEntities;
     bool mTerrainUpdateScheduled = false;
     SceneState mSceneState = Ready;
     //! List of lights in the scene

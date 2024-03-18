@@ -21,7 +21,6 @@
 #include "qgis_core.h"
 #include "qgsmapsettings.h"
 
-#include "qgslabeling.h"
 #include "qgsfeedback.h"
 #include "qgslabelobstaclesettings.h"
 
@@ -47,7 +46,6 @@ namespace pal
  *
  * \note this class is not a part of public API yet. See notes in QgsLabelingEngine
  * \note not available in Python bindings
- * \since QGIS 2.12
  */
 class CORE_EXPORT QgsAbstractLabelProvider
 {
@@ -192,7 +190,7 @@ class CORE_EXPORT QgsAbstractLabelProvider
     //! Default priority of labels
     double mPriority = 0.5;
     //! Type of the obstacle of feature geometries
-    QgsLabelObstacleSettings::ObstacleType mObstacleType = QgsLabelObstacleSettings::PolygonBoundary;
+    QgsLabelObstacleSettings::ObstacleType mObstacleType = QgsLabelObstacleSettings::ObstacleType::PolygonBoundary;
     //! How to handle labels that would be upside down
     Qgis::UpsideDownLabelHandling mUpsidedownLabels = Qgis::UpsideDownLabelHandling::FlipUpsideDownLabels;
 
@@ -338,7 +336,6 @@ class CORE_EXPORT QgsLabelingEngineFeedback : public QgsFeedback
  * into feature loop vs providers with independent feature loop), split labeling
  * computation from drawing of labels, improved results class with label iterator).
  * \note not available in Python bindings
- * \since QGIS 2.12
  */
 class CORE_EXPORT QgsLabelingEngine
 {
@@ -363,7 +360,6 @@ class CORE_EXPORT QgsLabelingEngine
 
     /**
      * Returns a list of layers with providers in the engine.
-     * \since QGIS 3.0
      */
     QList< QgsMapLayer * > participatingLayers() const;
 
@@ -524,7 +520,6 @@ class CORE_EXPORT QgsStagedRenderLabelingEngine : public QgsLabelingEngine
  * \brief Contains helper utilities for working with QGIS' labeling engine.
  * \note this class is not a part of public API yet. See notes in QgsLabelingEngine
  * \note not available in Python bindings
- * \since QGIS 2.14
  */
 class CORE_EXPORT QgsLabelingUtils
 {
@@ -550,13 +545,13 @@ class CORE_EXPORT QgsLabelingUtils
      * Encodes line placement \a flags to a string.
      * \see decodeLinePlacementFlags()
      */
-    static QString encodeLinePlacementFlags( QgsLabeling::LinePlacementFlags flags );
+    static QString encodeLinePlacementFlags( Qgis::LabelLinePlacementFlags flags );
 
     /**
      * Decodes a \a string to set of line placement flags.
      * \see encodeLinePlacementFlags()
      */
-    static QgsLabeling::LinePlacementFlags decodeLinePlacementFlags( const QString &string );
+    static Qgis::LabelLinePlacementFlags decodeLinePlacementFlags( const QString &string );
 
 };
 

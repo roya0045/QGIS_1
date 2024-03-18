@@ -22,6 +22,7 @@
 #include "qgslegendrenderer.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectorlayerfeaturecounter.h"
+#include "qgslayertreefiltersettings.h"
 
 #include "qgswmsutils.h"
 #include "qgswmsrequest.h"
@@ -29,6 +30,7 @@
 #include "qgswmsgetlegendgraphics.h"
 #include "qgswmsrenderer.h"
 #include "qgsserverprojectutils.h"
+#include "qgsmapsettings.h"
 
 #include <QImage>
 #include <QJsonObject>
@@ -52,6 +54,7 @@ namespace QgsWms
     context.setFlag( QgsWmsRenderContext::UseScaleDenominator );
     context.setFlag( QgsWmsRenderContext::UseSrcWidthHeight );
     context.setParameters( parameters );
+    context.setSocketFeedback( response.feedback() );
 
     // get the requested output format
     QgsWmsParameters::Format format = parameters.format();
@@ -127,14 +130,26 @@ namespace QgsWms
     if ( format == QgsWmsParameters::Format::JSON )
     {
       QJsonObject result;
+
+      Qgis::LegendJsonRenderFlags jsonFlags;
+
+      if ( parameters.showRuleDetailsAsBool() )
+      {
+        jsonFlags.setFlag( Qgis::LegendJsonRenderFlag::ShowRuleDetails );
+      }
+
       if ( !parameters.rule().isEmpty() )
       {
-        throw QgsBadRequestException( QgsServiceException::QGIS_InvalidParameterValue,
-                                      QStringLiteral( "RULE cannot be used with JSON format" ) );
+        QgsLayerTreeModelLegendNode *node = legendNode( parameters.rule(), *model.get() );
+        if ( ! node )
+        {
+          throw QgsException( QStringLiteral( "Could not get a legend node for the requested RULE" ) );
+        }
+        result = renderer.getLegendGraphicsAsJson( *node, jsonFlags );
       }
       else
       {
-        result = renderer.getLegendGraphicsAsJson( *model.get() );
+        result = renderer.getLegendGraphicsAsJson( *model.get(), jsonFlags );
       }
       tree->clear();
       response.setHeader( QStringLiteral( "Content-Type" ), parameters.formatAsString() );
@@ -269,7 +284,10 @@ namespace QgsWms
       QList<QgsMapLayer *> layers = context.layersToRender();
       renderer.configureLayers( layers, mapSettings.get() );
       mapSettings->setLayers( context.layersToRender() );
-      model->setLegendFilterByMap( mapSettings.get() );
+
+      QgsLayerTreeFilterSettings filterSettings( *mapSettings );
+      filterSettings.setLayerFilterExpressionsFromLayerTree( model->rootGroup() );
+      model->setFilterSettings( &filterSettings );
     }
 
     // if legend is not based on rendering rules

@@ -213,7 +213,7 @@ class AlgWrapper(QgsProcessingAlgorithm):
                     raise ProcessingAlgFactoryException("{} is a invalid input type".format(type))
             parm = make_func(**kwargs)
             if advanced:
-                parm.setFlags(parm.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+                parm.setFlags(parm.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             if not output:
                 parm.setHelp(help_str)
             return parm
@@ -249,10 +249,10 @@ class AlgWrapper(QgsProcessingAlgorithm):
             value = self.parameterAsString(parameters, name, context)
             return value
         elif isinstance(parm, QgsProcessingParameterNumber):
-            if parm.dataType() == QgsProcessingParameterNumber.Integer:
+            if parm.dataType() == QgsProcessingParameterNumber.Type.Integer:
                 value = self.parameterAsInt(parameters, name, context)
                 return value
-            if parm.dataType() == QgsProcessingParameterNumber.Double:
+            if parm.dataType() == QgsProcessingParameterNumber.Type.Double:
                 value = self.parameterAsDouble(parameters, name, context)
                 return value
 
@@ -345,6 +345,8 @@ class ProcessingAlgFactory():
     LAYOUT = "LAYOUT"
     LAYOUT_ITEM = "LAYOUT_ITEM"
     DATETIME = "DATETIME"
+    DATE = "DATE"
+    TIME = "TIME"
     MAP_THEME = "MAP_THEME"
     PROVIDER_CONNECTION = "PROVIDER_CONNECTION"
     DATABASE_SCHEMA = "DATABASE_SCHEMA"
@@ -487,7 +489,9 @@ class ProcessingAlgFactory():
             alg.LAYOUT: QgsProcessingParameterLayout
             alg.LAYOUT_ITEM: QgsProcessingParameterLayoutItem
             alg.COLOR: QgsProcessingParameterColor
-            alg.DATETIME: QgsProcessingParameterDateTime
+            alg.DATETIME: QgsProcessingParameterDateTime(type=QgsProcessingParameterDateTime.Type.DateTime)
+            alg.DATE: QgsProcessingParameterDateTime(type=QgsProcessingParameterDateTime.Type.Date)
+            alg.TIME: QgsProcessingParameterDateTime(type=QgsProcessingParameterDateTime.Type.Time)
             alg.MAP_THEME: QgsProcessingParameterMapTheme
             alg.PROVIDER_CONNECTION: QgsProcessingParameterProviderConnection
             alg.DATABASE_SCHEMA: QgsProcessingParameterDatabaseSchema
@@ -512,11 +516,11 @@ class ProcessingAlgFactory():
 
 input_type_mapping = {
     str: QgsProcessingParameterString,
-    int: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Integer),
-    float: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Double),
+    int: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Integer),
+    float: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Double),
     bool: QgsProcessingParameterBoolean,
-    ProcessingAlgFactory.NUMBER: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Double),
-    ProcessingAlgFactory.INT: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Integer),
+    ProcessingAlgFactory.NUMBER: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Double),
+    ProcessingAlgFactory.INT: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Integer),
     ProcessingAlgFactory.STRING: QgsProcessingParameterString,
     ProcessingAlgFactory.DISTANCE: QgsProcessingParameterDistance,
     ProcessingAlgFactory.SINK: QgsProcessingParameterFeatureSink,
@@ -548,7 +552,9 @@ input_type_mapping = {
     ProcessingAlgFactory.LAYOUT: QgsProcessingParameterLayout,
     ProcessingAlgFactory.LAYOUT_ITEM: QgsProcessingParameterLayoutItem,
     ProcessingAlgFactory.COLOR: QgsProcessingParameterColor,
-    ProcessingAlgFactory.DATETIME: QgsProcessingParameterDateTime,
+    ProcessingAlgFactory.DATETIME: partial(QgsProcessingParameterDateTime, type=QgsProcessingParameterDateTime.Type.DateTime),
+    ProcessingAlgFactory.DATE: partial(QgsProcessingParameterDateTime, type=QgsProcessingParameterDateTime.Type.Date),
+    ProcessingAlgFactory.TIME: partial(QgsProcessingParameterDateTime, type=QgsProcessingParameterDateTime.Type.Time),
     ProcessingAlgFactory.MAP_THEME: QgsProcessingParameterMapTheme,
     ProcessingAlgFactory.PROVIDER_CONNECTION: QgsProcessingParameterProviderConnection,
     ProcessingAlgFactory.DATABASE_SCHEMA: QgsProcessingParameterDatabaseSchema,

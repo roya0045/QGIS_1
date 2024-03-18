@@ -95,7 +95,7 @@ class QgsCachedImageFetcher: public QgsImageFetcher
   private slots:
     void send()
     {
-      QgsDebugMsg( QStringLiteral( "XXX Sending %1x%2 image" ).arg( _img.width() ).arg( _img.height() ) );
+      QgsDebugMsgLevel( QStringLiteral( "XXX Sending %1x%2 image" ).arg( _img.width() ).arg( _img.height() ), 2 );
       emit finish( _img );
     }
 };
@@ -112,9 +112,12 @@ class QgsWmsInterpretationConverter
     //! Returns the output datatype of this converter
     virtual Qgis::DataType dataType() const;
 
+    //! Returns TRUE if the interpretation represents elevation values
+    virtual bool representsElevation() const;
+
     //! Returns statistics related to converted values
     virtual QgsRasterBandStats statistics( int bandNo,
-                                           int stats = QgsRasterBandStats::All,
+                                           int stats = static_cast< int >( Qgis::RasterBandStatistic::All ),
                                            const QgsRectangle &extent = QgsRectangle(),
                                            int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) const = 0;
 
@@ -140,7 +143,7 @@ class QgsWmsInterpretationConverterMapTilerTerrainRGB : public QgsWmsInterpretat
     void convert( const QRgb &color, float *converted ) const override;
 
     QgsRasterBandStats statistics( int bandNo,
-                                   int stats = QgsRasterBandStats::All,
+                                   int stats = static_cast< int >( Qgis::RasterBandStatistic::All ),
                                    const QgsRectangle &extent = QgsRectangle(),
                                    int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) const override;
 
@@ -152,6 +155,8 @@ class QgsWmsInterpretationConverterMapTilerTerrainRGB : public QgsWmsInterpretat
                                   int sampleSize = 0,
                                   bool includeOutOfRange = false,
                                   QgsRasterBlockFeedback *feedback = nullptr ) const override;
+
+    bool representsElevation() const override;
 
     static QString displayName() {return QObject::tr( "MapTiler Terrain RGB" );}
     static QString interpretationKey() {return QStringLiteral( "maptilerterrain" );}
@@ -164,7 +169,7 @@ class QgsWmsInterpretationConverterTerrariumRGB : public QgsWmsInterpretationCon
     void convert( const QRgb &color, float *converted ) const override;
 
     QgsRasterBandStats statistics( int bandNo,
-                                   int stats = QgsRasterBandStats::All,
+                                   int stats = static_cast< int >( Qgis::RasterBandStatistic::All ),
                                    const QgsRectangle &extent = QgsRectangle(),
                                    int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) const override;
 
@@ -176,6 +181,8 @@ class QgsWmsInterpretationConverterTerrariumRGB : public QgsWmsInterpretationCon
                                   int sampleSize = 0,
                                   bool includeOutOfRange = false,
                                   QgsRasterBlockFeedback *feedback = nullptr ) const override;
+
+    bool representsElevation() const override;
 
     static QString displayName() {return QObject::tr( "Terrarium Terrain RGB" );}
     static QString interpretationKey() {return QStringLiteral( "terrariumterrain" );}
@@ -290,7 +297,7 @@ class QgsWmsProvider final: public QgsRasterDataProvider
     Qgis::DataType dataType( int bandNo ) const override;
     Qgis::DataType sourceDataType( int bandNo ) const override;
     int bandCount() const override;
-    QString htmlMetadata() override;
+    QString htmlMetadata() const override;
     QgsRasterIdentifyResult identify( const QgsPointXY &point, Qgis::RasterIdentifyFormat format, const QgsRectangle &boundingBox = QgsRectangle(), int width = 0, int height = 0, int dpi = 96 ) override;
     double sample( const QgsPointXY &point, int band, bool *ok = nullptr, const QgsRectangle &boundingBox = QgsRectangle(), int width = 0, int height = 0, int dpi = 96 ) override;
     QString lastErrorTitle() override;
@@ -308,7 +315,7 @@ class QgsWmsProvider final: public QgsRasterDataProvider
 
     // Statistics could be available if the provider has a converter from colors to other value type, the returned statistics depend on the converter
     QgsRasterBandStats bandStatistics( int bandNo,
-                                       int stats = QgsRasterBandStats::All,
+                                       Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
                                        const QgsRectangle &extent = QgsRectangle(),
                                        int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) override;
 
@@ -377,7 +384,7 @@ class QgsWmsProvider final: public QgsRasterDataProvider
   private:
 
     //! In case of XYZ tile layer, setup capabilities from its URI
-    void setupXyzCapabilities( const QString &uri, const QgsRectangle &sourceExtent = QgsRectangle(), int sourceMinZoom = -1, int sourceMaxZoom = -1, double sourceTilePixelRatio = 0. );
+    bool setupXyzCapabilities( const QString &uri, const QgsRectangle &sourceExtent = QgsRectangle(), int sourceMinZoom = -1, int sourceMaxZoom = -1, double sourceTilePixelRatio = 0. );
     //! In case of MBTiles layer, setup capabilities from its metadata
     bool setupMBTilesCapabilities( const QString &uri );
 
@@ -475,13 +482,12 @@ class QgsWmsProvider final: public QgsRasterDataProvider
      * Returns the full url to request legend graphic
      * The visibleExtent isi only used if provider supports contextual
      * legends according to the QgsWmsSettings
-     * \since QGIS 2.8
      */
     QUrl getLegendGraphicFullURL( double scale, const QgsRectangle &visibleExtent );
 
     //QStringList identifyAs( const QgsPointXY &point, QString format );
 
-    QString layerMetadata( QgsWmsLayerProperty &layer );
+    QString layerMetadata( const QgsWmsLayerProperty &layer ) const;
 
     //! remove query item and replace it with a new value
     void setQueryItem( QUrlQuery &url, const QString &key, const QString &value );
@@ -648,8 +654,8 @@ class QgsWmsTiledImageDownloadHandler : public QObject
                                      QImage *image,
                                      const QgsRectangle &viewExtent,
                                      double sourceResolution,
-                                     bool resamplingEnabled,
                                      bool smoothPixmapTransform,
+                                     bool resamplingEnabled,
                                      QgsRasterBlockFeedback *feedback );
     ~QgsWmsTiledImageDownloadHandler() override;
 
@@ -729,10 +735,19 @@ class QgsWmsProviderMetadata final: public QgsProviderMetadata
   public:
     QgsWmsProviderMetadata();
     QIcon icon() const override;
+    QgsProviderMetadata::ProviderMetadataCapabilities capabilities() const override;
+
     QgsWmsProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() ) override;
+    ProviderCapabilities providerCapabilities() const override;
+
     QList<QgsDataItemProvider *> dataItemProviders() const override;
     QVariantMap decodeUri( const QString &uri ) const override;
     QString encodeUri( const QVariantMap &parts ) const override;
+
+    QList< QgsProviderSublayerDetails > querySublayers( const QString &uri, Qgis::SublayerQueryFlags flags = Qgis::SublayerQueryFlags(), QgsFeedback *feedback = nullptr ) const override;
+    int priorityForUri( const QString &uri ) const override;
+    QList< Qgis::LayerType > validLayerTypesForUri( const QString &uri ) const override;
+
     QString absoluteToRelativeUri( const QString &uri, const QgsReadWriteContext &context ) const override;
     QString relativeToAbsoluteUri( const QString &uri, const QgsReadWriteContext &context ) const override;
     QList< Qgis::LayerType > supportedLayerTypes() const override;

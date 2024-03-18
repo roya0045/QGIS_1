@@ -22,9 +22,11 @@
 
 #include "qgsproviderregistry.h"
 #include "ogr/qgsogrhelperfunctions.h"
+#include "qgsgdalutils.h"
 
 #include <gdal.h>
 #include <cpl_minixml.h>
+#include "qgshelp.h"
 
 QgsGdalSourceSelect::QgsGdalSourceSelect( QWidget *parent, Qt::WindowFlags fl, QgsProviderRegistry::WidgetMode widgetMode ):
   QgsAbstractDataSourceWidget( parent, fl, widgetMode )
@@ -32,15 +34,19 @@ QgsGdalSourceSelect::QgsGdalSourceSelect( QWidget *parent, Qt::WindowFlags fl, Q
   setupUi( this );
   setupButtons( buttonBox );
 
+  mOpenOptionsGroupBox->setCollapsed( false );
+
   connect( radioSrcFile, &QRadioButton::toggled, this, &QgsGdalSourceSelect::radioSrcFile_toggled );
+  connect( radioSrcOgcApi, &QRadioButton::toggled, this, &QgsGdalSourceSelect::radioSrcOgcApi_toggled );
   connect( radioSrcProtocol, &QRadioButton::toggled, this, &QgsGdalSourceSelect::radioSrcProtocol_toggled );
   connect( cmbProtocolTypes, &QComboBox::currentTextChanged, this, &QgsGdalSourceSelect::cmbProtocolTypes_currentIndexChanged );
+  connect( buttonBox, &QDialogButtonBox::helpRequested, this, &QgsGdalSourceSelect::showHelp );
 
   whileBlocking( radioSrcFile )->setChecked( true );
   protocolGroupBox->hide();
 
   QStringList protocolTypes = QStringLiteral( "HTTP/HTTPS/FTP,vsicurl;AWS S3,vsis3;Google Cloud Storage,vsigs" ).split( ';' );
-  protocolTypes += QStringLiteral( "Microsoft Azure Blob,vsiaz;Alibaba Cloud OSS,vsioss;OpenStack Swift Object Storage,vsiswift" ).split( ';' );
+  protocolTypes += QStringLiteral( "Microsoft Azure Blob,vsiaz;Microsoft Azure Data Lake Storage,vsiadls;Alibaba Cloud OSS,vsioss;OpenStack Swift Object Storage,vsiswift" ).split( ';' );
   for ( int i = 0; i < protocolTypes.count(); i++ )
   {
     QString protocol = protocolTypes.at( i );
@@ -80,7 +86,7 @@ QgsGdalSourceSelect::QgsGdalSourceSelect( QWidget *parent, Qt::WindowFlags fl, Q
   mFileWidget->setOptions( QFileDialog::HideNameFilterDetails );
   connect( mFileWidget, &QgsFileWidget::fileChanged, this, [ = ]( const QString & path )
   {
-    mRasterPath = path;
+    mRasterPath = mIsOgcApi ? QStringLiteral( "OGCAPI:%1" ).arg( path ) : path;
     emit enableButtons( ! mRasterPath.isEmpty() );
     fillOpenOptions();
   } );
@@ -93,6 +99,7 @@ bool QgsGdalSourceSelect::isProtocolCloudType()
   return ( cmbProtocolTypes->currentText() == QLatin1String( "AWS S3" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "Google Cloud Storage" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "Microsoft Azure Blob" ) ||
+           cmbProtocolTypes->currentText() == QLatin1String( "Microsoft Azure Data Lake Storage" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "Alibaba Cloud OSS" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "OpenStack Swift Object Storage" ) );
 }
@@ -133,6 +140,27 @@ void QgsGdalSourceSelect::radioSrcFile_toggled( bool checked )
 
     emit enableButtons( !mFileWidget->filePath().isEmpty() );
 
+  }
+}
+
+void QgsGdalSourceSelect::radioSrcOgcApi_toggled( bool checked )
+{
+  mIsOgcApi = checked;
+  radioSrcFile_toggled( checked );
+  if ( checked )
+  {
+    rasterDatasetLabel->setText( tr( "OGC API Endpoint" ) );
+    const QString vectorPath = mFileWidget->filePath();
+    emit enableButtons( ! vectorPath.isEmpty() );
+    if ( mRasterPath.isEmpty() )
+    {
+      mRasterPath = QStringLiteral( "OGCAPI:" );
+    }
+    fillOpenOptions();
+  }
+  else
+  {
+    rasterDatasetLabel->setText( tr( "Raster dataset(s)" ) );
   }
 }
 
@@ -216,6 +244,50 @@ void QgsGdalSourceSelect::addButtonClicked()
   emit addRasterLayers( sources );
 }
 
+bool QgsGdalSourceSelect::configureFromUri( const QString &uri )
+{
+  mDataSources.clear();
+  mDataSources.append( uri );
+  const QVariantMap decodedUri = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "gdal" ), uri );
+  const QString layerName { decodedUri.value( QStringLiteral( "layerName" ) ).toString() };
+  mFileWidget->setFilePath( decodedUri.value( QStringLiteral( "path" ), QString() ).toString() );
+  QVariantMap openOptions = decodedUri.value( QStringLiteral( "openOptions" ) ).toMap();
+  // layerName becomes TABLE in some driver opening options (e.g. GPKG)
+  if ( !layerName.isEmpty() )
+  {
+    openOptions.insert( QStringLiteral( "TABLE" ), layerName );
+  }
+
+  if ( ! openOptions.isEmpty() )
+  {
+    for ( auto opt = openOptions.constBegin(); opt != openOptions.constEnd(); ++opt )
+    {
+      const auto widget { std::find_if( mOpenOptionsWidgets.cbegin(), mOpenOptionsWidgets.cend(), [ = ]( QWidget * widget )
+      {
+        return widget->objectName() == opt.key();
+      } ) };
+
+      if ( widget != mOpenOptionsWidgets.cend() )
+      {
+        if ( auto cb = qobject_cast<QComboBox *>( *widget ) )
+        {
+          const auto idx { cb->findText( opt.value().toString() ) };
+          if ( idx >= 0 )
+          {
+            cb->setCurrentIndex( idx );
+          }
+        }
+        else if ( auto le = qobject_cast<QLineEdit *>( *widget ) )
+        {
+          le->setText( opt.value().toString() );
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 void QgsGdalSourceSelect::computeDataSources()
 {
   mDataSources.clear();
@@ -238,7 +310,7 @@ void QgsGdalSourceSelect::computeDataSources()
     }
   }
 
-  if ( radioSrcFile->isChecked() )
+  if ( radioSrcFile->isChecked() || radioSrcOgcApi->isChecked() )
   {
     for ( const auto &filePath : QgsFileWidget::splitFilePaths( mRasterPath ) )
     {
@@ -305,7 +377,7 @@ void QgsGdalSourceSelect::fillOpenOptions()
     return;
 
   const QString firstDataSource = mDataSources.at( 0 );
-  const QString vsiPrefix = qgsVsiPrefix( firstDataSource );
+  const QString vsiPrefix = QgsGdalUtils::vsiPrefixForPath( firstDataSource );
   const QString scheme = QUrl( firstDataSource ).scheme();
   const bool isRemoteNonVsiCurlUrl = vsiPrefix.isEmpty() && ( scheme.startsWith( QLatin1String( "http" ) ) || scheme == QLatin1String( "ftp" ) );
   if ( isRemoteNonVsiCurlUrl )
@@ -386,6 +458,18 @@ void QgsGdalSourceSelect::fillOpenOptions()
       }
       cb->addItem( tr( "<Default>" ), QVariant( QVariant::String ) );
       int idx = cb->findData( QVariant( QVariant::String ) );
+
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,8,0)
+      if ( QString( GDALGetDriverShortName( hDriver ) ).compare( QLatin1String( "BAG" ) ) == 0 && label->text() == QLatin1String( "MODE" ) && options.contains( QLatin1String( "INTERPOLATED" ) ) )
+      {
+        gdal::dataset_unique_ptr hSrcDS( GDALOpen( firstDataSource.toUtf8().constData(), GA_ReadOnly ) );
+        if ( hSrcDS && QString{ GDALGetMetadataItem( hSrcDS.get(), "HAS_SUPERGRIDS", nullptr ) } == QLatin1String( "TRUE" ) )
+        {
+          idx = cb->findText( QLatin1String( "INTERPOLATED" ) );
+        }
+      }
+#endif
+
       cb->setCurrentIndex( idx );
       control = cb;
     }
@@ -423,6 +507,12 @@ void QgsGdalSourceSelect::fillOpenOptions()
   }
 
   mOpenOptionsGroupBox->setVisible( !mOpenOptionsWidgets.empty() );
+
+}
+
+void QgsGdalSourceSelect::showHelp()
+{
+  QgsHelp::openHelp( QStringLiteral( "managing_data_source/opening_data.html#loading-a-layer-from-a-file" ) );
 }
 
 ///@endcond

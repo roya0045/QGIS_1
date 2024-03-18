@@ -74,6 +74,10 @@ QgsCurvePolygon::QgsCurvePolygon( const QgsCurvePolygon &p )
   {
     mInteriorRings.push_back( ring->clone() );
   }
+
+  mBoundingBox = p.mBoundingBox;
+  mHasCachedValidity = p.mHasCachedValidity;
+  mValidityFailureReason = p.mValidityFailureReason;
 }
 
 QgsCurvePolygon &QgsCurvePolygon::operator=( const QgsCurvePolygon &p )
@@ -93,48 +97,6 @@ QgsCurvePolygon &QgsCurvePolygon::operator=( const QgsCurvePolygon &p )
     }
   }
   return *this;
-}
-
-bool QgsCurvePolygon::operator==( const QgsAbstractGeometry &other ) const
-{
-  const QgsCurvePolygon *otherPolygon = qgsgeometry_cast< const QgsCurvePolygon * >( &other );
-  if ( !otherPolygon )
-    return false;
-
-  //run cheap checks first
-  if ( mWkbType != otherPolygon->mWkbType )
-    return false;
-
-  if ( ( !mExteriorRing && otherPolygon->mExteriorRing ) || ( mExteriorRing && !otherPolygon->mExteriorRing ) )
-    return false;
-
-  if ( mInteriorRings.count() != otherPolygon->mInteriorRings.count() )
-    return false;
-
-  // compare rings
-  if ( mExteriorRing && otherPolygon->mExteriorRing )
-  {
-    if ( *mExteriorRing != *otherPolygon->mExteriorRing )
-      return false;
-  }
-
-  for ( int i = 0; i < mInteriorRings.count(); ++i )
-  {
-    if ( ( !mInteriorRings.at( i ) && otherPolygon->mInteriorRings.at( i ) ) ||
-         ( mInteriorRings.at( i ) && !otherPolygon->mInteriorRings.at( i ) ) )
-      return false;
-
-    if ( mInteriorRings.at( i ) && otherPolygon->mInteriorRings.at( i ) &&
-         *mInteriorRings.at( i ) != *otherPolygon->mInteriorRings.at( i ) )
-      return false;
-  }
-
-  return true;
-}
-
-bool QgsCurvePolygon::operator!=( const QgsAbstractGeometry &other ) const
-{
-  return !operator==( other );
 }
 
 QgsCurvePolygon *QgsCurvePolygon::clone() const
@@ -280,13 +242,13 @@ bool QgsCurvePolygon::fromWkt( const QString &wkt )
   return true;
 }
 
-QgsRectangle QgsCurvePolygon::calculateBoundingBox() const
+QgsBox3D QgsCurvePolygon::calculateBoundingBox3D() const
 {
   if ( mExteriorRing )
   {
-    return mExteriorRing->boundingBox();
+    return mExteriorRing->boundingBox3D();
   }
-  return QgsRectangle();
+  return QgsBox3D();
 }
 
 int QgsCurvePolygon::wkbSize( QgsAbstractGeometry::WkbFlags flags ) const
@@ -642,7 +604,7 @@ bool QgsCurvePolygon::removeDuplicateNodes( double epsilon, bool useZValues )
   return result;
 }
 
-bool QgsCurvePolygon::boundingBoxIntersects( const QgsRectangle &rectangle ) const
+bool QgsCurvePolygon::boundingBoxIntersects( const QgsBox3D &box3d ) const
 {
   if ( !mExteriorRing && mInteriorRings.empty() )
     return false;
@@ -650,7 +612,7 @@ bool QgsCurvePolygon::boundingBoxIntersects( const QgsRectangle &rectangle ) con
   // if we already have the bounding box calculated, then this check is trivial!
   if ( !mBoundingBox.isNull() )
   {
-    return mBoundingBox.intersects( rectangle );
+    return mBoundingBox.intersects( box3d );
   }
 
   // loop through each ring and test the bounding box intersection.
@@ -658,12 +620,12 @@ bool QgsCurvePolygon::boundingBoxIntersects( const QgsRectangle &rectangle ) con
   // ring geometry subclasses, and at worst it will cause a calculation of the bounding box
   // of each individual ring geometry which we would have to do anyway... (and these
   // bounding boxes are cached, so would be reused without additional expense)
-  if ( mExteriorRing && mExteriorRing->boundingBoxIntersects( rectangle ) )
+  if ( mExteriorRing && mExteriorRing->boundingBoxIntersects( box3d ) )
     return true;
 
   for ( const QgsCurve *ring : mInteriorRings )
   {
-    if ( ring->boundingBoxIntersects( rectangle ) )
+    if ( ring->boundingBoxIntersects( box3d ) )
       return true;
   }
 
@@ -672,7 +634,7 @@ bool QgsCurvePolygon::boundingBoxIntersects( const QgsRectangle &rectangle ) con
   // the polygon is invalid, with rings outside the exterior ring!)
   // so here we fall back to the non-optimised base class check which has to first calculate
   // the overall bounding box of the polygon..
-  return QgsSurface::boundingBoxIntersects( rectangle );
+  return QgsSurface::boundingBoxIntersects( box3d );
 }
 
 QgsPolygon *QgsCurvePolygon::toPolygon( double tolerance, SegmentationToleranceType toleranceType ) const
@@ -1171,12 +1133,14 @@ bool QgsCurvePolygon::moveVertex( QgsVertexId vId, const QgsPoint &newPos )
 
 bool QgsCurvePolygon::deleteVertex( QgsVertexId vId )
 {
-  if ( !mExteriorRing || vId.ring < 0 || vId.ring >= 1 + mInteriorRings.size() )
+  const int interiorRingId = vId.ring - 1;
+  if ( !mExteriorRing || vId.ring < 0 || interiorRingId >= mInteriorRings.size() )
   {
     return false;
   }
 
-  QgsCurve *ring = vId.ring == 0 ? mExteriorRing.get() : mInteriorRings.at( vId.ring - 1 );
+  // cppcheck-suppress containerOutOfBounds
+  QgsCurve *ring = vId.ring == 0 ? mExteriorRing.get() : mInteriorRings.at( interiorRingId );
   int n = ring->numPoints();
   if ( n <= 4 )
   {

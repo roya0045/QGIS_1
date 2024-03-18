@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     AlgorithmLocatorFilter.py
@@ -42,7 +40,7 @@ from processing.core.ProcessingConfig import ProcessingConfig
 class AlgorithmLocatorFilter(QgsLocatorFilter):
 
     def __init__(self, parent=None):
-        super(AlgorithmLocatorFilter, self).__init__(parent)
+        super().__init__(parent)
 
     def clone(self):
         return AlgorithmLocatorFilter()
@@ -54,22 +52,22 @@ class AlgorithmLocatorFilter(QgsLocatorFilter):
         return self.tr('Processing Algorithms')
 
     def priority(self):
-        return QgsLocatorFilter.Low
+        return QgsLocatorFilter.Priority.Low
 
     def prefix(self):
         return 'a'
 
     def flags(self):
-        return QgsLocatorFilter.FlagFast
+        return QgsLocatorFilter.Flag.FlagFast
 
     def fetchResults(self, string, context, feedback):
         # collect results in main thread, since this method is inexpensive and
         # accessing the processing registry is not thread safe
         for a in QgsApplication.processingRegistry().algorithms():
-            if a.flags() & QgsProcessingAlgorithm.FlagHideFromToolbox:
+            if a.flags() & QgsProcessingAlgorithm.Flag.FlagHideFromToolbox:
                 continue
             if not ProcessingConfig.getSetting(ProcessingConfig.SHOW_ALGORITHMS_KNOWN_ISSUES) and \
-                    a.flags() & QgsProcessingAlgorithm.FlagKnownIssues:
+                    a.flags() & QgsProcessingAlgorithm.Flag.FlagKnownIssues:
                 continue
 
             result = QgsLocatorResult()
@@ -113,7 +111,7 @@ class AlgorithmLocatorFilter(QgsLocatorFilter):
                 dlg = MessageDialog()
                 dlg.setTitle(self.tr('Missing dependency'))
                 dlg.setMessage(message)
-                dlg.exec_()
+                dlg.exec()
                 return
             dlg = alg.createCustomParametersWidget(parent=iface.mainWindow())
             if not dlg:
@@ -121,13 +119,16 @@ class AlgorithmLocatorFilter(QgsLocatorFilter):
             canvas = iface.mapCanvas()
             prevMapTool = canvas.mapTool()
             dlg.show()
-            dlg.exec_()
+            dlg.exec()
             if canvas.mapTool() != prevMapTool:
                 try:
                     canvas.mapTool().reset()
                 except:
                     pass
-                canvas.setMapTool(prevMapTool)
+                try:
+                    canvas.setMapTool(prevMapTool)
+                except RuntimeError:
+                    pass
 
 
 class InPlaceAlgorithmLocatorFilter(QgsLocatorFilter):
@@ -145,13 +146,13 @@ class InPlaceAlgorithmLocatorFilter(QgsLocatorFilter):
         return self.tr('Edit Selected Features')
 
     def priority(self):
-        return QgsLocatorFilter.Low
+        return QgsLocatorFilter.Priority.Low
 
     def prefix(self):
         return 'ef'
 
     def flags(self):
-        return QgsLocatorFilter.FlagFast
+        return QgsLocatorFilter.Flag.FlagFast
 
     def fetchResults(self, string, context, feedback):
         # collect results in main thread, since this method is inexpensive and
@@ -161,7 +162,7 @@ class InPlaceAlgorithmLocatorFilter(QgsLocatorFilter):
             return
 
         for a in QgsApplication.processingRegistry().algorithms():
-            if not a.flags() & QgsProcessingAlgorithm.FlagSupportsInPlaceEdits:
+            if not a.flags() & QgsProcessingAlgorithm.Flag.FlagSupportsInPlaceEdits:
                 continue
 
             if not a.supportInPlaceEdit(iface.activeLayer()):
@@ -209,7 +210,7 @@ class InPlaceAlgorithmLocatorFilter(QgsLocatorFilter):
                 dlg = MessageDialog()
                 dlg.setTitle(self.tr('Missing dependency'))
                 dlg.setMessage(message)
-                dlg.exec_()
+                dlg.exec()
                 return
 
             in_place_input_parameter_name = 'INPUT'
@@ -224,7 +225,7 @@ class InPlaceAlgorithmLocatorFilter(QgsLocatorFilter):
                 canvas = iface.mapCanvas()
                 prevMapTool = canvas.mapTool()
                 dlg.show()
-                dlg.exec_()
+                dlg.exec()
                 if canvas.mapTool() != prevMapTool:
                     try:
                         canvas.mapTool().reset()

@@ -14,8 +14,7 @@ import os
 import shutil
 import tempfile
 
-import qgis  # NOQA
-import sip
+from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QTemporaryDir
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
@@ -26,7 +25,8 @@ from qgis.core import (
     QgsReadWriteContext,
     QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -35,7 +35,7 @@ TEST_DATA_DIR = unitTestDataPath()
 start_app()
 
 
-class TestQgsMapLayer(unittest.TestCase):
+class TestQgsMapLayer(QgisTestCase):
 
     def testUniqueId(self):
         """
@@ -54,7 +54,7 @@ class TestQgsMapLayer(unittest.TestCase):
         # make sure all ids are unique
         ids = set()
         for l in layers:
-            self.assertFalse(l.id() in ids)
+            self.assertNotIn(l.id(), ids)
             ids.add(l.id())
 
     def copyLayerViaXmlReadWrite(self, source, dest):

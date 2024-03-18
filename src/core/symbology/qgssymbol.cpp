@@ -52,6 +52,7 @@
 #include "qgsmarkersymbol.h"
 #include "qgslinesymbol.h"
 #include "qgsfillsymbol.h"
+#include "qgscolorutils.h"
 
 QgsPropertiesDefinition QgsSymbol::sPropertyDefinitions;
 
@@ -101,16 +102,16 @@ QPolygonF QgsSymbol::_getLineString3d( QgsRenderContext &context, const QgsCurve
     const QgsRectangle e = context.extent();
     const double cw = e.width() / 10;
     const double ch = e.height() / 10;
-    const QgsBox3d clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
+    const QgsBox3D clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
 
     const QgsLineString *lineString = nullptr;
+    std::unique_ptr< QgsLineString > segmentized;
     if ( const QgsLineString *ls = qgsgeometry_cast< const QgsLineString * >( &curve ) )
     {
       lineString = ls;
     }
     else
     {
-      std::unique_ptr< QgsLineString > segmentized;
       segmentized.reset( qgsgeometry_cast< QgsLineString * >( curve.segmentize( ) ) );
       lineString = segmentized.get();
     }
@@ -209,7 +210,7 @@ QPolygonF QgsSymbol::_getLineString3d( QgsRenderContext &context, const QgsCurve
     const QgsRectangle e = context.mapExtent();
     const double cw = e.width() / 10;
     const double ch = e.height() / 10;
-    const QgsBox3d clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
+    const QgsBox3D clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
 
     QVector< double > tempX;
     QVector< double > tempY;
@@ -334,7 +335,7 @@ QPolygonF QgsSymbol::_getPolygonRing3d( QgsRenderContext &context, const QgsCurv
     const QgsRectangle e = context.extent();
     const double cw = e.width() / 10;
     const double ch = e.height() / 10;
-    const QgsBox3d clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
+    const QgsBox3D clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
 
     const QgsLineString *lineString = nullptr;
     std::unique_ptr< QgsLineString > segmentized;
@@ -450,7 +451,7 @@ QPolygonF QgsSymbol::_getPolygonRing3d( QgsRenderContext &context, const QgsCurv
     const QgsRectangle e = context.mapExtent();
     const double cw = e.width() / 10;
     const double ch = e.height() / 10;
-    const QgsBox3d clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
+    const QgsBox3D clipRect( e.xMinimum() - cw, e.yMinimum() - ch, -HUGE_VAL, e.xMaximum() + cw, e.yMaximum() + ch, HUGE_VAL ); // TODO also need to be clipped according to z axis
 
     QgsClipper::trimPolygon( pointsX, pointsY, pointsZ, clipRect );
   }
@@ -736,10 +737,13 @@ QgsSymbol *QgsSymbol::defaultSymbol( Qgis::GeometryType geomType )
         s = std::make_unique< QgsFillSymbol >();
         break;
       default:
-        QgsDebugMsg( QStringLiteral( "unknown layer's geometry type" ) );
-        return nullptr;
+        QgsDebugError( QStringLiteral( "unknown layer's geometry type" ) );
+        break;
     }
   }
+
+  if ( !s )
+    return nullptr;
 
   // set opacity
   s->setOpacity( QgsProject::instance()->styleSettings()->defaultSymbolOpacity() );
@@ -920,7 +924,7 @@ QColor QgsSymbol::color() const
   return QColor( 0, 0, 0 );
 }
 
-void QgsSymbol::drawPreviewIcon( QPainter *painter, QSize size, QgsRenderContext *customContext, bool selected, const QgsExpressionContext *expressionContext, const QgsLegendPatchShape *patchShape )
+void QgsSymbol::drawPreviewIcon( QPainter *painter, QSize size, QgsRenderContext *customContext, bool selected, const QgsExpressionContext *expressionContext, const QgsLegendPatchShape *patchShape, const QgsScreenProperties &screen )
 {
   QgsRenderContext *context = customContext;
   std::unique_ptr< QgsRenderContext > tempContext;
@@ -931,10 +935,15 @@ void QgsSymbol::drawPreviewIcon( QPainter *painter, QSize size, QgsRenderContext
     context->setFlag( Qgis::RenderContextFlag::RenderSymbolPreview, true );
   }
 
+  if ( screen.isValid() )
+  {
+    screen.updateRenderContextForScreen( *context );
+  }
+
   const bool prevForceVector = context->forceVectorOutput();
   context->setForceVectorOutput( true );
 
-  const double opacity = expressionContext ? dataDefinedProperties().valueAsDouble( QgsSymbol::PropertyOpacity, *expressionContext, mOpacity ) : mOpacity;
+  const double opacity = expressionContext ? dataDefinedProperties().valueAsDouble( QgsSymbol::Property::Opacity, *expressionContext, mOpacity ) : mOpacity;
 
   QgsSymbolRenderContext symbolContext( *context, Qgis::RenderUnit::Unknown, opacity, false, mRenderHints, nullptr );
   symbolContext.setSelected( selected );
@@ -1052,10 +1061,12 @@ QImage QgsSymbol::asImage( QSize size, QgsRenderContext *customContext )
 }
 
 
-QImage QgsSymbol::bigSymbolPreviewImage( QgsExpressionContext *expressionContext, Qgis::SymbolPreviewFlags flags )
+QImage QgsSymbol::bigSymbolPreviewImage( QgsExpressionContext *expressionContext, Qgis::SymbolPreviewFlags flags, const QgsScreenProperties &screen )
 {
-  QImage preview( QSize( 100, 100 ), QImage::Format_ARGB32_Premultiplied );
+  const double devicePixelRatio = screen.isValid() ? screen.devicePixelRatio() : 1;
+  QImage preview( QSize( 100, 100 ) * devicePixelRatio, QImage::Format_ARGB32_Premultiplied );
   preview.fill( 0 );
+  preview.setDevicePixelRatio( devicePixelRatio );
 
   QPainter p( &preview );
   p.setRenderHint( QPainter::Antialiasing );
@@ -1064,8 +1075,8 @@ QImage QgsSymbol::bigSymbolPreviewImage( QgsExpressionContext *expressionContext
   if ( mType == Qgis::SymbolType::Marker && flags & Qgis::SymbolPreviewFlag::FlagIncludeCrosshairsForMarkerSymbols )
   {
     p.setPen( QPen( Qt::gray ) );
-    p.drawLine( 0, 50, 100, 50 );
-    p.drawLine( 50, 0, 50, 100 );
+    p.drawLine( QLineF( 0, 50, 100, 50 ) );
+    p.drawLine( QLineF( 50, 0, 50, 100 ) );
   }
 
   QgsRenderContext context = QgsRenderContext::fromQPainter( &p );
@@ -1073,6 +1084,12 @@ QImage QgsSymbol::bigSymbolPreviewImage( QgsExpressionContext *expressionContext
   context.setFlag( Qgis::RenderContextFlag::Antialiasing );
   context.setFlag( Qgis::RenderContextFlag::HighQualityImageTransforms );
   context.setPainterFlagsUsingContext( &p );
+
+  if ( screen.isValid() )
+  {
+    screen.updateRenderContextForScreen( context );
+  }
+
   if ( expressionContext )
     context.setExpressionContext( *expressionContext );
 
@@ -1122,7 +1139,7 @@ QString QgsSymbol::dump() const
     default:
       Q_ASSERT( false && "unknown symbol type" );
   }
-  QString s = QStringLiteral( "%1 SYMBOL (%2 layers) color %3" ).arg( t ).arg( mLayers.count() ).arg( QgsSymbolLayerUtils::encodeColor( color() ) );
+  QString s = QStringLiteral( "%1 SYMBOL (%2 layers) color %3" ).arg( t ).arg( mLayers.count() ).arg( QgsColorUtils::colorToString( color() ) );
 
   for ( QgsSymbolLayerList::const_iterator it = mLayers.begin(); it != mLayers.end(); ++it )
   {
@@ -1154,6 +1171,7 @@ QgsSymbolLayerList QgsSymbol::cloneLayers() const
     layer->setRenderingPass( ( *it )->renderingPass() );
     layer->setEnabled( ( *it )->enabled() );
     layer->setId( ( *it )->id() );
+    layer->setUserFlags( ( *it )->userFlags() );
     lst.append( layer );
   }
   return lst;
@@ -1163,7 +1181,7 @@ void QgsSymbol::renderUsingLayer( QgsSymbolLayer *layer, QgsSymbolRenderContext 
 {
   Q_ASSERT( layer->type() == Qgis::SymbolType::Hybrid );
 
-  if ( layer->dataDefinedProperties().hasActiveProperties() && !layer->dataDefinedProperties().valueAsBool( QgsSymbolLayer::PropertyLayerEnabled, context.renderContext().expressionContext(), true ) )
+  if ( layer->dataDefinedProperties().hasActiveProperties() && !layer->dataDefinedProperties().valueAsBool( QgsSymbolLayer::Property::LayerEnabled, context.renderContext().expressionContext(), true ) )
     return;
 
   QgsGeometryGeneratorSymbolLayer *generatorLayer = static_cast<QgsGeometryGeneratorSymbolLayer *>( layer );
@@ -1463,7 +1481,7 @@ void QgsSymbol::renderFeature( const QgsFeature &feature, QgsRenderContext &cont
     if ( !processedGeometry )
     {
       // shouldn't happen!
-      QgsDebugMsg( QStringLiteral( "No processed geometry to render for part!" ) );
+      QgsDebugError( QStringLiteral( "No processed geometry to render for part!" ) );
       return;
     }
 
@@ -1514,7 +1532,7 @@ void QgsSymbol::renderFeature( const QgsFeature &feature, QgsRenderContext &cont
         info.originalPartIndex = partIndex;
         if ( !qgsgeometry_cast<const QgsPolygon *>( processedGeometry )->exteriorRing() )
         {
-          QgsDebugMsg( QStringLiteral( "cannot render polygon with no exterior ring" ) );
+          QgsDebugError( QStringLiteral( "cannot render polygon with no exterior ring" ) );
           break;
         }
 
@@ -1528,7 +1546,7 @@ void QgsSymbol::renderFeature( const QgsFeature &feature, QgsRenderContext &cont
         const QgsMultiPoint *mp = qgsgeometry_cast< const QgsMultiPoint * >( processedGeometry );
         markers.reserve( mp->numGeometries() );
       }
-      FALLTHROUGH
+      [[fallthrough]];
       case Qgis::WkbType::MultiCurve:
       case Qgis::WkbType::MultiLineString:
       case Qgis::WkbType::GeometryCollection:
@@ -1586,10 +1604,10 @@ void QgsSymbol::renderFeature( const QgsFeature &feature, QgsRenderContext &cont
       }
 
       default:
-        QgsDebugMsg( QStringLiteral( "feature %1: unsupported wkb type %2/%3 for rendering" )
-                     .arg( feature.id() )
-                     .arg( QgsWkbTypes::displayString( part->wkbType() ) )
-                     .arg( static_cast< quint32>( part->wkbType() ), 0, 16 ) );
+        QgsDebugError( QStringLiteral( "feature %1: unsupported wkb type %2/%3 for rendering" )
+                       .arg( feature.id() )
+                       .arg( QgsWkbTypes::displayString( part->wkbType() ) )
+                       .arg( static_cast< quint32>( part->wkbType() ), 0, 16 ) );
     }
   };
 
@@ -1840,7 +1858,7 @@ void QgsSymbol::initPropertyDefinitions()
 
   sPropertyDefinitions = QgsPropertiesDefinition
   {
-    { QgsSymbol::PropertyOpacity, QgsPropertyDefinition( "alpha", QObject::tr( "Opacity" ), QgsPropertyDefinition::Opacity, origin )},
+    { static_cast< int >( QgsSymbol::Property::Opacity ), QgsPropertyDefinition( "alpha", QObject::tr( "Opacity" ), QgsPropertyDefinition::Opacity, origin )},
   };
 }
 

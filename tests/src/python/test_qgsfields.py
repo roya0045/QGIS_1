@@ -9,15 +9,15 @@ __author__ = 'Nyall Dawson'
 __date__ = '16/08/2015'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QDate, QVariant
 from qgis.core import NULL, QgsVectorLayer
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsFields(unittest.TestCase):
+class TestQgsFields(QgisTestCase):
 
     def test_exceptions(self):
         ml = QgsVectorLayer("Point?crs=epsg:4236&field=id:integer&field=value:double",
@@ -124,7 +124,7 @@ class TestQgsFields(unittest.TestCase):
         self.assertTrue(vl.fields()[0].convertCompatible(123))
         # Check NULL/invalid
         self.assertIsNone(vl.fields()[0].convertCompatible(None))
-        self.assertEqual(vl.fields()[0].convertCompatible(QVariant(QVariant.Int)), NULL)
+        self.assertEqual(vl.fields()[0].convertCompatible(NULL), NULL)
         # Not valid
         with self.assertRaises(ValueError) as cm:
             vl.fields()[0].convertCompatible('QGIS Rocks!')

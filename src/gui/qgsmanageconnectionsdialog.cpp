@@ -27,8 +27,8 @@
 #include "qgsvectortileconnection.h"
 #include "qgssettingsentryimpl.h"
 #include "qgssettingsentryenumflag.h"
-
-
+#include "qgstiledsceneconnection.h"
+#include "qgssensorthingsconnection.h"
 
 QgsManageConnectionsDialog::QgsManageConnectionsDialog( QWidget *parent, Mode mode, Type type, const QString &fileName )
   : QDialog( parent )
@@ -99,6 +99,9 @@ void QgsManageConnectionsDialog::doExportImport()
   {
     QString fileName = QFileDialog::getSaveFileName( this, tr( "Save Connections" ), QDir::homePath(),
                        tr( "XML files (*.xml *.XML)" ) );
+    // return dialog focus on Mac
+    activateWindow();
+    raise();
     if ( fileName.isEmpty() )
     {
       return;
@@ -145,6 +148,12 @@ void QgsManageConnectionsDialog::doExportImport()
         break;
       case VectorTile:
         doc = saveVectorTileConnections( items );
+        break;
+      case TiledScene:
+        doc = saveTiledSceneConnections( items );
+        break;
+      case SensorThings:
+        doc = saveSensorThingsConnections( items );
         break;
     }
 
@@ -223,6 +232,12 @@ void QgsManageConnectionsDialog::doExportImport()
       case VectorTile:
         loadVectorTileConnections( doc, items );
         break;
+      case TiledScene:
+        loadTiledSceneConnections( doc, items );
+        break;
+      case SensorThings:
+        loadSensorThingsConnections( doc, items );
+        break;
     }
     // clear connections list and close window
     listConnections->clear();
@@ -252,15 +267,19 @@ bool QgsManageConnectionsDialog::populateConnections()
         break;
       case PostGIS:
         settings.beginGroup( QStringLiteral( "/PostgreSQL/connections" ) );
+        connections = settings.childGroups();
         break;
       case MSSQL:
         settings.beginGroup( QStringLiteral( "/MSSQL/connections" ) );
+        connections = settings.childGroups();
         break;
       case Oracle:
         settings.beginGroup( QStringLiteral( "/Oracle/connections" ) );
+        connections = settings.childGroups();
         break;
       case HANA:
         settings.beginGroup( QStringLiteral( "/HANA/connections" ) );
+        connections = settings.childGroups();
         break;
       case XyzTiles:
         connections = QgsXyzConnectionSettings::sTreeXyzConnections->items();
@@ -272,19 +291,18 @@ bool QgsManageConnectionsDialog::populateConnections()
       case VectorTile:
         connections = QgsVectorTileProviderConnection::sTreeConnectionVectorTile->items();
         break;
+      case TiledScene:
+        connections = QgsTiledSceneProviderConnection::sTreeConnectionTiledScene->items();
+        break;
+      case SensorThings:
+        connections = QgsSensorThingsProviderConnection::sTreeSensorThingsConnections->items();
+        break;
     }
-    if ( !settings.group().isEmpty() )
+    for ( const QString &connection : std::as_const( connections ) )
     {
-      QStringList keys = settings.childGroups();
-      QStringList::Iterator it = keys.begin();
-      while ( it != keys.end() )
-      {
-        QListWidgetItem *item = new QListWidgetItem();
-        item->setText( *it );
-        listConnections->addItem( item );
-        ++it;
-      }
-      settings.endGroup();
+      QListWidgetItem *item = new QListWidgetItem();
+      item->setText( connection );
+      listConnections->addItem( item );
     }
   }
   // Import mode. Populate connections list from file
@@ -407,6 +425,22 @@ bool QgsManageConnectionsDialog::populateConnections()
         {
           QMessageBox::information( this, tr( "Loading Connections" ),
                                     tr( "The file is not a Vector Tile connections exchange file." ) );
+          return false;
+        }
+        break;
+      case TiledScene:
+        if ( root.tagName() != QLatin1String( "qgsTiledSceneConnections" ) )
+        {
+          QMessageBox::information( this, tr( "Loading Connections" ),
+                                    tr( "The file is not a tiled scene connections exchange file." ) );
+          return false;
+        }
+        break;
+      case SensorThings:
+        if ( root.tagName() != QLatin1String( "qgsSensorThingsConnections" ) )
+        {
+          QMessageBox::information( this, tr( "Loading Connections" ),
+                                    tr( "The file is not a SensorThings connections exchange file." ) );
           return false;
         }
         break;
@@ -752,6 +786,59 @@ QDomDocument QgsManageConnectionsDialog::saveVectorTileConnections( const QStrin
   return doc;
 }
 
+QDomDocument QgsManageConnectionsDialog::saveTiledSceneConnections( const QStringList &connections )
+{
+  QDomDocument doc( QStringLiteral( "connections" ) );
+  QDomElement root = doc.createElement( QStringLiteral( "qgsTiledSceneConnections" ) );
+  root.setAttribute( QStringLiteral( "version" ), QStringLiteral( "1.0" ) );
+  doc.appendChild( root );
+
+  for ( int i = 0; i < connections.count(); ++i )
+  {
+    QDomElement el = doc.createElement( QStringLiteral( "tiledscene" ) );
+
+    el.setAttribute( QStringLiteral( "name" ), connections[ i ] );
+    el.setAttribute( QStringLiteral( "provider" ), QgsTiledSceneProviderConnection::settingsProvider->value( connections[ i ] ) );
+    el.setAttribute( QStringLiteral( "url" ), QgsTiledSceneProviderConnection::settingsUrl->value( connections[ i ] ) );
+    el.setAttribute( QStringLiteral( "authcfg" ), QgsTiledSceneProviderConnection::settingsAuthcfg->value( connections[ i ] ) );
+    el.setAttribute( QStringLiteral( "username" ), QgsTiledSceneProviderConnection::settingsUsername->value( connections[ i ] ) );
+    el.setAttribute( QStringLiteral( "password" ), QgsTiledSceneProviderConnection::settingsPassword->value( connections[ i ] ) );
+
+    QgsHttpHeaders httpHeader( QgsTiledSceneProviderConnection::settingsHeaders->value( connections[ i ] ) );
+    httpHeader.updateDomElement( el );
+
+    root.appendChild( el );
+  }
+
+  return doc;
+}
+
+QDomDocument QgsManageConnectionsDialog::saveSensorThingsConnections( const QStringList &connections )
+{
+  QDomDocument doc( QStringLiteral( "connections" ) );
+  QDomElement root = doc.createElement( QStringLiteral( "qgsSensorThingsConnections" ) );
+  root.setAttribute( QStringLiteral( "version" ), QStringLiteral( "1.0" ) );
+  doc.appendChild( root );
+
+  for ( int i = 0; i < connections.count(); ++i )
+  {
+    QDomElement el = doc.createElement( QStringLiteral( "sensorthings" ) );
+
+    el.setAttribute( QStringLiteral( "name" ), connections[ i ] );
+    el.setAttribute( QStringLiteral( "url" ), QgsSensorThingsProviderConnection::settingsUrl->value( connections[ i ] ) );
+    el.setAttribute( QStringLiteral( "authcfg" ), QgsSensorThingsProviderConnection::settingsAuthcfg->value( connections[ i ] ) );
+    el.setAttribute( QStringLiteral( "username" ), QgsSensorThingsProviderConnection::settingsUsername->value( connections[ i ] ) );
+    el.setAttribute( QStringLiteral( "password" ), QgsSensorThingsProviderConnection::settingsPassword->value( connections[ i ] ) );
+
+    QgsHttpHeaders httpHeader( QgsTiledSceneProviderConnection::settingsHeaders->value( connections[ i ] ) );
+    httpHeader.updateDomElement( el );
+
+    root.appendChild( el );
+  }
+
+  return doc;
+}
+
 void QgsManageConnectionsDialog::loadOWSConnections( const QDomDocument &doc, const QStringList &items, const QString &service )
 {
   const QDomElement root = doc.documentElement();
@@ -909,7 +996,7 @@ void QgsManageConnectionsDialog::loadWfsConnections( const QDomDocument &doc, co
     QgsOwsConnection::settingsVersion->setValue( child.attribute( QStringLiteral( "version" ) ), {QStringLiteral( "wfs" ), connectionName} );
     QgsOwsConnection::settingsMaxNumFeatures->setValue( child.attribute( QStringLiteral( "maxnumfeatures" ) ), {QStringLiteral( "wfs" ), connectionName} );
     QgsOwsConnection::settingsPagesize->setValue( child.attribute( QStringLiteral( "pagesize" ) ), {QStringLiteral( "wfs" ), connectionName} );
-    QgsOwsConnection::settingsPagingEnabled->setValue( child.attribute( QStringLiteral( "pagingenabled" ) ).toInt(), {QStringLiteral( "wfs" ), connectionName} );
+    QgsOwsConnection::settingsPagingEnabled->setValue( child.attribute( QStringLiteral( "pagingenabled" ) ), {QStringLiteral( "wfs" ), connectionName} );
     QgsOwsConnection::settingsIgnoreAxisOrientation->setValue( child.attribute( QStringLiteral( "ignoreAxisOrientation" ) ).toInt(), {QStringLiteral( "wfs" ), connectionName} );
     QgsOwsConnection::settingsInvertAxisOrientation->setValue( child.attribute( QStringLiteral( "invertAxisOrientation" ) ).toInt(), {QStringLiteral( "wfs" ), connectionName} );
 
@@ -1558,6 +1645,173 @@ void QgsManageConnectionsDialog::loadVectorTileConnections( const QDomDocument &
 
     QgsHttpHeaders httpHeader( child );
     QgsVectorTileProviderConnection::settingsHeaders->setValue( httpHeader.headers(), connectionName );
+
+    child = child.nextSiblingElement();
+  }
+}
+
+void QgsManageConnectionsDialog::loadTiledSceneConnections( const QDomDocument &doc, const QStringList &items )
+{
+  const QDomElement root = doc.documentElement();
+  if ( root.tagName() != QLatin1String( "qgsTiledSceneConnections" ) )
+  {
+    QMessageBox::information( this, tr( "Loading Connections" ),
+                              tr( "The file is not a tiled scene connections exchange file." ) );
+    return;
+  }
+
+  QString connectionName;
+  QgsSettings settings;
+  settings.beginGroup( QStringLiteral( "/qgis/connections-tiled-scene" ) );
+  QStringList keys = settings.childGroups();
+  settings.endGroup();
+  QDomElement child = root.firstChildElement();
+  bool prompt = true;
+  bool overwrite = true;
+
+  while ( !child.isNull() )
+  {
+    connectionName = child.attribute( QStringLiteral( "name" ) );
+    if ( !items.contains( connectionName ) )
+    {
+      child = child.nextSiblingElement();
+      continue;
+    }
+
+    // check for duplicates
+    if ( keys.contains( connectionName ) && prompt )
+    {
+      const int res = QMessageBox::warning( this,
+                                            tr( "Loading Connections" ),
+                                            tr( "Connection with name '%1' already exists. Overwrite?" )
+                                            .arg( connectionName ),
+                                            QMessageBox::Yes | QMessageBox::YesToAll | QMessageBox::No | QMessageBox::NoToAll | QMessageBox::Cancel );
+
+      switch ( res )
+      {
+        case QMessageBox::Cancel:
+          return;
+        case QMessageBox::No:
+          child = child.nextSiblingElement();
+          continue;
+        case QMessageBox::Yes:
+          overwrite = true;
+          break;
+        case QMessageBox::YesToAll:
+          prompt = false;
+          overwrite = true;
+          break;
+        case QMessageBox::NoToAll:
+          prompt = false;
+          overwrite = false;
+          break;
+      }
+    }
+
+    if ( keys.contains( connectionName ) )
+    {
+      if ( !overwrite )
+      {
+        child = child.nextSiblingElement();
+        continue;
+      }
+    }
+    else
+    {
+      keys << connectionName;
+    }
+
+    QgsTiledSceneProviderConnection::settingsProvider->setValue( child.attribute( QStringLiteral( "provider" ) ), connectionName );
+    QgsTiledSceneProviderConnection::settingsUrl->setValue( child.attribute( QStringLiteral( "url" ) ), connectionName );
+    QgsTiledSceneProviderConnection::settingsAuthcfg->setValue( child.attribute( QStringLiteral( "authcfg" ) ), connectionName );
+    QgsTiledSceneProviderConnection::settingsUsername->setValue( child.attribute( QStringLiteral( "username" ) ), connectionName );
+    QgsTiledSceneProviderConnection::settingsPassword->setValue( child.attribute( QStringLiteral( "password" ) ), connectionName );
+
+    QgsHttpHeaders httpHeader( child );
+    QgsTiledSceneProviderConnection::settingsHeaders->setValue( httpHeader.headers(), connectionName );
+
+    child = child.nextSiblingElement();
+  }
+}
+
+void QgsManageConnectionsDialog::loadSensorThingsConnections( const QDomDocument &doc, const QStringList &items )
+{
+  const QDomElement root = doc.documentElement();
+  if ( root.tagName() != QLatin1String( "qgsSensorThingsConnections" ) )
+  {
+    QMessageBox::information( this, tr( "Loading Connections" ),
+                              tr( "The file is not a SensorThings connections exchange file." ) );
+    return;
+  }
+
+  QString connectionName;
+  QgsSettings settings;
+  settings.beginGroup( QStringLiteral( "/connections/sensorthings/items" ) );
+  QStringList keys = settings.childGroups();
+  settings.endGroup();
+  QDomElement child = root.firstChildElement();
+  bool prompt = true;
+  bool overwrite = true;
+
+  while ( !child.isNull() )
+  {
+    connectionName = child.attribute( QStringLiteral( "name" ) );
+    if ( !items.contains( connectionName ) )
+    {
+      child = child.nextSiblingElement();
+      continue;
+    }
+
+    // check for duplicates
+    if ( keys.contains( connectionName ) && prompt )
+    {
+      const int res = QMessageBox::warning( this,
+                                            tr( "Loading Connections" ),
+                                            tr( "Connection with name '%1' already exists. Overwrite?" )
+                                            .arg( connectionName ),
+                                            QMessageBox::Yes | QMessageBox::YesToAll | QMessageBox::No | QMessageBox::NoToAll | QMessageBox::Cancel );
+
+      switch ( res )
+      {
+        case QMessageBox::Cancel:
+          return;
+        case QMessageBox::No:
+          child = child.nextSiblingElement();
+          continue;
+        case QMessageBox::Yes:
+          overwrite = true;
+          break;
+        case QMessageBox::YesToAll:
+          prompt = false;
+          overwrite = true;
+          break;
+        case QMessageBox::NoToAll:
+          prompt = false;
+          overwrite = false;
+          break;
+      }
+    }
+
+    if ( keys.contains( connectionName ) )
+    {
+      if ( !overwrite )
+      {
+        child = child.nextSiblingElement();
+        continue;
+      }
+    }
+    else
+    {
+      keys << connectionName;
+    }
+
+    QgsSensorThingsProviderConnection::settingsUrl->setValue( child.attribute( QStringLiteral( "url" ) ), connectionName );
+    QgsSensorThingsProviderConnection::settingsAuthcfg->setValue( child.attribute( QStringLiteral( "authcfg" ) ), connectionName );
+    QgsSensorThingsProviderConnection::settingsUsername->setValue( child.attribute( QStringLiteral( "username" ) ), connectionName );
+    QgsSensorThingsProviderConnection::settingsPassword->setValue( child.attribute( QStringLiteral( "password" ) ), connectionName );
+
+    QgsHttpHeaders httpHeader( child );
+    QgsSensorThingsProviderConnection::settingsHeaders->setValue( httpHeader.headers(), connectionName );
 
     child = child.nextSiblingElement();
   }

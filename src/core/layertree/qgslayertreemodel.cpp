@@ -20,7 +20,6 @@
 
 #include "qgsapplication.h"
 #include "qgslayertree.h"
-#include "qgslayertreeutils.h"
 #include "qgslayertreemodellegendnode.h"
 #include "qgsproject.h"
 #include "qgsmaphittest.h"
@@ -33,6 +32,7 @@
 #include "qgssettingsregistrycore.h"
 #include "qgsmaplayerstyle.h"
 #include "qgsrendercontext.h"
+#include "qgslayertreefiltersettings.h"
 
 #include <QPalette>
 
@@ -40,12 +40,6 @@ QgsLayerTreeModel::QgsLayerTreeModel( QgsLayerTree *rootNode, QObject *parent )
   : QAbstractItemModel( parent )
   , mRootNode( rootNode )
   , mFlags( ShowLegend | AllowLegendChangeState | DeferredLegendInvalidation )
-  , mAutoCollapseLegendNodesCount( -1 )
-  , mLegendFilterByScale( 0 )
-  , mLegendFilterUsesExtent( false )
-  , mLegendMapViewMupp( 0 )
-  , mLegendMapViewDpi( 0 )
-  , mLegendMapViewScale( 0 )
 {
   connectToRootNode();
 
@@ -603,33 +597,50 @@ void QgsLayerTreeModel::setLegendFilterByScale( double scale )
 
 void QgsLayerTreeModel::setLegendFilterByMap( const QgsMapSettings *settings )
 {
+  Q_NOWARN_DEPRECATED_PUSH
   setLegendFilter( settings, /* useExtent = */ true );
+  Q_NOWARN_DEPRECATED_POP
 }
 
 void QgsLayerTreeModel::setLegendFilter( const QgsMapSettings *settings, bool useExtent, const QgsGeometry &polygon, bool useExpressions )
 {
   if ( settings && settings->hasValidSettings() )
   {
-    mUseHitTest = true;
-    mLegendFilterMapSettings.reset( new QgsMapSettings( *settings ) );
-    mLegendFilterMapSettings->setLayerStyleOverrides( mLayerStyleOverrides );
-    QgsMapHitTest::LayerFilterExpression exprs;
-    mLegendFilterUsesExtent = useExtent;
-    // collect expression filters
+    std::unique_ptr< QgsLayerTreeFilterSettings > filterSettings = std::make_unique< QgsLayerTreeFilterSettings >( *settings );
+
+    if ( !useExtent ) // only expressions
+    {
+      filterSettings->setFlags( Qgis::LayerTreeFilterFlag::SkipVisibilityCheck );
+    }
+    else if ( polygon.type() == Qgis::GeometryType::Polygon )
+    {
+      filterSettings->setFilterPolygon( polygon );
+    }
+
     if ( useExpressions )
     {
-      const auto layers = mRootNode->findLayers();
-      for ( QgsLayerTreeLayer *nodeLayer : layers )
-      {
-        bool enabled;
-        QString expr = QgsLayerTreeUtils::legendFilterByExpression( *nodeLayer, &enabled );
-        if ( enabled && !expr.isEmpty() )
-        {
-          exprs[ nodeLayer->layerId()] = expr;
-        }
-      }
+      filterSettings->setLayerFilterExpressionsFromLayerTree( mRootNode );
     }
-    bool polygonValid = !polygon.isNull() && polygon.type() == Qgis::GeometryType::Polygon;
+
+    setFilterSettings( filterSettings.get() );
+  }
+  else
+  {
+    setFilterSettings( nullptr );
+  }
+}
+
+const QgsMapSettings *QgsLayerTreeModel::legendFilterMapSettings() const
+{
+  return mFilterSettings ? &mFilterSettings->mapSettings() : nullptr;
+}
+
+void QgsLayerTreeModel::setFilterSettings( const QgsLayerTreeFilterSettings *settings )
+{
+  if ( settings )
+  {
+    mFilterSettings = std::make_unique< QgsLayerTreeFilterSettings >( *settings );
+    mFilterSettings->mapSettings().setLayerStyleOverrides( mLayerStyleOverrides );
 
     bool hitTestWasRunning = false;
     if ( mHitTestTask )
@@ -642,20 +653,10 @@ void QgsLayerTreeModel::setLegendFilter( const QgsMapSettings *settings, bool us
     }
 
     std::unique_ptr< QgsMapHitTest > blockingHitTest;
-    if ( useExpressions && !useExtent && !polygonValid ) // only expressions
-    {
-      if ( mFlags & QgsLayerTreeModel::Flag::UseThreadedHitTest )
-        mHitTestTask = new QgsMapHitTestTask( *mLegendFilterMapSettings, exprs );
-      else
-        blockingHitTest = std::make_unique< QgsMapHitTest >( *mLegendFilterMapSettings, exprs );
-    }
+    if ( mFlags & QgsLayerTreeModel::Flag::UseThreadedHitTest )
+      mHitTestTask = new QgsMapHitTestTask( *mFilterSettings );
     else
-    {
-      if ( mFlags & QgsLayerTreeModel::Flag::UseThreadedHitTest )
-        mHitTestTask = new QgsMapHitTestTask( *mLegendFilterMapSettings, polygon, exprs );
-      else
-        blockingHitTest = std::make_unique< QgsMapHitTest >( *mLegendFilterMapSettings, polygon, exprs );
-    }
+      blockingHitTest = std::make_unique< QgsMapHitTest >( *mFilterSettings );
 
     if ( mHitTestTask )
     {
@@ -674,14 +675,17 @@ void QgsLayerTreeModel::setLegendFilter( const QgsMapSettings *settings, bool us
   }
   else
   {
-    mUseHitTest = false;
-    if ( !mLegendFilterMapSettings )
-      return; // no change
+    if ( !mFilterSettings )
+      return;
 
-    mLegendFilterMapSettings.reset();
-
+    mFilterSettings.reset();
     handleHitTestResults();
   }
+}
+
+const QgsLayerTreeFilterSettings *QgsLayerTreeModel::filterSettings() const
+{
+  return mFilterSettings.get();
 }
 
 void QgsLayerTreeModel::handleHitTestResults()
@@ -731,6 +735,19 @@ QMap<QString, QString> QgsLayerTreeModel::layerStyleOverrides() const
 void QgsLayerTreeModel::setLayerStyleOverrides( const QMap<QString, QString> &overrides )
 {
   mLayerStyleOverrides = overrides;
+}
+
+void QgsLayerTreeModel::addTargetScreenProperties( const QgsScreenProperties &properties )
+{
+  if ( mTargetScreenProperties.contains( properties ) )
+    return;
+
+  mTargetScreenProperties.insert( properties );
+}
+
+QSet<QgsScreenProperties> QgsLayerTreeModel::targetScreenProperties() const
+{
+  return mTargetScreenProperties;
 }
 
 int QgsLayerTreeModel::scaleIconSize( int standardSize )
@@ -1267,13 +1284,13 @@ QList<QgsLayerTreeModelLegendNode *> QgsLayerTreeModel::filterLegendNodes( const
         filtered << node;
     }
   }
-  else if ( mUseHitTest )
+  else if ( mFilterSettings )
   {
-    if ( !nodes.isEmpty() && mLegendFilterMapSettings->layers().contains( nodes.at( 0 )->layerNode()->layer() ) )
+    if ( !nodes.isEmpty() && mFilterSettings->layers().contains( nodes.at( 0 )->layerNode()->layer() ) )
     {
       for ( QgsLayerTreeModelLegendNode *node : std::as_const( nodes ) )
       {
-        switch ( node->data( QgsSymbolLegendNode::NodeTypeRole ).value<QgsLayerTreeModelLegendNode::NodeTypes>() )
+        switch ( node->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::NodeType ) ).value<QgsLayerTreeModelLegendNode::NodeTypes>() )
         {
           case QgsLayerTreeModelLegendNode::EmbeddedWidget:
             filtered << node;
@@ -1287,8 +1304,10 @@ QList<QgsLayerTreeModelLegendNode *> QgsLayerTreeModel::filterLegendNodes( const
           case QgsLayerTreeModelLegendNode::DataDefinedSizeLegend:
           case QgsLayerTreeModelLegendNode::ColorRampLegend:
           {
-            const QString ruleKey = node->data( QgsSymbolLegendNode::RuleKeyRole ).toString();
-            bool checked = mLegendFilterUsesExtent || node->data( Qt::CheckStateRole ).toInt() == Qt::Checked;
+            const QString ruleKey = node->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) ).toString();
+            const bool checked = ( mFilterSettings && !( mFilterSettings->flags() & Qgis::LayerTreeFilterFlag::SkipVisibilityCheck ) )
+                                 || node->data( Qt::CheckStateRole ).toInt() == Qt::Checked;
+
             if ( checked )
             {
               if ( QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( node->layerNode()->layer() ) )
@@ -1458,7 +1477,7 @@ QgsLayerTreeModel::LayerLegendTree *QgsLayerTreeModel::tryBuildLegendTree( const
   bool hasParentKeys = false;
   for ( QgsLayerTreeModelLegendNode *n : nodes )
   {
-    if ( !n->data( QgsLayerTreeModelLegendNode::ParentRuleKeyRole ).toString().isEmpty() )
+    if ( !n->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::ParentRuleKey ) ).toString().isEmpty() )
     {
       hasParentKeys = true;
       break;
@@ -1472,7 +1491,7 @@ QgsLayerTreeModel::LayerLegendTree *QgsLayerTreeModel::tryBuildLegendTree( const
   rule2node[QString()] = nullptr;
   for ( QgsLayerTreeModelLegendNode *n : nodes )
   {
-    QString ruleKey = n->data( QgsLayerTreeModelLegendNode::RuleKeyRole ).toString();
+    QString ruleKey = n->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) ).toString();
     if ( ruleKey.isEmpty() ) // in tree all nodes must have key
       return nullptr;
     if ( rule2node.contains( ruleKey ) ) // and they must be unique
@@ -1484,7 +1503,7 @@ QgsLayerTreeModel::LayerLegendTree *QgsLayerTreeModel::tryBuildLegendTree( const
   LayerLegendTree *tree = new LayerLegendTree;
   for ( QgsLayerTreeModelLegendNode *n : nodes )
   {
-    QString parentRuleKey = n->data( QgsLayerTreeModelLegendNode::ParentRuleKeyRole ).toString();
+    QString parentRuleKey = n->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::ParentRuleKey ) ).toString();
     QgsLayerTreeModelLegendNode *parent = rule2node.value( parentRuleKey, nullptr );
     tree->parents[n] = parent;
     tree->children[parent] << n;
@@ -1503,6 +1522,12 @@ QgsRenderContext *QgsLayerTreeModel::createTemporaryRenderContext() const
   // setup temporary render context
   std::unique_ptr<QgsRenderContext> context( new QgsRenderContext );
   context->setScaleFactor( dpi / 25.4 );
+
+  if ( !mTargetScreenProperties.isEmpty() )
+  {
+    mTargetScreenProperties.begin()->updateRenderContextForScreen( *context );
+  }
+
   context->setRendererScale( scale );
   context->setMapToPixel( QgsMapToPixel( mupp ) );
   context->setFlag( Qgis::RenderContextFlag::RenderSymbolPreview );
@@ -1674,7 +1699,7 @@ QgsLayerTreeModelLegendNode *QgsLayerTreeModel::findLegendNode( const QString &l
       const auto activeNodes = mLegend.value( layer ).activeNodes;
       for ( QgsLayerTreeModelLegendNode *legendNode : activeNodes )
       {
-        if ( legendNode->data( QgsLayerTreeModelLegendNode::RuleKeyRole ).toString() == ruleKey )
+        if ( legendNode->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) ).toString() == ruleKey )
         {
           //found it!
           return legendNode;
@@ -1718,7 +1743,7 @@ void QgsLayerTreeModel::invalidateLegendMapBasedData()
       if ( n )
       {
         const QSize sz( n->minimumIconSize( context.get() ) );
-        const QString parentKey( n->data( QgsLayerTreeModelLegendNode::ParentRuleKeyRole ).toString() );
+        const QString parentKey( n->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::ParentRuleKey ) ).toString() );
         widthMax[parentKey] = std::max( sz.width(), widthMax.contains( parentKey ) ? widthMax[parentKey] : 0 );
         n->setIconSize( sz );
         symbolNodes.append( n );
@@ -1726,7 +1751,7 @@ void QgsLayerTreeModel::invalidateLegendMapBasedData()
     }
     for ( QgsSymbolLegendNode *n : std::as_const( symbolNodes ) )
     {
-      const QString parentKey( n->data( QgsLayerTreeModelLegendNode::ParentRuleKeyRole ).toString() );
+      const QString parentKey( n->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::ParentRuleKey ) ).toString() );
       Q_ASSERT( widthMax[parentKey] > 0 );
       const int twiceMarginWidth = 2; // a one pixel margin avoids hugly rendering of icon
       n->setIconSize( QSize( widthMax[parentKey] + twiceMarginWidth, n->iconSize().rheight() + twiceMarginWidth ) );

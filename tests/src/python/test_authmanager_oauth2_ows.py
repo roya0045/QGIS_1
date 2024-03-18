@@ -37,7 +37,8 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.PyQt.QtNetwork import QSslCertificate
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from utilities import unitTestDataPath, waitServer
 
 try:
@@ -93,7 +94,7 @@ def setup_oauth(username, password, token_uri, refresh_token_uri='', authcfg_id=
     return None
 
 
-class TestAuthManager(unittest.TestCase):
+class TestAuthManager(QgisTestCase):
 
     @classmethod
     def setUpAuth(cls):
@@ -131,6 +132,7 @@ class TestAuthManager(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         """Run before all tests:
         Creates an auth configuration"""
         cls.port = QGIS_SERVER_ENDPOINT_PORT
@@ -179,6 +181,7 @@ class TestAuthManager(unittest.TestCase):
         cls.server.kill()
         rmtree(QGIS_AUTH_DB_DIR_PATH)
         del cls.server
+        super().tearDownClass()
 
     def setUp(self):
         """Run before each test."""

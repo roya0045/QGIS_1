@@ -71,8 +71,6 @@ A text editor based on QScintilla2.
 .. note::
 
    may not be available in Python bindings, depending on platform support
-
-.. versionadded:: 2.6
 %End
 
 %TypeHeaderCode
@@ -99,12 +97,13 @@ A text editor based on QScintilla2.
     enum class Flag
     {
       CodeFolding,
+      ImmediatelyUpdateHistory,
     };
 
     typedef QFlags<QgsCodeEditor::Flag> Flags;
 
 
-    QgsCodeEditor( QWidget * parent /TransferThis/ = 0, const QString & title = QString(), bool folding = false, bool margin = false, QgsCodeEditor::Flags flags = QgsCodeEditor::Flags(), QgsCodeEditor::Mode mode = QgsCodeEditor::Mode::ScriptEditor );
+    QgsCodeEditor( QWidget *parent /TransferThis/ = 0, const QString &title = QString(), bool folding = false, bool margin = false, QgsCodeEditor::Flags flags = QgsCodeEditor::Flags(), QgsCodeEditor::Mode mode = QgsCodeEditor::Mode::ScriptEditor );
 %Docstring
 Construct a new code editor.
 
@@ -114,11 +113,9 @@ Construct a new code editor.
 :param margin: ``False``: Enable margin for code editor (deprecated)
 :param flags: flags controlling behavior of code editor (since QGIS 3.28)
 :param mode: code editor mode (since QGIS 3.30)
-
-.. versionadded:: 2.6
 %End
 
-    void setTitle( const QString & title );
+    void setTitle( const QString &title );
 %Docstring
 Set the widget title
 
@@ -198,7 +195,7 @@ Returns ``True`` if the folding controls are visible in the editor.
 .. seealso:: :py:func:`setFoldingVisible`
 %End
 
-    void insertText( const QString & text );
+    void insertText( const QString &text );
 %Docstring
 Insert text at cursor position, or replace any selected text if user has
 made a selection.
@@ -206,7 +203,7 @@ made a selection.
 :param text: The text to be inserted
 %End
 
-    static QColor defaultColor( QgsCodeEditorColorScheme::ColorRole role, const QString & theme = QString() );
+    static QColor defaultColor( QgsCodeEditorColorScheme::ColorRole role, const QString &theme = QString() );
 %Docstring
 Returns the default color for the specified ``role``.
 
@@ -231,7 +228,7 @@ selected a custom color scheme for the editor.
 .. versionadded:: 3.16
 %End
 
-    static void setColor( QgsCodeEditorColorScheme::ColorRole role, const QColor & color );
+    static void setColor( QgsCodeEditorColorScheme::ColorRole role, const QColor &color );
 %Docstring
 Sets the ``color`` to use in the editor for the specified ``role``.
 
@@ -253,7 +250,7 @@ Returns the monospaced font to use for code editors.
 %End
 
 
-    void addWarning( int lineNumber, const QString & warning );
+    void addWarning( int lineNumber, const QString &warning );
 %Docstring
 Adds a ``warning`` message and indicator to the specified a ``lineNumber``.
 
@@ -327,13 +324,55 @@ is in the QgsCodeEditor.Mode.CommandInput mode.
 .. versionadded:: 3.30
 %End
 
+    int linearPosition() const;
+%Docstring
+Convenience function to return the cursor position as a linear index
+
+.. versionadded:: 3.36
+%End
+
+    void setLinearPosition( int position );
+%Docstring
+Convenience function to set the cursor position as a linear index
+
+.. versionadded:: 3.36
+%End
+
+    int selectionStart() const;
+%Docstring
+Convenience function to return the start of the selection as a linear index
+Contrary to the getSelection method, this method returns the cursor position if
+no selection is made.
+
+.. versionadded:: 3.36
+%End
+
+    int selectionEnd() const;
+%Docstring
+Convenience function to return the end of the selection as a linear index
+Contrary to the getSelection method, this method returns the cursor position if
+no selection is made.
+
+.. versionadded:: 3.36
+%End
+
+    void setLinearSelection( int start, int end );
+%Docstring
+Convenience function to set the selection using linear indexes
+
+.. versionadded:: 3.36
+%End
+
   public slots:
 
-    void runCommand( const QString &command );
+    void runCommand( const QString &command, bool skipHistory = false );
 %Docstring
 Runs a command in the editor.
 
 An :py:func:`~QgsCodeEditor.interpreter` must be set.
+
+Since QGIS 3.32, if ``skipHistory`` is ``True`` then the command will not be automatically
+added to the widget's history.
 
 .. versionadded:: 3.30
 %End
@@ -427,7 +466,7 @@ Stores the commands executed in the editor to the persistent history file.
 %Docstring
 Applies code reformatting to the editor.
 
-This is only supported for editors which return the Qgis.ScriptLanguageCapability.Reformat capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
+This is only supported for editors which return the :py:class:`Qgis`.ScriptLanguageCapability.Reformat capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
 
 .. versionadded:: 3.32
 %End
@@ -436,7 +475,7 @@ This is only supported for editors which return the Qgis.ScriptLanguageCapabilit
 %Docstring
 Applies syntax checking to the editor.
 
-This is only supported for editors which return the Qgis.ScriptLanguageCapability.CheckSyntax capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
+This is only supported for editors which return the :py:class:`Qgis`.ScriptLanguageCapability.CheckSyntax capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
 
 .. versionadded:: 3.32
 %End
@@ -445,7 +484,7 @@ This is only supported for editors which return the Qgis.ScriptLanguageCapabilit
 %Docstring
 Toggle comment for the selected text.
 
-This is only supported for editors which return the Qgis.ScriptLanguageCapability.ToggleComment capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
+This is only supported for editors which return the :py:class:`Qgis`.ScriptLanguageCapability.ToggleComment capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
 
 .. versionadded:: 3.32
 %End
@@ -478,6 +517,8 @@ Returns ``True`` if a ``font`` is a fixed pitch font.
     virtual void keyPressEvent( QKeyEvent *event );
 
     virtual void contextMenuEvent( QContextMenuEvent *event );
+
+    virtual bool eventFilter( QObject *watched, QEvent *event );
 
 
     virtual void initializeLexer();
@@ -543,7 +584,7 @@ actions to the context menu.
 %Docstring
 Applies code reformatting to a ``string`` and returns the result.
 
-This is only supported for editors which return the Qgis.ScriptLanguageCapability.Reformat capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
+This is only supported for editors which return the :py:class:`Qgis`.ScriptLanguageCapability.Reformat capability from :py:func:`~QgsCodeEditor.languageCapabilities`.
 
 .. versionadded:: 3.32
 %End

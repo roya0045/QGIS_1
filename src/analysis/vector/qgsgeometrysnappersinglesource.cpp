@@ -90,14 +90,12 @@ static void buildSnapIndex( QgsFeatureIterator &fi, QgsSpatialIndex &index, QVec
 static void assignAnchors( QgsSpatialIndex &index, QVector<AnchorPoint> &pnts, double thresh )
 {
   const double thresh2 = thresh * thresh;
-  int nanchors = 0, ntosnap = 0;
   for ( int point = 0; point < pnts.count(); ++point )
   {
     if ( pnts[point].anchor >= 0 )
       continue;
 
     pnts[point].anchor = -2; // make it anchor
-    nanchors++;
 
     // Find points in threshold
     double x = pnts[point].x, y = pnts[point].y;
@@ -119,7 +117,6 @@ static void assignAnchors( QgsSpatialIndex &index, QVector<AnchorPoint> &pnts, d
       {
         // doesn't have an anchor yet
         pnts[pointb].anchor = point;
-        ntosnap++;
       }
       else if ( pnts[pointb].anchor >= 0 )
       {
@@ -226,7 +223,7 @@ static bool snapLineString( QgsLineString *linestring, QgsSpatialIndex &index, Q
         continue; // point is not anchor
 
       // Check the distance
-      const double dist2 = QgsGeometryUtils::sqrDistToLine( pnts[spoint].x, pnts[spoint].y, x1, y1, x2, y2, minDistX, minDistY, 0 );
+      const double dist2 = QgsGeometryUtilsBase::sqrDistToLine( pnts[spoint].x, pnts[spoint].y, x1, y1, x2, y2, minDistX, minDistY, 0 );
       // skip points that are behind segment's endpoints or extremely close to them
       double dx1 = minDistX - x1, dx2 = minDistX - x2;
       double dy1 = minDistY - y1, dy2 = minDistY - y2;

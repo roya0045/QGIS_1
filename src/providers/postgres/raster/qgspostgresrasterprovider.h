@@ -20,8 +20,6 @@
 #include "qgscoordinatereferencesystem.h"
 #include "qgsprovidermetadata.h"
 #include "qgspostgresconn.h"
-#include "qgspostgresprovider.h"
-#include "qgsogrutils.h"
 #include "qgspostgresrastershareddata.h"
 
 #include <exception>
@@ -44,6 +42,7 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
   public:
 
     // QgsDataProvider interface
+    Qgis::DataProviderFlags flags() const override;
     virtual QgsCoordinateReferenceSystem crs() const override;
     virtual QgsRectangle extent() const override;
     virtual bool isValid() const override;
@@ -59,10 +58,10 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     virtual Qgis::DataType sourceDataType( int bandNo ) const override;
     virtual int xBlockSize() const override;
     virtual int yBlockSize() const override;
-    virtual QgsRasterBandStats bandStatistics( int bandNo, int stats, const QgsRectangle &extent, int sampleSize, QgsRasterBlockFeedback *feedback ) override;
+    virtual QgsRasterBandStats bandStatistics( int bandNo, Qgis::RasterBandStatistics stats, const QgsRectangle &extent, int sampleSize, QgsRasterBlockFeedback *feedback ) override;
 
     // QgsRasterDataProvider interface
-    virtual QString htmlMetadata() override;
+    virtual QString htmlMetadata() const override;
     virtual QString lastErrorTitle() override;
     virtual QString lastError() override;
     int capabilities() const override;
@@ -128,9 +127,9 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     //! Has spatial index
     bool mHasSpatialIndex = false;
     //! Raster size x
-    long mWidth = 0;
+    qlonglong mWidth = 0;
     //! Raster size y
-    long mHeight = 0;
+    qlonglong mHeight = 0;
     //! Raster tile size x
     int mTileWidth = 0;
     //! Raster tile size y
@@ -206,7 +205,7 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     static QString quotedValue( const QVariant &value ) { return QgsPostgresConn::quotedValue( value ); }
     static QString quotedJsonValue( const QVariant &value ) { return QgsPostgresConn::quotedJsonValue( value ); }
     static QString quotedByteaValue( const QVariant &value );
-    QgsPostgresProvider::Relkind relkind() const;
+    Qgis::PostgresRelKind relkind() const;
     bool loadFields();
 
     /**
@@ -225,7 +224,7 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     /**
      * Returns the quoted SQL frament to retrieve the PK from the raster table
      */
-    QString pkSql();
+    QString pkSql() const;
 
     /**
      * Returns table comment

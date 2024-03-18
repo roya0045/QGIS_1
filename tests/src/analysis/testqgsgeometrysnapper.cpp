@@ -24,12 +24,16 @@ Email                : nyall dot dawson at gmail dot com
 #include <geos_c.h>
 
 
-class TestQgsGeometrySnapper : public QObject
+class TestQgsGeometrySnapper : public QgsTest
 {
     Q_OBJECT
 
   public:
 
+  public:
+    TestQgsGeometrySnapper()
+      : QgsTest( QStringLiteral( "Geometry Snapper Tests" ), QStringLiteral( "3d" ) )
+    {}
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
@@ -374,6 +378,10 @@ void TestQgsGeometrySnapper::snapPointToLine()
   pointGeom = QgsGeometry::fromWkt( QStringLiteral( "Point(0.5 0.5)" ) );
   result = snapper.snapGeometry( pointGeom, 1 );
   QCOMPARE( result.asWkt(), QStringLiteral( "Point (0 0)" ) );
+
+  pointGeom = QgsGeometry::fromWkt( QStringLiteral( "Point(3 3)" ) );
+  result = snapper.snapGeometry( pointGeom, 4 );
+  QCOMPARE( result.asWkt(), QStringLiteral( "Point (3 0)" ) );
 }
 
 void TestQgsGeometrySnapper::snapPointToLinePreferNearest()

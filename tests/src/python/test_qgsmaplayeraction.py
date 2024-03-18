@@ -11,21 +11,21 @@ __copyright__ = 'Copyright 2018, The QGIS Project'
 
 import os
 
-import qgis  # NOQA switch sip api
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
 from qgis.gui import QgsMapLayerAction
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsMapLayerAction(unittest.TestCase):
+class TestQgsMapLayerAction(QgisTestCase):
 
     def __init__(self, methodName):
         """Run once on class initialization."""
-        unittest.TestCase.__init__(self, methodName)
+        QgisTestCase.__init__(self, methodName)
 
         self.vector_layer = QgsVectorLayer("Point?field=fldtxt:string&field=fldint:integer&field=flddate:datetime",
                                            "test_layer", "memory")
@@ -46,12 +46,12 @@ class TestQgsMapLayerAction(unittest.TestCase):
         self.assertTrue(action_all_layers.canRunUsingLayer(self.vector_layer))
         self.assertTrue(action_all_layers.canRunUsingLayer(self.raster_layer))
 
-        action_vector_layers_only = QgsMapLayerAction('action2', None, QgsMapLayer.VectorLayer)
+        action_vector_layers_only = QgsMapLayerAction('action2', None, QgsMapLayer.LayerType.VectorLayer)
         self.assertFalse(action_vector_layers_only.canRunUsingLayer(None))
         self.assertTrue(action_vector_layers_only.canRunUsingLayer(self.vector_layer))
         self.assertFalse(action_vector_layers_only.canRunUsingLayer(self.raster_layer))
 
-        action_raster_layers_only = QgsMapLayerAction('action3', None, QgsMapLayer.RasterLayer)
+        action_raster_layers_only = QgsMapLayerAction('action3', None, QgsMapLayer.LayerType.RasterLayer)
         self.assertFalse(action_raster_layers_only.canRunUsingLayer(None))
         self.assertFalse(action_raster_layers_only.canRunUsingLayer(self.vector_layer))
         self.assertTrue(action_raster_layers_only.canRunUsingLayer(self.raster_layer))
@@ -68,7 +68,7 @@ class TestQgsMapLayerAction(unittest.TestCase):
         self.assertFalse(action_specific_raster_layer_only.canRunUsingLayer(self.vector_layer2))
         self.assertTrue(action_specific_raster_layer_only.canRunUsingLayer(self.raster_layer))
 
-        action_editable_layer_only = QgsMapLayerAction('action1', None, flags=QgsMapLayerAction.EnabledOnlyWhenEditable)
+        action_editable_layer_only = QgsMapLayerAction('action1', None, flags=QgsMapLayerAction.Flag.EnabledOnlyWhenEditable)
         self.assertFalse(action_editable_layer_only.canRunUsingLayer(None))
         self.assertFalse(action_editable_layer_only.canRunUsingLayer(self.vector_layer))
         self.assertFalse(action_editable_layer_only.canRunUsingLayer(self.vector_layer2))

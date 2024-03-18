@@ -54,6 +54,9 @@ QVariant QgsEditorWidgetWrapper::defaultValue() const
 
 QgsEditorWidgetWrapper *QgsEditorWidgetWrapper::fromWidget( QWidget *widget )
 {
+  if ( !widget )
+    return nullptr;
+
   return qobject_cast<QgsEditorWidgetWrapper *>( widget->property( "EWV2Wrapper" ).value<QgsWidgetWrapper *>() );
 }
 
@@ -117,11 +120,11 @@ void QgsEditorWidgetWrapper::updateConstraintWidgetStatus()
         break;
 
       case ConstraintResultFailHard:
-        widget()->setStyleSheet( QStringLiteral( "background-color: #FFE0B2;" ) );
+        widget()->setStyleSheet( QStringLiteral( "background-color: rgba(255, 150, 0, 0.3);" ) );
         break;
 
       case ConstraintResultFailSoft:
-        widget()->setStyleSheet( QStringLiteral( "background-color: #FFECB3;" ) );
+        widget()->setStyleSheet( QStringLiteral( "background-color: rgba(255, 200, 45, 0.3);" ) );
         break;
     }
   }
@@ -261,6 +264,15 @@ void QgsEditorWidgetWrapper::updateConstraint( const QgsVectorLayer *layer, int 
     updateConstraintWidgetStatus();
     emit constraintStatusChanged( expressionDesc, description, errStr, result );
   }
+}
+
+void QgsEditorWidgetWrapper::updateConstraint( QgsEditorWidgetWrapper::ConstraintResult constraintResult, const QString &constraintFailureReason )
+{
+  mValidConstraint = constraintResult == ConstraintResultPass;
+  mIsBlockingCommit = constraintResult == ConstraintResultFailHard;
+  mConstraintFailureReason = constraintResult != ConstraintResultPass ? constraintFailureReason : QString();
+  mConstraintResult = constraintResult;
+  updateConstraintWidgetStatus();
 }
 
 bool QgsEditorWidgetWrapper::isValidConstraint() const

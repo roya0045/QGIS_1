@@ -40,7 +40,8 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QEventLoop, QUrl
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from utilities import unitTestDataPath, waitServer
 
 try:
@@ -55,12 +56,13 @@ os.environ['QGIS_AUTH_DB_DIR_PATH'] = QGIS_AUTH_DB_DIR_PATH
 qgis_app = start_app()
 
 
-class TestAuthManager(unittest.TestCase):
+class TestAuthManager(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests:
         Creates an auth configuration"""
+        super().setUpClass()
         cls.port = QGIS_SERVER_ENDPOINT_PORT
         # Clean env just to be sure
         env_vars = ['QUERY_STRING', 'QGIS_PROJECT_FILE']
@@ -108,6 +110,7 @@ class TestAuthManager(unittest.TestCase):
         cls.server.terminate()
         rmtree(QGIS_AUTH_DB_DIR_PATH)
         del cls.server
+        super().tearDownClass()
 
     def setUp(self):
         """Run before each test."""
@@ -226,10 +229,10 @@ class TestAuthManager(unittest.TestCase):
 
         downloader.downloadExited.connect(loop.quit)
 
-        loop.exec_()
+        loop.exec()
 
         self.assertTrue(self.error_was_called)
-        self.assertTrue("Download failed: Host requires authentication" in str(self.error_args), f"Error args is: {str(self.error_args)}")
+        self.assertIn("Download failed: Host requires authentication", str(self.error_args))
 
     def testValidAuthFileDownload(self):
         """
@@ -262,11 +265,11 @@ class TestAuthManager(unittest.TestCase):
 
         downloader.downloadExited.connect(loop.quit)
 
-        loop.exec_()
+        loop.exec()
 
         # Check the we've got a likely PNG image
         self.assertTrue(self.completed_was_called)
-        self.assertTrue(os.path.getsize(destination) > 2000, f"Image size: {os.path.getsize(destination)}")  # > 1MB
+        self.assertGreater(os.path.getsize(destination), 2000)  # > 1MB
         with open(destination, 'rb') as f:
             self.assertTrue(b'PNG' in f.read())  # is a PNG
 

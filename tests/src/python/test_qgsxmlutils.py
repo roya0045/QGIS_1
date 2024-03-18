@@ -9,7 +9,6 @@ __author__ = 'Matthias Kuhn'
 __date__ = '18/11/2016'
 __copyright__ = 'Copyright 2016, The QGIS Project'
 
-import qgis  # NOQA switch sip api
 from qgis.PyQt.QtCore import QDate, QDateTime, QTime, QVariant
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtXml import QDomDocument
@@ -27,12 +26,13 @@ from qgis.core import (
     QgsWkbTypes,
     QgsXmlUtils,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsXmlUtils(unittest.TestCase):
+class TestQgsXmlUtils(QgisTestCase):
 
     def test_invalid(self):
         """
@@ -81,7 +81,7 @@ class TestQgsXmlUtils(unittest.TestCase):
 
         prop2 = QgsXmlUtils.readVariant(elem)
 
-        self.assertEqual(my_properties, prop2)
+        self.assertEqual(prop2, {'a': 'a', 'b': 'b', 'c': 'something_else', 'empty': None})
 
     def test_double(self):
         """
@@ -178,7 +178,7 @@ class TestQgsXmlUtils(unittest.TestCase):
         elem = QgsXmlUtils.writeVariant(crs, doc)
 
         crs2 = QgsXmlUtils.readVariant(elem)
-        self.assertFalse(crs2.isValid())
+        self.assertIsNone(crs2)
 
     def test_geom(self):
         """
@@ -206,7 +206,7 @@ class TestQgsXmlUtils(unittest.TestCase):
         self.assertEqual(c, QColor(100, 200, 210, 50))
         elem = QgsXmlUtils.writeVariant(QColor(), doc)
         c = QgsXmlUtils.readVariant(elem)
-        self.assertFalse(c.isValid())
+        self.assertIsNone(c)
 
     def test_datetime(self):
         """
@@ -256,16 +256,16 @@ class TestQgsXmlUtils(unittest.TestCase):
         definition = QgsProcessingFeatureSourceDefinition(QgsProperty.fromValue('my source'))
         definition.selectedFeaturesOnly = True
         definition.featureLimit = 27
-        definition.flags = QgsProcessingFeatureSourceDefinition.FlagCreateIndividualOutputPerInputFeature
-        definition.geometryCheck = QgsFeatureRequest.GeometrySkipInvalid
+        definition.flags = QgsProcessingFeatureSourceDefinition.Flag.FlagCreateIndividualOutputPerInputFeature
+        definition.geometryCheck = QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid
 
         elem = QgsXmlUtils.writeVariant(definition, doc)
         c = QgsXmlUtils.readVariant(elem)
         self.assertEqual(c.source.staticValue(), 'my source')
         self.assertTrue(c.selectedFeaturesOnly)
         self.assertEqual(c.featureLimit, 27)
-        self.assertEqual(c.flags, QgsProcessingFeatureSourceDefinition.FlagCreateIndividualOutputPerInputFeature)
-        self.assertEqual(c.geometryCheck, QgsFeatureRequest.GeometrySkipInvalid)
+        self.assertEqual(c.flags, QgsProcessingFeatureSourceDefinition.Flag.FlagCreateIndividualOutputPerInputFeature)
+        self.assertEqual(c.geometryCheck, QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid)
 
     def test_output_layer_definition(self):
         """
@@ -288,7 +288,7 @@ class TestQgsXmlUtils(unittest.TestCase):
         fields.append(QgsField('fldtxt2', QVariant.String))
 
         mapping_def = QgsRemappingSinkDefinition()
-        mapping_def.setDestinationWkbType(QgsWkbTypes.Point)
+        mapping_def.setDestinationWkbType(QgsWkbTypes.Type.Point)
         mapping_def.setSourceCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         mapping_def.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:3857'))
         mapping_def.setDestinationFields(fields)
@@ -299,7 +299,7 @@ class TestQgsXmlUtils(unittest.TestCase):
         elem = QgsXmlUtils.writeVariant(mapping_def, doc)
         c = QgsXmlUtils.readVariant(elem)
 
-        self.assertEqual(c.destinationWkbType(), QgsWkbTypes.Point)
+        self.assertEqual(c.destinationWkbType(), QgsWkbTypes.Type.Point)
         self.assertEqual(c.sourceCrs().authid(), 'EPSG:4326')
         self.assertEqual(c.destinationCrs().authid(), 'EPSG:3857')
         self.assertEqual(c.destinationFields()[0].name(), 'fldtxt')

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     PointMapTool.py
@@ -33,7 +31,7 @@ class PointMapTool(QgsMapToolEmitPoint):
         QgsMapToolEmitPoint.__init__(self, canvas)
 
         self.canvas = canvas
-        self.cursor = Qt.CrossCursor
+        self.cursor = Qt.CursorShape.CrossCursor
 
     def activate(self):
         self.canvas.setCursor(self.cursor)

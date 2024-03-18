@@ -47,6 +47,7 @@
 #include "qgslayoutelevationprofilewidget.h"
 #include "qgsmapcanvas.h"
 #include "qgsplot.h"
+#include "qgsfontutils.h"
 
 /**
  * Attempts to find the best guess at a map item to link \a referenceItem to,
@@ -232,7 +233,7 @@ void QgsLayoutGuiUtils::registerGuiForKnownItemTypes( QgsMapCanvas *mapCanvas )
     if ( !defaultFontString.isEmpty() )
     {
       QFont font;
-      font.setFamily( defaultFontString );
+      QgsFontUtils::setFontFamily( font, defaultFontString );
 
       QgsTextFormat f = legend->rstyle( QgsLegendStyle::Title ).textFormat();
       f.setFont( font );
@@ -429,6 +430,7 @@ void QgsLayoutGuiUtils::registerGuiForKnownItemTypes( QgsMapCanvas *mapCanvas )
     std::unique_ptr< QgsLayoutFrame > frame = std::make_unique< QgsLayoutFrame >( layout, html );
     QgsLayoutFrame *f = frame.get();
     html->addFrame( frame.release() );
+    // cppcheck-suppress returnDanglingLifetime
     return f;
   } );
   registry->addLayoutItemGuiMetadata( htmlItemMetadata.release() );
@@ -463,7 +465,7 @@ void QgsLayoutGuiUtils::registerGuiForKnownItemTypes( QgsMapCanvas *mapCanvas )
     {
       QgsTextFormat format;
       QFont f = format.font();
-      f.setFamily( defaultFontString );
+      QgsFontUtils::setFontFamily( f, defaultFontString );
       format.setFont( f );
       tableMultiFrame->setContentTextFormat( format );
       f.setBold( true );
@@ -475,6 +477,7 @@ void QgsLayoutGuiUtils::registerGuiForKnownItemTypes( QgsMapCanvas *mapCanvas )
     std::unique_ptr< QgsLayoutFrame > frame = std::make_unique< QgsLayoutFrame >( layout, table );
     QgsLayoutFrame *f = frame.get();
     table->addFrame( frame.release() );
+    // cppcheck-suppress returnDanglingLifetime
     return f;
   } );
   registry->addLayoutItemGuiMetadata( attributeTableItemMetadata.release() );
@@ -504,7 +507,7 @@ void QgsLayoutGuiUtils::registerGuiForKnownItemTypes( QgsMapCanvas *mapCanvas )
     {
       QgsTextFormat format;
       QFont f = format.font();
-      f.setFamily( defaultFontString );
+      QgsFontUtils::setFontFamily( f, defaultFontString );
       format.setFont( f );
       tableMultiFrame->setContentTextFormat( format );
       f.setBold( true );
@@ -517,6 +520,7 @@ void QgsLayoutGuiUtils::registerGuiForKnownItemTypes( QgsMapCanvas *mapCanvas )
     std::unique_ptr< QgsLayoutFrame > frame = std::make_unique< QgsLayoutFrame >( layout, table );
     QgsLayoutFrame *f = frame.get();
     table->addFrame( frame.release() );
+    // cppcheck-suppress returnDanglingLifetime
     return f;
   } );
   registry->addLayoutItemGuiMetadata( manualTableItemMetadata.release() );
@@ -540,13 +544,13 @@ void QgsLayoutGuiUtils::registerGuiForKnownItemTypes( QgsMapCanvas *mapCanvas )
     {
       QgsTextFormat format = profileItem->plot()->xAxis().textFormat();
       QFont f = format.font();
-      f.setFamily( defaultFontString );
+      QgsFontUtils::setFontFamily( f, defaultFontString );
       format.setFont( f );
       profileItem->plot()->xAxis().setTextFormat( format );
 
       format = profileItem->plot()->yAxis().textFormat();
       f = format.font();
-      f.setFamily( defaultFontString );
+      QgsFontUtils::setFontFamily( f, defaultFontString );
       format.setFont( f );
       profileItem->plot()->yAxis().setTextFormat( format );
     }

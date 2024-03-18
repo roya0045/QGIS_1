@@ -65,7 +65,7 @@ bool QgsBookmarkItem::hasDragEnabled() const
   return true;
 }
 
-QgsMimeDataUtils::Uri QgsBookmarkItem::mimeUri() const
+QgsMimeDataUtils::UriList QgsBookmarkItem::mimeUris() const
 {
   QgsMimeDataUtils::Uri u;
   u.layerType = QStringLiteral( "custom" );
@@ -76,7 +76,7 @@ QgsMimeDataUtils::Uri QgsBookmarkItem::mimeUri() const
   doc.appendChild( mBookmark.writeXml( doc ) );
   u.uri = doc.toString();
 
-  return u;
+  return { u };
 }
 
 //
@@ -122,9 +122,9 @@ QString QgsQlrDataItemProvider::name()
   return QStringLiteral( "QLR" );
 }
 
-int QgsQlrDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsQlrDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsQlrDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -158,9 +158,9 @@ QString QgsQptDataItemProvider::name()
   return QStringLiteral( "QPT" );
 }
 
-int QgsQptDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsQptDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsQptDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -304,9 +304,9 @@ QString QgsPyDataItemProvider::name()
   return QStringLiteral( "py" );
 }
 
-int QgsPyDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsPyDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsPyDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -433,9 +433,9 @@ QString QgsStyleXmlDataItemProvider::name()
   return QStringLiteral( "style_xml" );
 }
 
-int QgsStyleXmlDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsStyleXmlDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsStyleXmlDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -458,18 +458,14 @@ QString QgsStyleXmlDropHandler::customUriProviderKey() const
 
 void QgsStyleXmlDropHandler::handleCustomUriDrop( const QgsMimeDataUtils::Uri &uri ) const
 {
-  QgsStyleExportImportDialog dlg( QgsStyle::defaultStyle(), QgisApp::instance(), QgsStyleExportImportDialog::Import );
-  dlg.setImportFilePath( uri.uri );
-  dlg.exec();
+  QgsStyleXmlDataItem::browseStyle( uri.uri );
 }
 
 bool QgsStyleXmlDropHandler::handleFileDrop( const QString &file )
 {
   if ( QgsStyle::isXmlStyleFile( file ) )
   {
-    QgsStyleExportImportDialog dlg( QgsStyle::defaultStyle(), QgisApp::instance(), QgsStyleExportImportDialog::Import );
-    dlg.setImportFilePath( file );
-    dlg.exec();
+    QgsStyleXmlDataItem::browseStyle( file );
     return true;
   }
   return false;
@@ -589,9 +585,9 @@ QString QgsProjectDataItemProvider::name()
   return QStringLiteral( "project_item" );
 }
 
-int QgsProjectDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsProjectDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsProjectDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -613,9 +609,9 @@ QString QgsBookmarksDataItemProvider::name()
   return QStringLiteral( "bookmarks_item" );
 }
 
-int QgsBookmarksDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsBookmarksDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Database;
+  return Qgis::DataItemProviderCapability::Databases;
 }
 
 QgsDataItem *QgsBookmarksDataItemProvider::createDataItem( const QString &, QgsDataItem *parentItem )
@@ -924,6 +920,7 @@ bool QgsBookmarkDropHandler::handleCustomUriCanvasDrop( const QgsMimeDataUtils::
     }
     else
     {
+      canvas->setRotation( b.rotation() );
       canvas->refresh();
     }
   }
@@ -1052,6 +1049,7 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
         }
         else
         {
+          QgisApp::instance()->mapCanvas()->setRotation( bookmarkItem->bookmark().rotation() );
           QgisApp::instance()->mapCanvas()->refresh();
         }
       }
@@ -1184,7 +1182,6 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
                                     QMessageBox::Yes | QMessageBox::No, QMessageBox::No ) != QMessageBox::Yes )
           return;
 
-        int i = 0;
         for ( const QString &g : groups )
         {
           const QList<QgsBookmark> matching = manager->bookmarksByGroup( g );
@@ -1192,7 +1189,6 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
           {
             manager->removeBookmark( bookmark.id() );
           }
-          i++;
         }
       }
     } );
@@ -1212,6 +1208,7 @@ bool QgsBookmarksItemGuiProvider::handleDoubleClick( QgsDataItem *item, QgsDataI
       }
       else
       {
+        QgisApp::instance()->mapCanvas()->setRotation( bookmarkItem->bookmark().rotation() );
         QgisApp::instance()->mapCanvas()->refresh();
       }
     }
@@ -1305,9 +1302,9 @@ QString QgsHtmlDataItemProvider::name()
   return QStringLiteral( "html" );
 }
 
-int QgsHtmlDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsHtmlDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsHtmlDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )

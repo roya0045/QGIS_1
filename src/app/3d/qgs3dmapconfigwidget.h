@@ -20,9 +20,10 @@
 
 #include <ui_map3dconfigwidget.h>
 
+class QCheckBox;
 class Qgs3DMapSettings;
 class QgsMapCanvas;
-class QgsMesh3dSymbolWidget;
+class QgsMesh3DSymbolWidget;
 class QgsSkyboxRenderingSettingsWidget;
 class QgsShadowRenderingSettingsWidget;
 class Qgs3DMapCanvas;
@@ -54,9 +55,10 @@ class Qgs3DMapConfigWidget : public QWidget, private Ui::Map3DConfigWidget
     Qgs3DMapSettings *mMap = nullptr;
     QgsMapCanvas *mMainCanvas = nullptr;
     Qgs3DMapCanvas *m3DMapCanvas = nullptr;
-    QgsMesh3dSymbolWidget *mMeshSymbolWidget = nullptr;
+    QgsMesh3DSymbolWidget *mMeshSymbolWidget = nullptr;
     QgsSkyboxRenderingSettingsWidget *mSkyboxSettingsWidget = nullptr;
     QgsShadowRenderingSettingsWidget *mShadowSettingsWidget = nullptr;
+    QCheckBox *mShowExtentIn2DViewCheckbox = nullptr;
 
     void init3DAxisPage();
 };

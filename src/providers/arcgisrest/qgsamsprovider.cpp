@@ -25,6 +25,7 @@
 #include "qgsgeometry.h"
 #include "qgsapplication.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 #include "qgssettings.h"
 #include "qgsmessagelog.h"
 #include "qgsauthmanager.h"
@@ -81,12 +82,13 @@ void QgsAmsLegendFetcher::start()
     // http://sampleserver5.arcgisonline.com/arcgis/rest/services/CommunityAddressing/MapServer/legend?f=pjson
     QgsDataSourceUri dataSource( mProvider->dataSourceUri() );
     const QString authCfg = dataSource.authConfigId();
+    const QString urlPrefix = dataSource.param( QStringLiteral( "urlprefix" ) );
 
     QUrl queryUrl( dataSource.param( QStringLiteral( "url" ) ) + "/legend" );
     QUrlQuery query( queryUrl );
     query.addQueryItem( QStringLiteral( "f" ), QStringLiteral( "json" ) );
     queryUrl.setQuery( query );
-    mQuery->start( queryUrl, authCfg, &mQueryReply, false, dataSource.httpHeaders() );
+    mQuery->start( queryUrl, authCfg, &mQueryReply, false, dataSource.httpHeaders(), urlPrefix );
   }
   else
   {
@@ -118,6 +120,7 @@ void QgsAmsLegendFetcher::handleFinished()
   QVariantMap queryResults = doc.object().toVariantMap();
   QgsDataSourceUri dataSource( mProvider->dataSourceUri() );
   QVector< QPair<QString, QImage> > legendEntries;
+
   const QVariantList layersList = queryResults.value( QStringLiteral( "layers" ) ).toList();
   for ( const QVariant &result : layersList )
   {
@@ -147,10 +150,6 @@ void QgsAmsLegendFetcher::handleFinished()
 
     QgsSettings settings;
     QFont font = qApp->font();
-    int fontSize = settings.value( QStringLiteral( "/qgis/stylesheet/fontPointSize" ), font.pointSize() ).toInt();
-    font.setPointSize( fontSize );
-    QString fontFamily = settings.value( QStringLiteral( "/qgis/stylesheet/fontFamily" ), font.family() ).toString();
-    font.setFamily( fontFamily );
     QFontMetrics fm( font );
     int textWidth = 0;
     int textHeight = fm.ascent();
@@ -193,6 +192,7 @@ QgsAmsProvider::QgsAmsProvider( const QString &uri, const ProviderOptions &optio
 {
   QgsDataSourceUri dataSource( dataSourceUri() );
   mRequestHeaders = dataSource.httpHeaders();
+  mUrlPrefix = dataSource.param( QStringLiteral( "urlprefix" ) );
 
   mLegendFetcher = new QgsAmsLegendFetcher( this, QImage() );
 
@@ -201,7 +201,7 @@ QgsAmsProvider::QgsAmsProvider( const QString &uri, const ProviderOptions &optio
 
   const QString serviceUrl = dataSource.param( QStringLiteral( "url" ) );
   if ( !serviceUrl.isEmpty() )
-    mServiceInfo = QgsArcGisRestQueryUtils::getServiceInfo( serviceUrl, authcfg, mErrorTitle, mError, mRequestHeaders );
+    mServiceInfo = QgsArcGisRestQueryUtils::getServiceInfo( serviceUrl, authcfg, mErrorTitle, mError, mRequestHeaders, mUrlPrefix );
 
   QString layerUrl;
   if ( dataSource.param( QStringLiteral( "layer" ) ).isEmpty() )
@@ -214,7 +214,7 @@ QgsAmsProvider::QgsAmsProvider( const QString &uri, const ProviderOptions &optio
   else
   {
     layerUrl = dataSource.param( QStringLiteral( "url" ) ) + "/" + dataSource.param( QStringLiteral( "layer" ) );
-    mLayerInfo = QgsArcGisRestQueryUtils::getLayerInfo( layerUrl, authcfg, mErrorTitle, mError, mRequestHeaders );
+    mLayerInfo = QgsArcGisRestQueryUtils::getLayerInfo( layerUrl, authcfg, mErrorTitle, mError, mRequestHeaders, mUrlPrefix );
   }
 
   QVariantMap extentData;
@@ -238,7 +238,7 @@ QgsAmsProvider::QgsAmsProvider( const QString &uri, const ProviderOptions &optio
   }
 
   QgsLayerMetadata::SpatialExtent spatialExtent;
-  spatialExtent.bounds = QgsBox3d( mExtent );
+  spatialExtent.bounds = QgsBox3D( mExtent );
   spatialExtent.extentCrs = mCrs;
   QgsLayerMetadata::Extent metadataExtent;
   metadataExtent.setSpatialExtents( QList<  QgsLayerMetadata::SpatialExtent >() << spatialExtent );
@@ -334,6 +334,7 @@ QgsAmsProvider::QgsAmsProvider( const QgsAmsProvider &other, const QgsDataProvid
   , mMaxImageHeight( other.mMaxImageHeight )
   , mLayerMetadata( other.mLayerMetadata )
   , mResolutions( other.mResolutions )
+  , mUrlPrefix( other.mUrlPrefix )
 // intentionally omitted:
 // - mErrorTitle
 // - mError
@@ -344,6 +345,11 @@ QgsAmsProvider::QgsAmsProvider( const QgsAmsProvider &other, const QgsDataProvid
 
   // is this needed?
   mTimestamp = QDateTime::currentDateTime();
+}
+
+Qgis::DataProviderFlags QgsAmsProvider::flags() const
+{
+  return Qgis::DataProviderFlag::FastExtent2D;
 }
 
 QgsRasterDataProvider::ProviderCapabilities QgsAmsProvider::providerCapabilities() const
@@ -473,7 +479,7 @@ static inline QString dumpVariantMap( const QVariantMap &variantMap, const QStri
   return result;
 }
 
-QString QgsAmsProvider::htmlMetadata()
+QString QgsAmsProvider::htmlMetadata() const
 {
   // This must return the content of a HTML table starting by tr and ending by tr
   return dumpVariantMap( mServiceInfo, tr( "Service Info" ) ) + dumpVariantMap( mLayerInfo, tr( "Layer Info" ) );
@@ -706,7 +712,7 @@ QImage QgsAmsProvider::draw( const QgsRectangle &viewExtent, int pixelWidth, int
       cmp.center = viewExtent.center();
       std::sort( requestsFinal.begin(), requestsFinal.end(), cmp );
 
-      QgsAmsTiledImageDownloadHandler handler( authcfg, mRequestHeaders, mTileReqNo, requestsFinal, &image, viewExtent, feedback );
+      QgsAmsTiledImageDownloadHandler handler( authcfg, mRequestHeaders, mTileReqNo, requestsFinal, &image, viewExtent, feedback, mUrlPrefix );
       handler.downloadBlocking();
     }
 
@@ -747,11 +753,15 @@ QImage QgsAmsProvider::draw( const QgsRectangle &viewExtent, int pixelWidth, int
         query.addQueryItem( QStringLiteral( "layers" ), QStringLiteral( "show:%1" ).arg( dataSource.param( QStringLiteral( "layer" ) ) ) );
         query.addQueryItem( QStringLiteral( "transparent" ), QStringLiteral( "true" ) );
         query.addQueryItem( QStringLiteral( "f" ), QStringLiteral( "image" ) );
+        if ( mDpi != -1 )
+        {
+          query.addQueryItem( QStringLiteral( "dpi" ), QString::number( mDpi ) );
+        }
         requestUrl.setQuery( query );
         mError.clear();
         mErrorTitle.clear();
         QString contentType;
-        QByteArray reply = QgsArcGisRestQueryUtils::queryService( requestUrl, authcfg, mErrorTitle, mError, mRequestHeaders, feedback, &contentType );
+        QByteArray reply = QgsArcGisRestQueryUtils::queryService( requestUrl, authcfg, mErrorTitle, mError, mRequestHeaders, feedback, &contentType, mUrlPrefix );
         if ( !mError.isEmpty() )
         {
           p.end();
@@ -920,7 +930,7 @@ bool QgsAmsProvider::readBlock( int /*bandNo*/, const QgsRectangle &viewExtent, 
     if ( feedback )
       feedback->appendError( error );
 
-    QgsDebugMsg( error );
+    QgsDebugError( error );
     return false;
   }
   else
@@ -935,7 +945,7 @@ bool QgsAmsProvider::readBlock( int /*bandNo*/, const QgsRectangle &viewExtent, 
 // QgsAmsTiledImageDownloadHandler
 //
 
-QgsAmsTiledImageDownloadHandler::QgsAmsTiledImageDownloadHandler( const QString &auth,  const QgsHttpHeaders &requestHeaders, int tileReqNo, const QgsAmsProvider::TileRequests &requests, QImage *image, const QgsRectangle &viewExtent, QgsRasterBlockFeedback *feedback )
+QgsAmsTiledImageDownloadHandler::QgsAmsTiledImageDownloadHandler( const QString &auth,  const QgsHttpHeaders &requestHeaders, int tileReqNo, const QgsAmsProvider::TileRequests &requests, QImage *image, const QgsRectangle &viewExtent, QgsRasterBlockFeedback *feedback, const QString &urlPrefix )
   : mAuth( auth )
   , mRequestHeaders( requestHeaders )
   , mImage( image )
@@ -943,6 +953,7 @@ QgsAmsTiledImageDownloadHandler::QgsAmsTiledImageDownloadHandler( const QString 
   , mEventLoop( new QEventLoop )
   , mTileReqNo( tileReqNo )
   , mFeedback( feedback )
+  , mUrlPrefix( urlPrefix )
 {
   if ( feedback )
   {

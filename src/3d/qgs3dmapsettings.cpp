@@ -27,7 +27,7 @@
 #include "qgsprojectelevationproperties.h"
 #include "qgsterrainprovider.h"
 #include "qgslightsource.h"
-#include "qgssymbollayerutils.h"
+#include "qgscolorutils.h"
 #include "qgsrasterlayer.h"
 #include "qgspointlightsettings.h"
 #include "qgsdirectionallightsettings.h"
@@ -73,7 +73,6 @@ Qgs3DMapSettings::Qgs3DMapSettings( const Qgs3DMapSettings &other )
   , mCameraNavigationMode( other.mCameraNavigationMode )
   , mCameraMovementSpeed( other.mCameraMovementSpeed )
   , mLayers( other.mLayers )
-  , mRenderers() // initialized in body
   , mTransformContext( other.mTransformContext )
   , mPathResolver( other.mPathResolver )
   , mMapThemes( other.mMapThemes )
@@ -99,12 +98,8 @@ Qgs3DMapSettings::Qgs3DMapSettings( const Qgs3DMapSettings &other )
   , m3dAxisSettings( other.m3dAxisSettings )
   , mIsDebugOverlayEnabled( other.mIsDebugOverlayEnabled )
   , mExtent( other.mExtent )
+  , mShowExtentIn2DView( other.mShowExtentIn2DView )
 {
-  for ( QgsAbstract3DRenderer *renderer : std::as_const( other.mRenderers ) )
-  {
-    mRenderers << renderer->clone();
-  }
-
   for ( QgsLightSource *source : std::as_const( other.mLightSources ) )
   {
     if ( source )
@@ -120,7 +115,6 @@ Qgs3DMapSettings::Qgs3DMapSettings( const Qgs3DMapSettings &other )
 
 Qgs3DMapSettings::~Qgs3DMapSettings()
 {
-  qDeleteAll( mRenderers );
   qDeleteAll( mLightSources );
 }
 
@@ -141,6 +135,8 @@ void Qgs3DMapSettings::readXml( const QDomElement &elem, const QgsReadWriteConte
                 elemExtent.attribute( QStringLiteral( "yMin" ) ).toDouble(),
                 elemExtent.attribute( QStringLiteral( "xMax" ) ).toDouble(),
                 elemExtent.attribute( QStringLiteral( "yMax" ) ).toDouble() );
+
+    mShowExtentIn2DView = elemExtent.attribute( QStringLiteral( "showIn2dView" ), QStringLiteral( "0" ) ).toInt();
   }
   else
   {
@@ -163,8 +159,8 @@ void Qgs3DMapSettings::readXml( const QDomElement &elem, const QgsReadWriteConte
   QDomElement elemColor = elem.firstChildElement( QStringLiteral( "color" ) );
   if ( !elemColor.isNull() )
   {
-    mBackgroundColor = QgsSymbolLayerUtils::decodeColor( elemColor.attribute( QStringLiteral( "background" ) ) );
-    mSelectionColor = QgsSymbolLayerUtils::decodeColor( elemColor.attribute( QStringLiteral( "selection" ) ) );
+    mBackgroundColor = QgsColorUtils::colorFromString( elemColor.attribute( QStringLiteral( "background" ) ) );
+    mSelectionColor = QgsColorUtils::colorFromString( elemColor.attribute( QStringLiteral( "selection" ) ) );
   }
 
   QDomElement elemCrs = elem.firstChildElement( QStringLiteral( "crs" ) );
@@ -273,36 +269,6 @@ void Qgs3DMapSettings::readXml( const QDomElement &elem, const QgsReadWriteConte
   }
   mTerrainGenerator->readXml( elemTerrainGenerator );
 
-  qDeleteAll( mRenderers );
-  mRenderers.clear();
-
-  QDomElement elemRenderers = elem.firstChildElement( QStringLiteral( "renderers" ) );
-  QDomElement elemRenderer = elemRenderers.firstChildElement( QStringLiteral( "renderer" ) );
-  while ( !elemRenderer.isNull() )
-  {
-    QgsAbstract3DRenderer *renderer = nullptr;
-    QString type = elemRenderer.attribute( QStringLiteral( "type" ) );
-    if ( type == QLatin1String( "vector" ) )
-    {
-      renderer = new QgsVectorLayer3DRenderer;
-    }
-    else if ( type == QLatin1String( "mesh" ) )
-    {
-      renderer = new QgsMeshLayer3DRenderer;
-    }
-    else if ( type == QLatin1String( "pointcloud" ) )
-    {
-      renderer = new QgsPointCloudLayer3DRenderer;
-    }
-
-    if ( renderer )
-    {
-      renderer->readXml( elemRenderer, context );
-      mRenderers.append( renderer );
-    }
-    elemRenderer = elemRenderer.nextSiblingElement( QStringLiteral( "renderer" ) );
-  }
-
   QDomElement elemSkybox = elem.firstChildElement( QStringLiteral( "skybox" ) );
   mIsSkyboxEnabled = elemSkybox.attribute( QStringLiteral( "skybox-enabled" ) ).toInt();
   mSkyboxSettings.readXml( elemSkybox, context );
@@ -364,6 +330,7 @@ QDomElement Qgs3DMapSettings::writeXml( QDomDocument &doc, const QgsReadWriteCon
   elemExtent.setAttribute( QStringLiteral( "yMin" ), mExtent.yMinimum() );
   elemExtent.setAttribute( QStringLiteral( "xMax" ), mExtent.xMaximum() );
   elemExtent.setAttribute( QStringLiteral( "yMax" ), mExtent.yMaximum() );
+  elemExtent.setAttribute( QStringLiteral( "showIn2dView" ), mShowExtentIn2DView );
   elem.appendChild( elemExtent );
 
   QDomElement elemCamera = doc.createElement( QStringLiteral( "camera" ) );
@@ -382,8 +349,8 @@ QDomElement Qgs3DMapSettings::writeXml( QDomDocument &doc, const QgsReadWriteCon
   elem.appendChild( elemCamera );
 
   QDomElement elemColor = doc.createElement( QStringLiteral( "color" ) );
-  elemColor.setAttribute( QStringLiteral( "background" ), QgsSymbolLayerUtils::encodeColor( mBackgroundColor ) );
-  elemColor.setAttribute( QStringLiteral( "selection" ), QgsSymbolLayerUtils::encodeColor( mSelectionColor ) );
+  elemColor.setAttribute( QStringLiteral( "background" ), QgsColorUtils::colorToString( mBackgroundColor ) );
+  elemColor.setAttribute( QStringLiteral( "selection" ), QgsColorUtils::colorToString( mSelectionColor ) );
   elem.appendChild( elemColor );
 
   QDomElement elemCrs = doc.createElement( QStringLiteral( "crs" ) );
@@ -429,16 +396,6 @@ QDomElement Qgs3DMapSettings::writeXml( QDomDocument &doc, const QgsReadWriteCon
   mTerrainGenerator->writeXml( elemTerrainGenerator );
   elemTerrain.appendChild( elemTerrainGenerator );
   elem.appendChild( elemTerrain );
-
-  QDomElement elemRenderers = doc.createElement( QStringLiteral( "renderers" ) );
-  for ( const QgsAbstract3DRenderer *renderer : mRenderers )
-  {
-    QDomElement elemRenderer = doc.createElement( QStringLiteral( "renderer" ) );
-    elemRenderer.setAttribute( QStringLiteral( "type" ), renderer->type() );
-    renderer->writeXml( elemRenderer, context );
-    elemRenderers.appendChild( elemRenderer );
-  }
-  elem.appendChild( elemRenderers );
 
   QDomElement elemSkybox = doc.createElement( QStringLiteral( "skybox" ) );
   elemSkybox.setAttribute( QStringLiteral( "skybox-enabled" ), mIsSkyboxEnabled );
@@ -502,12 +459,6 @@ void Qgs3DMapSettings::resolveReferences( const QgsProject &project )
   }
 
   mTerrainGenerator->resolveReferences( project );
-
-  for ( int i = 0; i < mRenderers.count(); ++i )
-  {
-    QgsAbstract3DRenderer *renderer = mRenderers[i];
-    renderer->resolveReferences( project );
-  }
 }
 
 void Qgs3DMapSettings::setExtent( const QgsRectangle &extent )
@@ -759,15 +710,6 @@ void Qgs3DMapSettings::setTerrainMapTheme( const QString &theme )
   emit terrainMapThemeChanged();
 }
 
-void Qgs3DMapSettings::setRenderers( const QList<QgsAbstract3DRenderer *> &renderers )
-{
-  qDeleteAll( mRenderers );
-
-  mRenderers = renderers;
-
-  emit renderersChanged();
-}
-
 void Qgs3DMapSettings::setShowTerrainBoundingBoxes( bool enabled )
 {
   if ( mShowTerrainBoundingBoxes == enabled )
@@ -854,6 +796,36 @@ QList<QgsLightSource *> Qgs3DMapSettings::lightSources() const
 
 void Qgs3DMapSettings::setLightSources( const QList<QgsLightSource *> &lights )
 {
+  // have lights actually changed?
+  if ( mLightSources.count() == lights.count() )
+  {
+    bool same = true;
+    for ( int i = 0; i < mLightSources.count(); ++i )
+    {
+      if ( mLightSources[i]->type() == lights[i]->type() )
+      {
+        switch ( mLightSources[i]->type() )
+        {
+          case Qgis::LightSourceType::Point:
+            if ( *static_cast< QgsPointLightSettings * >( mLightSources[i] ) == *static_cast< QgsPointLightSettings * >( lights[i] ) )
+              continue;
+            break;
+          case Qgis::LightSourceType::Directional:
+            if ( *static_cast< QgsDirectionalLightSettings * >( mLightSources[i] ) == *static_cast< QgsDirectionalLightSettings * >( lights[i] ) )
+              continue;
+            break;
+        }
+      }
+      same = false;
+      break;
+    }
+    if ( same )
+    {
+      qDeleteAll( lights );
+      return;
+    }
+  }
+
   qDeleteAll( mLightSources );
   mLightSources = lights;
 
@@ -1016,6 +988,7 @@ void Qgs3DMapSettings::connectChangedSignalsToSettingsChanged()
   connect( this, &Qgs3DMapSettings::axisSettingsChanged, this, &Qgs3DMapSettings::settingsChanged );
   connect( this, &Qgs3DMapSettings::ambientOcclusionSettingsChanged, this, &Qgs3DMapSettings::settingsChanged );
   connect( this, &Qgs3DMapSettings::extentChanged, this, &Qgs3DMapSettings::settingsChanged );
+  connect( this, &Qgs3DMapSettings::showExtentIn2DViewChanged, this, &Qgs3DMapSettings::settingsChanged );
 }
 
 
@@ -1025,7 +998,7 @@ void Qgs3DMapSettings::set3DAxisSettings( const Qgs3DAxisSettings &axisSettings,
   {
     if ( force )
     {
-      // ie. refresh. We nned to disconnect and to reconnect to avoid 'dirty' project
+      // ie. refresh. We need to disconnect and to reconnect to avoid 'dirty' project
       disconnect( this, &Qgs3DMapSettings::axisSettingsChanged, this, &Qgs3DMapSettings::settingsChanged );
       emit axisSettingsChanged();
       connect( this, &Qgs3DMapSettings::axisSettingsChanged, this, &Qgs3DMapSettings::settingsChanged );
@@ -1036,4 +1009,13 @@ void Qgs3DMapSettings::set3DAxisSettings( const Qgs3DAxisSettings &axisSettings,
     m3dAxisSettings = axisSettings;
     emit axisSettingsChanged();
   }
+}
+
+void Qgs3DMapSettings::setShowExtentIn2DView( bool show )
+{
+  if ( show == mShowExtentIn2DView )
+    return;
+
+  mShowExtentIn2DView = show;
+  emit showExtentIn2DViewChanged();
 }

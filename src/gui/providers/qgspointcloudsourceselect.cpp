@@ -20,6 +20,7 @@
 #include "qgspointcloudsourceselect.h"
 #include "qgsproviderregistry.h"
 #include "qgsprovidermetadata.h"
+#include "qgshelp.h"
 
 ///@cond PRIVATE
 
@@ -32,6 +33,7 @@ QgsPointCloudSourceSelect::QgsPointCloudSourceSelect( QWidget *parent, Qt::Windo
   connect( mRadioSrcFile, &QRadioButton::toggled, this, &QgsPointCloudSourceSelect::radioSrcFile_toggled );
   connect( mRadioSrcProtocol, &QRadioButton::toggled, this, &QgsPointCloudSourceSelect::radioSrcProtocol_toggled );
   connect( cmbProtocolTypes, &QComboBox::currentTextChanged, this, &QgsPointCloudSourceSelect::cmbProtocolTypes_currentIndexChanged );
+  connect( buttonBox, &QDialogButtonBox::helpRequested, this, &QgsPointCloudSourceSelect::showHelp );
 
   radioSrcFile_toggled( true );
   setProtocolWidgetsVisibility();
@@ -75,13 +77,14 @@ void QgsPointCloudSourceSelect::addButtonClicked()
 
     for ( const QString &path : QgsFileWidget::splitFilePaths( mPath ) )
     {
-      // auto determine preferred provider for each path
-
-      const QList< QgsProviderRegistry::ProviderCandidateDetails > preferredProviders = QgsProviderRegistry::instance()->preferredProvidersForUri( path );
       // maybe we should raise an assert if preferredProviders size is 0 or >1? Play it safe for now...
-      if ( preferredProviders.empty() )
-        continue;
-      emit addPointCloudLayer( path, QFileInfo( path ).baseName(), preferredProviders.at( 0 ).metadata()->key() ) ;
+      const QList< QgsProviderRegistry::ProviderCandidateDetails > preferredProviders = QgsProviderRegistry::instance()->preferredProvidersForUri( path );
+      // if no preferred providers we can still give pdal a try
+      const QString providerKey = preferredProviders.empty() ? QStringLiteral( "pdal" ) : preferredProviders.first().metadata()->key();
+      Q_NOWARN_DEPRECATED_PUSH
+      emit addPointCloudLayer( path, QFileInfo( path ).baseName(), providerKey ) ;
+      Q_NOWARN_DEPRECATED_POP
+      emit addLayer( Qgis::LayerType::PointCloud, path, QFileInfo( path ).baseName(), providerKey );
     }
   }
   else if ( mDataSourceType == QLatin1String( "remote" ) )
@@ -121,7 +124,10 @@ void QgsPointCloudSourceSelect::addButtonClicked()
       {
         baseName = QFileInfo( mPath ).baseName();
       }
+      Q_NOWARN_DEPRECATED_PUSH
       emit addPointCloudLayer( mPath, baseName, preferredProviders.at( 0 ).metadata()->key() ) ;
+      Q_NOWARN_DEPRECATED_POP
+      emit addLayer( Qgis::LayerType::PointCloud, mPath, baseName, preferredProviders.at( 0 ).metadata()->key() );
     }
   }
 }
@@ -174,6 +180,11 @@ void QgsPointCloudSourceSelect::setProtocolWidgetsVisibility()
   labelKey->hide();
   mKey->hide();
   mAuthWarning->hide();
+}
+
+void QgsPointCloudSourceSelect::showHelp()
+{
+  QgsHelp::openHelp( QStringLiteral( "managing_data_source/opening_data.html#loading-a-layer-from-a-file" ) );
 }
 
 ///@endcond

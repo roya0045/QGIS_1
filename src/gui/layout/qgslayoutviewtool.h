@@ -41,7 +41,6 @@ class QgsLayoutItem;
  * \brief Abstract base class for all layout view tools.
  * Layout view tools are user interactive tools for manipulating and adding items
  * to QgsLayoutView widgets.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLayoutViewTool : public QObject
 {
@@ -60,7 +59,7 @@ class GUI_EXPORT QgsLayoutViewTool : public QObject
   public:
 
     //! Flags for controlling how a tool behaves
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       FlagSnaps = 1 << 1,  //!< Tool utilizes snapped coordinates.
     };

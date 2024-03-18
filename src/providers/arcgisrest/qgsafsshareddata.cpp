@@ -18,6 +18,7 @@
 #include "qgsarcgisrestquery.h"
 #include "qgslogger.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 #include "qgsblockingnetworkrequest.h"
 #include "qgsreadwritelocker.h"
 #include "qgsjsonutils.h"
@@ -56,6 +57,25 @@ QgsAfsSharedData::QgsAfsSharedData( const QgsDataSourceUri &uri )
 {
 }
 
+std::shared_ptr< QgsAfsSharedData > QgsAfsSharedData::clone() const
+{
+  QgsReadWriteLocker locker( mReadWriteLock, QgsReadWriteLocker::Read );
+  std::shared_ptr< QgsAfsSharedData > copy = std::make_shared< QgsAfsSharedData >( mDataSource );
+  copy->mLimitBBox = mLimitBBox;
+  copy->mExtent = mExtent;
+  copy->mGeometryType = mGeometryType;
+  copy->mFields = mFields;
+  copy->mMaximumFetchObjectsCount = mMaximumFetchObjectsCount;
+  copy->mObjectIdFieldName = mObjectIdFieldName;
+  copy->mObjectIdFieldIdx = mObjectIdFieldIdx;
+  copy->mObjectIds = mObjectIds;
+  copy->mObjectIdToFeatureId = mObjectIdToFeatureId;
+  copy->mDeletedFeatureIds = mDeletedFeatureIds;
+  copy->mCache = mCache;
+  copy->mSourceCRS = mSourceCRS;
+  return copy;
+}
+
 QString QgsAfsSharedData::subsetString() const
 {
   return mDataSource.sql();
@@ -91,15 +111,15 @@ bool QgsAfsSharedData::getObjectIds( QString &errorMessage )
   QString errorTitle;
   QString error;
   QVariantMap objectIdData = QgsArcGisRestQueryUtils::getObjectIds( mDataSource.param( QStringLiteral( "url" ) ), mDataSource.authConfigId(),
-                             errorTitle, error, mDataSource.httpHeaders(), mLimitBBox ? mExtent : QgsRectangle(), mDataSource.sql() );
+                             errorTitle, error, mDataSource.httpHeaders(), mDataSource.param( QStringLiteral( "urlprefix" ) ), mLimitBBox ? mExtent : QgsRectangle(), mDataSource.sql() );
   if ( objectIdData.isEmpty() )
   {
-    errorMessage = tr( "getObjectIds failed: %1 - %2" ).arg( errorTitle, error );
+    errorMessage = QObject::tr( "getObjectIds failed: %1 - %2" ).arg( errorTitle, error );
     return false;
   }
   if ( !objectIdData[QStringLiteral( "objectIdFieldName" )].isValid() || !objectIdData[QStringLiteral( "objectIds" )].isValid() )
   {
-    errorMessage = tr( "Failed to determine objectIdFieldName and/or objectIds" );
+    errorMessage = QObject::tr( "Failed to determine objectIdFieldName and/or objectIds" );
     return false;
   }
   mObjectIdFieldName = objectIdData[QStringLiteral( "objectIdFieldName" )].toString();
@@ -186,7 +206,7 @@ bool QgsAfsSharedData::getFeature( QgsFeatureId id, QgsFeature &f, const QgsRect
     queryData = QgsArcGisRestQueryUtils::getObjects(
                   mDataSource.param( QStringLiteral( "url" ) ), authcfg, objectIds, mDataSource.param( QStringLiteral( "crs" ) ), true,
                   QStringList(), QgsWkbTypes::hasM( mGeometryType ), QgsWkbTypes::hasZ( mGeometryType ),
-                  filterRect, errorTitle, errorMessage, mDataSource.httpHeaders(), feedback );
+                  filterRect, errorTitle, errorMessage, mDataSource.httpHeaders(), feedback, mDataSource.param( QStringLiteral( "urlprefix" ) ) );
 
     if ( feedback && feedback->isCanceled() )
     {
@@ -245,7 +265,7 @@ bool QgsAfsSharedData::getFeature( QgsFeatureId id, QgsFeature &f, const QgsRect
 
       if ( !mFields.at( idx ).convertCompatible( attribute ) )
       {
-        QgsDebugMsg( QStringLiteral( "Invalid value %1 for field %2 of type %3" ).arg( attributesData[mFields.at( idx ).name()].toString(), mFields.at( idx ).name(), mFields.at( idx ).typeName() ) );
+        QgsDebugError( QStringLiteral( "Invalid value %1 for field %2 of type %3" ).arg( attributesData[mFields.at( idx ).name()].toString(), mFields.at( idx ).name(), mFields.at( idx ).typeName() ) );
       }
       attributes[idx] = attribute;
       if ( mFields.at( idx ).name() == mObjectIdFieldName )
@@ -287,7 +307,7 @@ QgsFeatureIds QgsAfsSharedData::getFeatureIdsInExtent( const QgsRectangle &exten
 
   const QString authcfg = mDataSource.authConfigId();
   const QList<quint32> objectIdsInRect = QgsArcGisRestQueryUtils::getObjectIdsByExtent( mDataSource.param( QStringLiteral( "url" ) ),
-                                         extent, errorTitle, errorText, authcfg, mDataSource.httpHeaders(), feedback, mDataSource.sql() );
+                                         extent, errorTitle, errorText, authcfg, mDataSource.httpHeaders(), feedback, mDataSource.sql(), mDataSource.param( QStringLiteral( "urlprefix" ) ) );
 
   QgsReadWriteLocker locker( mReadWriteLock, QgsReadWriteLocker::Read );
   QgsFeatureIds ids;
@@ -591,7 +611,7 @@ QVariantMap QgsAfsSharedData::postData( const QUrl &url, const QByteArray &paylo
   if ( isTestEndpoint )
   {
     const QString localFile = modifiedUrl.toLocalFile() + "_payload";
-    QgsDebugMsg( QStringLiteral( "payload file is %1" ).arg( localFile ) );
+    QgsDebugMsgLevel( QStringLiteral( "payload file is %1" ).arg( localFile ), 2 );
     {
       QFile file( localFile );
       if ( file.open( QFile::WriteOnly | QIODevice::Truncate ) )
@@ -627,7 +647,7 @@ QVariantMap QgsAfsSharedData::postData( const QUrl &url, const QByteArray &paylo
 // Handle network errors
   if ( error != QgsBlockingNetworkRequest::NoError )
   {
-    QgsDebugMsg( QStringLiteral( "Network error: %1" ).arg( networkRequest.errorMessage() ) );
+    QgsDebugError( QStringLiteral( "Network error: %1" ).arg( networkRequest.errorMessage() ) );
     errorText = networkRequest.errorMessage();
 
     // try to get detailed error message from reply

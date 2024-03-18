@@ -137,7 +137,8 @@ void QgsPgTableModel::addTableEntry( const QgsPostgresLayerProperty &layerProper
     {
       // word wrap
       QString commentText { layerProperty.tableComment };
-      commentText.replace( QRegularExpression( QStringLiteral( "^\n*" ) ), QString() );
+      const thread_local QRegularExpression newLineRx( QStringLiteral( "^\n*" ) );
+      commentText.replace( newLineRx, QString() );
       commentItem->setText( commentText );
       commentItem->setToolTip( QStringLiteral( "<span>%1</span>" ).arg( commentText.replace( '\n', QLatin1String( "<br/>" ) ) ) );
       commentItem->setTextAlignment( Qt::AlignTop );
@@ -187,16 +188,27 @@ void QgsPgTableModel::addTableEntry( const QgsPostgresLayerProperty &layerProper
     // Legacy: default value is determined by project option to trust layer's metadata
     // TODO: remove this default from QGIS 4 and leave default value to false?
     // checkPkUnicity has only effect on views and materialized views, so we can safely disable it
-    if ( layerProperty.isView || layerProperty.isMaterializedView )
+    switch ( layerProperty.relKind )
     {
-      checkPkUnicityItem->setCheckState( ( QgsProject::instance( )->flags() & Qgis::ProjectFlag::TrustStoredLayerStatistics ) ? Qt::CheckState::Unchecked : Qt::CheckState::Checked );
-      checkPkUnicityItem->setToolTip( headerData( Columns::DbtmCheckPkUnicity, Qt::Orientation::Horizontal, Qt::ToolTipRole ).toString() );
-    }
-    else
-    {
-      checkPkUnicityItem->setCheckState( Qt::CheckState::Unchecked );
-      checkPkUnicityItem->setFlags( checkPkUnicityItem->flags() & ~ Qt::ItemIsEnabled );
-      checkPkUnicityItem->setToolTip( tr( "This option is only available for views and materialized views." ) );
+      case Qgis::PostgresRelKind::View:
+      case Qgis::PostgresRelKind::MaterializedView:
+        checkPkUnicityItem->setCheckState( ( QgsProject::instance( )->flags() & Qgis::ProjectFlag::TrustStoredLayerStatistics ) ? Qt::CheckState::Unchecked : Qt::CheckState::Checked );
+        checkPkUnicityItem->setToolTip( headerData( Columns::DbtmCheckPkUnicity, Qt::Orientation::Horizontal, Qt::ToolTipRole ).toString() );
+        break;
+
+      case Qgis::PostgresRelKind::NotSet:
+      case Qgis::PostgresRelKind::Unknown:
+      case Qgis::PostgresRelKind::OrdinaryTable:
+      case Qgis::PostgresRelKind::Index:
+      case Qgis::PostgresRelKind::Sequence:
+      case Qgis::PostgresRelKind::CompositeType:
+      case Qgis::PostgresRelKind::ToastTable:
+      case Qgis::PostgresRelKind::ForeignTable:
+      case Qgis::PostgresRelKind::PartitionedTable:
+        checkPkUnicityItem->setCheckState( Qt::CheckState::Unchecked );
+        checkPkUnicityItem->setFlags( checkPkUnicityItem->flags() & ~ Qt::ItemIsEnabled );
+        checkPkUnicityItem->setToolTip( tr( "This option is only available for views and materialized views." ) );
+        break;
     }
 
     QStandardItem *sqlItem = new QStandardItem( layerProperty.sql );
@@ -412,7 +424,7 @@ QString QgsPgTableModel::layerURI( const QModelIndex &index, const QString &conn
 {
   if ( !index.isValid() )
   {
-    QgsDebugMsg( QStringLiteral( "invalid index" ) );
+    QgsDebugMsgLevel( QStringLiteral( "invalid index" ), 2 );
     return QString();
   }
 
@@ -449,7 +461,7 @@ QString QgsPgTableModel::layerURI( const QModelIndex &index, const QString &conn
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "unknown geometry type" ) );
+      QgsDebugError( QStringLiteral( "unknown geometry type" ) );
       // no geometry type selected
       return QString();
     }
@@ -461,7 +473,7 @@ QString QgsPgTableModel::layerURI( const QModelIndex &index, const QString &conn
   if ( !s0.isEmpty() && !s0.intersects( s1 ) )
   {
     // no valid primary candidate selected
-    QgsDebugMsg( QStringLiteral( "no pk candidate selected" ) );
+    QgsDebugError( QStringLiteral( "no pk candidate selected" ) );
     return QString();
   }
 
@@ -479,7 +491,7 @@ QString QgsPgTableModel::layerURI( const QModelIndex &index, const QString &conn
     ( void )srid.toInt( &ok );
     if ( !ok )
     {
-      QgsDebugMsg( QStringLiteral( "srid not numeric" ) );
+      QgsDebugError( QStringLiteral( "srid not numeric" ) );
       return QString();
     }
   }
@@ -506,7 +518,7 @@ QString QgsPgTableModel::layerURI( const QModelIndex &index, const QString &conn
   uri.disableSelectAtId( !selectAtId );
   uri.setParam( QStringLiteral( "checkPrimaryKeyUnicity" ), checkPrimaryKeyUnicity ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
 
-  QgsDebugMsg( QStringLiteral( "returning uri %1" ).arg( uri.uri( false ) ) );
+  QgsDebugMsgLevel( QStringLiteral( "returning uri %1" ).arg( uri.uri( false ) ), 2 );
   return uri.uri( false );
 }
 

@@ -68,14 +68,13 @@ void QgsMapToolMeasureAngle::canvasMoveEvent( QgsMapMouseEvent *e )
 
     if ( !mResultDisplay->isVisible() )
     {
-      mResultDisplay->move( e->pos() - QPoint( 100, 100 ) );
       mResultDisplay->show();
     }
 
     //angle calculation
     double resultAngle = azimuthTwo - azimuthOne;
-    QgsDebugMsg( QString::number( std::fabs( resultAngle ) ) );
-    QgsDebugMsg( QString::number( M_PI ) );
+    QgsDebugMsgLevel( QString::number( std::fabs( resultAngle ) ), 2 );
+    QgsDebugMsgLevel( QString::number( M_PI ), 2 );
     if ( std::fabs( resultAngle ) > M_PI )
     {
       if ( resultAngle < 0 )
@@ -113,7 +112,7 @@ void QgsMapToolMeasureAngle::canvasReleaseEvent( QgsMapMouseEvent *e )
     {
       mResultDisplay = new QgsDisplayAngle( this );
       mResultDisplay->setWindowFlags( mResultDisplay->windowFlags() | Qt::Tool );
-      connect( mResultDisplay, &QDialog::rejected, this, &QgsMapToolMeasureAngle::stopMeasuring );
+      connect( mResultDisplay, &QDialog::finished, this, &QgsMapToolMeasureAngle::stopMeasuring );
     }
     configureDistanceArea();
     createRubberBand();
@@ -213,8 +212,8 @@ void QgsMapToolMeasureAngle::updateSettings()
     return;
   }
   double resultAngle = azimuthTwo - azimuthOne;
-  QgsDebugMsg( QString::number( std::fabs( resultAngle ) ) );
-  QgsDebugMsg( QString::number( M_PI ) );
+  QgsDebugMsgLevel( QString::number( std::fabs( resultAngle ) ), 2 );
+  QgsDebugMsgLevel( QString::number( M_PI ), 2 );
   if ( std::fabs( resultAngle ) > M_PI )
   {
     if ( resultAngle < 0 )

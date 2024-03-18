@@ -33,19 +33,24 @@ class TestQgsProcessExecutablePt2(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.TMP_DIR = tempfile.mkdtemp()
         # print('TMP_DIR: ' + cls.TMP_DIR)
         # subprocess.call(['open', cls.TMP_DIR])
 
     @classmethod
     def tearDownClass(cls):
+        super().tearDownClass()
         shutil.rmtree(cls.TMP_DIR, ignore_errors=True)
 
     @staticmethod
     def _strip_ignorable_errors(output: str):
         return '\n'.join([e for e in output.splitlines() if e not in (
             'Problem with GRASS installation: GRASS was not found or is not correctly installed',
-            'QStandardPaths: wrong permissions on runtime directory /tmp, 0777 instead of 0700'
+            'QStandardPaths: wrong permissions on runtime directory /tmp, 0777 instead of 0700',
+            'MESA: error: ZINK: failed to choose pdev',
+            'glx: failed to create drisw screen',
+            'failed to load driver: zink'
         )
         ])
 
@@ -337,6 +342,16 @@ class TestQgsProcessExecutablePt2(unittest.TestCase):
         res = json.loads(output)
         self.assertEqual(res['algorithm_details']['id'], 'native:buffer')
         self.assertEqual(res['inputs']['DISTANCE'], {'field': 'fid', 'type': 'data_defined'})
+
+    def testStartupOptimisationsStyleLazyInitialized(self):
+        """
+        Ensure that the costly QgsStyle.defaultStyle() initialization is NOT
+        performed by default when running qgis_process commands
+        """
+        rc, output, err = self.run_process(['run', TEST_DATA_DIR + '/report_style_initialization_status.py'])
+        self.assertFalse(self._strip_ignorable_errors(err))
+        self.assertEqual(rc, 0)
+        self.assertIn('IS_INITIALIZED:	false', output)
 
 
 if __name__ == '__main__':

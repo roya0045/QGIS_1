@@ -152,10 +152,9 @@ class CORE_EXPORT QgsProviderRegistry
     /**
      * Returns the provider capabilities
      * \param providerKey identifier of the provider
-     * \since QGIS 2.6
      * \deprecated QGIS 3.10 (use instead capabilities() method of individual data item provider)
      */
-    Q_DECL_DEPRECATED int providerCapabilities( const QString &providerKey ) const SIP_DEPRECATED;
+    Q_DECL_DEPRECATED Qgis::DataItemProviderCapabilities providerCapabilities( const QString &providerKey ) const SIP_DEPRECATED;
 
     /**
      * Creates new empty vector layer
@@ -629,6 +628,8 @@ class CORE_EXPORT QgsProviderRegistry
      * \see fileRasterFilters()
      * \see fileMeshFilters()
      * \see filePointCloudFilters()
+     * \see fileVectorTileFilters()
+     * \see fileTiledSceneFilters()
      */
     QString fileVectorFilters() const;
 
@@ -643,6 +644,8 @@ class CORE_EXPORT QgsProviderRegistry
      * \see fileVectorFilters()
      * \see fileMeshFilters()
      * \see filePointCloudFilters()
+     * \see fileVectorTileFilters()
+     * \see fileTiledSceneFilters()
      */
     QString fileRasterFilters() const;
 
@@ -656,6 +659,8 @@ class CORE_EXPORT QgsProviderRegistry
      * \see fileRasterFilters()
      * \see fileVectorFilters()
      * \see filePointCloudFilters()
+     * \see fileVectorTileFilters()
+     * \see fileTiledSceneFilters()
      *
      * \since QGIS 3.6
      */
@@ -682,10 +687,44 @@ class CORE_EXPORT QgsProviderRegistry
      * \see fileMeshFilters()
      * \see fileRasterFilters()
      * \see fileVectorFilters()
+     * \see fileVectorTileFilters()
+     * \see fileTiledSceneFilters()
      *
      * \since QGIS 3.18
      */
     QString filePointCloudFilters() const;
+
+    /**
+     * Returns a file filter string for supported vector tile files.
+     *
+     * Returns a string suitable for a QFileDialog of vector tile file formats
+     * supported by all data providers.
+     *
+     * \see fileMeshFilters()
+     * \see fileRasterFilters()
+     * \see fileVectorFilters()
+     * \see filePointCloudFilters()
+     * \see fileTiledSceneFilters()
+     *
+     * \since QGIS 3.32
+     */
+    QString fileVectorTileFilters() const;
+
+    /**
+     * Returns a file filter string for supported tiled scene files.
+     *
+     * Returns a string suitable for a QFileDialog of tiled scene file formats
+     * supported by all data providers.
+     *
+     * \see fileMeshFilters()
+     * \see fileRasterFilters()
+     * \see fileVectorFilters()
+     * \see filePointCloudFilters()
+     * \see fileVectorTileFilters()
+     *
+     * \since QGIS 3.34
+     */
+    QString fileTiledSceneFilters() const;
 
     //! Returns a string containing the available database drivers
     QString databaseDrivers() const;
@@ -727,6 +766,8 @@ class CORE_EXPORT QgsProviderRegistry
     //! Directory in which provider plugins are installed
     QDir mLibraryDirectory;
 
+    void rebuildFilterStrings();
+
     /**
      * File filter string for vector files
      *
@@ -757,6 +798,16 @@ class CORE_EXPORT QgsProviderRegistry
      * File filter string for point cloud files
      */
     QString mPointCloudFileFilters;
+
+    /**
+     * File filter string for vector tile files
+     */
+    QString mVectorTileFileFilters;
+
+    /**
+     * File filter string for tiled scene files
+     */
+    QString mTiledSceneFileFilters;
 
     /**
      * Available database drivers string for vector databases

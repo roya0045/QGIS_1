@@ -151,6 +151,25 @@ QgsWFSDataSourceURI::QgsWFSDataSourceURI( const QString &uri )
   }
 }
 
+QgsWFSDataSourceURI::QgsWFSDataSourceURI( const QgsWFSDataSourceURI &other )
+  : mURI( other.mURI )
+  , mAuth( other.mAuth )
+  , mGetEndpoints( other.mGetEndpoints )
+  , mPostEndpoints( other.mPostEndpoints )
+  , mDeprecatedURI( other.mDeprecatedURI )
+{
+}
+
+QgsWFSDataSourceURI &QgsWFSDataSourceURI::operator=( const QgsWFSDataSourceURI &other )
+{
+  mURI = other.mURI;
+  mAuth = other.mAuth;
+  mGetEndpoints = other.mGetEndpoints;
+  mPostEndpoints = other.mPostEndpoints;
+  mDeprecatedURI = other.mDeprecatedURI;
+  return *this;
+}
+
 bool QgsWFSDataSourceURI::isValid() const
 {
   return mURI.hasParam( QgsWFSConstants::URI_PARAM_URL ) &&
@@ -169,6 +188,7 @@ QSet<QString> QgsWFSDataSourceURI::unknownParamKeys() const
     QgsWFSConstants::URI_PARAM_VERSION,
     QgsWFSConstants::URI_PARAM_TYPENAME,
     QgsWFSConstants::URI_PARAM_SRSNAME,
+    QgsWFSConstants::URI_PARAM_BBOX,
     QgsWFSConstants::URI_PARAM_FILTER,
     QgsWFSConstants::URI_PARAM_OUTPUTFORMAT,
     QgsWFSConstants::URI_PARAM_RESTRICT_TO_REQUEST_BBOX,
@@ -182,6 +202,7 @@ QSet<QString> QgsWFSDataSourceURI::unknownParamKeys() const
     QgsWFSConstants::URI_PARAM_WFST_1_1_PREFER_COORDINATES,
     QgsWFSConstants::URI_PARAM_SKIP_INITIAL_GET_FEATURE,
     QgsWFSConstants::URI_PARAM_GEOMETRY_TYPE_FILTER,
+    QgsWFSConstants::URI_PARAM_SQL,
   };
 
   QSet<QString> l_unknownParamKeys;
@@ -313,11 +334,17 @@ long long QgsWFSDataSourceURI::pageSize() const
   return mURI.param( QgsWFSConstants::URI_PARAM_PAGE_SIZE ).toLongLong();
 }
 
-bool QgsWFSDataSourceURI::pagingEnabled() const
+QgsWFSDataSourceURI::PagingStatus QgsWFSDataSourceURI::pagingStatus() const
 {
   if ( !mURI.hasParam( QgsWFSConstants::URI_PARAM_PAGING_ENABLED ) )
-    return true;
-  return mURI.param( QgsWFSConstants::URI_PARAM_PAGING_ENABLED ) == QLatin1String( "true" );
+    return PagingStatus::DEFAULT;
+  const QString val = mURI.param( QgsWFSConstants::URI_PARAM_PAGING_ENABLED );
+  if ( val == QLatin1String( "true" ) || val == QLatin1String( "enabled" ) )
+    return PagingStatus::ENABLED;
+  else if ( val == QLatin1String( "false" ) || val ==  QLatin1String( "disabled" ) )
+    return PagingStatus::DISABLED;
+  else
+    return PagingStatus::DEFAULT;
 }
 
 void QgsWFSDataSourceURI::setTypeName( const QString &typeName )

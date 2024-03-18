@@ -107,7 +107,7 @@ class CORE_EXPORT QgsSipifyHeader : public QtClass<QVariant>, private Ui::QgsBas
 
   public:
     //! This is an enum
-    enum MyEnum
+    enum MyEnum : int SIP_ENUM_BASETYPE( IntFlag )
     {
       Success = 0, //!< Edit operation was successful
       NoSuccess = 1, //!< Edit operation resulted in an empty geometry
@@ -521,6 +521,9 @@ class CORE_EXPORT TemplateInheritance4 : public SomethingElse1, public QList<Som
 {
 }
 class CORE_EXPORT TemplateInheritance5 : public SomethingElse, public QList<Something>
+{
+}
+class CORE_EXPORT TemplateInheritance6 : public SomethingElse, public YourSuperTemplate<Abc, Def, Ghi>
 {
 }
 

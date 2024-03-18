@@ -61,7 +61,6 @@ class TestQgsPdalProvider : public QgsTest
     void querySublayers();
     void brokenPath();
     void validLayer();
-    void testEptGeneration();
     void testCopcGeneration();
 
   private:
@@ -89,13 +88,13 @@ void TestQgsPdalProvider::filters()
   QgsProviderMetadata *metadata = QgsProviderRegistry::instance()->providerMetadata( QStringLiteral( "pdal" ) );
   QVERIFY( metadata );
 
-  const QString metadataFilters = metadata->filters( QgsProviderMetadata::FilterType::FilterPointCloud );
+  const QString metadataFilters = metadata->filters( Qgis::FileFilterType::PointCloud );
   QVERIFY( metadataFilters.contains( "*.laz" ) );
   QVERIFY( metadataFilters.contains( "*.las" ) );
   QVERIFY( metadataFilters.contains( "*.LAZ" ) );
   QVERIFY( metadataFilters.contains( "*.LAS" ) );
 
-  QCOMPARE( metadata->filters( QgsProviderMetadata::FilterType::FilterVector ), QString() );
+  QCOMPARE( metadata->filters( Qgis::FileFilterType::Vector ), QString() );
 
   const QString registryPointCloudFilters = QgsProviderRegistry::instance()->filePointCloudFilters();
   QVERIFY( registryPointCloudFilters.contains( "*.laz" ) );
@@ -223,22 +222,12 @@ void TestQgsPdalProvider::validLayer()
   QCOMPARE( layer->pointCount(), 253 );
 }
 
-void TestQgsPdalProvider::testEptGeneration()
-{
-  const QTemporaryDir dir;
-  QVERIFY( dir.isValid() );
-  QgsPdalIndexingTask task( mTestDataDir + QStringLiteral( "point_clouds/las/cloud.las" ), dir.path(), QgsPdalIndexingTask::OutputFormat::Ept );
-  QVERIFY( task.run() );
-  const QFileInfo fi( dir.path() + "/ept.json" );
-  QVERIFY( fi.exists() );
-}
-
 void TestQgsPdalProvider::testCopcGeneration()
 {
   const QTemporaryDir dir;
   QString outputPath = dir.path() + QDir::separator() + "cloud.copc.laz";
   QVERIFY( dir.isValid() );
-  QgsPdalIndexingTask task( mTestDataDir + QStringLiteral( "point_clouds/las/cloud.las" ), outputPath,  QgsPdalIndexingTask::OutputFormat::Copc );
+  QgsPdalIndexingTask task( mTestDataDir + QStringLiteral( "point_clouds/las/cloud.las" ), outputPath );
   QVERIFY( task.run() );
   const QFileInfo fi( outputPath );
   QVERIFY( fi.exists() );

@@ -36,12 +36,13 @@ class QgsSymbol;
 class QgsTriangularMesh;
 class QgsRenderContext;
 struct QgsMesh;
-class QgsMesh3dAveragingMethod;
+class QgsMesh3DAveragingMethod;
 class QgsMeshLayerTemporalProperties;
 class QgsMeshDatasetGroupStore;
 class QgsMeshEditor;
 class QgsMeshEditingError;
 class QgsMeshLayerElevationProperties;
+class QgsAbstractMeshLayerLabeling;
 
 /**
  * \ingroup core
@@ -462,7 +463,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer, public QgsAbstractProfileSo
      *
      * \since QGIS 3.16
      */
-    QgsMesh3dDataBlock dataset3dValues( const QgsMeshDatasetIndex &index, int faceIndex, int count ) const;
+    QgsMesh3DDataBlock dataset3dValues( const QgsMeshDatasetIndex &index, int faceIndex, int count ) const;
 
     /**
      * Returns N vector/scalar values from the face index from the dataset for 3d stacked meshes
@@ -530,7 +531,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer, public QgsAbstractProfileSo
       *
       * \since QGIS 3.12
       */
-    QgsMesh3dDataBlock dataset3dValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point ) const;
+    QgsMesh3DDataBlock dataset3dValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point ) const;
 
     /**
       * Returns the value of 1D mesh dataset defined on edge that are in the search area defined by point ans searchRadius
@@ -881,6 +882,53 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer, public QgsAbstractProfileSo
     */
     int meshEdgeCount() const;
 
+    /**
+     * Returns whether the layer contains labels which are enabled and should be drawn.
+     * \returns TRUE if layer contains enabled labels
+     *
+     * \see setLabelsEnabled()
+     * \see labeling()
+     * \since QGIS 3.36
+     */
+    bool labelsEnabled() const;
+
+    /**
+     * Sets whether labels should be \a enabled for the layer.
+     *
+     * \note Labels will only be rendered if labelsEnabled() is TRUE and a labeling
+     * object is returned by labeling().
+     *
+     * \see labelsEnabled()
+     * \see labeling()
+     * \since QGIS 3.36
+     */
+    void setLabelsEnabled( bool enabled );
+
+    /**
+     * Access to const labeling configuration. May be NULLPTR if labeling is not used.
+     * \note Labels will only be rendered if labelsEnabled() returns TRUE.
+     *
+     * \see labelsEnabled()
+     * \see setLabelsEnabled()
+     * \since QGIS 3.36
+     */
+    const QgsAbstractMeshLayerLabeling *labeling() const SIP_SKIP { return mLabeling; }
+
+    /**
+     * Access to labeling configuration. May be NULLPTR if labeling is not used.
+     * \note Labels will only be rendered if labelsEnabled() returns TRUE.
+     * \see labelsEnabled()
+     * \since QGIS 3.36
+     */
+    QgsAbstractMeshLayerLabeling *labeling() { return mLabeling; }
+
+    /**
+     * Sets labeling configuration. Takes ownership of the object.
+     * \since QGIS 3.36
+     */
+    void setLabeling( QgsAbstractMeshLayerLabeling *labeling SIP_TRANSFER );
+
+
   public slots:
 
     /**
@@ -991,6 +1039,12 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer, public QgsAbstractProfileSo
 
     QgsMeshEditor *mMeshEditor = nullptr;
 
+    //! True if labels are enabled
+    bool mLabelsEnabled = false;
+
+    //! Labeling configuration
+    QgsAbstractMeshLayerLabeling *mLabeling = nullptr;
+
     int closestEdge( const QgsPointXY &point, double searchRadius, QgsPointXY &projectedPoint ) const;
 
     //! Returns the exact position in map coordinates of the closest vertex in the search area
@@ -1004,6 +1058,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer, public QgsAbstractProfileSo
 
     void updateActiveDatasetGroups();
 
+    QgsMeshRendererSettings accordSymbologyWithGroupName( const QgsMeshRendererSettings &settings, const QMap<QString, int> &nameToIndex );
     void checkSymbologyConsistency();
 
     void setDataSourcePrivate( const QString &dataSource, const QString &baseName, const QString &provider,

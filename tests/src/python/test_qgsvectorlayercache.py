@@ -9,7 +9,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '08/06/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QDate, QDateTime, QTime
 from qgis.core import (
     NULL,
@@ -18,14 +17,15 @@ from qgis.core import (
     QgsVectorLayer,
     QgsVectorLayerCache,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from featuresourcetestbase import FeatureSourceTestCase
 
 start_app()
 
 
-class TestQgsVectorLayerCache(unittest.TestCase, FeatureSourceTestCase):
+class TestQgsVectorLayerCache(QgisTestCase, FeatureSourceTestCase):
 
     @classmethod
     def getSource(cls):
@@ -35,6 +35,7 @@ class TestQgsVectorLayerCache(unittest.TestCase, FeatureSourceTestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestQgsVectorLayerCache, cls).setUpClass()
         # Create test layer for FeatureSourceTestCase
         cls.vl = QgsVectorLayer(
             'Point?crs=epsg:4326&field=pk:integer&field=cnt:integer&field=name:string(0)&field=name2:string(0)&field=num_char:string&field=dt:datetime&field=date:date&field=time:time&key=pk',

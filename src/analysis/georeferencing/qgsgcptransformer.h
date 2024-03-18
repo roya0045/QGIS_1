@@ -16,10 +16,11 @@
 #ifndef QGSGCPTRANSFORMER_H
 #define QGSGCPTRANSFORMER_H
 
+#include <QObject>
 #include <gdal_alg.h>
-#include "qgspoint.h"
 #include "qgis_analysis.h"
 #include "qgis_sip.h"
+#include "qgspointxy.h"
 
 /**
  * \ingroup analysis
@@ -211,8 +212,8 @@ class ANALYSIS_EXPORT QgsHelmertGeorefTransform : public QgsGcpTransformerInterf
     struct HelmertParameters
     {
       QgsPointXY origin;
-      double scale;
-      double angle;
+      double scale = 0;
+      double angle = 0;
       bool invertYAxis = false;
     };
     HelmertParameters mHelmertParameters;

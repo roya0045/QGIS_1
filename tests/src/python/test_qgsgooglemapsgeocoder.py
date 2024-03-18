@@ -11,7 +11,6 @@ __copyright__ = 'Copyright 2020, The QGIS Project'
 
 import tempfile
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.core import (
     QgsCoordinateTransformContext,
@@ -20,16 +19,18 @@ from qgis.core import (
     QgsRectangle,
     QgsSettings,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsGeocoderLocatorFilter(unittest.TestCase):
+class TestQgsGeocoderLocatorFilter(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestQgsGeocoderLocatorFilter.com")
@@ -54,6 +55,7 @@ class TestQgsGeocoderLocatorFilter(unittest.TestCase):
         """Run after all tests"""
         QgsSettings().clear()
         # shutil.rmtree(cls.basetestpath, True)
+        super().tearDownClass()
 
     def test_basic(self):
         """
