@@ -21,6 +21,7 @@
 
 #include <QDomElement>
 #include <QTextStream>
+class QgsFeatureRenderer;
 
 static void _readOldLegendGroup( const QDomElement &groupElem, QgsLayerTreeGroup *parent );
 static void _readOldLegendLayer( const QDomElement &layerElem, QgsLayerTreeGroup *parent );
@@ -705,10 +706,10 @@ QString QgsLayerTreeUtils::expressionForLegendKey( QgsLayerTreeNode *node, const
     QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( nodeLayer->layer() );
     if ( !layer )
       return QString();
-    if ( layer->renderer() )
+    if ( QgsFeatureRenderer *renderer = layer->renderer() )
     {
       bool ok = false;
-      return ( layer->renderer()->legendKeyToExpression( legendKey, layer, ok ) );
+      return ( renderer->legendKeyToExpression( legendKey, layer, ok ) );
     }
     return QString( "TRUE" );
   }
