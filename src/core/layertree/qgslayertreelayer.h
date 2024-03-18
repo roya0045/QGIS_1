@@ -22,7 +22,6 @@
 #include "qgsmaplayerref.h"
 #include "qgsreadwritecontext.h"
 #include "qgslegendpatchshape.h"
-#include "qgsrulebasedrenderer.h"
 
 class QgsMapLayer;
 
