@@ -1595,7 +1595,9 @@ QgsMapSettings QgsLayoutItemMap::mapSettings( const QgsRectangle &extent, QSizeF
 
   if ( mAtlasClippingSettings->enabled() && mLayout->reportContext().feature().isValid() )
   {
-    QgsGeometry clipGeom( mLayout->reportContext().currentGeometry( jobMapSettings.destinationCrs() ) );
+    QgsGeometry clipGeom( atlasGeometry( jobMapSettings.destinationCrs() ) );
+    if ( QgsWkbTypes::geometryType( clipGeom.wkbType() ) != Qgis::GeometryType::Polygon )
+      return jobMapSettings;
     QgsMapClippingRegion region( clipGeom );
     region.setFeatureClip( mAtlasClippingSettings->featureClippingType() );
     region.setRestrictedLayers( mAtlasClippingSettings->layersToClip() );
@@ -2653,7 +2655,7 @@ void QgsLayoutItemMap::updateAtlasFeature()
   QgsRectangle originalExtent = mExtent;
 
   //sanity check - only allow fixed scale mode for point layers
-  bool isPointLayer = QgsWkbTypes::geometryType( mLayout->reportContext().layer()->wkbType() ) == Qgis::GeometryType::Point;
+  bool isPointLayer = bounds.area() == 0.0;
 
   if ( mAtlasScalingMode == Fixed || mAtlasScalingMode == Predefined || isPointLayer )
   {
@@ -2759,7 +2761,7 @@ QgsRectangle QgsLayoutItemMap::computeAtlasRectangle()
   // QgsGeometry::boundingBox is expressed in the geometry"s native CRS
   // We have to transform the geometry to the destination CRS and ask for the bounding box
   // Note: we cannot directly take the transformation of the bounding box, since transformations are not linear
-  QgsGeometry g = mLayout->reportContext().currentGeometry( crs() );
+  QgsGeometry g = atlasGeometry( crs() );
   // Rotating the geometry, so the bounding box is correct wrt map rotation
   if ( mEvaluatedMapRotation != 0.0 )
   {
@@ -2795,6 +2797,23 @@ void QgsLayoutItemMap::createStagedRenderJob( const QgsRectangle &extent, const 
                        ? QgsMapRendererStagedRenderJob::RenderLabelsByMapLayer
                        : QgsMapRendererStagedRenderJob::Flags() );
   mStagedRendererJob->start();
+}
+
+QgsGeometry QgsLayoutItemMap::atlasGeometry( const QgsCoordinateReferenceSystem crs ) const
+{
+  if ( mDataDefinedProperties.isActive( QgsLayoutObject::AtlasGeometryOverride ) )
+  {
+    QgsExpressionContext context = createExpressionContext();
+    //mDataDefinedProperties.prepare( context ); // needed?
+    QgsGeometry geometry = mDataDefinedProperties.value( QgsLayoutObject::AtlasGeometryOverride, context ).value<QgsGeometry>();
+    QgsCoordinateReferenceSystem layerCrs = mLayout->reportContext().layer()->crs();
+    if ( crs.isValid() && crs != layerCrs )
+      geometry.transform( QgsCoordinateTransform( layerCrs, crs, mLayout->project() ) );
+    if ( !geometry.isNull() )
+      return ( geometry );
+  }
+
+  return ( mLayout->reportContext().currentGeometry( crs ) );
 }
 
 

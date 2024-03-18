@@ -191,6 +191,7 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   registerDataDefinedButton( mCRSDDBtn, QgsLayoutObject::MapCrs );
   registerDataDefinedButton( mStartDateTimeDDBtn, QgsLayoutObject::StartDateTime );
   registerDataDefinedButton( mEndDateTimeDDBtn, QgsLayoutObject::EndDateTime );
+  registerDataDefinedButton( mGeometryOverrideDDBtn, QgsLayoutObject::AtlasGeometryOverride );
 
   updateGuiElements();
   loadGridEntries();
@@ -199,6 +200,8 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   connect( mMapRotationSpinBox, static_cast < void ( QgsDoubleSpinBox::* )( double ) > ( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::rotationChanged );
   connect( mMapItem, &QgsLayoutItemMap::extentChanged, mItemPropertiesWidget, &QgsLayoutItemPropertiesWidget::updateVariables );
   connect( mMapItem, &QgsLayoutItemMap::mapRotationChanged, mItemPropertiesWidget, &QgsLayoutItemPropertiesWidget::updateVariables );
+
+  connect( mGeometryOverrideDDBtn, &QgsPropertyOverrideButton::changed, mMapItem, &QgsLayoutItemMap::refresh );
 
   blockAllSignals( false );
 }
@@ -273,6 +276,7 @@ void QgsLayoutMapWidget::populateDataDefinedButtons()
   updateDataDefinedButton( mCRSDDBtn );
   updateDataDefinedButton( mStartDateTimeDDBtn );
   updateDataDefinedButton( mEndDateTimeDDBtn );
+  updateDataDefinedButton( mGeometryOverrideDDBtn );
 }
 
 void QgsLayoutMapWidget::compositionAtlasToggled( bool atlasEnabled )
@@ -946,7 +950,7 @@ void QgsLayoutMapWidget::toggleAtlasScalingOptionsByLayerType()
     return;
   }
 
-  if ( QgsWkbTypes::geometryType( layer->wkbType() ) == Qgis::GeometryType::Point )
+  if ( QgsWkbTypes::geometryType( mMapItem->atlasGeometry( mMapItem->crs() ).wkbType() ) == Qgis::GeometryType::Point )
   {
     //For point layers buffer setting makes no sense, so set "fixed scale" on and disable margin control
     if ( mMapItem->atlasScalingMode() == QgsLayoutItemMap::Auto )
@@ -2156,7 +2160,7 @@ void QgsLayoutMapClippingWidget::updateGuiElements()
 
 void QgsLayoutMapClippingWidget::atlasLayerChanged( QgsVectorLayer *layer )
 {
-  if ( !layer || layer->geometryType() != Qgis::GeometryType::Polygon )
+  if ( !layer || QgsWkbTypes::geometryType( mMapItem->atlasGeometry( mMapItem->crs() ).wkbType() ) != Qgis::GeometryType::Polygon )
   {
     //non-polygon layer, disable atlas control
     mClipToAtlasCheckBox->setChecked( false );
@@ -2172,8 +2176,8 @@ void QgsLayoutMapClippingWidget::atlasLayerChanged( QgsVectorLayer *layer )
 void QgsLayoutMapClippingWidget::atlasToggled( bool atlasEnabled )
 {
   if ( atlasEnabled &&
-       mMapItem && mMapItem->layout() && mMapItem->layout()->reportContext().layer()
-       && mMapItem->layout()->reportContext().layer()->geometryType() == Qgis::GeometryType::Polygon )
+       mMapItem && mMapItem->layout() && mMapItem->layout()->reportContext().layer() &&
+       QgsWkbTypes::geometryType( mMapItem->atlasGeometry( mMapItem->crs() ).wkbType() ) == Qgis::GeometryType::Polygon )
   {
     mClipToAtlasCheckBox->setEnabled( true );
   }

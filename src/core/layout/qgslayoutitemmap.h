@@ -863,6 +863,13 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      */
     QgsLayoutItemMapItemClipPathSettings *itemClippingSettings() { return mItemClippingSettings; }
 
+    /**
+     * Returns the current geometry ( from the source layer or data-defined ) in the provided crs.
+     *
+     * \since QGIS 3.32
+     */
+    QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
+
   protected:
 
     void draw( QgsLayoutItemRenderContext &context ) override;
