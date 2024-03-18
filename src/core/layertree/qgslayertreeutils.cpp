@@ -18,10 +18,10 @@
 #include "qgsvectorlayer.h"
 #include "qgsproject.h"
 #include "qgslogger.h"
+#include "qgsrenderer.h"
 
 #include <QDomElement>
 #include <QTextStream>
-class QgsFeatureRenderer;
 
 static void _readOldLegendGroup( const QDomElement &groupElem, QgsLayerTreeGroup *parent );
 static void _readOldLegendLayer( const QDomElement &layerElem, QgsLayerTreeGroup *parent );
