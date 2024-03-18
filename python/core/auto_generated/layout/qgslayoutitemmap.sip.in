@@ -988,6 +988,13 @@ display features within the specified z range.
     virtual double estimatedFrameBleed() const;
 
 
+    QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
+%Docstring
+Returns the current geometry ( from the source layer or data-defined ) in the provided crs.
+
+.. versionadded:: 3.32
+%End
+
   protected:
 
     virtual void draw( QgsLayoutItemRenderContext &context );

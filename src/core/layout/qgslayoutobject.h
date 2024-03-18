@@ -236,6 +236,7 @@ class CORE_EXPORT QgsLayoutObject: public QObject, public QgsExpressionContextGe
       ElevationProfileMaximumDistance, //!< Maximum distance value for elevation profile \since QGIS 3.30
       ElevationProfileMinimumElevation, //!< Minimum elevation value for elevation profile \since QGIS 3.30
       ElevationProfileMaximumElevation, //!< Maximum elevation value for elevation profile \since QGIS 3.30
+      AtlasGeometryOverride, //!< Maximum elevation value for elevation profile \since QGIS 3.40?
     };
 
     // *INDENT-ON*
