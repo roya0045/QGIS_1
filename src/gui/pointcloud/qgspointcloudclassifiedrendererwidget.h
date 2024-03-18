@@ -72,6 +72,12 @@ class GUI_EXPORT QgsPointCloudClassifiedRendererModel : public QAbstractItemMode
 
     //! Informs views that categories were moved (e.g., via mCategories.move()) in the model.
     void rowsMoved();
+    /**
+     * Signals emitted when a modified key is held and the state is toggled.
+     * 
+     * \since QGIS 3.28
+     */
+    void toggleSelectedSymbols( const bool state );
 
   private:
     QgsPointCloudCategoryList mCategories;
@@ -131,6 +137,12 @@ class GUI_EXPORT QgsPointCloudClassifiedRendererWidget : public QgsPointCloudRen
     void changeCategoryPointSize();
     void rowsMoved();
 
+    /**
+     * Slot used to change the state of all selected items.
+     * 
+     * \since QGIS 3.28
+     */
+    void toggleSelectedSymbols( const bool state );
   private:
     //! Sets default category and available classes
     void initialize();

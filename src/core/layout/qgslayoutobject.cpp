@@ -125,6 +125,8 @@ void QgsLayoutObject::initPropertyDefinitions()
     { static_cast< int >( QgsLayoutObject::DataDefinedProperty::ElevationProfileMaximumDistance ), QgsPropertyDefinition( "dataDefinedElevationProfileMaximumDistance", QObject::tr( "Maximum distance" ), QgsPropertyDefinition::DoublePositive ) },
     { static_cast< int >( QgsLayoutObject::DataDefinedProperty::ElevationProfileMinimumElevation ), QgsPropertyDefinition( "dataDefinedElevationProfileMinimumElevation", QObject::tr( "Minimum elevation" ), QgsPropertyDefinition::Double ) },
     { static_cast< int >( QgsLayoutObject::DataDefinedProperty::ElevationProfileMaximumElevation ), QgsPropertyDefinition( "dataDefinedElevationProfileMaximumElevation", QObject::tr( "Maximum elevation" ), QgsPropertyDefinition::Double ) },
+    { static_cast< int >( QgsLayoutObject::DataDefinedProperty::AtlasGeometryOverride), QgsPropertyDefinition( "dataDefinedAtlasGeometryOverride", QObject::tr( "Atlas Geometry" ), QgsPropertyDefinition::DataTypeString, QObject::tr( "geometry to use as the map extent" ) ) },
+
   };
 }
 
@@ -229,6 +231,7 @@ bool QgsLayoutObject::propertyAssociatesWithParentMultiframe( QgsLayoutObject::D
     case QgsLayoutObject::DataDefinedProperty::MarginRight:
     case QgsLayoutObject::DataDefinedProperty::MarginTop:
     case QgsLayoutObject::DataDefinedProperty::MarginBottom:
+    case QgsLayoutObject::DataDefinedProperty::AtlasGeometryOverride:
       return false;
   }
   return false;
