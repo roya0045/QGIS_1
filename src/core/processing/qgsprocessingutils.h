@@ -770,6 +770,7 @@ class CORE_EXPORT QgsProcessingFeatureSource : public QgsFeatureSource
 
     std::function< void( const QgsFeature & ) > mInvalidGeometryCallbackSkip;
     std::function< void( const QgsFeature & ) > mInvalidGeometryCallbackAbort;
+    std::function< void( const QgsFeature & ) > mInvalidGeometryCallbackFix;
 
     long long mFeatureLimit = -1;
     QString mFilterExpression;

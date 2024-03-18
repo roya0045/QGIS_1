@@ -32,6 +32,8 @@ QgsProcessingFeatureSourceOptionsWidget::QgsProcessingFeatureSourceOptionsWidget
   mComboInvalidFeatureFiltering->addItem( tr( "Do not Filter (Better Performance)" ), QVariant::fromValue( Qgis::InvalidGeometryCheck::NoCheck ) );
   mComboInvalidFeatureFiltering->addItem( tr( "Skip (Ignore) Features with Invalid Geometries" ), QVariant::fromValue( Qgis::InvalidGeometryCheck::SkipInvalid ) );
   mComboInvalidFeatureFiltering->addItem( tr( "Stop Algorithm Execution When a Geometry is Invalid" ), QVariant::fromValue( Qgis::InvalidGeometryCheck::AbortOnInvalid ) );
+  mComboInvalidFeatureFiltering->addItem( tr( "Try to fix Invalid Geometry, otherwise skip it. May discard m-value and other attr." ), QVariant::fromValue( Qgis::InvalidGeometryCheck::GeometryFixInvalidSkipOnFailure ) );
+  mComboInvalidFeatureFiltering->addItem( tr( "Try to fix Invalid Geometry, otherwise abort. May discard m-value and other attr." ), QVariant::fromValue( Qgis::InvalidGeometryCheck::GeometryFixInvalidAbortOnFailure ) );
 
   connect( mFeatureLimitSpinBox, qOverload<int>( &QSpinBox::valueChanged ), this, &QgsPanelWidget::widgetChanged );
   connect( mComboInvalidFeatureFiltering, qOverload<int>( &QComboBox::currentIndexChanged ), this, &QgsPanelWidget::widgetChanged );
