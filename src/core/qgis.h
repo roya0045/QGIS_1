@@ -1760,6 +1760,8 @@ class CORE_EXPORT Qgis
       NoCheck SIP_MONKEYPATCH_COMPAT_NAME( GeometryNoCheck ) = 0, //!< No invalid geometry checking
       SkipInvalid SIP_MONKEYPATCH_COMPAT_NAME( GeometrySkipInvalid ) = 1, //!< Skip any features with invalid geometry. This requires a slow geometry validity check for every feature.
       AbortOnInvalid SIP_MONKEYPATCH_COMPAT_NAME( GeometryAbortOnInvalid ) = 2, //!< Close iterator on encountering any features with invalid geometry. This requires a slow geometry validity check for every feature.
+      GeometryFixInvalidAbortOnFailure SIP_MONKEYPATCH_COMPAT_NAME( GeometryAbortOnInvalid ) = 3,
+      GeometryFixInvalidSkipOnFailure SIP_MONKEYPATCH_COMPAT_NAME( GeometryAbortOnInvalid ) = 4,
     };
     Q_ENUM( InvalidGeometryCheck )
 
