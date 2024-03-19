@@ -1691,9 +1691,9 @@ QgsProcessingFeatureSource::QgsProcessingFeatureSource( QgsFeatureSource *origin
                            : context.invalidGeometryCheck() )
   , mInvalidGeometryCallback( context.invalidGeometryCallback( originalSource ) )
   , mTransformErrorCallback( context.transformErrorCallback() )
-  , mInvalidGeometryCallbackSkip( context.defaultInvalidGeometryCallbackForCheck( QgsFeatureRequest::GeometrySkipInvalid, originalSource ) )
-  , mInvalidGeometryCallbackAbort( context.defaultInvalidGeometryCallbackForCheck( QgsFeatureRequest::GeometryAbortOnInvalid, originalSource ) )
-  , mInvalidGeometryCallbackFix( context.defaultInvalidGeometryCallbackForCheck( QgsFeatureRequest::GeometryFixInvalidSkipOnFailure, originalSource ) )
+  , mInvalidGeometryCallbackSkip( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::SkipInvalid, originalSource ) )
+  , mInvalidGeometryCallbackAbort( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::AbortOnInvalid, originalSource ) )
+  , mInvalidGeometryCallbackFix( context.defaultInvalidGeometryCallbackForCheck( Qgis::InvalidGeometryCheck::FixInvalidSkipOnFailure, originalSource ) )
   , mFeatureLimit( featureLimit )
   , mFilterExpression( filterExpression )
 {}

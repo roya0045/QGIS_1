@@ -1164,6 +1164,25 @@ class CORE_EXPORT Qgis
     Q_FLAG( RasterRendererFlags )
 
     /**
+     * Raster renderer capabilities.
+     *
+     * \since QGIS 3.48
+     */
+    enum class RasterRendererCapability : int SIP_ENUM_BASETYPE( IntFlag )
+    {
+      UsesMultipleBands = 1 << 0, //!< The renderer utilizes multiple raster bands for color data (note that alpha bands are not considered for this capability)
+    };
+    Q_ENUM( RasterRendererCapability )
+
+    /**
+     * Raster renderer capabilities.
+     *
+     * \since QGIS 3.38
+     */
+    Q_DECLARE_FLAGS( RasterRendererCapabilities, RasterRendererCapability )
+    Q_FLAG( RasterRendererCapabilities )
+
+    /**
      * \brief The RasterAttributeTableFieldUsage enum represents the usage of a Raster Attribute Table field.
      * \note Directly mapped from GDALRATFieldUsage enum values.
      * \since QGIS 3.30
@@ -1760,8 +1779,8 @@ class CORE_EXPORT Qgis
       NoCheck SIP_MONKEYPATCH_COMPAT_NAME( GeometryNoCheck ) = 0, //!< No invalid geometry checking
       SkipInvalid SIP_MONKEYPATCH_COMPAT_NAME( GeometrySkipInvalid ) = 1, //!< Skip any features with invalid geometry. This requires a slow geometry validity check for every feature.
       AbortOnInvalid SIP_MONKEYPATCH_COMPAT_NAME( GeometryAbortOnInvalid ) = 2, //!< Close iterator on encountering any features with invalid geometry. This requires a slow geometry validity check for every feature.
-      GeometryFixInvalidAbortOnFailure SIP_MONKEYPATCH_COMPAT_NAME( GeometryAbortOnInvalid ) = 3,
-      GeometryFixInvalidSkipOnFailure SIP_MONKEYPATCH_COMPAT_NAME( GeometryAbortOnInvalid ) = 4,
+      FixInvalidAbortOnFailure SIP_MONKEYPATCH_COMPAT_NAME( GeometryFixInvalidAbortOnFailure ) = 3,
+      FixInvalidSkipOnFailure SIP_MONKEYPATCH_COMPAT_NAME( GeometryFixInvalidSkipOnFailure ) = 4,
     };
     Q_ENUM( InvalidGeometryCheck )
 
@@ -3258,9 +3277,22 @@ class CORE_EXPORT Qgis
     enum class RasterElevationMode : int
     {
       FixedElevationRange = 0, //!< Layer has a fixed elevation range
-      RepresentsElevationSurface = 1 //!< Pixel values represent an elevation surface
+      RepresentsElevationSurface = 1, //!< Pixel values represent an elevation surface
+      FixedRangePerBand = 2, //!< Layer has a fixed elevation range per band
     };
     Q_ENUM( RasterElevationMode )
+
+    /**
+     * Mesh layer elevation modes.
+     *
+     * \since QGIS 3.38
+     */
+    enum class MeshElevationMode : int
+    {
+      FixedElevationRange = 0, //!< Layer has a fixed elevation range
+      FromVertices = 1 //!< Elevation should be taken from mesh vertices
+    };
+    Q_ENUM( MeshElevationMode )
 
     /**
      * Between line constraints which can be enabled
@@ -4978,6 +5010,7 @@ Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::ProfileGeneratorFlags )
 Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::ProjectCapabilities )
 Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::ProjectReadFlags )
 Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::RasterRendererFlags )
+Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::RasterRendererCapabilities )
 Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::RasterTemporalCapabilityFlags )
 Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::RelationshipCapabilities )
 Q_DECLARE_OPERATORS_FOR_FLAGS( Qgis::RenderContextFlags )

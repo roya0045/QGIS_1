@@ -117,8 +117,8 @@ std::function<void ( const QgsFeature & )> QgsProcessingContext::defaultInvalidG
     case Qgis::InvalidGeometryCheck::NoCheck:
       return nullptr;
 
-    case Qgis::InvalidGeometryCheck::GeometryFixInvalidAbortOnFailure:
-    case Qgis::InvalidGeometryCheck::GeometryFixInvalidSkipOnFailure:
+    case Qgis::InvalidGeometryCheck::FixInvalidAbortOnFailure:
+    case Qgis::InvalidGeometryCheck::FixInvalidSkipOnFailure:
     {
       auto callback = [ = ]( const QgsFeature & feature )
       {
