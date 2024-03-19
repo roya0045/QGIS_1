@@ -187,12 +187,6 @@ QgsFeatureRequest &QgsFeatureRequest::setInvalidGeometryCheck( Qgis::InvalidGeom
   return *this;
 }
 
-QgsFeatureRequest &QgsFeatureRequest::setAutofixFlag( QgsFeatureRequest::AutoFixIntensity flag )
-{
-  mAutofixFlag = flag;
-  return *this;
-}
-
 QgsFeatureRequest &QgsFeatureRequest::setInvalidGeometryCallback( const std::function<void ( const QgsFeature & )> &callback )
 {
   mInvalidGeometryCallback = callback;
