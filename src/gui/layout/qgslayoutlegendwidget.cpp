@@ -1188,15 +1188,11 @@ void QgsLayoutLegendWidget::mLayerExpressionButton_clicked()
     const QList<QgsLayerTreeModelLegendNode *> legendNodes = model->layerLegendNodes( layerNode, false );
     if ( !legendNodes.isEmpty() )
     {
-      QgsSymbolLegendNode legendNode( layerNode, legendSymbols.first() );
-
-      symbolLegendScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_label" ), legendNode.symbolLabel().remove( QStringLiteral( "[%" ) ).remove( QStringLiteral( "%]" ) ), true ) );
-      symbolLegendScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_id" ), legendSymbols.first().ruleKey(), true ) );
-      highlighted << QStringLiteral( "symbol_label" ) << QStringLiteral( "symbol_id" );
-      symbolLegendScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_count" ), QVariant::fromValue( vl->featureCount( legendSymbols.first().ruleKey() ) ), true ) );
-      highlighted << QStringLiteral( "symbol_count" );
-      symbolLegendScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "legend_item_expression" ), QVariant::fromValue( QgsLayerTreeUtils::expressionForLegendKey( layerNode, legendSymbols.first().ruleKey() ) ), true ) );
-      highlighted << QStringLiteral( "legend_item_expression" );
+      if ( QgsSymbolLegendNode *symbolNode = qobject_cast<QgsSymbolLegendNode *>( legendNodes.first() ) )
+      {
+        legendContext.appendScope( symbolNode->createSymbolScope() );
+        highlighted << QStringLiteral( "symbol_label" ) << QStringLiteral( "symbol_id" ) << QStringLiteral( "symbol_count" ) << QStringLiteral( "legend_item_expression" );
+      }
     }
   }
 
