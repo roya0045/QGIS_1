@@ -1931,8 +1931,8 @@ void QgsProcessingFeatureSource::setInvalidGeometryCheck( Qgis::InvalidGeometryC
       mInvalidGeometryCallback = mInvalidGeometryCallbackAbort;
       break;
 
-    case QgsFeatureRequest::GeometryFixInvalidAbortOnFailure:
-    case QgsFeatureRequest::GeometryFixInvalidSkipOnFailure:
+    case Qgis::InvalidGeometryCheck::FixInvalidAbortOnFailure:
+    case Qgis::InvalidGeometryCheck::FixInvalidSkipOnFailure:
       mInvalidGeometryCallback = mInvalidGeometryCallbackFix;
       break;
 
