@@ -517,22 +517,6 @@ class CORE_EXPORT QgsFeatureRequest
     std::function< void( const QgsFeature & ) > invalidGeometryCallback() const { return mInvalidGeometryCallback; } SIP_SKIP
 
     /**
-     * Set the flag used to control the tolerace or change for the autofixing process.
-     * Is only needed if the GeometryCheck is set to GeometryFixInvalidSkipOnFailure or GeometryFixInvalidAbortOnFailure.
-     * \see autofixFlag()
-     * \since QGIS 3.18
-     */
-    QgsFeatureRequest &setAutofixFlag( AutoFixIntensity flag );
-
-    /**
-     * Returns the flag used to control the tolerace or change for the autofixing process.
-     * Is only needed if the GeometryCheck is set to GeometryFixInvalidSkipOnFailure or GeometryFixInvalidAbortOnFailure.
-     * \see setAutofixFlag()
-     * \since QGIS 3.18
-     */
-    AutoFixIntensity autofixFlag() const { return mAutofixFlag; }
-
-    /**
      * Set the filter \a expression. {\see QgsExpression}
      * \param expression expression string
      *
