@@ -84,22 +84,6 @@ Examples:
       FilterFids
     };
 
-    enum InvalidGeometryCheck
-    {
-      GeometryNoCheck,
-      GeometrySkipInvalid,
-      GeometryAbortOnInvalid,
-      GeometryFixInvalidSkipOnFailure,
-      GeometryFixInvalidAbortOnFailure,
-    };
-
-    enum AutoFixIntensity
-    {
-      MinimalFixes,
-      KeepGeometryType,
-      FixAtAllCosts,
-    };
-
     class OrderByClause
 {
 %Docstring(signature="appended")
