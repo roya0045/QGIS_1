@@ -1036,16 +1036,14 @@ bool QgsVectorLayerFeatureIterator::handleGeometryValidity( QgsFeature &feature 
       }
       break;
 
-    case QgsFeatureRequest::GeometryFixInvalidAbortOnFailure:
-    case QgsFeatureRequest::GeometryFixInvalidSkipOnFailure:
-      int flag = static_cast<int>( mRequest.autofixFlag() );
-
-      if ( !feature.geometry().isGeosValid() && flag )
+    case Qgis::InvalidGeometryCheck::FixInvalidAbortOnFailure:
+    case Qgis::InvalidGeometryCheck::FixInvalidSkipOnFailure:
+      if ( !feature.geometry().isGeosValid() )
       {
         QgsGeometry outputGeometry = feature.geometry().makeValid();
         if ( outputGeometry.isNull() )
         {
-          if ( mRequest.invalidGeometryCheck() == QgsFeatureRequest::GeometryFixInvalidAbortOnFailure )
+          if ( mRequest.invalidGeometryCheck() == Qgis::InvalidGeometryCheck::FixInvalidAbortOnFailure )
           {
             QgsMessageLog::logMessage( QObject::tr( "Geometry error: could not fix the provided geometry, aborting." ), QString(), Qgis::Critical );
             close();
@@ -1053,14 +1051,6 @@ bool QgsVectorLayerFeatureIterator::handleGeometryValidity( QgsFeature &feature 
               mRequest.invalidGeometryCallback()( feature );
           }
           return  false;
-        }
-
-        if ( flag < 5 )
-        {
-          if ( outputGeometry.isGeosValid() )
-            goto setGeom;
-          else
-            return false;
         }
 
         if ( outputGeometry.type() == Qgis::GeometryType::Unknown ||
@@ -1083,7 +1073,7 @@ bool QgsVectorLayerFeatureIterator::handleGeometryValidity( QgsFeature &feature 
           outputGeometry.convertToMultiType();
         if ( QgsWkbTypes::geometryType( outputGeometry.wkbType() ) != QgsWkbTypes::geometryType( feature.geometry().wkbType() ) )
         {
-          if ( mRequest.invalidGeometryCheck() == QgsFeatureRequest::GeometryFixInvalidAbortOnFailure )
+          if ( mRequest.invalidGeometryCheck() == Qgis::InvalidGeometryCheck::FixInvalidAbortOnFailure )
           {
             QgsMessageLog::logMessage( QObject::tr( "Geometry error: could not fix the provided geometry, aborting." ), QString(), Qgis::Critical );
             close();
@@ -1092,10 +1082,7 @@ bool QgsVectorLayerFeatureIterator::handleGeometryValidity( QgsFeature &feature 
           }
           return  false;
         }
-        else
-          goto setGeom;
 
-      setGeom:
         feature.setGeometry( outputGeometry );
         return true;
 
