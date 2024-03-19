@@ -935,7 +935,6 @@ class CORE_EXPORT QgsFeatureRequest
     QgsCoordinateReferenceSystem mCrs;
     QgsCoordinateTransformContext mTransformContext;
     int mTimeout = -1;
-    AutoFixIntensity mAutofixFlag = FixAtAllCosts;
     int mRequestMayBeNested = false;
     QgsFeedback *mFeedback = nullptr;
 };
