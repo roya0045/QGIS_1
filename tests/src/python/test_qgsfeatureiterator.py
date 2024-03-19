@@ -721,6 +721,11 @@ class TestQgsFeatureIterator(QgisTestCase):
 
         # check with added features
         layer.startEditing()
+        self.assertTrue(layer.addFeatures([f5]))
+
+        res = [f['x'] for f in
+               layer.getFeatures(QgsFeatureRequest().setInvalidGeometryCheck(QgsFeatureRequest.InvalidGeometryCheck.GeometrySkipInvalid))]
+        self.assertEqual(set(res), {'a', 'd'})
         self.assertTrue(layer.addFeatures([f4]))
         res = [
             f["x"]

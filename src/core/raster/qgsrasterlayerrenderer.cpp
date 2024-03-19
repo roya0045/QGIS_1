@@ -430,8 +430,32 @@ QgsRasterLayerRenderer::QgsRasterLayerRenderer( QgsRasterLayer *layer, QgsRender
 
         case Qgis::RasterElevationMode::FixedRangePerBand:
         case Qgis::RasterElevationMode::DynamicRangePerBand:
-          // temporal/elevation band based filtering was already handled earlier in this method
+        {
+          // find the top-most band which matches the map range
+          const QMap< int, QgsDoubleRange > rangePerBand = elevProp->fixedRangePerBand();
+          int currentMatchingBand = -1;
+          QgsDoubleRange currentMatchingRange;
+          for ( auto it = rangePerBand.constBegin(); it != rangePerBand.constEnd(); ++it )
+          {
+            if ( it.value().overlaps( rendererContext.zRange() ) )
+            {
+              if ( currentMatchingRange.isInfinite()
+                   || ( it.value().includeUpper() && it.value().upper() >= currentMatchingRange.upper() )
+                   || ( !currentMatchingRange.includeUpper() && it.value().upper() >= currentMatchingRange.upper() ) )
+              {
+                currentMatchingBand = it.key();
+                currentMatchingRange = it.value();
+              }
+            }
+          }
+
+          // this is guaranteed, as we won't ever be creating a renderer if this condition is not met, but let's be ultra safe!
+          if ( currentMatchingBand > 0 )
+          {
+            mPipe->renderer()->setInputBand( currentMatchingBand );
+          }
           break;
+        }
 
         case Qgis::RasterElevationMode::RepresentsElevationSurface:
         {
