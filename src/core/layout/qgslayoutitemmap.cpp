@@ -3051,12 +3051,11 @@ void QgsLayoutItemMap::createStagedRenderJob( const QgsRectangle &extent, const 
 
 QgsGeometry QgsLayoutItemMap::atlasGeometry( const QgsCoordinateReferenceSystem crs ) const
 {
-  if ( mDataDefinedProperties.isActive( QgsLayoutObject::AtlasGeometryOverride ) )
+  if ( mDataDefinedProperties.isActive( QgsLayoutObject::DataDefinedProperty::AtlasGeometryOverride ) )
   {
     QgsExpressionContext context = createExpressionContext();
-    //mDataDefinedProperties.prepare( context );
-    //expression QgsExpression( mDataDefinedProperties.value( QgsLayoutObject::AtlasGeometryOverride, context ).expressionString() )expression.evaluate( &context) )
-    QgsGeometry geometry = mDataDefinedProperties.value( QgsLayoutObject::AtlasGeometryOverride, context ).value<QgsGeometry>();
+    //mDataDefinedProperties.prepare( context ); // needed?
+    QgsGeometry geometry = mDataDefinedProperties.value( QgsLayoutObject::DataDefinedProperty::AtlasGeometryOverride, context ).value<QgsGeometry>();
     QgsCoordinateReferenceSystem layerCrs = mLayout->reportContext().layer()->crs();
     if ( crs.isValid() && crs != layerCrs )
       geometry.transform( QgsCoordinateTransform( layerCrs, crs, mLayout->project() ) );
