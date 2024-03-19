@@ -3,9 +3,6 @@
 ########################################################
 # Packages
 
-if(NOT QTKEYCHAIN_FOUND)
-  find_package(QtKeychain REQUIRED)
-endif()
 option(WITH_INTERNAL_O2 "Download and locally include source of o2 library" ON)
 
 if(WITH_INTERNAL_O2)
@@ -80,8 +77,12 @@ if (WITH_GUI)
   )
 
   set(AUTH_OAUTH2_UIS gui/qgsauthoauth2edit.ui)
-
-  QT5_WRAP_UI(AUTH_OAUTH2_UIS_H ${AUTH_OAUTH2_UIS})
+  if (BUILD_WITH_QT6)
+    QT6_WRAP_UI(AUTH_OAUTH2_UIS_H ${AUTH_OAUTH2_UIS})
+  else()
+    QT5_WRAP_UI(AUTH_OAUTH2_UIS_H ${AUTH_OAUTH2_UIS})
+  endif()
+  
 endif()
 
 ############################################################
@@ -97,12 +98,13 @@ if(WITH_INTERNAL_O2 AND CMAKE_GENERATOR MATCHES "Ninja")
 endif()
 
 # static library
-add_library(authmethod_oauth2_a STATIC ${AUTH_OAUTH2_SRCS} ${AUTH_OAUTH2_HDRS} ${AUTH_OAUTH2_UIS_H})
+add_library(authmethod_oauth2_a STATIC ${AUTH_OAUTH2_SRCS} ${AUTH_OAUTH2_HDRS} ${AUTH_OAUTH2_RCCS} ${AUTH_OAUTH2_UIS_H})
 
 target_include_directories(authmethod_oauth2_a PUBLIC ${CMAKE_SOURCE_DIR}/src/auth/oauth2/core)
 
 # require c++17
 target_compile_features(authmethod_oauth2_a PRIVATE cxx_std_17)
+target_compile_definitions(authmethod_oauth2_a PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
 target_link_libraries(authmethod_oauth2_a qgis_core)
 
@@ -136,7 +138,7 @@ if (FORCE_STATIC_LIBS)
   install (TARGETS authmethod_oauth2_a ARCHIVE DESTINATION ${QGIS_PLUGIN_DIR})
 else()
   # dynamically loaded module
-  add_library(authmethod_oauth2 MODULE ${AUTH_OAUTH2_SRCS} ${AUTH_OAUTH2_HDRS} ${AUTH_OAUTH2_UIS_H})
+  add_library(authmethod_oauth2 MODULE ${AUTH_OAUTH2_SRCS} ${AUTH_OAUTH2_HDRS} ${AUTH_OAUTH2_RCCS} ${AUTH_OAUTH2_UIS_H})
 
   target_include_directories(authmethod_oauth2 PRIVATE
     ${CMAKE_SOURCE_DIR}/external/qjsonwrapper
@@ -145,6 +147,7 @@ else()
 
   # require c++17
   target_compile_features(authmethod_oauth2 PRIVATE cxx_std_17)
+  target_compile_definitions(authmethod_oauth2 PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
   target_link_libraries(authmethod_oauth2 qgis_core)
 

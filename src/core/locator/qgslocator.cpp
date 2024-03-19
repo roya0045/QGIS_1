@@ -16,9 +16,17 @@
  ***************************************************************************/
 
 #include "qgslocator.h"
-#include "qgssettings.h"
+#include "qgsmessagelog.h"
+#include "qgssettingsentryimpl.h"
+
 #include <QtConcurrent>
 #include <functional>
+
+const QgsSettingsEntryBool *QgsLocator::settingsLocatorFilterEnabled = new QgsSettingsEntryBool( QStringLiteral( "enabled" ), sTreeLocatorFilters, true, QObject::tr( "Locator filter enabled" ) );
+
+const QgsSettingsEntryBool *QgsLocator::settingsLocatorFilterDefault = new QgsSettingsEntryBool( QStringLiteral( "default" ), sTreeLocatorFilters, false, QObject::tr( "Locator filter default value" ) );
+
+const QgsSettingsEntryString *QgsLocator::settingsLocatorFilterPrefix = new QgsSettingsEntryString( QStringLiteral( "prefix" ), sTreeLocatorFilters, QString(), QObject::tr( "Locator filter prefix" ) );
 
 const QList<QString> QgsLocator::CORE_FILTERS = QList<QString>() << QStringLiteral( "actions" )
     <<  QStringLiteral( "processing_alg" )
@@ -79,11 +87,7 @@ QMap<QString, QgsLocatorFilter *> QgsLocator::prefixedFilters() const
   {
     if ( !filter->activePrefix().isEmpty() && filter->enabled() )
     {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-      filters.insertMulti( filter->activePrefix(), filter );
-#else
       filters.insert( filter->activePrefix(), filter );
-#endif
     }
   }
   return filters;
@@ -95,9 +99,9 @@ void QgsLocator::registerFilter( QgsLocatorFilter *filter )
   filter->setParent( this );
 
   // restore settings
-  bool enabled = QgsLocator::settingsLocatorFilterEnabled.value( filter->name() );
-  bool byDefault = QgsLocator::settingsLocatorFilterDefault.value( filter->name(), true, filter->useWithoutPrefix() );
-  QString prefix = QgsLocator::settingsLocatorFilterPrefix.value( filter->name(), true, filter->prefix() );
+  bool enabled = QgsLocator::settingsLocatorFilterEnabled->value( filter->name() );
+  bool byDefault = QgsLocator::settingsLocatorFilterDefault->valueWithDefaultOverride( filter->useWithoutPrefix(), filter->name() );
+  QString prefix = QgsLocator::settingsLocatorFilterPrefix->valueWithDefaultOverride( filter->prefix(), filter->name() );
   if ( prefix.isEmpty() )
   {
     prefix = filter->prefix();
@@ -183,6 +187,11 @@ void QgsLocator::fetchResults( const QString &string, const QgsLocatorContext &c
   {
     filter->clearPreviousResults();
     std::unique_ptr< QgsLocatorFilter > clone( filter->clone() );
+    if ( ! clone )
+    {
+      QgsMessageLog::logMessage( tr( "QgsLocatorFilter '%1' could not provide a valid clone" ).arg( filter->name() ), QString(), Qgis::MessageLevel::Critical );
+      continue;
+    }
     connect( clone.get(), &QgsLocatorFilter::resultFetched, clone.get(), [this, filter]( QgsLocatorResult result )
     {
       result.filter = filter;

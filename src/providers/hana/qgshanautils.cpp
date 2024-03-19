@@ -16,13 +16,14 @@
  ***************************************************************************/
 #include "qgsdatasourceuri.h"
 #include "qgshanaexception.h"
+#include "qgshanasettings.h"
 #include "qgshanautils.h"
 
 #include <QDate>
 #include <QTime>
 #include <QDateTime>
 
-using namespace odbc;
+using namespace NS_ODBC;
 
 namespace
 {
@@ -48,14 +49,28 @@ QString QgsHanaUtils::connectionInfo( const QgsDataSourceUri &uri )
       connectionItems << QStringLiteral( "%1=%2" ).arg( key, value );
   };
 
-  if ( !uri.database().isEmpty() )
-    addItem( "dbname", escape( uri.database() ) );
-  if ( !uri.host().isEmpty() )
-    addItem( "host", escape( uri.host() ), false );
-  if ( !uri.port().isEmpty() )
-    addItem( "port", uri.port(), false );
-  if ( !uri.driver().isEmpty() )
-    addItem( "driver", escape( uri.driver() ) );
+  QgsHanaConnectionType connType = QgsHanaConnectionType::HostPort;
+  if ( uri.hasParam( "connectionType" ) )
+    connType = static_cast<QgsHanaConnectionType>( uri.param( "connectionType" ).toUInt() );
+
+  addItem( "connectionType", QString::number( static_cast<uint>( connType ) ) );
+  switch ( connType )
+  {
+    case QgsHanaConnectionType::Dsn:
+      if ( uri.hasParam( "dsn" ) )
+        addItem( "dsn", escape( uri.param( "dsn" ) ) );
+      break;
+    case QgsHanaConnectionType::HostPort:
+      if ( !uri.database().isEmpty() )
+        addItem( "dbname", escape( uri.database() ) );
+      if ( !uri.host().isEmpty() )
+        addItem( "host", escape( uri.host() ), false );
+      if ( !uri.port().isEmpty() )
+        addItem( "port", uri.port(), false );
+      if ( !uri.driver().isEmpty() )
+        addItem( "driver", escape( uri.driver() ) );
+      break;
+  }
 
   if ( !uri.username().isEmpty() )
   {
@@ -146,7 +161,7 @@ QString QgsHanaUtils::toConstant( const QVariant &value, QVariant::Type type )
   }
 }
 
-QString QgsHanaUtils::toString( QgsUnitTypes::DistanceUnit unit )
+QString QgsHanaUtils::toString( Qgis::DistanceUnit unit )
 {
   // We need to translate the distance unit to the name used in HANA's
   // SYS.ST_UNITS_OF_MEASURE view. These names are different from the names
@@ -154,25 +169,27 @@ QString QgsHanaUtils::toString( QgsUnitTypes::DistanceUnit unit )
   // method.
   switch ( unit )
   {
-    case QgsUnitTypes::DistanceMeters:
+    case Qgis::DistanceUnit::Meters:
       return QStringLiteral( "meter" );
-    case QgsUnitTypes::DistanceKilometers:
+    case Qgis::DistanceUnit::Kilometers:
       return QStringLiteral( "kilometer" );
-    case QgsUnitTypes::DistanceFeet:
+    case Qgis::DistanceUnit::Feet:
       return QStringLiteral( "foot" );
-    case QgsUnitTypes::DistanceYards:
+    case Qgis::DistanceUnit::Yards:
       return QStringLiteral( "yard" );
-    case QgsUnitTypes::DistanceMiles:
+    case Qgis::DistanceUnit::Miles:
       return QStringLiteral( "mile" );
-    case QgsUnitTypes::DistanceDegrees:
+    case Qgis::DistanceUnit::Degrees:
       return QStringLiteral( "degree" );
-    case QgsUnitTypes::DistanceCentimeters:
+    case Qgis::DistanceUnit::Centimeters:
       return QStringLiteral( "centimeter" );
-    case QgsUnitTypes::DistanceMillimeters:
+    case Qgis::DistanceUnit::Millimeters:
       return QStringLiteral( "millimeter" );
-    case QgsUnitTypes::DistanceNauticalMiles:
+    case Qgis::DistanceUnit::NauticalMiles:
       return QStringLiteral( "nautical mile" );
-    case QgsUnitTypes::DistanceUnknownUnit:
+    case Qgis::DistanceUnit::Inches:
+      return QStringLiteral( "inch" );
+    case Qgis::DistanceUnit::Unknown:
       return QStringLiteral( "<unknown>" );
   }
   return QString();
@@ -339,32 +356,50 @@ const char16_t *QgsHanaUtils::toUtf16( const QString &sql )
   return reinterpret_cast<const char16_t *>( sql.utf16() );
 }
 
-QgsWkbTypes::Type QgsHanaUtils::toWkbType( const String &type, const Int &hasZ, const Int &hasM )
+bool QgsHanaUtils::isGeometryTypeSupported( Qgis::WkbType wkbType )
+{
+  switch ( QgsWkbTypes::flatType( wkbType ) )
+  {
+    case Qgis::WkbType::Point:
+    case Qgis::WkbType::LineString:
+    case Qgis::WkbType::Polygon:
+    case Qgis::WkbType::MultiPoint:
+    case Qgis::WkbType::MultiLineString:
+    case Qgis::WkbType::MultiPolygon:
+    case Qgis::WkbType::CircularString:
+    case Qgis::WkbType::GeometryCollection:
+      return true;
+    default:
+      return false;
+  }
+}
+
+Qgis::WkbType QgsHanaUtils::toWkbType( const NS_ODBC::String &type, const NS_ODBC::Int &hasZ, const NS_ODBC::Int &hasM )
 {
   if ( type.isNull() )
-    return QgsWkbTypes::Unknown;
+    return Qgis::WkbType::Unknown;
 
   const bool hasZValue = hasZ.isNull() ? false : *hasZ == 1;
   const bool hasMValue = hasM.isNull() ? false : *hasM == 1;
   const QString hanaType( type->c_str() );
 
   if ( hanaType == QLatin1String( "ST_POINT" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::Point, hasZValue, hasMValue );
+    return QgsWkbTypes::zmType( Qgis::WkbType::Point, hasZValue, hasMValue );
   else if ( hanaType == QLatin1String( "ST_MULTIPOINT" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::MultiPoint, hasZValue, hasMValue );
+    return QgsWkbTypes::zmType( Qgis::WkbType::MultiPoint, hasZValue, hasMValue );
   else if ( hanaType == QLatin1String( "ST_LINESTRING" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::LineString, hasZValue, hasMValue );
+    return QgsWkbTypes::zmType( Qgis::WkbType::LineString, hasZValue, hasMValue );
   else if ( hanaType == QLatin1String( "ST_MULTILINESTRING" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::MultiLineString, hasZValue, hasMValue );
+    return QgsWkbTypes::zmType( Qgis::WkbType::MultiLineString, hasZValue, hasMValue );
   else if ( hanaType == QLatin1String( "ST_POLYGON" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::Polygon, hasZValue, hasMValue );
+    return QgsWkbTypes::zmType( Qgis::WkbType::Polygon, hasZValue, hasMValue );
   else if ( hanaType == QLatin1String( "ST_MULTIPOLYGON" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::MultiPolygon, hasZValue, hasMValue );
+    return QgsWkbTypes::zmType( Qgis::WkbType::MultiPolygon, hasZValue, hasMValue );
   else if ( hanaType == QLatin1String( "ST_GEOMETRYCOLLECTION" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::GeometryCollection, hasZValue, hasMValue );
+    return QgsWkbTypes::zmType( Qgis::WkbType::GeometryCollection, hasZValue, hasMValue );
   else if ( hanaType == QLatin1String( "ST_CIRCULARSTRING" ) )
-    return QgsWkbTypes::zmType( QgsWkbTypes::CircularString, hasZValue, hasMValue );
-  return QgsWkbTypes::Type::Unknown;
+    return QgsWkbTypes::zmType( Qgis::WkbType::CircularString, hasZValue, hasMValue );
+  return Qgis::WkbType::Unknown;
 }
 
 QVersionNumber QgsHanaUtils::toHANAVersion( const QString &dbVersion )

@@ -19,8 +19,8 @@
 #include "qgis_core.h"
 #include "qgis_sip.h"
 #include "qgslayoutitem.h"
-#include "scalebar/qgsscalebarsettings.h"
-#include "scalebar/qgsscalebarrenderer.h"
+#include "qgsscalebarsettings.h"
+#include "qgsscalebarrenderer.h"
 #include <QFont>
 #include <QPen>
 #include <QColor>
@@ -30,7 +30,6 @@ class QgsLayoutItemMap;
 /**
  * \ingroup core
  * \brief A layout item subclass for scale bars.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
 {
@@ -543,13 +542,13 @@ class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
      * Returns the distance units used by the scalebar.
      * \see setUnits()
      */
-    QgsUnitTypes::DistanceUnit units() const { return mSettings.units(); }
+    Qgis::DistanceUnit units() const { return mSettings.units(); }
 
     /**
      * Sets the distance \a units used by the scalebar.
      * \see units()
      */
-    void setUnits( QgsUnitTypes::DistanceUnit units );
+    void setUnits( Qgis::DistanceUnit units );
 
     /**
      * Returns the join style used for drawing lines in the scalebar.
@@ -601,13 +600,13 @@ class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
      * This method also considers the linked map's CRS, in order to determine if
      * metric or imperial units are more appropriate.
      */
-    QgsUnitTypes::DistanceUnit guessUnits() const;
+    Qgis::DistanceUnit guessUnits() const;
 
     /**
      * Applies the default size to the scale bar (scale bar 1/5 of map item width)
      * \see applyDefaultSettings()
      */
-    void applyDefaultSize( QgsUnitTypes::DistanceUnit units = QgsUnitTypes::DistanceMeters );
+    void applyDefaultSize( Qgis::DistanceUnit units = Qgis::DistanceUnit::Meters );
 
     /**
      * Resizes the scale bar to its minimum width, without changing the height.
@@ -619,7 +618,7 @@ class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
      *
      * The \a name parameter gives the (untranslated) style name.
      * Possibilities are: 'Single Box', 'Double Box', 'Line Ticks Middle',
-     * 'Line Ticks Down', 'Line Ticks Up', 'Numeric'
+     * 'Line Ticks Down', 'Line Ticks Up', 'Stepped Line', 'Hollow', 'Numeric'.
      *
      * \see style()
     */
@@ -654,7 +653,7 @@ class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
      */
     void update();
 
-    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::AllProperties ) override;
+    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::DataDefinedProperty::AllProperties ) override;
     void finalizeRestoreFromXml() override;
     bool accept( QgsStyleEntityVisitorInterface *visitor ) const override;
     ExportLayerBehavior exportLayerBehavior() const override;
@@ -693,6 +692,35 @@ class CORE_EXPORT QgsLayoutItemScaleBar: public QgsLayoutItem
 
     friend class QgsCompositionConverter;
 
+    /**
+     * Recalculates the number of scalebar units per segment
+     * \param context for evaluating data defined units per segment
+     */
+    void refreshUnitsPerSegment( const QgsExpressionContext *context = nullptr );
+
+    /**
+     * Recalculates the number of segments to the left of 0.
+     * \param context for evaluating data defined number of segments to the left.
+     */
+    void refreshNumberOfSegmentsLeft( const QgsExpressionContext *context = nullptr );
+
+    /**
+     * Recalculates the number of segments to the right of 0.
+     * \param context for evaluating data defined number of segments to the left.
+     */
+    void refreshNumberOfSegmentsRight( const QgsExpressionContext *context = nullptr );
+
+    /**
+     * Recalculates the minimum size of a bar segment in mm.
+     * \param context for evaluating data defined minimum width of a segment.
+     */
+    void refreshMinimumBarWidth( const QgsExpressionContext *context = nullptr );
+
+    /**
+     * Recalculates the maximum size of a bar segment in mm.
+     * \param context for evaluating data defined maximum width of a segment.
+     */
+    void refreshMaximumBarWidth( const QgsExpressionContext *context = nullptr );
 };
 
 #endif //QGSLAYOUTITEMSCALEBAR_H

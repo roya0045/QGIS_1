@@ -23,6 +23,7 @@
 #include "qgsapplication.h"
 #include "qgsclassificationmethodregistry.h"
 #include "qgsxmlutils.h"
+#include "qgsmessagelog.h"
 
 const int QgsClassificationMethod::MAX_PRECISION = 15;
 const int QgsClassificationMethod::MIN_PRECISION = -6;
@@ -74,7 +75,7 @@ QgsClassificationMethod *QgsClassificationMethod::create( const QDomElement &ele
   }
 
   // label format
-  QDomElement labelFormatElem = element.firstChildElement( QStringLiteral( "labelformat" ) );
+  QDomElement labelFormatElem = element.firstChildElement( QStringLiteral( "labelFormat" ) );
   if ( !labelFormatElem.isNull() )
   {
     QString format = labelFormatElem.attribute( QStringLiteral( "format" ), "%1" + QStringLiteral( " - " ) + "%2" );
@@ -265,7 +266,7 @@ QList<QgsClassificationRange> QgsClassificationMethod::classes( double minimum, 
 {
   if ( valuesRequired() )
   {
-    QgsDebugMsg( QStringLiteral( "The classification method %1 tries to calculate classes without values while they are required." ).arg( name() ) );
+    QgsDebugError( QStringLiteral( "The classification method %1 tries to calculate classes without values while they are required." ).arg( name() ) );
   }
 
   // get the breaks
@@ -343,5 +344,5 @@ QString QgsClassificationMethod::labelForRange( const double lowerValue, const d
   const QString lowerLabel = valueToLabel( lowerValue );
   const QString upperLabel = valueToLabel( upperValue );
 
-  return labelFormat().arg( lowerLabel ).arg( upperLabel );
+  return labelFormat().replace( QLatin1String( "%1" ), lowerLabel ).replace( QLatin1String( "%2" ), upperLabel );
 }

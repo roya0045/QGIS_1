@@ -22,6 +22,7 @@
 #include "qgsmessagelog.h"
 #include "qgssymbollayerutils.h"
 #include "qgsnetworkcontentfetchertask.h"
+#include "qgsabstractcontentcache_p.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -356,7 +357,7 @@ double QgsSvgCache::calcSizeScaleFactor( QgsSvgCacheEntry *entry, const QDomElem
     if ( docElem.tagName() == QLatin1String( "svg" ) && docElem.hasAttribute( QStringLiteral( "width" ) ) )
     {
       const QString widthString = docElem.attribute( QStringLiteral( "width" ) );
-      const QRegularExpression measureRegEx( QStringLiteral( "([\\d\\.]+).*?$" ) );
+      const thread_local QRegularExpression measureRegEx( QStringLiteral( "([\\d\\.]+).*?$" ) );
       const QRegularExpressionMatch widthMatch = measureRegEx.match( widthString );
       if ( widthMatch.hasMatch() )
       {
@@ -855,3 +856,4 @@ QImage QgsSvgCache::imageFromCachedPicture( const QgsSvgCacheEntry &entry ) cons
   return image;
 }
 
+template class QgsAbstractContentCache<QgsSvgCacheEntry>; // clazy:exclude=missing-qobject-macro

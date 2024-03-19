@@ -37,6 +37,7 @@ class QgsLayoutRuler;
 class QgsLayoutViewMenuProvider;
 class QgsLayoutViewSnapMarker;
 class QgsLayoutReportSectionLabel;
+class QgsScreenHelper;
 
 /**
  * \ingroup gui
@@ -44,7 +45,6 @@ class QgsLayoutReportSectionLabel;
  *
  * QgsLayoutView manages the layout interaction tools and mouse/key events.
  *
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLayoutView: public QGraphicsView
 {
@@ -544,17 +544,17 @@ class GUI_EXPORT QgsLayoutView: public QGraphicsView
     void scrollContentsBy( int dx, int dy ) override;
     void dragEnterEvent( QDragEnterEvent *e ) override;
     void paintEvent( QPaintEvent *event ) override;
-    void showEvent( QShowEvent *event ) override;
 
   private slots:
 
     void invalidateCachedRenders();
-    void updateDevicePixelFromScreen();
 
   private:
 
     //! Zoom layout from a mouse wheel event
     void wheelZoom( QWheelEvent *event );
+
+    QgsScreenHelper *mScreenHelper = nullptr;
 
     QPointer< QgsLayoutViewTool > mTool;
 
@@ -580,9 +580,6 @@ class GUI_EXPORT QgsLayoutView: public QGraphicsView
 
     bool mPaintingEnabled = true;
 
-    double mScreenDpi = 96.0;
-    QMetaObject::Connection mScreenDpiChangedConnection;
-
     friend class TestQgsLayoutView;
     friend class QgsLayoutMouseHandles;
 
@@ -599,7 +596,6 @@ class GUI_EXPORT QgsLayoutView: public QGraphicsView
  * instances to provide custom context menus (opened upon right-click).
  *
  * \see QgsLayoutView
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLayoutViewMenuProvider
 {

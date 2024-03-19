@@ -18,11 +18,15 @@
 
 #include "qgis.h"
 #include "qgsapplication.h"
+#include "qgsgdalutils.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QUrl>
 #include <QUuid>
 
+#if defined(Q_OS_WIN)
+#include <QRegularExpression>
+#endif
 
 typedef std::vector< std::pair< QString, std::function< QString( const QString & ) > > > CustomResolvers;
 Q_GLOBAL_STATIC( CustomResolvers, sCustomResolvers )
@@ -78,7 +82,7 @@ QString QgsPathResolver::readPath( const QString &f ) const
   }
 
   // if this is a VSIFILE, remove the VSI prefix and append to final result
-  QString vsiPrefix = qgsVsiPrefix( src );
+  QString vsiPrefix = QgsGdalUtils::vsiPrefixForPath( src );
   if ( ! vsiPrefix.isEmpty() )
   {
     // unfortunately qgsVsiPrefix returns prefix also for files like "/x/y/z.gz"
@@ -139,6 +143,16 @@ QString QgsPathResolver::readPath( const QString &f ) const
   }
 
 #if defined(Q_OS_WIN)
+
+  // delimiter saved with pre 3.2x QGIS versions might be unencoded
+  thread_local const QRegularExpression delimiterRe( R"re(delimiter=([^&]+))re" );
+  const QRegularExpressionMatch match = delimiterRe.match( srcPath );
+  if ( match.hasMatch() )
+  {
+    const QString delimiter = match.captured( 0 ).replace( '\\', QLatin1String( "%5C" ) );
+    srcPath.replace( match.captured( 0 ), delimiter );
+  }
+
   srcPath.replace( '\\', '/' );
   projPath.replace( '\\', '/' );
 
@@ -148,13 +162,8 @@ QString QgsPathResolver::readPath( const QString &f ) const
   // Make sure the path is absolute (see GH #33200)
   projPath = QFileInfo( projPath ).absoluteFilePath();
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList srcElems = srcPath.split( '/', QString::SkipEmptyParts );
-  QStringList projElems = projPath.split( '/', QString::SkipEmptyParts );
-#else
   const QStringList srcElems = srcPath.split( '/', Qt::SkipEmptyParts );
   QStringList projElems = projPath.split( '/', Qt::SkipEmptyParts );
-#endif
 
 #if defined(Q_OS_WIN)
   if ( uncPath )
@@ -285,7 +294,7 @@ QString QgsPathResolver::writePath( const QString &s ) const
     srcPath = srcFileInfo.canonicalFilePath();
 
   // if this is a VSIFILE, remove the VSI prefix and append to final result
-  const QString vsiPrefix = qgsVsiPrefix( src );
+  const QString vsiPrefix = QgsGdalUtils::vsiPrefixForPath( src );
   if ( ! vsiPrefix.isEmpty() )
   {
     srcPath.remove( 0, vsiPrefix.size() );
@@ -312,13 +321,8 @@ QString QgsPathResolver::writePath( const QString &s ) const
   const Qt::CaseSensitivity cs = Qt::CaseSensitive;
 #endif
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  QStringList projElems = projPath.split( '/', QString::SkipEmptyParts );
-  QStringList srcElems = srcPath.split( '/', QString::SkipEmptyParts );
-#else
   QStringList projElems = projPath.split( '/', Qt::SkipEmptyParts );
   QStringList srcElems = srcPath.split( '/', Qt::SkipEmptyParts );
-#endif
 
   projElems.removeAll( QStringLiteral( "." ) );
   srcElems.removeAll( QStringLiteral( "." ) );

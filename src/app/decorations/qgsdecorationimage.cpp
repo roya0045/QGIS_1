@@ -17,14 +17,13 @@
 #include "qgsdecorationimagedialog.h"
 
 #include "qgisapp.h"
-#include "qgscoordinatetransform.h"
-#include "qgsexception.h"
 #include "qgsimagecache.h"
 #include "qgslogger.h"
-#include "qgsmaplayer.h"
 #include "qgsproject.h"
+#include "qgscolorutils.h"
 #include "qgssymbollayerutils.h"
 #include "qgssvgcache.h"
+#include "qgsmapsettings.h"
 
 #include <QPainter>
 #include <QMenu>
@@ -40,7 +39,7 @@ QgsDecorationImage::QgsDecorationImage( QObject *parent )
   : QgsDecorationItem( parent )
 {
   mPlacement = BottomLeft;
-  mMarginUnit = QgsUnitTypes::RenderMillimeters;
+  mMarginUnit = Qgis::RenderUnit::Millimeters;
 
   setDisplayName( tr( "Image" ) );
   mConfigurationName = QStringLiteral( "Image" );
@@ -51,8 +50,8 @@ QgsDecorationImage::QgsDecorationImage( QObject *parent )
 void QgsDecorationImage::projectRead()
 {
   QgsDecorationItem::projectRead();
-  mColor = QgsSymbolLayerUtils::decodeColor( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/Color" ), QStringLiteral( "#000000" ) ) );
-  mOutlineColor = QgsSymbolLayerUtils::decodeColor( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QStringLiteral( "#FFFFFF" ) ) );
+  mColor = QgsColorUtils::colorFromString( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/Color" ), QStringLiteral( "#000000" ) ) );
+  mOutlineColor = QgsColorUtils::colorFromString( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QStringLiteral( "#FFFFFF" ) ) );
   mSize = QgsProject::instance()->readDoubleEntry( mConfigurationName, QStringLiteral( "/Size" ), 16.0 );
   setImagePath( QgsProject::instance()->readEntry( mConfigurationName, QStringLiteral( "/ImagePath" ), QString() ) );
   mMarginHorizontal = QgsProject::instance()->readNumEntry( mConfigurationName, QStringLiteral( "/MarginH" ), 0 );
@@ -62,8 +61,8 @@ void QgsDecorationImage::projectRead()
 void QgsDecorationImage::saveToProject()
 {
   QgsDecorationItem::saveToProject();
-  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/Color" ), QgsSymbolLayerUtils::encodeColor( mColor ) );
-  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QgsSymbolLayerUtils::encodeColor( mOutlineColor ) );
+  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/Color" ), QgsColorUtils::colorToString( mColor ) );
+  QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/OutlineColor" ), QgsColorUtils::colorToString( mOutlineColor ) );
   QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/Size" ), mSize );
   QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/ImagePath" ), QgsProject::instance()->pathResolver().writePath( mImagePath ) );
   QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/MarginH" ), mMarginHorizontal );
@@ -203,15 +202,15 @@ void QgsDecorationImage::render( const QgsMapSettings &mapSettings, QgsRenderCon
 
   // need width/height of paint device
   QPaintDevice *device = context.painter()->device();
-  const int deviceHeight = device->height() / device->devicePixelRatioF();
-  const int deviceWidth = device->width() / device->devicePixelRatioF();
+  const float deviceHeight = static_cast<float>( device->height() ) / context.devicePixelRatio();
+  const float deviceWidth = static_cast<float>( device->width() ) / context.devicePixelRatio();
 
   // Set  margin according to selected units
   int xOffset = 0;
   int yOffset = 0;
   switch ( mMarginUnit )
   {
-    case QgsUnitTypes::RenderMillimeters:
+    case Qgis::RenderUnit::Millimeters:
     {
       const int pixelsInchX = context.painter()->device()->logicalDpiX();
       const int pixelsInchY = context.painter()->device()->logicalDpiY();
@@ -220,20 +219,20 @@ void QgsDecorationImage::render( const QgsMapSettings &mapSettings, QgsRenderCon
       break;
     }
 
-    case QgsUnitTypes::RenderPixels:
+    case Qgis::RenderUnit::Pixels:
       xOffset = mMarginHorizontal - 5; // Minus 5 to shift tight into corner
       yOffset = mMarginVertical - 5;
       break;
 
-    case QgsUnitTypes::RenderPercentage:
+    case Qgis::RenderUnit::Percentage:
       xOffset = ( ( deviceWidth - size.width() ) / 100. ) * mMarginHorizontal;
       yOffset = ( ( deviceHeight - size.width() ) / 100. ) * mMarginVertical;
       break;
-    case QgsUnitTypes::RenderMapUnits:
-    case QgsUnitTypes::RenderPoints:
-    case QgsUnitTypes::RenderInches:
-    case QgsUnitTypes::RenderUnknownUnit:
-    case QgsUnitTypes::RenderMetersInMapUnits:
+    case Qgis::RenderUnit::MapUnits:
+    case Qgis::RenderUnit::Points:
+    case Qgis::RenderUnit::Inches:
+    case Qgis::RenderUnit::Unknown:
+    case Qgis::RenderUnit::MetersInMapUnits:
       break;
   }
 
@@ -261,7 +260,7 @@ void QgsDecorationImage::render( const QgsMapSettings &mapSettings, QgsRenderCon
                                     deviceHeight - yOffset - size.height() );
       break;
     default:
-      QgsDebugMsg( QStringLiteral( "Unsupported placement index of %1" ).arg( static_cast<int>( mPlacement ) ) );
+      QgsDebugError( QStringLiteral( "Unsupported placement index of %1" ).arg( static_cast<int>( mPlacement ) ) );
   }
 
   switch ( mImageFormat )

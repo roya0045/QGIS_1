@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : Virtual layers plugin for DB Manager
@@ -37,7 +35,7 @@ from qgis.core import (
 import sqlite3
 
 
-class sqlite3_connection(object):
+class sqlite3_connection:
 
     def __init__(self, sqlite_file):
         self.conn = sqlite3.connect(sqlite_file)
@@ -68,7 +66,7 @@ def classFactory():
 # Tables in DB Manager are identified by their display names
 # This global registry maps a display name with a layer id
 # It is filled when getVectorTables is called
-class VLayerRegistry(object):
+class VLayerRegistry:
     _instance = None
 
     @classmethod
@@ -114,11 +112,11 @@ class VLayerRegistry(object):
 class VLayerConnector(DBConnector):
 
     def __init__(self, uri):
-        pass
+        self.mapSridToName = {}
 
     def _execute(self, cursor, sql):
         # This is only used to get list of fields
-        class DummyCursor(object):
+        class DummyCursor:
 
             def __init__(self, sql):
                 self.sql = sql
@@ -145,7 +143,7 @@ class VLayerConnector(DBConnector):
         if not p.isValid():
             return []
         f = [f.name() for f in p.fields()]
-        if p.geometryType() != QgsWkbTypes.NullGeometry:
+        if p.geometryType() != QgsWkbTypes.GeometryType.NullGeometry:
             gn = getQueryGeometryName(tmp)
             if gn:
                 f += [gn]
@@ -225,8 +223,11 @@ class VLayerConnector(DBConnector):
                             dim += 'Z'
                         if QgsWkbTypes.hasM(g):
                             dim += 'M'
+                    srid = l.crs().postgisSrid()
+                    if srid not in self.mapSridToName:
+                        self.mapSridToName[srid] = l.crs().description()
                     lst.append(
-                        (Table.VectorType, lname, False, False, l.id(), 'geometry', geomType, dim, l.crs().postgisSrid()))
+                        (Table.VectorType, lname, False, False, l.id(), 'geometry', geomType, dim, srid))
                 else:
                     lst.append((Table.TableType, lname, False, False))
         return lst
@@ -283,8 +284,7 @@ class VLayerConnector(DBConnector):
         print("**unimplemented** getViewDefinition")
 
     def getSpatialRefInfo(self, srid):
-        crs = QgsCoordinateReferenceSystem(srid)
-        return crs.description()
+        return self.mapSridToName.get(srid, "")
 
     def isVectorTable(self, table):
         return True

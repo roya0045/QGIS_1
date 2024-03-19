@@ -18,8 +18,7 @@
 #define QGSHANATABLEMODEL_H
 
 #include "qgis.h"
-#include "qgswkbtypes.h"
-#include <QStandardItemModel>
+#include "qgsabstractdbtablemodel.h"
 
 //! Schema properties structure
 struct QgsHanaSchemaProperty
@@ -35,7 +34,7 @@ struct QgsHanaLayerProperty
   QString     tableName;
   QString     tableComment;
   QString     geometryColName;
-  QgsWkbTypes::Type type;
+  Qgis::WkbType type;
   QStringList pkCols;
   int         srid;
   QString     sql;
@@ -52,7 +51,7 @@ struct QgsHanaLayerProperty
     return ret;
   }
 
-  bool isGeometryValid() const { return type != QgsWkbTypes::Unknown && srid >= 0; }
+  bool isGeometryValid() const { return type != Qgis::WkbType::Unknown && srid >= 0; }
 };
 
 class QIcon;
@@ -63,17 +62,21 @@ class QIcon;
  *
  * The tables have the following columns: Type, Schema, Tablename, Geometry Column, Sql
 */
-class QgsHanaTableModel : public QStandardItemModel
+class QgsHanaTableModel : public QgsAbstractDbTableModel
 {
     Q_OBJECT
   public:
-    QgsHanaTableModel();
+    QgsHanaTableModel( QObject *parent = nullptr );
+
+    QStringList columns() const override;
+    int defaultSearchColumn() const override;
+    bool searchableColumn( int column ) const override;
 
     //! Adds entry for one database table to the model
     void addTableEntry( const QString &connName, const QgsHanaLayerProperty &property );
 
     //! Sets an sql statement that belongs to a cell specified by a model index
-    void setSql( const QModelIndex &index, const QString &sql );
+    void setSql( const QModelIndex &index, const QString &sql ) override;
 
     //! Returns the number of tables in the model
     int tableCount() const { return mTableCount; }
@@ -88,19 +91,20 @@ class QgsHanaTableModel : public QStandardItemModel
       DbtmSrid,
       DbtmPkCol,
       DbtmSelectAtId,
-      DbtmSql,
-      DbtmColumns
+      DbtmSql
     };
 
     bool setData( const QModelIndex &index, const QVariant &value, int role = Qt::EditRole ) override;
 
     QString layerURI( const QModelIndex &index, const QString &connName, const QString &connInfo );
 
-    static QIcon iconForWkbType( QgsWkbTypes::Type type );
+    static QIcon iconForWkbType( Qgis::WkbType type );
 
   private:
     //! Number of tables in the model
     int mTableCount = 0;
+    QStringList mColumns;
+
 };
 
 #endif  // QGSHANATABLEMODEL_H

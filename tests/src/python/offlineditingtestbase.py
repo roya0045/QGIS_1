@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit test utils for offline editing tests.
 
 There are three layers referenced through the code:
@@ -19,7 +18,6 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 """
 
-from builtins import object
 
 __author__ = 'Alessandro Pasotti'
 __date__ = '2016-06-30'
@@ -28,13 +26,13 @@ __copyright__ = 'Copyright 2016, The QGIS Project'
 from time import sleep
 
 from qgis.core import (
-    QgsFeature,
-    QgsGeometry,
-    QgsPointXY,
-    QgsFeatureRequest,
     QgsExpression,
-    QgsProject,
+    QgsFeature,
+    QgsFeatureRequest,
+    QgsGeometry,
     QgsOfflineEditing,
+    QgsPointXY,
+    QgsProject,
 )
 
 # Tet features, fields: [id, name, geometry]
@@ -53,7 +51,7 @@ TEST_FEATURES_INSERT = [
 ]
 
 
-class OfflineTestBase(object):
+class OfflineTestBase:
     """Generic test methods for all online providers"""
 
     def _setUp(self):
@@ -116,8 +114,8 @@ class OfflineTestBase(object):
         """
         Find the feature and return it, raise exception if not found
         """
-        request = QgsFeatureRequest(QgsExpression("%s=%s" % (attr_name,
-                                                             attr_value)))
+        request = QgsFeatureRequest(QgsExpression("{}={}".format(attr_name,
+                                                                 attr_value)))
         try:
             return next(layer.dataProvider().getFeatures(request))
         except StopIteration:
@@ -138,7 +136,7 @@ class OfflineTestBase(object):
         offline_layer = list(self.registry.mapLayers().values())[0]
         self.assertTrue(offline_layer.isSpatial())
         self.assertTrue(offline_layer.isValid())
-        self.assertTrue(offline_layer.name().find('(offline)') > -1)
+        self.assertGreater(offline_layer.name().find('(offline)'), -1)
         self.assertEqual(len([f for f in offline_layer.getFeatures()]), len(TEST_FEATURES))
         return ol, offline_layer
 

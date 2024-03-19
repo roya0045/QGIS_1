@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for bindings to core authentication system classes
 
 From build dir: LC_ALL=en_US.UTF-8 ctest -R PyQgsAuthenticationSystem -V
@@ -15,13 +14,21 @@ __copyright__ = 'Copyright 2014, Boundless Spatial, Inc.'
 import os
 import tempfile
 
-from qgis.core import QgsAuthCertUtils, QgsPkiBundle, QgsAuthMethodConfig, QgsAuthMethod, QgsAuthConfigSslServer, QgsApplication
-from qgis.gui import QgsAuthEditorWidgets
 from qgis.PyQt.QtCore import QFileInfo, qDebug
-from qgis.PyQt.QtNetwork import QSsl, QSslError, QSslCertificate, QSslSocket
+from qgis.PyQt.QtNetwork import QSsl, QSslCertificate, QSslError, QSslSocket
 from qgis.PyQt.QtTest import QTest
 from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsApplication,
+    QgsAuthCertUtils,
+    QgsAuthConfigSslServer,
+    QgsAuthMethod,
+    QgsAuthMethodConfig,
+    QgsPkiBundle,
+)
+from qgis.gui import QgsAuthEditorWidgets
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -33,10 +40,11 @@ TESTDATA = os.path.join(unitTestDataPath(), 'auth_system')
 PKIDATA = os.path.join(TESTDATA, 'certs_keys')
 
 
-class TestQgsAuthManager(unittest.TestCase):
+class TestQgsAuthManager(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.authm = QgsApplication.authManager()
         assert not cls.authm.isDisabled(), cls.authm.disabledMessage()
 
@@ -49,8 +57,7 @@ class TestQgsAuthManager(unittest.TestCase):
 
     def setUp(self):
         testid = self.id().split('.')
-        testheader = '\n#####_____ {0}.{1} _____#####\n'. \
-            format(testid[1], testid[2])
+        testheader = f'\n#####_____ {testid[1]}.{testid[2]} _____#####\n'
         qDebug(testheader)
 
         if (not self.authm.masterPasswordIsSet() or
@@ -63,7 +70,7 @@ class TestQgsAuthManager(unittest.TestCase):
         layout = QVBoxLayout()
         layout.addWidget(widget)
         layout.setMargin(6)
-        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(dlg.close)
         layout.addWidget(button_box)
         dlg.setLayout(layout)
@@ -80,7 +87,7 @@ class TestQgsAuthManager(unittest.TestCase):
     def show_editors_widget(self):
         editors = QgsAuthEditorWidgets()
         dlg = self.widget_dialog(editors)
-        dlg.exec_()
+        dlg.exec()
 
     def set_master_password(self):
         msg = 'Failed to store and verify master password in auth db'
@@ -323,10 +330,10 @@ class TestQgsAuthManager(unittest.TestCase):
         config = QgsAuthConfigSslServer()
         config.setSslCertificate(ssl_cert)
         config.setSslHostPort(hostport)
-        config.setSslIgnoredErrorEnums([QSslError.SelfSignedCertificate])
-        config.setSslPeerVerifyMode(QSslSocket.VerifyNone)
+        config.setSslIgnoredErrorEnums([QSslError.SslError.SelfSignedCertificate])
+        config.setSslPeerVerifyMode(QSslSocket.PeerVerifyMode.VerifyNone)
         config.setSslPeerVerifyDepth(3)
-        config.setSslProtocol(QSsl.TlsV1_1)
+        config.setSslProtocol(QSsl.SslProtocol.TlsV1_1)
 
         msg = 'SSL config is null'
         self.assertFalse(config.isNull(), msg)
@@ -352,9 +359,8 @@ class TestQgsAuthManager(unittest.TestCase):
         msg = 'HostPort of retrieved SSL config does not match'
         self.assertEqual(config.sslHostPort(), config2.sslHostPort(), msg)
 
-        msg = 'IgnoredErrorEnums of retrieved SSL config does not match'
         enums = config2.sslIgnoredErrorEnums()
-        self.assertTrue(QSslError.SelfSignedCertificate in enums, msg)
+        self.assertIn(QSslError.SslError.SelfSignedCertificate, enums)
 
         msg = 'PeerVerifyMode of retrieved SSL config does not match'
         self.assertEqual(config.sslPeerVerifyMode(),
@@ -386,10 +392,7 @@ class TestQgsAuthManager(unittest.TestCase):
         for _ in range(50):
             # time.sleep(0.01)  # or else the salt is not random enough
             uids.append(self.authm.uniqueConfigId())
-        msg = 'Generated 50 config ids are not unique:\n{0}\n{1}'.format(
-            uids,
-            list(set(uids))
-        )
+        msg = f'Generated 50 config ids are not unique:\n{uids}\n{list(set(uids))}'
         self.assertEqual(len(uids), len(list(set(uids))), msg)
 
     def config_list(self):
@@ -451,65 +454,64 @@ class TestQgsAuthManager(unittest.TestCase):
         # these list items need to match the QgsAuthType provider type strings
         for kind in self.config_list():
             config = self.config_obj(kind, base=False)
-            msg = 'Could not validate {0} config'.format(kind)
+            msg = f'Could not validate {kind} config'
             self.assertTrue(config.isValid(), msg)
 
-            msg = 'Could not store {0} config'.format(kind)
+            msg = f'Could not store {kind} config'
             self.assertTrue(self.authm.storeAuthenticationConfig(config), msg)
 
             configid = config.id()
-            msg = 'Could not retrieve {0} config id from store op'.format(kind)
+            msg = f'Could not retrieve {kind} config id from store op'
             self.assertIsNotNone(configid, msg)
 
-            msg = 'Config id {0} not in db'.format(configid)
+            msg = f'Config id {configid} not in db'
             self.assertFalse(self.authm.configIdUnique(configid), msg)
 
-            msg = 'Could not retrieve {0} config id from db'.format(kind)
-            self.assertTrue(configid in self.authm.configIds(), msg)
+            self.assertIn(configid, self.authm.configIds())
 
-            msg = 'Could not retrieve method key for {0} config'.format(kind)
+            msg = f'Could not retrieve method key for {kind} config'
             self.assertTrue(
                 self.authm.configAuthMethodKey(configid) == kind, msg)
 
-            msg = 'Could not retrieve method ptr for {0} config'.format(kind)
+            msg = f'Could not retrieve method ptr for {kind} config'
             self.assertTrue(
                 isinstance(self.authm.configAuthMethod(configid),
                            QgsAuthMethod), msg)
 
             config2 = self.config_obj(kind, base=True)
-            msg = 'Could not load {0} config'.format(kind)
+            msg = f'Could not load {kind} config'
             self.assertTrue(
                 self.authm.loadAuthenticationConfig(configid, config2, True),
                 msg)
 
-            msg = 'Could not validate loaded {0} config values'.format(kind)
+            msg = f'Could not validate loaded {kind} config values'
             self.assertTrue(self.config_values_valid(kind, config2), msg)
 
             # values haven't been changed, but the db update still takes place
-            msg = 'Could not update {0} config values'.format(kind)
+            msg = f'Could not update {kind} config values'
             self.assertTrue(self.authm.updateAuthenticationConfig(config2), msg)
 
             config3 = self.config_obj(kind, base=True)
-            msg = 'Could not load updated {0} config'.format(kind)
+            msg = f'Could not load updated {kind} config'
             self.assertTrue(
                 self.authm.loadAuthenticationConfig(configid, config3, True),
                 msg)
 
-            msg = 'Could not validate updated {0} config values'.format(kind)
+            msg = f'Could not validate updated {kind} config values'
             self.assertTrue(self.config_values_valid(kind, config3), msg)
 
-            msg = 'Could not remove {0} config (by id) from db'.format(kind)
+            msg = f'Could not remove {kind} config (by id) from db'
             self.assertTrue(
                 self.authm.removeAuthenticationConfig(configid), msg)
 
-            msg = 'Did not remove {0} config id from db'.format(kind)
+            msg = f'Did not remove {kind} config id from db'
             self.assertFalse(configid in self.authm.configIds(), msg)
 
     def test_100_auth_db(self):
 
         for kind in self.config_list():
             config = self.config_obj(kind, base=False)
-            msg = 'Could not store {0} config'.format(kind)
+            msg = f'Could not store {kind} config'
             self.assertTrue(self.authm.storeAuthenticationConfig(config), msg)
 
         msg = 'Could not store a sample of all configs in auth db'
@@ -517,7 +519,7 @@ class TestQgsAuthManager(unittest.TestCase):
             (len(self.authm.configIds()) == len(self.config_list())), msg)
 
         msg = 'Could not retrieve available configs from auth db'
-        self.assertTrue(len(self.authm.availableAuthMethodConfigs()) > 0, msg)
+        self.assertGreater(len(self.authm.availableAuthMethodConfigs()), 0)
 
         backup = None
         resetpass, backup = self.authm.resetMasterPassword(
@@ -528,7 +530,7 @@ class TestQgsAuthManager(unittest.TestCase):
         # qDebug('Backup db path: {0}'.format(backup))
         msg = 'Could not retrieve backup path for reset master password op'
         self.assertIsNotNone(backup)
-        self.assertTrue(backup != self.authm.authenticationDatabasePath(), msg)
+        self.assertNotEqual(backup, self.authm.authenticationDatabasePath())
 
         msg = 'Could not verify reset master password'
         self.assertTrue(self.authm.setMasterPassword('newpass', True), msg)
@@ -537,7 +539,7 @@ class TestQgsAuthManager(unittest.TestCase):
         self.assertTrue(self.authm.removeAllAuthenticationConfigs(), msg)
 
         msg = 'Configs were not removed from auth db'
-        self.assertTrue(len(self.authm.configIds()) == 0, msg)
+        self.assertEqual(len(self.authm.configIds()), 0)
 
         msg = 'Auth db does not exist'
         self.assertTrue(os.path.exists(self.authm.authenticationDatabasePath()), msg)
@@ -553,7 +555,7 @@ class TestQgsAuthManager(unittest.TestCase):
         # qDebug('Erase db backup db path: {0}'.format(backup))
         msg = 'Could not retrieve backup path for erase db op'
         self.assertIsNotNone(backup)
-        self.assertTrue(backup != self.authm.authenticationDatabasePath(), msg)
+        self.assertNotEqual(backup, self.authm.authenticationDatabasePath())
 
         msg = 'Master password not erased from auth db'
         self.assertTrue(not self.authm.masterPasswordIsSet() and
@@ -599,9 +601,9 @@ class TestQgsAuthManager(unittest.TestCase):
         self.assertEqual(len(merged), 3)
 
         for c in extra:
-            self.assertTrue(c in merged)
+            self.assertIn(c, merged)
 
-        self.assertTrue(trusted[0] in merged)
+        self.assertIn(trusted[0], merged)
 
     def test_140_cas_remove_self_signed(self):
         """Test CAs merge """
@@ -624,14 +626,14 @@ class TestQgsAuthManager(unittest.TestCase):
         def testChain(path):
 
             # Test that a chain with an untrusted CA is not valid
-            self.assertTrue(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path))) > 0)
+            self.assertGreater(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path))), 0)
 
             # Test that a chain with an untrusted CA is valid when the addRootCa argument is true
-            self.assertTrue(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), None, True)) == 0)
+            self.assertEqual(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), None, True)), 0)
 
             # Test that a chain with an untrusted CA is not valid when the addRootCa argument is true
             # and a wrong domainis true
-            self.assertTrue(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'my.wrong.domain', True)) > 0)
+            self.assertGreater(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'my.wrong.domain', True)), 0)
 
         testChain(PKIDATA + '/chain_subissuer-issuer-root.pem')
         testChain(PKIDATA + '/localhost_ssl_w-chain.pem')
@@ -641,15 +643,15 @@ class TestQgsAuthManager(unittest.TestCase):
 
         # Test that a chain with an untrusted CA is not valid when the addRootCa argument is true
         # and a wrong domain is set
-        self.assertTrue(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'my.wrong.domain', True)) > 0)
+        self.assertGreater(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'my.wrong.domain', True)), 0)
 
         # Test that a chain with an untrusted CA is valid when the addRootCa argument is true
         # and a right domain is set
-        self.assertTrue(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'localhost', True)) == 0)
+        self.assertEqual(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'localhost', True)), 0)
 
         # Test that a chain with an untrusted CA is not valid when the addRootCa argument is false
         # and a right domain is set
-        self.assertTrue(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'localhost', False)) > 0)
+        self.assertGreater(len(QgsAuthCertUtils.validateCertChain(QgsAuthCertUtils.certsFromFile(path), 'localhost', False)), 0)
 
     def test_validate_pki_bundle(self):
         """Text the pki bundle validation"""
@@ -691,7 +693,9 @@ class TestQgsAuthManager(unittest.TestCase):
         # Expired intermediate CA
         bundle = self.mkPEMBundle('marinus_cert-EXPIRED.pem', 'marinus_key_w-pass.pem', 'password', 'chain_issuer2-root2.pem')
         self.assertEqual(QgsAuthCertUtils.validatePKIBundle(bundle), ['The root certificate of the certificate chain is self-signed, and untrusted', 'The certificate has expired'])
-        self.assertEqual(QgsAuthCertUtils.validatePKIBundle(bundle, False), ['The issuer certificate of a locally looked up certificate could not be found', 'No certificates could be verified'])
+        res = QgsAuthCertUtils.validatePKIBundle(bundle, False)
+        self.assertIn('The issuer certificate of a locally looked up certificate could not be found', res)
+        self.assertIn('No certificates could be verified', res)
         self.assertEqual(QgsAuthCertUtils.validatePKIBundle(bundle, True, True), ['The certificate has expired'])
 
         # Expired client cert
@@ -707,7 +711,7 @@ class TestQgsAuthManager(unittest.TestCase):
         # Untrust this root
         root2 = QgsAuthCertUtils.certFromFile(PKIDATA + '/' + 'root2_ca_cert.pem')
         QgsApplication.authManager().storeCertAuthority(root2)
-        self.assertTrue(QgsApplication.authManager().storeCertTrustPolicy(root2, QgsAuthCertUtils.Untrusted))
+        self.assertTrue(QgsApplication.authManager().storeCertTrustPolicy(root2, QgsAuthCertUtils.CertTrustPolicy.Untrusted))
         QgsApplication.authManager().rebuildCaCertsCache()
         # Test valid with intermediates and untrusted root
         self.assertEqual(QgsAuthCertUtils.validatePKIBundle(bundle, True, True), ['The issuer certificate of a locally looked up certificate could not be found'])
@@ -719,7 +723,7 @@ class TestQgsAuthManager(unittest.TestCase):
         cert = QSslCertificate()
         self.assertFalse(QgsAuthCertUtils.certIsCurrent(cert))
         res = QgsAuthCertUtils.certViabilityErrors(cert)
-        self.assertTrue(len(res) == 0)
+        self.assertEqual(len(res), 0)
         self.assertFalse(QgsAuthCertUtils.certIsViable(cert))
 
         cert.clear()
@@ -728,7 +732,7 @@ class TestQgsAuthManager(unittest.TestCase):
         cert = QgsAuthCertUtils.certFromFile(PKIDATA + '/gerardus_cert.pem')
         self.assertTrue(QgsAuthCertUtils.certIsCurrent(cert))
         res = QgsAuthCertUtils.certViabilityErrors(cert)
-        self.assertTrue(len(res) == 0)
+        self.assertEqual(len(res), 0)
         self.assertTrue(QgsAuthCertUtils.certIsViable(cert))
 
         cert.clear()
@@ -737,8 +741,8 @@ class TestQgsAuthManager(unittest.TestCase):
         cert = QgsAuthCertUtils.certFromFile(PKIDATA + '/marinus_cert-EXPIRED.pem')
         self.assertFalse(QgsAuthCertUtils.certIsCurrent(cert))
         res = QgsAuthCertUtils.certViabilityErrors(cert)
-        self.assertTrue(len(res) > 0)
-        self.assertTrue(QSslError(QSslError.CertificateExpired, cert) in res)
+        self.assertGreater(len(res), 0)
+        self.assertIn(QSslError(QSslError.SslError.CertificateExpired, cert), res)
         self.assertFalse(QgsAuthCertUtils.certIsViable(cert))
 
     def test_170_pki_key_encoding(self):

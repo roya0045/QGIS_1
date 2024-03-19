@@ -34,7 +34,6 @@ class QgsAnnotation;
  * \class QgsMapCanvasAnnotationItem
  * \ingroup gui
  * \brief An interactive map canvas item which displays a QgsAnnotation.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsMapCanvasAnnotationItem: public QObject, public QgsMapCanvasItem
 {
@@ -43,7 +42,10 @@ class GUI_EXPORT QgsMapCanvasAnnotationItem: public QObject, public QgsMapCanvas
 #ifdef SIP_RUN
     SIP_CONVERT_TO_SUBCLASS_CODE
     if ( dynamic_cast<QgsMapCanvasAnnotationItem *>( sipCpp ) )
+    {
       sipType = sipType_QgsMapCanvasAnnotationItem;
+      *sipCppRet = dynamic_cast<QgsMapCanvasAnnotationItem *>( sipCpp );
+    }
     else
       sipType = nullptr;
     SIP_END

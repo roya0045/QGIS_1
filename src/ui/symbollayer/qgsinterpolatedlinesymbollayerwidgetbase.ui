@@ -32,18 +32,6 @@
       <string>Stroke Width</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_4">
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
       <item>
        <widget class="QComboBox" name="mWidthMethodComboBox"/>
       </item>
@@ -106,7 +94,11 @@
           <widget class="QgsFieldExpressionWidget" name="mWidthStartFieldExpression" native="true"/>
          </item>
          <item row="6" column="1" colspan="2">
-          <widget class="QDoubleSpinBox" name="mDoubleSpinBoxMinWidth"/>
+          <widget class="QgsDoubleSpinBox" name="mDoubleSpinBoxMinWidth">
+           <property name="maximum">
+            <double>999999.989999999990687</double>
+           </property>
+          </widget>
          </item>
          <item row="8" column="0" colspan="4">
           <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -179,7 +171,11 @@
           </layout>
          </item>
          <item row="7" column="1" colspan="2">
-          <widget class="QDoubleSpinBox" name="mDoubleSpinBoxMaxWidth"/>
+          <widget class="QgsDoubleSpinBox" name="mDoubleSpinBoxMaxWidth">
+           <property name="maximum">
+            <double>999999.989999999990687</double>
+           </property>
+          </widget>
          </item>
          <item row="6" column="0">
           <widget class="QLabel" name="label_6">
@@ -240,18 +236,6 @@
       <string>Color</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_5">
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
       <item>
        <widget class="QComboBox" name="mColorMethodComboBox"/>
       </item>
@@ -408,6 +392,17 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>QgsColorButton</class>
+   <extends>QToolButton</extends>
+   <header>qgscolorbutton.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsDoubleSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>qgsdoublespinbox.h</header>
+  </customwidget>
+  <customwidget>
    <class>QgsFieldExpressionWidget</class>
    <extends>QWidget</extends>
    <header>qgsfieldexpressionwidget.h</header>
@@ -420,20 +415,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>QgsDoubleSpinBox</class>
-   <extends>QDoubleSpinBox</extends>
-   <header>qgsdoublespinbox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>QgsColorButton</class>
-   <extends>QToolButton</extends>
-   <header>qgscolorbutton.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>QgsColorRampShaderWidget</class>
    <extends>QWidget</extends>
-   <header>raster/qgscolorrampshaderwidget.h</header>
+   <header>qgscolorrampshaderwidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -59,13 +59,18 @@ void QgsLayoutMapExtentToLayerAlgorithm::initAlgorithm( const QVariantMap & )
   addParameter( new QgsProcessingParameterLayout( QStringLiteral( "LAYOUT" ), QObject::tr( "Print layout" ) ) );
   addParameter( new QgsProcessingParameterLayoutItem( QStringLiteral( "MAP" ), QObject::tr( "Map item" ), QVariant(), QStringLiteral( "LAYOUT" ), QgsLayoutItemRegistry::LayoutMap, true ) );
   auto crsParam = std::make_unique< QgsProcessingParameterCrs >( QStringLiteral( "CRS" ), QObject::tr( "Override CRS" ), QVariant(), true );
-  crsParam->setFlags( crsParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  crsParam->setFlags( crsParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( crsParam.release() );
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Extent" ), QgsProcessing::TypeVectorPolygon ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Extent" ), Qgis::ProcessingSourceType::VectorPolygon ) );
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "WIDTH" ), QObject::tr( "Map width" ) ) );
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "HEIGHT" ), QObject::tr( "Map height" ) ) );
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "SCALE" ), QObject::tr( "Map scale" ) ) );
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "ROTATION" ), QObject::tr( "Map rotation" ) ) );
+}
+
+Qgis::ProcessingAlgorithmFlags QgsLayoutMapExtentToLayerAlgorithm::flags() const
+{
+  return QgsProcessingAlgorithm::flags() | Qgis::ProcessingAlgorithmFlag::RequiresProject;
 }
 
 QString QgsLayoutMapExtentToLayerAlgorithm::shortHelpString() const
@@ -146,7 +151,7 @@ QVariantMap QgsLayoutMapExtentToLayerAlgorithm::processAlgorithm( const QVariant
   fields.append( QgsField( QStringLiteral( "rotation" ), QVariant::Double ) );
 
   QString dest;
-  std::unique_ptr< QgsFeatureSink > sink( parameterAsSink( parameters, QStringLiteral( "OUTPUT" ), context, dest, fields, QgsWkbTypes::Polygon, mCrs ) );
+  std::unique_ptr< QgsFeatureSink > sink( parameterAsSink( parameters, QStringLiteral( "OUTPUT" ), context, dest, fields, Qgis::WkbType::Polygon, mCrs ) );
   if ( !sink )
     throw QgsProcessingException( invalidSinkError( parameters, QStringLiteral( "OUTPUT" ) ) );
 

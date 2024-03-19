@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     GdalAlgorithmDialog.py
@@ -33,8 +31,11 @@ from qgis.PyQt.QtWidgets import (QWidget,
                                  QSizePolicy,
                                  QDialogButtonBox)
 
-from qgis.core import (QgsProcessingFeedback,
-                       QgsProcessingParameterDefinition)
+from qgis.core import (
+    QgsProcessingException,
+    QgsProcessingFeedback,
+    QgsProcessingParameterDefinition
+)
 from qgis.gui import (QgsMessageBar,
                       QgsProjectionSelectionWidget,
                       QgsProcessingAlgorithmDialogBase,
@@ -120,16 +121,19 @@ class GdalParametersPanel(ParametersPanel):
         context = createContext()
         feedback = QgsProcessingFeedback()
         try:
-            parameters = self.dialog.createProcessingParameters()
+            # messy as all heck, but we don't want to call the dialog's implementation of
+            # createProcessingParameters as we want to catch the exceptions raised by the
+            # parameter panel instead...
+            parameters = {} if self.dialog.mainWidget() is None else self.dialog.mainWidget().createProcessingParameters()
             for output in self.algorithm().destinationParameterDefinitions():
                 if not output.name() in parameters or parameters[output.name()] is None:
-                    if not output.flags() & QgsProcessingParameterDefinition.FlagOptional:
+                    if not output.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional:
                         parameters[output.name()] = self.tr("[temporary file]")
             for p in self.algorithm().parameterDefinitions():
-                if p.flags() & QgsProcessingParameterDefinition.FlagHidden:
+                if p.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden:
                     continue
 
-                if p.flags() & QgsProcessingParameterDefinition.FlagOptional and p.name() not in parameters:
+                if p.flags() & QgsProcessingParameterDefinition.Flag.FlagOptional and p.name() not in parameters:
                     continue
 
                 if p.name() not in parameters or not p.checkValueIsAcceptable(parameters[p.name()]):
@@ -137,9 +141,12 @@ class GdalParametersPanel(ParametersPanel):
                     self.text.setPlainText('')
                     return
 
-            commands = self.algorithm().getConsoleCommands(parameters, context, feedback, executing=False)
-            commands = [c for c in commands if c not in ['cmd.exe', '/C ']]
-            self.text.setPlainText(" ".join(commands))
+            try:
+                commands = self.algorithm().getConsoleCommands(parameters, context, feedback, executing=False)
+                commands = [c for c in commands if c not in ['cmd.exe', '/C ']]
+                self.text.setPlainText(" ".join(commands))
+            except QgsProcessingException as e:
+                self.text.setPlainText(str(e))
         except AlgorithmDialogBase.InvalidParameterValue as e:
             self.text.setPlainText(self.tr("Invalid value for parameter '{0}'").format(e.parameter.description()))
         except AlgorithmDialogBase.InvalidOutputExtension as e:

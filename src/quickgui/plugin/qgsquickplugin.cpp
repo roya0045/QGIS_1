@@ -34,10 +34,11 @@
 #include "qgsquickmapcanvasmap.h"
 #include "qgsquickmapsettings.h"
 #include "qgsquickmaptransform.h"
+#include "qgsquickelevationprofilecanvas.h"
 #include "qgsquickplugin.h"
 #include "qgsquickutils.h"
 
-static QObject *_utilsProvider( QQmlEngine *engine, QJSEngine *scriptEngine )
+static QObject *buildUtilsSingleton( QQmlEngine *engine, QJSEngine *scriptEngine )
 {
   Q_UNUSED( engine )
   Q_UNUSED( scriptEngine )
@@ -54,8 +55,8 @@ void QgsQuickPlugin::registerTypes( const char *uri )
   qRegisterMetaType< QgsFeatureId > ( "QgsFeatureId" );
   qRegisterMetaType< QgsPoint >( "QgsPoint" );
   qRegisterMetaType< QgsPointXY >( "QgsPointXY" );
-  qRegisterMetaType< QgsUnitTypes::SystemOfMeasurement >( "QgsUnitTypes::SystemOfMeasurement" );
-  qRegisterMetaType< QgsUnitTypes::DistanceUnit >( "QgsUnitTypes::DistanceUnit" );
+  qRegisterMetaType< Qgis::SystemOfMeasurement >( "Qgis::SystemOfMeasurement" );
+  qRegisterMetaType< Qgis::DistanceUnit >( "Qgis::DistanceUnit" );
   qRegisterMetaType< QgsCoordinateFormatter::FormatFlags >( "QgsCoordinateFormatter::FormatFlags" );
   qRegisterMetaType< QgsCoordinateFormatter::Format >( "QgsCoordinateFormatter::Format" );
   qRegisterMetaType< QVariant::Type >( "QVariant::Type" );
@@ -65,8 +66,9 @@ void QgsQuickPlugin::registerTypes( const char *uri )
   qmlRegisterType< QgsQuickMapCanvasMap >( uri, 0, 1, "MapCanvasMap" );
   qmlRegisterType< QgsQuickMapSettings >( uri, 0, 1, "MapSettings" );
   qmlRegisterType< QgsQuickMapTransform >( uri, 0, 1, "MapTransform" );
+  qmlRegisterType< QgsQuickElevationProfileCanvas >( uri, 0, 1, "ElevationProfileCanvas" );
   qmlRegisterType< QgsVectorLayer >( uri, 0, 1, "VectorLayer" );
 
-  qmlRegisterSingletonType< QgsQuickUtils >( uri, 0, 1, "Utils", _utilsProvider );
-}
+  qmlRegisterSingletonType< QgsQuickUtils >( uri, 0, 1, "Utils", buildUtilsSingleton );
 
+}

@@ -19,6 +19,7 @@
 #define QGSANNOTATIONPOINTTEXTITEM_H
 
 #include "qgis_core.h"
+#include "qgis.h"
 #include "qgis_sip.h"
 #include "qgsannotationitem.h"
 #include "qgstextformat.h"
@@ -40,6 +41,7 @@ class CORE_EXPORT QgsAnnotationPointTextItem : public QgsAnnotationItem
     QgsAnnotationPointTextItem( const QString &text, QgsPointXY point );
     ~QgsAnnotationPointTextItem() override;
 
+    Qgis::AnnotationItemFlags flags() const override;
     QString type() const override;
     void render( QgsRenderContext &context, QgsFeedback *feedback ) override;
     bool writeXml( QDomElement &element, QDomDocument &document, const QgsReadWriteContext &context ) const override;
@@ -50,8 +52,12 @@ class CORE_EXPORT QgsAnnotationPointTextItem : public QgsAnnotationItem
     static QgsAnnotationPointTextItem *create() SIP_FACTORY;
 
     bool readXml( const QDomElement &element, const QgsReadWriteContext &context ) override;
-    QgsAnnotationPointTextItem *clone() override SIP_FACTORY;
+    QgsAnnotationPointTextItem *clone() const override SIP_FACTORY;
     QgsRectangle boundingBox() const override;
+    QgsRectangle boundingBox( QgsRenderContext &context ) const override;
+    QList< QgsAnnotationItemNode > nodes() const override;
+    Qgis::AnnotationItemEditOperationResult applyEdit( QgsAbstractAnnotationItemEditOperation *operation ) override;
+    QgsAnnotationItemEditOperationTransientResults *transientEditResults( QgsAbstractAnnotationItemEditOperation *operation ) override SIP_FACTORY;
 
     /**
      * Returns the point location of the text.
@@ -127,6 +133,22 @@ class CORE_EXPORT QgsAnnotationPointTextItem : public QgsAnnotationItem
      */
     void setAlignment( Qt::Alignment alignment );
 
+    /**
+     * Returns the rotation mode for the text item.
+     *
+     * \see setRotationMode()
+     * \since QGIS 3.32
+     */
+    Qgis::SymbolRotationMode rotationMode() const;
+
+    /**
+     * Sets the rotation \a mode for the text item.
+     *
+     * \see rotationMode()
+     * \since QGIS 3.32
+     */
+    void setRotationMode( Qgis::SymbolRotationMode mode );
+
   private:
 
     QString mText;
@@ -134,6 +156,7 @@ class CORE_EXPORT QgsAnnotationPointTextItem : public QgsAnnotationItem
     QgsTextFormat mTextFormat;
     double mAngle = 0;
     Qt::Alignment mAlignment = Qt::AlignHCenter;
+    Qgis::SymbolRotationMode mRotationMode = Qgis::SymbolRotationMode::IgnoreMapRotation;
 
 #ifdef SIP_RUN
     QgsAnnotationPointTextItem( const QgsAnnotationPointTextItem &other );

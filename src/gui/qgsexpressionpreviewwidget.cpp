@@ -13,12 +13,14 @@
  *                                                                         *
  ***************************************************************************/
 
+
+#include "qclipboard.h"
+#include "qaction.h"
+#include "qgsapplication.h"
 #include "qgsexpressionpreviewwidget.h"
 #include "qgsmessageviewer.h"
 #include "qgsvectorlayer.h"
 #include "qgsfeaturepickerwidget.h"
-
-
 
 
 
@@ -27,30 +29,42 @@ QgsExpressionPreviewWidget::QgsExpressionPreviewWidget( QWidget *parent )
 {
   setupUi( this );
   mPreviewLabel->clear();
+  mPreviewLabel->setContextMenuPolicy( Qt::ActionsContextMenu );
+  mCopyPreviewAction = new QAction( QgsApplication::getThemeIcon( QStringLiteral( "/mActionEditCopy.svg" ) ), tr( "Copy Expression Value" ), this );
+  mPreviewLabel->addAction( mCopyPreviewAction );
   mFeaturePickerWidget->setShowBrowserButtons( true );
 
   connect( mFeaturePickerWidget, &QgsFeaturePickerWidget::featureChanged, this, &QgsExpressionPreviewWidget::setCurrentFeature );
   connect( mPreviewLabel, &QLabel::linkActivated, this, &QgsExpressionPreviewWidget::linkActivated );
+  connect( mCopyPreviewAction, &QAction::triggered, this, &QgsExpressionPreviewWidget::copyFullExpressionValue );
 }
 
 void QgsExpressionPreviewWidget::setLayer( QgsVectorLayer *layer )
 {
-  mLayer = layer;
-  mFeaturePickerWidget->setLayer( layer );
+  if ( layer != mLayer )
+  {
+    mLayer = layer;
+    mFeaturePickerWidget->setLayer( layer );
+  }
 }
 
 void QgsExpressionPreviewWidget::setExpressionText( const QString &expression )
 {
-  mExpressionText = expression;
-  refreshPreview();
+  if ( expression != mExpressionText )
+  {
+    mExpressionText = expression;
+    refreshPreview();
+  }
 }
 
 void QgsExpressionPreviewWidget::setCurrentFeature( const QgsFeature &feature )
 {
-  // todo: update the combo box if it has been set externaly?
-
-  mExpressionContext.setFeature( feature );
-  refreshPreview();
+  // todo: update the combo box if it has been set externally?
+  if ( feature != mExpressionContext.feature() )
+  {
+    mExpressionContext.setFeature( feature );
+    refreshPreview();
+  }
 }
 
 void QgsExpressionPreviewWidget::setGeomCalculator( const QgsDistanceArea &da )
@@ -72,6 +86,7 @@ void QgsExpressionPreviewWidget::refreshPreview()
   {
     mPreviewLabel->clear();
     mPreviewLabel->setStyleSheet( QString() );
+    mCopyPreviewAction->setEnabled( false );
     setExpressionToolTip( QString() );
     emit expressionParsed( false );
     mExpression = QgsExpression();
@@ -86,12 +101,12 @@ void QgsExpressionPreviewWidget::refreshPreview()
       // let the expression context handle this correctly
       mExpression.setGeomCalculator( &mDa );
     }
-
     const QVariant value = mExpression.evaluate( &mExpressionContext );
     const QString preview = QgsExpression::formatPreviewString( value );
     if ( !mExpression.hasEvalError() )
     {
       mPreviewLabel->setText( preview );
+      mCopyPreviewAction->setEnabled( true );
     }
 
     if ( mExpression.hasParserError() || mExpression.hasEvalError() )
@@ -127,6 +142,7 @@ void QgsExpressionPreviewWidget::refreshPreview()
       emit expressionParsed( false );
       setParserError( mExpression.hasParserError() );
       setEvalError( mExpression.hasEvalError() );
+      mCopyPreviewAction->setEnabled( false );
     }
     else
     {
@@ -139,6 +155,7 @@ void QgsExpressionPreviewWidget::refreshPreview()
       emit expressionParsed( true );
       setParserError( false );
       setEvalError( false );
+      mCopyPreviewAction->setEnabled( true );
     }
   }
 }
@@ -157,7 +174,14 @@ void QgsExpressionPreviewWidget::setExpressionToolTip( const QString &toolTip )
     return;
 
   mToolTip = toolTip;
-  mPreviewLabel->setToolTip( mToolTip );
+  if ( toolTip.isEmpty() )
+  {
+    mPreviewLabel->setToolTip( tr( "Right-click to copy" ) );
+  }
+  else
+  {
+    mPreviewLabel->setToolTip( tr( "%1 (right-click to copy)" ).arg( mToolTip ) );
+  }
   emit toolTipChanged( mToolTip );
 }
 
@@ -186,4 +210,13 @@ void QgsExpressionPreviewWidget::setEvalError( bool evalError )
 bool QgsExpressionPreviewWidget::evalError() const
 {
   return mEvalError;
+}
+
+void QgsExpressionPreviewWidget::copyFullExpressionValue()
+{
+  QClipboard *clipboard = QApplication::clipboard();
+  const QVariant value = mExpression.evaluate( &mExpressionContext );
+  const QString copiedValue = QgsExpression::formatPreviewString( value, false, 100000 );
+  QgsDebugMsgLevel( QStringLiteral( "set clipboard: %1" ).arg( copiedValue ), 4 );
+  clipboard->setText( copiedValue );
 }

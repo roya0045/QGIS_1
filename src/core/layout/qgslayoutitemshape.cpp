@@ -21,6 +21,7 @@
 #include "qgslayoutmodel.h"
 #include "qgsstyleentityvisitor.h"
 #include "qgsfillsymbol.h"
+#include "qgslayoutrendercontext.h"
 
 #include <QPainter>
 
@@ -40,7 +41,7 @@ QgsLayoutItemShape::QgsLayoutItemShape( QgsLayout *layout )
   mShapeStyleSymbol.reset( QgsFillSymbol::createSimple( properties ) );
   refreshSymbol( false );
 
-  connect( this, &QgsLayoutItemShape::sizePositionChanged, this, [ = ]
+  connect( this, &QgsLayoutItemShape::sizePositionChanged, this, [this]
   {
     updateBoundingRect();
     update();
@@ -199,7 +200,7 @@ void QgsLayoutItemShape::draw( QgsLayoutItemRenderContext &context )
   painter->setPen( Qt::NoPen );
   painter->setBrush( Qt::NoBrush );
 
-  const double scale = context.renderContext().convertToPainterUnits( 1, QgsUnitTypes::RenderMillimeters );
+  const double scale = context.renderContext().convertToPainterUnits( 1, Qgis::RenderUnit::Millimeters );
 
   const QVector<QPolygonF> rings; //empty list
 

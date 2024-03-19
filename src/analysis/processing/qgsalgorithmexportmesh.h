@@ -33,7 +33,7 @@ struct DataGroup
   QgsMeshDatasetGroupMetadata metadata;
   QgsMeshDataBlock datasetValues;
   QgsMeshDataBlock activeFaces;
-  QgsMesh3dDataBlock dataset3dStakedValue; //will be filled only if data are 3d stacked
+  QgsMesh3DDataBlock dataset3dStakedValue; //will be filled only if data are 3d stacked
 };
 
 class QgsExportMeshOnElement : public QgsProcessingAlgorithm
@@ -52,8 +52,8 @@ class QgsExportMeshOnElement : public QgsProcessingAlgorithm
   private:
 
     virtual QSet<int> supportedDataType() const = 0;
-    virtual QgsProcessing::SourceType sinkType() const = 0;
-    virtual QgsWkbTypes::Type sinkGeometryType() const = 0;
+    virtual Qgis::ProcessingSourceType sinkType() const = 0;
+    virtual Qgis::WkbType sinkGeometryType() const = 0;
     virtual QgsGeometry meshElement( int index ) const = 0;
     virtual QgsMesh::ElementType meshElementType() const = 0;
 
@@ -67,6 +67,7 @@ class QgsExportMeshVerticesAlgorithm : public QgsExportMeshOnElement
 {
   public:
     QString shortHelpString() const override;
+    QString shortDescription() const override;
     QString name() const override;
     QString displayName() const override;
 
@@ -74,12 +75,12 @@ class QgsExportMeshVerticesAlgorithm : public QgsExportMeshOnElement
     QgsProcessingAlgorithm *createInstance() const override;
 
   private:
-    QgsWkbTypes::Type sinkGeometryType() const override {return QgsWkbTypes::PointZ;}
+    Qgis::WkbType sinkGeometryType() const override {return Qgis::WkbType::PointZ;}
     QSet<int> supportedDataType() const override
     {
       return QSet<int>( {QgsMeshDatasetGroupMetadata::DataOnVertices} );
     }
-    QgsProcessing::SourceType sinkType() const override {return QgsProcessing::TypeVectorPoint;}
+    Qgis::ProcessingSourceType sinkType() const override {return Qgis::ProcessingSourceType::VectorPoint;}
     QgsGeometry meshElement( int index ) const override;
     QgsMesh::ElementType meshElementType()const override {return QgsMesh::Vertex;}
 };
@@ -88,6 +89,7 @@ class QgsExportMeshFacesAlgorithm : public QgsExportMeshOnElement
 {
   public:
     QString shortHelpString() const override;
+    QString shortDescription() const override;
     QString name() const override;
     QString displayName() const override;
 
@@ -95,12 +97,12 @@ class QgsExportMeshFacesAlgorithm : public QgsExportMeshOnElement
     QgsProcessingAlgorithm *createInstance() const override;
 
   private:
-    QgsWkbTypes::Type sinkGeometryType() const override {return QgsWkbTypes::PolygonZ;}
+    Qgis::WkbType sinkGeometryType() const override {return Qgis::WkbType::PolygonZ;}
     QSet<int> supportedDataType() const override
     {
       return QSet<int>( {QgsMeshDatasetGroupMetadata::DataOnFaces} );
     }
-    QgsProcessing::SourceType sinkType() const override {return QgsProcessing::TypeVectorPolygon;}
+    Qgis::ProcessingSourceType sinkType() const override {return Qgis::ProcessingSourceType::VectorPolygon;}
     QgsGeometry meshElement( int index ) const override;
     QgsMesh::ElementType meshElementType()const override {return QgsMesh::Face;}
 };
@@ -109,6 +111,7 @@ class QgsExportMeshEdgesAlgorithm : public QgsExportMeshOnElement
 {
   public:
     QString shortHelpString() const override;
+    QString shortDescription() const override;
     QString name() const override;
     QString displayName() const override;
 
@@ -116,12 +119,12 @@ class QgsExportMeshEdgesAlgorithm : public QgsExportMeshOnElement
     QgsProcessingAlgorithm *createInstance() const override;
 
   private:
-    QgsWkbTypes::Type sinkGeometryType() const override {return QgsWkbTypes::LineStringZ;}
+    Qgis::WkbType sinkGeometryType() const override {return Qgis::WkbType::LineStringZ;}
     QSet<int> supportedDataType() const override
     {
       return QSet<int>( {QgsMeshDatasetGroupMetadata::DataOnEdges} );
     }
-    QgsProcessing::SourceType sinkType() const override {return QgsProcessing::TypeVectorLine;}
+    Qgis::ProcessingSourceType sinkType() const override {return Qgis::ProcessingSourceType::VectorLine;}
     QgsGeometry meshElement( int index ) const override;
     QgsMesh::ElementType meshElementType()const override {return QgsMesh::Edge;}
 };
@@ -136,6 +139,7 @@ class QgsExportMeshOnGridAlgorithm : public QgsProcessingAlgorithm
     QString group() const override;
     QString groupId() const override;
     QString shortHelpString() const override;
+    QString shortDescription() const override;
 
   protected:
     QgsProcessingAlgorithm *createInstance() const override;
@@ -164,6 +168,7 @@ class QgsMeshRasterizeAlgorithm : public QgsProcessingAlgorithm
     QString group() const override;
     QString groupId() const override;
     QString shortHelpString() const override;
+    QString shortDescription() const override;
 
   protected:
     QgsProcessingAlgorithm *createInstance() const override;
@@ -191,6 +196,7 @@ class QgsMeshContoursAlgorithm : public QgsProcessingAlgorithm
     QString group() const override;
     QString groupId() const override;
     QString shortHelpString() const override;
+    QString shortDescription() const override;
 
   protected:
     QgsProcessingAlgorithm *createInstance() const override;
@@ -229,6 +235,7 @@ class QgsMeshExportCrossSection : public QgsProcessingAlgorithm
     QString group() const override;
     QString groupId() const override;
     QString shortHelpString() const override;
+    QString shortDescription() const override;
 
   protected:
     QgsProcessingAlgorithm *createInstance() const override;
@@ -264,6 +271,7 @@ class QgsMeshExportTimeSeries : public QgsProcessingAlgorithm
     QString group() const override;
     QString groupId() const override;
     QString shortHelpString() const override;
+    QString shortDescription() const override;
 
   protected:
     QgsProcessingAlgorithm *createInstance() const override;

@@ -186,20 +186,22 @@ class TestQgsGrassCommandGroup
  * \ingroup UnitTests
  * This is a unit test for the QgsRasterLayer class.
  */
-class TestQgsGrassProvider: public QObject
+class TestQgsGrassProvider: public QgsTest
 {
     Q_OBJECT
+
+  public:
+    TestQgsGrassProvider() : QgsTest( QStringLiteral( "Grass provider tests" ) ) {}
+
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
-    void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init() {} // will be called before each testfunction is executed.
-    void cleanup() {} // will be called after every testfunction.
 
     void fatalError();
     void locations();
     void mapsets();
     void maps();
     void vectorLayers();
+    void invalidLayer();
     void region();
     void info();
     void rasterImport();
@@ -230,7 +232,6 @@ class TestQgsGrassProvider: public QObject
     bool setAttributes( QgsFeature &feature, const QMap<QString, QVariant> &attributes );
     QString mGisdbase;
     QString mLocation;
-    QString mReport;
     QString mBuildMapset;
 };
 
@@ -255,7 +256,7 @@ void TestQgsGrassProvider::initTestCase()
   // in version different form which we are testing here and it would also load GRASS libs in different version
   // and result in segfault when __do_global_dtors_aux() is called.
   // => we must set QGIS_PROVIDER_FILE before QgsApplication::initQgis() to avoid loading GRASS provider in different version
-  QgsGrass::putEnv( QStringLiteral( "QGIS_PROVIDER_FILE" ), QStringLiteral( "gdal|ogr|memoryprovider|grassprovider%1" ).arg( GRASS_BUILD_VERSION ) );
+  QgsGrass::putEnv( QStringLiteral( "QGIS_PROVIDER_FILE" ), QStringLiteral( "grass(?:provider)?%1" ).arg( GRASS_BUILD_VERSION ) );
   QgsApplication::initQgis();
   QString mySettings = QgsApplication::showSettings();
   mySettings = mySettings.replace( QLatin1String( "\n" ), QLatin1String( "<br />\n" ) );
@@ -283,21 +284,6 @@ void TestQgsGrassProvider::initTestCase()
   reportRow( "mLocation: " + mLocation );
   reportRow( "mBuildMapset: " + mBuildMapset );
   qDebug() << "mGisdbase = " << mGisdbase << " mLocation = " << mLocation;
-}
-
-//runs after all tests
-void TestQgsGrassProvider::cleanupTestCase()
-{
-  QString myReportFile = QDir::tempPath() + "/qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-  }
-
-  //QgsApplication::exitQgis();
 }
 
 bool TestQgsGrassProvider::verify( bool ok )
@@ -393,7 +379,7 @@ void TestQgsGrassProvider::mapsets()
   }
 
   QStringList expectedMapsets;
-  expectedMapsets << QStringLiteral( "PERMANENT" ) << QStringLiteral( "test" ) << QStringLiteral( "test6" ) << QStringLiteral( "test7" );
+  expectedMapsets << QStringLiteral( "PERMANENT" ) << QStringLiteral( "test" ) << QStringLiteral( "test6" ) << QStringLiteral( "test7" ) << QStringLiteral( "test8" );
   QStringList mapsets = QgsGrass::mapsets( tmpGisdbase,  mLocation );
   reportRow( "expectedMapsets: " + expectedMapsets.join( QLatin1String( ", " ) ) );
   reportRow( "mapsets: " + mapsets.join( QLatin1String( ", " ) ) );
@@ -502,6 +488,16 @@ void TestQgsGrassProvider::vectorLayers()
   GVERIFY( ok );
 }
 
+void TestQgsGrassProvider::invalidLayer()
+{
+  std::unique_ptr< QgsVectorLayer > brokenLayer = std::make_unique< QgsVectorLayer >( QStringLiteral( "/not/valid" ), QStringLiteral( "test" ), QStringLiteral( "grass" ) );
+  QVERIFY( !brokenLayer->isValid() );
+  QgsVectorDataProvider *provider = brokenLayer->dataProvider();
+  QVERIFY( provider );
+  QVERIFY( !provider->isValid() );
+  QVERIFY( provider->fields().isEmpty() );
+}
+
 void TestQgsGrassProvider::region()
 {
   reportHeader( QStringLiteral( "TestQgsGrassProvider::region" ) );
@@ -597,7 +593,7 @@ void TestQgsGrassProvider::info()
 
   reportRow( QLatin1String( "" ) );
   QgsCoordinateReferenceSystem expectedCrs;
-  expectedCrs.createFromOgcWmsCrs( QStringLiteral( "EPSG:4326" ) );
+  expectedCrs.createFromString( QStringLiteral( "WKT:GEOGCS[\"wgs84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS_1984\",6378137,298.257223563],TOWGS84[0,0,0,0,0,0,0]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]]" ) );
 
   reportRow( "expectedCrs: " + expectedCrs.toWkt() );
   QString error;
@@ -924,7 +920,7 @@ QList< TestQgsGrassCommandGroup > TestQgsGrassProvider::createCommands()
   command = TestQgsGrassCommand( TestQgsGrassCommand::AddFeature );
   grassFeature = TestQgsGrassFeature( GV_POINT );
   grassFeature.setId( 1 );
-  geometry = new QgsGeometry( new QgsPoint( QgsWkbTypes::Point, 10, 10, 0 ) );
+  geometry = new QgsGeometry( new QgsPoint( Qgis::WkbType::Point, 10, 10, 0 ) );
   grassFeature.setGeometry( *geometry );
   delete geometry;
   command.grassFeatures << grassFeature;
@@ -934,7 +930,7 @@ QList< TestQgsGrassCommandGroup > TestQgsGrassProvider::createCommands()
   // Change geometry
   command = TestQgsGrassCommand( TestQgsGrassCommand::ChangeGeometry );
   command.fid = 1;
-  command.geometry = new QgsGeometry( new QgsPoint( QgsWkbTypes::Point, 20, 20, 0 ) );
+  command.geometry = new QgsGeometry( new QgsPoint( Qgis::WkbType::Point, 20, 20, 0 ) );
   commandGroup.commands << command;
 
   // Add field
@@ -1016,8 +1012,8 @@ QList< TestQgsGrassCommandGroup > TestQgsGrassProvider::createCommands()
   grassFeature.setId( 1 );
   line = new QgsLineString();
   pointList.clear();
-  pointList << QgsPoint( QgsWkbTypes::Point, 0, 0, 0 );
-  pointList << QgsPoint( QgsWkbTypes::Point, 20, 10, 0 );
+  pointList << QgsPoint( Qgis::WkbType::Point, 0, 0, 0 );
+  pointList << QgsPoint( Qgis::WkbType::Point, 20, 10, 0 );
   line->setPoints( pointList );
   pointList.clear();
   geometry = new QgsGeometry( line );

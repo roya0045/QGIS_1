@@ -184,11 +184,7 @@ void QgsLayoutItemMapItemStack::moveItemUp( const QString &itemId )
   {
     return;
   }
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-  mItems.swap( index, index + 1 );
-#else
   mItems.swapItemsAt( index, index + 1 );
-#endif
 }
 
 void QgsLayoutItemMapItemStack::moveItemDown( const QString &itemId )
@@ -204,11 +200,7 @@ void QgsLayoutItemMapItemStack::moveItemDown( const QString &itemId )
   {
     return;
   }
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-  mItems.swap( index, index - 1 );
-#else
   mItems.swapItemsAt( index, index - 1 );
-#endif
 }
 
 QgsLayoutItemMapItem *QgsLayoutItemMapItemStack::item( const QString &itemId ) const
@@ -287,7 +279,7 @@ void QgsLayoutItemMapItemStack::drawItems( QPainter *painter, bool ignoreStackin
         if ( !ignoreStacking )
           break;
 
-        FALLTHROUGH
+        [[fallthrough]];
       case QgsLayoutItemMapItem::StackAboveMapLabels:
         item->draw( painter );
         break;

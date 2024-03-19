@@ -20,10 +20,9 @@
 #include "qgscameracontroller.h"
 #include "qgs3danimationexportdialog.h"
 #include "qgs3dmapsettings.h"
-#include "qgsoffscreen3dengine.h"
-#include "qgs3dmapscene.h"
 #include "qgs3dutils.h"
 #include "qgsfeedback.h"
+#include "qgsproxyprogresstask.h"
 
 #include <QInputDialog>
 #include <QMessageBox>
@@ -61,9 +60,6 @@ Qgs3DAnimationWidget::Qgs3DAnimationWidget( QWidget *parent )
 
   connect( cboKeyframe, qOverload<int>( &QComboBox::currentIndexChanged ), this, &Qgs3DAnimationWidget::onKeyframeChanged );
 }
-
-Qgs3DAnimationWidget::~Qgs3DAnimationWidget() = default;
-
 
 void Qgs3DAnimationWidget::setCameraController( QgsCameraController *cameraController )
 {
@@ -194,15 +190,17 @@ void Qgs3DAnimationWidget::onExportAnimation()
   if ( dialog.exec() == QDialog::Accepted )
   {
     QgsFeedback progressFeedback;
+    std::unique_ptr< QgsScopedProxyProgressTask > progressTask = std::make_unique< QgsScopedProxyProgressTask >( tr( "Exporting animation" ) );
 
     QProgressDialog progressDialog( tr( "Exporting frames..." ), tr( "Abort" ), 0, 100, this );
     progressDialog.setWindowModality( Qt::WindowModal );
     QString error;
 
     connect( &progressFeedback, &QgsFeedback::progressChanged, this,
-             [&progressDialog, &progressFeedback]
+             [&progressDialog, &progressTask]( double progress )
     {
-      progressDialog.setValue( static_cast<int>( progressFeedback.progress() ) );
+      progressDialog.setValue( static_cast<int>( progress ) );
+      progressTask->setProgress( progress );
       QCoreApplication::processEvents();
     } );
 
@@ -217,6 +215,8 @@ void Qgs3DAnimationWidget::onExportAnimation()
                            dialog.frameSize(),
                            error,
                            &progressFeedback );
+
+    progressTask.reset();
 
     progressDialog.hide();
     if ( !success )
@@ -327,6 +327,7 @@ void Qgs3DAnimationWidget::onAddKeyframe()
   initializeController( animation() );
 
   cboKeyframe->setCurrentIndex( index + 1 );
+  QgsProject::instance()->setDirty( true );
 }
 
 void Qgs3DAnimationWidget::onRemoveKeyframe()
@@ -339,6 +340,7 @@ void Qgs3DAnimationWidget::onRemoveKeyframe()
   cboKeyframe->removeItem( index );
 
   initializeController( animation() );
+  QgsProject::instance()->setDirty( true );
 }
 
 void Qgs3DAnimationWidget::onEditKeyframe()

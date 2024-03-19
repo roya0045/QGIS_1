@@ -24,6 +24,7 @@
 #include "qgsvectorlayer.h"
 #include "qgsvectortilemvtencoder.h"
 #include "qgsvectortileutils.h"
+#include "qgsziputils.h"
 
 #include <nlohmann/json.hpp>
 
@@ -35,6 +36,18 @@
 
 QgsVectorTileWriter::QgsVectorTileWriter()
 {
+  setRootTileMatrix( QgsTileMatrix::fromWebMercator( 0 ) );
+}
+
+
+bool QgsVectorTileWriter::setRootTileMatrix( const QgsTileMatrix &tileMatrix )
+{
+  if ( tileMatrix.isRootTileMatrix() )
+  {
+    mRootTileMatrix = tileMatrix;
+    return true;
+  }
+  return false;
 }
 
 
@@ -94,7 +107,7 @@ bool QgsVectorTileWriter::writeTiles( QgsFeedback *feedback )
   int tilesToCreate = 0;
   for ( int zoomLevel = mMinZoom; zoomLevel <= mMaxZoom; ++zoomLevel )
   {
-    QgsTileMatrix tileMatrix = QgsTileMatrix::fromWebMercator( zoomLevel );
+    const QgsTileMatrix tileMatrix = QgsTileMatrix::fromTileMatrix( zoomLevel, mRootTileMatrix );
 
     QgsTileRange tileRange = tileMatrix.tileRangeFromExtent( outputExtent );
     tilesToCreate += ( tileRange.endRow() - tileRange.startRow() + 1 ) *
@@ -137,7 +150,8 @@ bool QgsVectorTileWriter::writeTiles( QgsFeedback *feedback )
     {
       try
       {
-        QgsCoordinateTransform ct( QgsCoordinateReferenceSystem( "EPSG:3857" ), QgsCoordinateReferenceSystem( "EPSG:4326" ), mTransformContext );
+        QgsCoordinateTransform ct( mRootTileMatrix.crs(), QgsCoordinateReferenceSystem( "EPSG:4326" ), mTransformContext );
+        ct.setBallparkTransformsAreAppropriate( true );
         QgsRectangle wgsExtent = ct.transform( outputExtent );
         QString boundsStr = QString( "%1,%2,%3,%4" )
                             .arg( wgsExtent.xMinimum() ).arg( wgsExtent.yMinimum() )
@@ -149,12 +163,14 @@ bool QgsVectorTileWriter::writeTiles( QgsFeedback *feedback )
         // bounds won't be written (not a problem - it is an optional value)
       }
     }
+    if ( !mMetadata.contains( "crs" ) )
+      mbtiles->setMetadataValue( "crs",  mRootTileMatrix.crs().authid() );
   }
 
   int tilesCreated = 0;
   for ( int zoomLevel = mMinZoom; zoomLevel <= mMaxZoom; ++zoomLevel )
   {
-    QgsTileMatrix tileMatrix = QgsTileMatrix::fromWebMercator( zoomLevel );
+    const QgsTileMatrix tileMatrix = QgsTileMatrix::fromTileMatrix( zoomLevel, mRootTileMatrix );
 
     QgsTileRange tileRange = tileMatrix.tileRangeFromExtent( outputExtent );
     for ( int row = tileRange.startRow(); row <= tileRange.endRow(); ++row )
@@ -202,7 +218,7 @@ bool QgsVectorTileWriter::writeTiles( QgsFeedback *feedback )
         else  // mbtiles
         {
           QByteArray gzipTileData;
-          QgsMbTiles::encodeGzip( tileData, gzipTileData );
+          QgsZipUtils::encodeGzip( tileData, gzipTileData );
           int rowTMS = pow( 2, tileID.zoomLevel() ) - tileID.row() - 1;
           mbtiles->setTileData( tileID.zoomLevel(), tileID.column(), rowTMS, gzipTileData );
         }
@@ -216,12 +232,12 @@ bool QgsVectorTileWriter::writeTiles( QgsFeedback *feedback )
 QgsRectangle QgsVectorTileWriter::fullExtent() const
 {
   QgsRectangle extent;
-  QgsCoordinateReferenceSystem destCrs( "EPSG:3857" );
 
   for ( const Layer &layer : mLayers )
   {
     QgsVectorLayer *vl = layer.layer();
-    QgsCoordinateTransform ct( vl->crs(), destCrs, mTransformContext );
+    QgsCoordinateTransform ct( vl->crs(), mRootTileMatrix.crs(), mTransformContext );
+    ct.setBallparkTransformsAreAppropriate( true );
     try
     {
       QgsRectangle r = ct.transformBoundingBox( vl->extent() );
@@ -229,7 +245,7 @@ QgsRectangle QgsVectorTileWriter::fullExtent() const
     }
     catch ( const QgsCsException & )
     {
-      QgsDebugMsg( "Failed to reproject layer extent to destination CRS" );
+      QgsDebugError( "Failed to reproject layer extent to destination CRS" );
     }
   }
   return extent;
@@ -295,4 +311,26 @@ QString QgsVectorTileWriter::mbtilesJsonSchema()
   QVariantMap rootObj;
   rootObj["vector_layers"] = arrayLayers;
   return QString::fromStdString( QgsJsonUtils::jsonFromVariant( rootObj ).dump() );
+}
+
+
+QByteArray QgsVectorTileWriter::writeSingleTile( QgsTileXYZ tileID, QgsFeedback *feedback, int buffer, int resolution ) const
+{
+  int zoomLevel = tileID.zoomLevel();
+
+  QgsVectorTileMVTEncoder encoder( tileID );
+  encoder.setTileBuffer( buffer );
+  encoder.setResolution( resolution );
+  encoder.setTransformContext( mTransformContext );
+
+  for ( const QgsVectorTileWriter::Layer &layer : std::as_const( mLayers ) )
+  {
+    if ( ( layer.minZoom() >= 0 && zoomLevel < layer.minZoom() ) ||
+         ( layer.maxZoom() >= 0 && zoomLevel > layer.maxZoom() ) )
+      continue;
+
+    encoder.addLayer( layer.layer(), feedback, layer.filterExpression(), layer.layerName() );
+  }
+
+  return encoder.encode();
 }

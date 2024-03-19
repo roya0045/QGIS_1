@@ -17,8 +17,9 @@
 
 #include "qgsgloweffect.h"
 #include "qgssymbollayerutils.h"
+#include "qgscolorutils.h"
 #include "qgsimageoperation.h"
-#include "qgscolorramp.h"
+#include "qgscolorrampimpl.h"
 #include "qgsunittypes.h"
 
 QgsGlowEffect::QgsGlowEffect()
@@ -61,25 +62,35 @@ void QgsGlowEffect::draw( QgsRenderContext &context )
   }
 
   QgsImageOperation::DistanceTransformProperties dtProps;
-  dtProps.spread = context.convertToPainterUnits( mSpread, mSpreadUnit, mSpreadMapUnitScale );
+  dtProps.spread = context.convertToPainterUnits( mSpread, mSpreadUnit, mSpreadMapUnitScale, Qgis::RenderSubcomponentProperty::GlowSpread );
   dtProps.useMaxDistance = false;
   dtProps.shadeExterior = shadeExterior();
   dtProps.ramp = ramp;
-  QgsImageOperation::distanceTransform( im, dtProps );
+  QgsImageOperation::distanceTransform( im, dtProps, context.feedback() );
 
-  const int blurLevel = std::round( context.convertToPainterUnits( mBlurLevel, mBlurUnit, mBlurMapUnitScale ) );
+  if ( context.feedback() && context.feedback()->isCanceled() )
+    return;
+
+  const int blurLevel = std::round( context.convertToPainterUnits( mBlurLevel, mBlurUnit, mBlurMapUnitScale, Qgis::RenderSubcomponentProperty::BlurSize ) );
   if ( blurLevel <= 16 )
   {
-    QgsImageOperation::stackBlur( im, blurLevel );
+    QgsImageOperation::stackBlur( im, blurLevel, false, context.feedback() );
   }
   else
   {
-    QImage *imb = QgsImageOperation::gaussianBlur( im, blurLevel );
-    im = QImage( *imb );
+    QImage *imb = QgsImageOperation::gaussianBlur( im, blurLevel, context.feedback() );
+    if ( !imb->isNull() )
+      im = QImage( *imb );
     delete imb;
   }
 
-  QgsImageOperation::multiplyOpacity( im, mOpacity );
+  if ( context.feedback() && context.feedback()->isCanceled() )
+    return;
+
+  QgsImageOperation::multiplyOpacity( im, mOpacity, context.feedback() );
+
+  if ( context.feedback() && context.feedback()->isCanceled() )
+    return;
 
   if ( !shadeExterior() )
   {
@@ -111,15 +122,11 @@ QVariantMap QgsGlowEffect::properties() const
   props.insert( QStringLiteral( "spread_unit" ), QgsUnitTypes::encodeUnit( mSpreadUnit ) );
   props.insert( QStringLiteral( "spread_unit_scale" ), QgsSymbolLayerUtils::encodeMapUnitScale( mSpreadMapUnitScale ) );
   props.insert( QStringLiteral( "color_type" ), QString::number( static_cast< int >( mColorType ) ) );
-  props.insert( QStringLiteral( "single_color" ), QgsSymbolLayerUtils::encodeColor( mColor ) );
+  props.insert( QStringLiteral( "single_color" ), QgsColorUtils::colorToString( mColor ) );
 
   if ( mRamp )
   {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    props.unite( mRamp->properties() );
-#else
     props.insert( mRamp->properties() );
-#endif
   }
 
   return props;
@@ -177,7 +184,7 @@ void QgsGlowEffect::readProperties( const QVariantMap &props )
   }
   if ( props.contains( QStringLiteral( "single_color" ) ) )
   {
-    mColor = QgsSymbolLayerUtils::decodeColor( props.value( QStringLiteral( "single_color" ) ).toString() );
+    mColor = QgsColorUtils::colorFromString( props.value( QStringLiteral( "single_color" ) ).toString() );
   }
 
   //attempt to create color ramp from props
@@ -223,8 +230,9 @@ QgsGlowEffect &QgsGlowEffect::operator=( const QgsGlowEffect &rhs )
 QRectF QgsGlowEffect::boundingRect( const QRectF &rect, const QgsRenderContext &context ) const
 {
   //blur radius and spread size
-  const int blurLevel = std::round( context.convertToPainterUnits( mBlurLevel, mBlurUnit, mBlurMapUnitScale ) );
-  double spread = context.convertToPainterUnits( mSpread, mSpreadUnit, mSpreadMapUnitScale );
+  const int blurLevel = std::round( context.convertToPainterUnits( mBlurLevel, mBlurUnit, mBlurMapUnitScale, Qgis::RenderSubcomponentProperty::BlurSize ) );
+  double spread = context.convertToPainterUnits( mSpread, mSpreadUnit, mSpreadMapUnitScale, Qgis::RenderSubcomponentProperty::GlowSpread );
+
   //plus possible extension due to blur, with a couple of extra pixels thrown in for safety
   spread += blurLevel * 2 + 10;
   return rect.adjusted( -spread, -spread, spread, spread );

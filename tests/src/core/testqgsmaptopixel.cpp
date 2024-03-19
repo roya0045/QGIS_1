@@ -19,18 +19,52 @@
 #include <qgsrectangle.h>
 #include <qgsmaptopixel.h>
 #include <qgspoint.h>
-#include "qgslogger.h"
 
 class TestQgsMapToPixel: public QObject
 {
     Q_OBJECT
   private slots:
+    void isValid();
     void rotation();
     void getters();
     void fromScale();
     void equality();
     void toMapCoordinates();
 };
+
+void TestQgsMapToPixel::isValid()
+{
+  // test QgsMapToPixel::isValid()
+
+  // constructors with parameters should result in valid QgsMapToPixel
+  QgsMapToPixel m2p( 1, 5, 5, 10, 10, 90 );
+  QVERIFY( m2p.isValid() );
+  m2p = QgsMapToPixel( 90 );
+  QVERIFY( m2p.isValid() );
+  m2p = QgsMapToPixel::fromScale( 90, Qgis::DistanceUnit::Meters );
+  QVERIFY( m2p.isValid() );
+
+  // default constructor should result in invalid m2p
+  m2p = QgsMapToPixel();
+  QVERIFY( !m2p.isValid() );
+
+  // but setting parameters on an invalid m2p should turn it valid
+  m2p.setMapUnitsPerPixel( 90 );
+  QVERIFY( m2p.isValid() );
+
+  m2p = QgsMapToPixel();
+  m2p.setMapRotation( 90, 1, 2 );
+  QVERIFY( m2p.isValid() );
+
+  m2p = QgsMapToPixel();
+  m2p.setParameters( 90, 1, 2, 50, 70, 0 );
+  QVERIFY( m2p.isValid() );
+
+  m2p = QgsMapToPixel();
+  bool ok = false;
+  m2p.setParameters( 90, 1, 2, 50, 70, 0, &ok );
+  QVERIFY( m2p.isValid() );
+}
 
 void TestQgsMapToPixel::rotation()
 {
@@ -97,13 +131,13 @@ void TestQgsMapToPixel::getters()
 
 void TestQgsMapToPixel::fromScale()
 {
-  QgsMapToPixel m2p = QgsMapToPixel::fromScale( 1000, QgsUnitTypes::DistanceMeters, 96.0 );
+  QgsMapToPixel m2p = QgsMapToPixel::fromScale( 1000, Qgis::DistanceUnit::Meters, 96.0 );
   QGSCOMPARENEAR( m2p.mapUnitsPerPixel(), 0.264583, 0.000001 );
-  m2p = QgsMapToPixel::fromScale( 10000, QgsUnitTypes::DistanceMeters, 96.0 );
+  m2p = QgsMapToPixel::fromScale( 10000, Qgis::DistanceUnit::Meters, 96.0 );
   QGSCOMPARENEAR( m2p.mapUnitsPerPixel(), 2.645833, 0.000001 );
-  m2p = QgsMapToPixel::fromScale( 1000, QgsUnitTypes::DistanceMeters, 72.0 );
+  m2p = QgsMapToPixel::fromScale( 1000, Qgis::DistanceUnit::Meters, 72.0 );
   QGSCOMPARENEAR( m2p.mapUnitsPerPixel(), 0.352778, 0.000001 );
-  m2p = QgsMapToPixel::fromScale( 1000, QgsUnitTypes::DistanceKilometers, 96.0 );
+  m2p = QgsMapToPixel::fromScale( 1000, Qgis::DistanceUnit::Kilometers, 96.0 );
   QGSCOMPARENEAR( m2p.mapUnitsPerPixel(), 0.000265, 0.000001 );
 }
 

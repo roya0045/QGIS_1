@@ -16,9 +16,9 @@
 #ifndef QGSATTRIBUTETABLEVIEW_H
 #define QGSATTRIBUTETABLEVIEW_H
 
-#include <QTableView>
 #include <QAction>
 #include "qgsfeatureid.h"
+#include "qgstableview.h"
 
 #include "qgis_gui.h"
 #include "qgsattributetableconfig.h"
@@ -45,7 +45,7 @@ class QgsFeature;
  * Or this can be used within the QgsDualView stacked widget.
  */
 
-class GUI_EXPORT QgsAttributeTableView : public QTableView
+class GUI_EXPORT QgsAttributeTableView : public QgsTableView
 {
     Q_OBJECT
 
@@ -84,7 +84,6 @@ class GUI_EXPORT QgsAttributeTableView : public QTableView
     /**
      * Set the attribute table config which should be used to control
      * the appearance of the attribute table.
-     * \since QGIS 2.16
      */
     void setAttributeTableConfig( const QgsAttributeTableConfig &config );
 
@@ -104,6 +103,12 @@ class GUI_EXPORT QgsAttributeTableView : public QTableView
      */
     void scrollToFeature( const QgsFeatureId &fid, int column = -1 );
 
+    /**
+     * Closes the editor delegate for the current item, committing its changes to the model.
+     *
+     * \since QGIS 3.30
+     */
+    void closeCurrentEditor();
   protected:
 
     /**
@@ -169,7 +174,6 @@ class GUI_EXPORT QgsAttributeTableView : public QTableView
      * Emitted when a column in the view has been resized.
      * \param column column index (starts at 0)
      * \param width new width in pixel
-     * \since QGIS 2.16
      */
     void columnResized( int column, int width );
 
@@ -205,6 +209,7 @@ class GUI_EXPORT QgsAttributeTableView : public QTableView
     QItemSelectionModel::SelectionFlag mCtrlDragSelectionFlag = QItemSelectionModel::Select;
     QMap< QModelIndex, QWidget * > mActionWidgets;
     QgsAttributeTableConfig mConfig;
+    QString mSortExpression;
 };
 
 #endif

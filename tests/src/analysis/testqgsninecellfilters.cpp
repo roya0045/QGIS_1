@@ -21,7 +21,6 @@
 #include "qgsruggednessfilter.h"
 #include "qgstotalcurvaturefilter.h"
 #include "qgsapplication.h"
-#include "qgssettings.h"
 
 #ifdef HAVE_OPENCL
 #include "qgsopenclutils.h"
@@ -32,14 +31,20 @@
 // If true regenerate raster reference images
 const bool REGENERATE_REFERENCES = false;
 
-class TestNineCellFilters : public QObject
+class TestNineCellFilters : public QgsTest
 {
     Q_OBJECT
+
+  public:
+    TestNineCellFilters()
+      : QgsTest( QStringLiteral( "Nine Cell Filter Tests" ) )
+    {}
 
     QString SRC_FILE;
   private slots:
 
     void initTestCase();
+    void cleanupTestCase();
     void init();
 
     void testHillshade();
@@ -86,6 +91,11 @@ void TestNineCellFilters::initTestCase()
 
   SRC_FILE = QStringLiteral( TEST_DATA_DIR ) + "/analysis/dem.tif";
   QgsApplication::init(); // needed for CRS database
+}
+
+void TestNineCellFilters::cleanupTestCase()
+{
+  QgsApplication::exitQgis();
 }
 
 template <class T>

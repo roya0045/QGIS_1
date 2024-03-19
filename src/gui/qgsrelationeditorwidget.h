@@ -32,6 +32,8 @@
 #include "qgsvectorlayerselectionmanager.h"
 #include "qgis_gui.h"
 
+class QTreeWidget;
+class QTreeWidgetItem;
 class QgsFeature;
 class QgsVectorLayer;
 class QgsVectorLayerTools;
@@ -97,7 +99,7 @@ class GUI_EXPORT QgsRelationEditorWidget : public QgsAbstractRelationEditorWidge
      * Possible buttons shown in the relation editor
      * \since QGIS 3.18
      */
-    enum Button
+    enum Button SIP_ENUM_BASETYPE( IntFlag )
     {
       NoButton = 0, //!< No button (since QGIS 3.20)
       Link = 1 << 1, //!< Link button
@@ -200,17 +202,38 @@ class GUI_EXPORT QgsRelationEditorWidget : public QgsAbstractRelationEditorWidge
     void setViewMode( int mode ) {setViewMode( static_cast<QgsDualView::ViewMode>( mode ) );}
     void updateButtons();
 
+    void addFeature();
     void addFeatureGeometry();
     void toggleEditing( bool state );
     void showContextMenu( QgsActionMenu *menu, QgsFeatureId fid );
     void mapToolDeactivated();
-    void onKeyPressed( QKeyEvent *e );
     void onDigitizingCompleted( const QgsFeature &feature );
+    void onDigitizingCanceled( );
+    void multiEditItemSelectionChanged();
 
   private:
+
+    void digitizingFinished( );
+
+    enum class MultiEditFeatureType : int
+    {
+      Parent,
+      Child
+    };
+
+    enum class MultiEditTreeWidgetRole : int
+    {
+      FeatureType = Qt::UserRole + 1,
+      FeatureId = Qt::UserRole + 2
+    };
+
     void initDualView( QgsVectorLayer *layer, const QgsFeatureRequest &request );
     void setMapTool( QgsMapTool *mapTool );
     void unsetMapTool();
+    QgsFeatureIds selectedChildFeatureIds() const;
+    void updateUiSingleEdit();
+    void updateUiMultiEdit();
+    QTreeWidgetItem *createMultiEditTreeWidgetItem( const QgsFeature &feature, QgsVectorLayer *layer, MultiEditFeatureType type );
 
     QgsDualView *mDualView = nullptr;
     QPointer<QgsMessageBarItem> mMessageBarItem;
@@ -227,11 +250,22 @@ class GUI_EXPORT QgsRelationEditorWidget : public QgsAbstractRelationEditorWidge
     QToolButton *mFormViewButton = nullptr;
     QToolButton *mTableViewButton = nullptr;
     QToolButton *mAddFeatureGeometryButton = nullptr;
+    QLabel *mMultiEditInfoLabel = nullptr;
+    QStackedWidget *mStackedWidget = nullptr;
+    QWidget *mMultiEditStackedWidgetPage = nullptr;
+    QTreeWidget *mMultiEditTreeWidget = nullptr;
     QObjectUniquePtr<QgsMapToolDigitizeFeature> mMapToolDigitize;
     QButtonGroup *mViewModeButtonGroup = nullptr;
     QgsVectorLayerSelectionManager *mFeatureSelectionMgr = nullptr;
 
     Buttons mButtonsVisibility = Button::AllButtons;
+    bool mShowFirstFeature = true;
+    bool mAllowAddChildFeatureWithNoGeometry = true;
+
+    QList<QTreeWidgetItem *> mMultiEditPreviousSelectedItems;
+    QgsFeatureIds mMultiEdit1NJustAddedIds;
+
+    friend class TestQgsRelationEditorWidget;
 };
 
 
@@ -260,14 +294,14 @@ class GUI_EXPORT QgsRelationEditorConfigWidget : public QgsAbstractRelationEdito
      *
      * \returns A widget configuration
      */
-    QVariantMap config();
+    QVariantMap config() override;
 
     /**
      * \brief Update the configuration widget to represent the given configuration.
      *
      * \param config The configuration which should be represented by this widget
      */
-    void setConfig( const QVariantMap &config );
+    void setConfig( const QVariantMap &config ) override;
 
 };
 

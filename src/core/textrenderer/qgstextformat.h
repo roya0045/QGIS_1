@@ -18,12 +18,13 @@
 
 #include "qgis_sip.h"
 #include "qgis_core.h"
-#include "qgsunittypes.h"
+#include "qgis.h"
 #include "qgstextbuffersettings.h"
 #include "qgstextbackgroundsettings.h"
 #include "qgstextshadowsettings.h"
 #include "qgstextmasksettings.h"
 #include "qgsstringutils.h"
+#include "qgsscreenproperties.h"
 
 #include <QSharedDataPointer>
 
@@ -35,19 +36,10 @@ class QgsTextSettingsPrivate;
   * \ingroup core
   * \brief Container for all settings relating to text rendering.
   * \note QgsTextFormat objects are implicitly shared.
-  * \since QGIS 3.0
  */
 class CORE_EXPORT QgsTextFormat
 {
   public:
-
-    //! Text orientation
-    enum TextOrientation
-    {
-      HorizontalOrientation, //!< Vertically oriented text
-      VerticalOrientation, //!< Horizontally oriented text
-      RotationBasedOrientation, //!< Horizontally or vertically oriented text based on rotation (only available for map labeling)
-    };
 
     /**
      * Default constructor for QgsTextFormat. Creates a text format initially
@@ -223,6 +215,58 @@ class CORE_EXPORT QgsTextFormat
     void setNamedStyle( const QString &style );
 
     /**
+     * Returns TRUE if the format is set to force a bold style.
+     *
+     * \warning Unlike setting a font's style via setNamedStyle(), this will ensure that a font is
+     * always rendered in bold regardless of whether the font family actually has a bold variant. A
+     * "faux bold" effect will be emulated, which may result in poor quality font rendering. For this
+     * reason it is greatly preferred to call setNamedStyle() instead.
+     *
+     * \see setForcedBold()
+     * \since QGIS 3.26
+     */
+    bool forcedBold() const;
+
+    /**
+     * Sets whether the format is set to force a bold style.
+     *
+     * \warning Unlike setting a font's style via setNamedStyle(), this will ensure that a font is
+     * always rendered in bold regardless of whether the font family actually has a bold variant. A
+     * "faux bold" effect will be emulated, which may result in poor quality font rendering. For this
+     * reason it is greatly preferred to call setNamedStyle() instead.
+     *
+     * \see forcedBold()
+     * \since QGIS 3.26
+     */
+    void setForcedBold( bool forced );
+
+    /**
+     * Returns TRUE if the format is set to force an italic style.
+     *
+     * \warning Unlike setting a font's style via setNamedStyle(), this will ensure that a font is
+     * always rendered in italic regardless of whether the font family actually has an italic variant. A
+     * "faux italic" slanted text effect will be emulated, which may result in poor quality font rendering. For this
+     * reason it is greatly preferred to call setNamedStyle() instead.
+     *
+     * \see setForcedItalic()
+     * \since QGIS 3.26
+     */
+    bool forcedItalic() const;
+
+    /**
+     * Sets whether the format is set to force an italic style.
+     *
+     * \warning Unlike setting a font's style via setNamedStyle(), this will ensure that a font is
+     * always rendered in italic regardless of whether the font family actually has an italic variant. A
+     * "faux italic" slanted text effect will be emulated, which may result in poor quality font rendering. For this
+     * reason it is greatly preferred to call setNamedStyle() instead.
+     *
+     * \see forcedItalic()
+     * \since QGIS 3.26
+     */
+    void setForcedItalic( bool forced );
+
+    /**
      * Returns the list of font families to use when restoring the text format, in order of precedence.
      *
      * \warning The list of families returned by this method is ONLY used when restoring the text format
@@ -269,7 +313,7 @@ class CORE_EXPORT QgsTextFormat
      * \see setSizeUnit()
      * \see sizeMapUnitScale()
      */
-    QgsUnitTypes::RenderUnit sizeUnit() const;
+    Qgis::RenderUnit sizeUnit() const;
 
     /**
      * Sets the units for the size of rendered text.
@@ -278,7 +322,7 @@ class CORE_EXPORT QgsTextFormat
      * \see sizeUnit()
      * \see setSizeMapUnitScale()
      */
-    void setSizeUnit( QgsUnitTypes::RenderUnit unit );
+    void setSizeUnit( Qgis::RenderUnit unit );
 
     /**
      * Returns the map unit scale object for the size. This is only used if the
@@ -317,12 +361,50 @@ class CORE_EXPORT QgsTextFormat
     double opacity() const;
 
     /**
+     * Multiply opacity by \a opacityFactor.
+     *
+     * This method multiplies the opacity of all the labeling elements (text, shadow, buffer etc.)
+     * by \a opacityFactor effectively changing the opacity of the whole labeling.
+     *
+     * \since QGIS 3.32
+     */
+    void multiplyOpacity( double opacityFactor );
+
+    /**
      * Sets the text's opacity.
      * \param opacity opacity as a double value between 0 (fully transparent) and 1 (totally
      * opaque)
      * \see opacity()
      */
     void setOpacity( double opacity );
+
+    /**
+     * Returns the text's stretch factor.
+     *
+     * The stretch factor matches a condensed or expanded version of the font or applies a stretch
+     * transform that changes the width of all characters in the font by factor percent.
+     *
+     * For example, a factor of 150 results in all characters in the font being 1.5 times
+     * (ie. 150%) wider. The minimum stretch factor is 1, and the maximum stretch factor is 4000.
+     *
+     * \see setStretchFactor()
+     * \since QGIS 3.24
+     */
+    int stretchFactor() const;
+
+    /**
+     * Sets the text's stretch \a factor.
+     *
+     * The stretch factor matches a condensed or expanded version of the font or applies a stretch
+     * transform that changes the width of all characters in the font by factor percent.
+     *
+     * For example, setting \a factor to 150 results in all characters in the font being 1.5 times
+     * (ie. 150%) wider. The minimum stretch factor is 1, and the maximum stretch factor is 4000.
+     *
+     * \see stretchFactor()
+     * \since QGIS 3.24
+     */
+    void setStretchFactor( int factor );
 
     /**
      * Returns the blending mode used for drawing the text.
@@ -338,35 +420,62 @@ class CORE_EXPORT QgsTextFormat
     void setBlendMode( QPainter::CompositionMode mode );
 
     /**
-     * Returns the line height for text. This is a number between
-     * 0.0 and 10.0 representing the leading between lines as a
-     * multiplier of line height.
+     * Returns the line height for text.
+     *
+     * If lineHeightUnit() is QgsUnitTypes::RenderPercentage (the default), then this is a number representing
+     * the leading between lines as a multiplier of line height (where 0 - 1.0 represents 0 to 100% of text line height).
+     * Otherwise the line height is an absolute measurement in lineHeightUnit().
+     *
      * \see setLineHeight()
+     * \see lineHeightUnit()
      */
     double lineHeight() const;
 
     /**
      * Sets the line height for text.
-     * \param height a number between
-     * 0.0 and 10.0 representing the leading between lines as a
-     * multiplier of line height.
+     *
+     * If lineHeightUnit() is QgsUnitTypes::RenderPercentage (the default), then \a height is a number representing
+     * the leading between lines as a multiplier of line height (where 0 - 1.0 represents 0 to 100% of text line height).
+     * Otherwise \a height is an absolute measurement in lineHeightUnit().
+     *
      * \see lineHeight()
+     * \see setLineHeightUnit()
      */
     void setLineHeight( double height );
+
+    /**
+     * Returns the units for the line height for text.
+     *
+     * \see setLineHeightUnit()
+     * \see lineHeight()
+     *
+     * \since QGIS 3.28
+     */
+    Qgis::RenderUnit lineHeightUnit() const;
+
+    /**
+     * Sets the \a unit for the line height for text.
+     *
+     * \see lineHeightUnit()
+     * \see setLineHeight()
+     *
+     * \since QGIS 3.28
+     */
+    void setLineHeightUnit( Qgis::RenderUnit unit );
 
     /**
      * Returns the orientation of the text.
      * \see setOrientation()
      * \since QGIS 3.10
      */
-    TextOrientation orientation() const;
+    Qgis::TextOrientation orientation() const;
 
     /**
      * Sets the \a orientation for the text.
      * \see orientation()
      * \since QGIS 3.10
      */
-    void setOrientation( TextOrientation orientation );
+    void setOrientation( Qgis::TextOrientation orientation );
 
     /**
      * Returns the text capitalization style.
@@ -374,7 +483,7 @@ class CORE_EXPORT QgsTextFormat
      * \see setCapitalization()
      * \since QGIS 3.16
      */
-    QgsStringUtils::Capitalization capitalization() const;
+    Qgis::Capitalization capitalization() const;
 
     /**
      * Sets the text \a capitalization style.
@@ -382,7 +491,7 @@ class CORE_EXPORT QgsTextFormat
      * \see capitalization()
      * \since QGIS 3.16
      */
-    void setCapitalization( QgsStringUtils::Capitalization capitalization );
+    void setCapitalization( Qgis::Capitalization capitalization );
 
     /**
      * Returns TRUE if text should be treated as a HTML document and HTML tags should be used for formatting
@@ -542,9 +651,21 @@ class CORE_EXPORT QgsTextFormat
     * \param size target pixmap size
     * \param previewText text to render in preview, or empty for default text
     * \param padding space between icon edge and color ramp
+    * \param screen can be used to specify the destination screen properties for the icon. This allows the icon to be generated using the correct DPI and device pixel ratio for the target screen (since QGIS 3.32)
     * \since QGIS 3.10
     */
-    static QPixmap textFormatPreviewPixmap( const QgsTextFormat &format, QSize size, const QString &previewText = QString(), int padding = 0 );
+    static QPixmap textFormatPreviewPixmap( const QgsTextFormat &format, QSize size, const QString &previewText = QString(), int padding = 0, const QgsScreenProperties &screen = QgsScreenProperties() );
+
+    /**
+     * Returns a CSS string representing the specified text format as closely as possible.
+     * \param pointToPixelMultiplier scaling factor to apply to convert point sizes to pixel font sizes.
+     * The CSS returned by this function will always use pixels for font sizes, so this parameter
+     * should be set to a suitable value to convert point sizes to pixels (e.g., taking into account
+     * destination DPI)
+     * \returns partial CSS string, e.g., "line-height: 120%;"
+     * \since QGIS 3.34
+     */
+    QString asCSS( double pointToPixelMultiplier = 1.0 ) const;
 
   private:
 

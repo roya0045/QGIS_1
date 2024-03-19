@@ -22,8 +22,14 @@
 #include <QString>
 #include <QStringList>
 #include <QSet>
+#include <QPointer>
+
 #include "qgsexpressionfunction.h"
 #include "qgsfeature.h"
+
+class QgsReadWriteContext;
+class QgsMapLayerStore;
+class LoadLayerFunction;
 
 /**
  * \ingroup core
@@ -31,7 +37,6 @@
  * \brief Expression function for use within a QgsExpressionContextScope. This differs from a
  * standard QgsExpression::Function in that it requires an implemented
  * clone() method.
- * \since QGIS 2.12
  */
 
 class CORE_EXPORT QgsScopedExpressionFunction : public QgsExpressionFunction
@@ -41,7 +46,6 @@ class CORE_EXPORT QgsScopedExpressionFunction : public QgsExpressionFunction
     /**
      * Create a new QgsScopedExpressionFunction
      *
-     * \since QGIS 2.12
      */
     QgsScopedExpressionFunction( const QString &fnname,
                                  int params,
@@ -60,7 +64,6 @@ class CORE_EXPORT QgsScopedExpressionFunction : public QgsExpressionFunction
     /**
      * Create a new QgsScopedExpressionFunction using named parameters.
      *
-     * \since QGIS 3.0
      */
     QgsScopedExpressionFunction( const QString &fnname,
                                  const QgsExpressionFunction::ParameterList &params,
@@ -105,7 +108,6 @@ class CORE_EXPORT QgsScopedExpressionFunction : public QgsExpressionFunction
  *
  * See QgsExpressionContextUtils for helper methods for working with QgsExpressionContextScope objects.
  *
- * \since QGIS 2.12
  */
 
 class CORE_EXPORT QgsExpressionContextScope
@@ -241,7 +243,6 @@ class CORE_EXPORT QgsExpressionContextScope
      * Tests whether the variable with the specified \a name is static and can
      * be cached.
      *
-     * \since QGIS 3.0
      */
     bool isStatic( const QString &name ) const;
 
@@ -249,7 +250,6 @@ class CORE_EXPORT QgsExpressionContextScope
      * Returns the translated description for the variable with the specified \a name
      * (if set).
      *
-     * \since QGIS 3.0
      */
     QString description( const QString &name ) const;
 
@@ -295,7 +295,6 @@ class CORE_EXPORT QgsExpressionContextScope
     /**
      * Returns TRUE if the scope has a feature associated with it.
      * \see feature()
-     * \since QGIS 3.0
      */
     bool hasFeature() const { return mHasFeature; }
 
@@ -303,7 +302,6 @@ class CORE_EXPORT QgsExpressionContextScope
      * Sets the feature associated with the scope.
      * \see setFeature()
      * \see hasFeature()
-     * \since QGIS 3.0
      */
     QgsFeature feature() const { return mFeature; }
 
@@ -320,9 +318,41 @@ class CORE_EXPORT QgsExpressionContextScope
      * Removes any feature associated with the scope.
      * \see setFeature()
      * \see hasFeature()
-     * \since QGIS 3.0
      */
     void removeFeature() { mHasFeature = false; mFeature = QgsFeature(); }
+
+    /**
+     * Returns TRUE if the scope has a geometry associated with it.
+     * \see geometry()
+     * \since QGIS 3.24
+     */
+    bool hasGeometry() const { return mHasGeometry; }
+
+    /**
+     * Sets the geometry associated with the scope.
+     * \see setGeometry()
+     * \see hasGeometry()
+     * \since QGIS 3.24
+     */
+    QgsGeometry geometry() const { return mGeometry; }
+
+    /**
+     * Convenience function for setting a \a geometry for the scope. Any existing
+     * geometry set by the scope will be overwritten.
+
+     * \see removeGeometry()
+     * \see geometry()
+     * \since QGIS 3.24
+     */
+    void setGeometry( const QgsGeometry &geometry ) { mHasGeometry = true; mGeometry = geometry; }
+
+    /**
+     * Removes any geometry associated with the scope.
+     * \see setGeometry()
+     * \see hasGeometry()
+     * \since QGIS 3.24
+     */
+    void removeGeometry() { mHasGeometry = false; mGeometry = QgsGeometry(); }
 
     /**
      * Convenience function for setting a fields for the scope. Any existing
@@ -345,12 +375,84 @@ class CORE_EXPORT QgsExpressionContextScope
      */
     bool writeXml( QDomElement &element, QDomDocument &document, const QgsReadWriteContext &context ) const;
 
+
+    /**
+     * Returns the list of variables hidden within the scope.
+     *
+     * \see setHiddenVariables()
+     * \see addHiddenVariable()
+     * \see removeHiddenVariable()
+     * \since QGIS 3.28
+     */
+    QStringList hiddenVariables() const;
+
+    /**
+     *
+     * Sets the list of variables intended to be hidden in the
+     * expression builder dialog and widget.
+     *
+     * \see hiddenVariables()
+     * \see addHiddenVariable()
+     * \see removeHiddenVariable()
+     * \since QGIS 3.28
+     */
+    void setHiddenVariables( const QStringList &hiddenVariables );
+
+
+    /**
+     *
+     * Adds the passed variable to a list of hidden variables that
+     * won't be visible in the expression builder dialog and widget.
+     *
+     * \see hiddenVariables()
+     * \see setHiddenVariables()
+     * \see removeHiddenVariable()
+     * \since QGIS 3.28
+     */
+    void addHiddenVariable( const QString &hiddenVariable );
+
+    /**
+     *
+     * Removes the passed variable from a list of hidden variables.
+     *
+     * \see hiddenVariables()
+     * \see setHiddenVariables()
+     * \see addHiddenVariable()
+     * \since QGIS 3.28
+     */
+    void removeHiddenVariable( const QString &hiddenVariable );
+
+    /**
+     * Adds a layer \a store to the scope.
+     *
+     * Ownership of the \a store is not transferred to the scope, it is the caller's
+     * responsibility to ensure that the store remains alive for the duration of the
+     * expression context.
+     *
+     * \see layerStores()
+     * \since QGIS 3.30
+     */
+    void addLayerStore( QgsMapLayerStore *store );
+
+    /**
+     * Returns the list of layer stores associated with the scope.
+     *
+     * \see addLayerStore()
+     * \since QGIS 3.30
+     */
+    QList< QgsMapLayerStore * > layerStores() const;
+
   private:
     QString mName;
     QHash<QString, StaticVariable> mVariables;
     QHash<QString, QgsScopedExpressionFunction * > mFunctions;
     bool mHasFeature = false;
     QgsFeature mFeature;
+    bool mHasGeometry = false;
+    QgsGeometry mGeometry;
+    QStringList mHiddenVariables;
+
+    QList< QPointer< QgsMapLayerStore > > mLayerStores;
 };
 
 /**
@@ -364,19 +466,17 @@ class CORE_EXPORT QgsExpressionContextScope
  *
  * See QgsExpressionContextUtils for helper methods for working with QgsExpressionContext objects.
  *
- * \since QGIS 2.12
  */
 class CORE_EXPORT QgsExpressionContext
 {
   public:
 
     //! Constructor for QgsExpressionContext
-    QgsExpressionContext() = default;
+    QgsExpressionContext();
 
     /**
      * Initializes the context with given list of scopes.
      * Ownership of the scopes is transferred to the stack.
-     * \since QGIS 3.0
      */
     explicit QgsExpressionContext( const QList<QgsExpressionContextScope *> &scopes SIP_TRANSFER );
 
@@ -414,7 +514,6 @@ class CORE_EXPORT QgsExpressionContext
     /**
      * Returns a map of variable name to value representing all the expression variables
      * contained by the context.
-     * \since QGIS 3.0
      */
     QVariantMap variablesToMap() const;
 
@@ -517,7 +616,6 @@ class CORE_EXPORT QgsExpressionContext
      * Returns the index of the first scope with a matching name within the context.
      * \param scopeName name of scope to find
      * \returns index of scope, or -1 if scope was not found within the context.
-     * \since QGIS 3.0
      */
     int indexOfScope( const QString &scopeName ) const;
 
@@ -553,7 +651,6 @@ class CORE_EXPORT QgsExpressionContext
      * If no specific description has been provided for the variable, the value from
      * QgsExpression::variableHelpText() will be returned.
      *
-     * \since QGIS 3.0
      */
     QString description( const QString &name ) const;
 
@@ -600,7 +697,6 @@ class CORE_EXPORT QgsExpressionContext
      * any matching variables or functions provided by existing scopes within the
      * context. Ownership of the scopes is transferred to the stack.
      * \param scopes scopes to append to context
-     * \since QGIS 3.0
      */
     void appendScopes( const QList<QgsExpressionContextScope *> &scopes SIP_TRANSFER );
 
@@ -615,7 +711,6 @@ class CORE_EXPORT QgsExpressionContext
      * Ownership is transferred to the caller.
      *
      * \note Not available in Python
-     * \since QGIS 3.0
      */
     QList<QgsExpressionContextScope *> takeScopes() SIP_SKIP;
 
@@ -638,7 +733,6 @@ class CORE_EXPORT QgsExpressionContext
     /**
      * Returns TRUE if the context has a feature associated with it.
      * \see feature()
-     * \since QGIS 3.0
      */
     bool hasFeature() const;
 
@@ -647,6 +741,30 @@ class CORE_EXPORT QgsExpressionContext
      * \see setFeature
      */
     QgsFeature feature() const;
+
+    /**
+     * Convenience function for setting a \a geometry for the context. The geometry
+     * will be set within the last scope of the context, so will override any
+     * existing geometries within the context.
+
+     * \see geometry()
+     * \since QGIS 3.24
+     */
+    void setGeometry( const QgsGeometry &geometry );
+
+    /**
+     * Returns TRUE if the context has a geometry associated with it.
+     * \see geometry()
+     * \since QGIS 3.24
+     */
+    bool hasGeometry() const;
+
+    /**
+     * Convenience function for retrieving the geometry for the context, if set.
+     * \see setGeometry()
+     * \since QGIS 3.24
+     */
+    QgsGeometry geometry() const;
 
     /**
      * Convenience function for setting a fields for the context. The fields
@@ -667,7 +785,6 @@ class CORE_EXPORT QgsExpressionContext
      * Sets the original value variable value for the context.
      * \param value value for original value variable. This usually represents an original widget
      * value before any data defined overrides have been applied.
-     * \since QGIS 2.12
      */
     void setOriginalValueVariable( const QVariant &value );
 
@@ -680,7 +797,6 @@ class CORE_EXPORT QgsExpressionContext
      * \see hasCachedValue()
      * \see cachedValue()
      * \see clearCachedValues()
-     * \since QGIS 2.16
      */
     void setCachedValue( const QString &key, const QVariant &value ) const;
 
@@ -690,7 +806,6 @@ class CORE_EXPORT QgsExpressionContext
      * \see setCachedValue()
      * \see cachedValue()
      * \see clearCachedValues()
-     * \since QGIS 2.16
      */
     bool hasCachedValue( const QString &key ) const;
 
@@ -702,7 +817,6 @@ class CORE_EXPORT QgsExpressionContext
      * \see setCachedValue()
      * \see hasCachedValue()
      * \see clearCachedValues()
-     * \since QGIS 2.16
      */
     QVariant cachedValue( const QString &key ) const;
 
@@ -711,9 +825,37 @@ class CORE_EXPORT QgsExpressionContext
      * \see setCachedValue()
      * \see hasCachedValue()
      * \see cachedValue()
-     * \since QGIS 2.16
      */
     void clearCachedValues() const;
+
+    /**
+     * Returns the list of layer stores associated with the context.
+     *
+     * \since QGIS 3.30
+     */
+    QList< QgsMapLayerStore * > layerStores() const;
+
+    /**
+     * Sets the destination layer \a store for any layers loaded during
+     * expression evaluation.
+     *
+     * Ownership of the \a store is not transferred to the context, it is the caller's
+     * responsibility to ensure that the store remains alive for the duration of the
+     * expression context.
+     *
+     * \see loadedLayerStore()
+     * \since QGIS 3.30
+     */
+    void setLoadedLayerStore( QgsMapLayerStore *store );
+
+    /**
+     * Returns the destination layer store for any layers loaded during
+     * expression evaluation.
+     *
+     * \see setLoadedLayerStore()
+     * \since QGIS 3.30
+     */
+    QgsMapLayerStore *loadedLayerStore() const;
 
     /**
      * Attach a \a feedback object that can be queried regularly by the expression engine to check
@@ -772,6 +914,9 @@ class CORE_EXPORT QgsExpressionContext
     QStringList mHighlightedFunctions;
 
     QgsFeedback *mFeedback = nullptr;
+
+    std::unique_ptr< LoadLayerFunction > mLoadLayerFunction;
+    QPointer< QgsMapLayerStore > mDestinationStore;
 
     // Cache is mutable because we want to be able to add cached values to const contexts
     mutable QMap< QString, QVariant > mCachedValues;

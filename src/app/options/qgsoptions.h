@@ -34,6 +34,7 @@ class QgsOptionsPageWidget;
 class QgsLocatorOptionsWidget;
 class QgsAuthConfigSelect;
 class QgsBearingNumericFormat;
+class QgsGeographicCoordinateNumericFormat;
 class QStandardItemModel;
 
 /**
@@ -73,7 +74,6 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
 
     /**
      * Sets the page with the specified widget name as the current page
-     * \since QGIS 2.1
      */
     void setCurrentPage( const QString &pageWidgetName );
 
@@ -99,7 +99,7 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     void rejectOptions();
 
     //! Slot to change the theme this is handled when the user
-    void iconSizeChanged( const QString &iconSize );
+    void iconSizeChanged();
 
     void uiThemeChanged( const QString &theme );
 
@@ -110,25 +110,6 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
 
     //! Slot to choose path to project to open after launch
     void selectProjectOnLaunch();
-
-    /**
-     * Returns the desired state of newly added layers. If a layer
-     * is to be drawn when added to the map, this function returns
-     * TRUE.
-     */
-    bool newVisible();
-
-    //! Slot to select the default font point size for app
-    void spinFontSize_valueChanged( int fontSize );
-
-    //! Slot to set font family for app to Qt default
-    void mFontFamilyRadioQt_released();
-
-    //! Slot to set font family for app to custom choice
-    void mFontFamilyRadioCustom_released();
-
-    //! Slot to select custom font family choice for app
-    void mFontFamilyComboBox_currentFontChanged( const QFont &font );
 
     void mProxyTypeComboBox_currentIndexChanged( int idx );
 
@@ -271,15 +252,12 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     void addLocalizedDataPath();
     void moveLocalizedDataPathUp();
     void moveLocalizedDataPathDown();
+    void alwaysUseDecimalPointChanged( bool checked );
 
   private:
     QgsSettings *mSettings = nullptr;
     QStringList i18nList();
 
-    void initContrastEnhancement( QComboBox *cbox, const QString &name, const QString &defaultVal );
-    void saveContrastEnhancement( QComboBox *cbox, const QString &name );
-    void initMinMaxLimits( QComboBox *cbox, const QString &name, const QString &defaultVal );
-    void saveMinMaxLimits( QComboBox *cbox, const QString &name );
     void setZoomFactorValue();
     double zoomFactorValue();
     QgsCoordinateReferenceSystem mLayerDefaultCrs;
@@ -298,11 +276,10 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     void updateSampleLocaleText();
 
     void customizeBearingFormat();
+    void customizeCoordinateFormat();
 
   protected:
     QgisAppStyleSheet *mStyleSheetBuilder = nullptr;
-    QMap<QString, QVariant> mStyleSheetNewOpts;
-    QMap<QString, QVariant> mStyleSheetOldOpts;
 
     static const int PALETTE_COLOR_ROLE = Qt::UserRole + 1;
     static const int PALETTE_LABEL_ROLE = Qt::UserRole + 2;
@@ -313,6 +290,7 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     QgsLocatorOptionsWidget *mLocatorOptionsWidget = nullptr;
 
     std::unique_ptr< QgsBearingNumericFormat > mBearingFormat;
+    std::unique_ptr< QgsGeographicCoordinateNumericFormat > mCoordinateFormat;
 
     QStandardItemModel *mTreeModel = nullptr;
 

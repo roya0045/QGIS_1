@@ -20,6 +20,7 @@
 
 //for CMAKE_INSTALL_PREFIX
 #include "qgsconfig.h"
+#include "qgsversion.h"
 #include "qgsserver.h"
 #include "qgsauthmanager.h"
 #include "qgscapabilitiescache.h"
@@ -39,6 +40,7 @@
 #include "qgsserverparameters.h"
 #include "qgsapplication.h"
 #include "qgsruntimeprofiler.h"
+#include "qgscoordinatetransform.h"
 
 #include <QDomDocument>
 #include <QNetworkDiskCache>
@@ -135,7 +137,7 @@ QString QgsServer::configPath( const QString &defaultConfigPath, const QString &
   if ( !projectFile.isEmpty() )
   {
     cfPath = projectFile;
-    QgsDebugMsg( QStringLiteral( "QGIS_PROJECT_FILE:%1" ).arg( cfPath ) );
+    QgsDebugMsgLevel( QStringLiteral( "QGIS_PROJECT_FILE:%1" ).arg( cfPath ), 2 );
   }
   else
   {
@@ -155,7 +157,7 @@ QString QgsServer::configPath( const QString &defaultConfigPath, const QString &
     else
     {
       cfPath = configPath;
-      QgsDebugMsg( QStringLiteral( "MAP:%1" ).arg( cfPath ) );
+      QgsDebugMsgLevel( QStringLiteral( "MAP:%1" ).arg( cfPath ), 2 );
     }
   }
   return cfPath;
@@ -225,8 +227,8 @@ bool QgsServer::init()
       const QgsDatumTransform::GridDetails & grid )
   {
     QgsServerLogger::instance()->logMessage( QStringLiteral( "Cannot use project transform between %1 and %2 - missing grid %3" )
-        .arg( sourceCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ),
-              destinationCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ),
+        .arg( sourceCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ),
+              destinationCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ),
               grid.shortName ),
         QStringLiteral( "QGIS Server" ), Qgis::MessageLevel::Warning );
   } );
@@ -245,8 +247,8 @@ bool QgsServer::init()
       }
     }
     QgsServerLogger::instance()->logMessage( QStringLiteral( "Cannot use project transform between %1 and %2 - %3.\n%4" )
-        .arg( sourceCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ),
-              destinationCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ),
+        .arg( sourceCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ),
+              destinationCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ),
               details.name,
               gridMessage ),
         QStringLiteral( "QGIS Server" ), Qgis::MessageLevel::Warning );
@@ -306,6 +308,8 @@ bool QgsServer::init()
   // Configure locale
   initLocale();
 
+  QgsMessageLog::logMessage( QStringLiteral( "QGIS Server Starting : %1 (%2)" ).arg( _QGIS_VERSION, QGSVERSION ), "Server", Qgis::MessageLevel::Info );
+
   // log settings currently used
   sSettings()->logSummary();
 
@@ -323,11 +327,11 @@ bool QgsServer::init()
 
   QgsApplication::createDatabase(); //init qgis.db (e.g. necessary for user crs)
 
-  // Initialize the authentication system
+  // Sets up the authentication system
   //   creates or uses qgis-auth.db in ~/.qgis3/ or directory defined by QGIS_AUTH_DB_DIR_PATH env variable
   //   set the master password as first line of file defined by QGIS_AUTH_PASSWORD_FILE env variable
   //   (QGIS_AUTH_PASSWORD_FILE variable removed from environment after accessing)
-  QgsApplication::authManager()->init( QgsApplication::pluginPath(), QgsApplication::qgisAuthDatabaseFilePath() );
+  QgsApplication::authManager()->setup( QgsApplication::pluginPath(), QgsApplication::qgisAuthDatabaseFilePath() );
 
   QString defaultConfigFilePath;
   const QFileInfo projectFileInfo = defaultProjectFile(); //try to find a .qgs/.qgz file in the server directory
@@ -348,7 +352,7 @@ bool QgsServer::init()
   sConfigFilePath = new QString( defaultConfigFilePath );
 
   //create cache for capabilities XML
-  sCapabilitiesCache = new QgsCapabilitiesCache();
+  sCapabilitiesCache = new QgsCapabilitiesCache( sSettings()->capabilitiesCacheSize() );
 
   QgsFontUtils::loadStandardTestFonts( QStringList() << QStringLiteral( "Roman" ) << QStringLiteral( "Bold" ) );
 
@@ -360,6 +364,9 @@ bool QgsServer::init()
   const QString modulePath = QgsApplication::libexecPath() + "server";
   // qDebug() << QStringLiteral( "Initializing server modules from: %1" ).arg( modulePath );
   sServiceRegistry->init( modulePath,  sServerInterface );
+
+  // Initialize config cache
+  QgsConfigCache::initialize( sSettings );
 
   sInitialized = true;
   QgsMessageLog::logMessage( QStringLiteral( "Server initialized" ), QStringLiteral( "Server" ), Qgis::MessageLevel::Info );
@@ -391,6 +398,16 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
     qApp->processEvents();
 
     response.clear();
+
+    // Clean up qgis access control filter's cache to prevent side effects
+    // across requests
+#ifdef HAVE_SERVER_PYTHON_PLUGINS
+    QgsAccessControl *accessControls = sServerInterface->accessControls();
+    if ( accessControls )
+    {
+      accessControls->unresolveFilterFeatures();
+    }
+#endif
 
     // Pass the filters to the requestHandler, this is needed for the following reasons:
     // Allow server request to call sendResponse plugin hook if enabled
@@ -427,7 +444,7 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
       sServerInterface->setConfigFilePath( project->fileName() );
     }
 
-    // Call  requestReady() method (if enabled)
+    // Call requestReady() method (if enabled)
     // This may also throw exceptions if there are errors in python plugins code
     try
     {
@@ -449,13 +466,14 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
         printRequestParameters( params.toMap(), logLevel );
 
         // Setup project (config file path)
-        if ( ! project )
+        if ( !project )
         {
           const QString configFilePath = configPath( *sConfigFilePath, params.map() );
 
           // load the project if needed and not empty
           if ( ! configFilePath.isEmpty() )
           {
+            // Note that  QgsConfigCache::project( ... ) call QgsProject::setInstance(...)
             project = mConfigCache->project( configFilePath, sServerInterface->serverSettings() );
           }
         }
@@ -472,6 +490,10 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
           sServerInterface->setConfigFilePath( QString() );
         }
 
+        // Call projectReady() method (if enabled)
+        // This may also throw exceptions if there are errors in python plugins code
+        responseDecorator.ready();
+
         // Note that at this point we still might not have set a valid project.
         // There are APIs that work without a project (e.g. the landing page catalog API that
         // lists the available projects metadata).
@@ -479,6 +501,7 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
         // Dispatcher: if SERVICE is set, we assume a OWS service, if not, let's try an API
         // TODO: QGIS 4 fix the OWS services and treat them as APIs
         QgsServerApi *api = nullptr;
+
         if ( params.service().isEmpty() && ( api = sServiceRegistry->apiForRequest( request ) ) )
         {
           const QgsServerApiContext context { api->rootPath(), &request, &responseDecorator, project, sServerInterface };
@@ -486,7 +509,6 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
         }
         else
         {
-
           // Project is mandatory for OWS at this point
           if ( ! project )
           {
@@ -554,9 +576,9 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
       {
         QgsMessageLog::logMessage( QStringLiteral( "Profile: %1%2, %3 : %4 ms" )
                                    .arg( level > 0 ? QString().fill( '-', level ) + ' ' : QString() )
-                                   .arg( QgsApplication::profiler()->data( idx, QgsRuntimeProfilerNode::Roles::Group ).toString() )
-                                   .arg( QgsApplication::profiler()->data( idx, QgsRuntimeProfilerNode::Roles::Name ).toString() )
-                                   .arg( QString::number( QgsApplication::profiler()->data( idx, QgsRuntimeProfilerNode::Roles::Elapsed ).toDouble() * 1000.0 ) ), QStringLiteral( "Server" ), Qgis::MessageLevel::Info );
+                                   .arg( QgsApplication::profiler()->data( idx, static_cast< int >( QgsRuntimeProfilerNode::CustomRole::Group ) ).toString() )
+                                   .arg( QgsApplication::profiler()->data( idx, static_cast< int >( QgsRuntimeProfilerNode::CustomRole::Name ) ).toString() )
+                                   .arg( QString::number( QgsApplication::profiler()->data( idx, static_cast< int >( QgsRuntimeProfilerNode::CustomRole::Elapsed ) ).toDouble() * 1000.0 ) ), QStringLiteral( "Server" ), Qgis::MessageLevel::Info );
 
         for ( int subRow = 0; subRow < QgsApplication::profiler()->rowCount( idx ); subRow++ )
         {
@@ -575,8 +597,12 @@ void QgsServer::handleRequest( QgsServerRequest &request, QgsServerResponse &res
   }
 
 
-  // Clear the profiler server section after each request
+  // Clear the profiler content after each request
+  QgsApplication::profiler()->clear( QStringLiteral( "startup" ) );
+  QgsApplication::profiler()->clear( QStringLiteral( "projectload" ) );
+  QgsApplication::profiler()->clear( QStringLiteral( "rendering" ) );
   QgsApplication::profiler()->clear( QStringLiteral( "server" ) );
+
 
 }
 
@@ -595,4 +621,3 @@ void QgsServer::initPython()
   }
 }
 #endif
-

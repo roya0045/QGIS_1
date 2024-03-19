@@ -23,8 +23,6 @@
 #include "qgssettings.h"
 #include "qgsrastertransparencywidget.h"
 #include "qgsrasterlayer.h"
-#include "qgsraster.h"
-#include "qgsrasterlayerrenderer.h"
 #include "qgsrasterdataprovider.h"
 #include "qgsrastertransparency.h"
 #include "qgsmaptoolemitpoint.h"
@@ -52,13 +50,14 @@ QgsRasterTransparencyWidget::QgsRasterTransparencyWidget( QgsRasterLayer *layer,
   connect( pbnRemoveSelectedRow, &QToolButton::clicked, this, &QgsRasterTransparencyWidget::pbnRemoveSelectedRow_clicked );
 
   mNodataColorButton->setShowNoColor( true );
-  mNodataColorButton->setColorDialogTitle( tr( "Select No Data Color" ) );
+  mNodataColorButton->setColorDialogTitle( tr( "Select NoData Color" ) );
   syncToLayer();
 
   connect( mOpacityWidget, &QgsOpacityWidget::opacityChanged, this, &QgsPanelWidget::widgetChanged );
   connect( cboxTransparencyBand, &QgsRasterBandComboBox::bandChanged, this, &QgsPanelWidget::widgetChanged );
   connect( mSrcNoDataValueCheckBox, &QCheckBox::stateChanged, this, &QgsPanelWidget::widgetChanged );
   connect( leNoDataValue, &QLineEdit::textEdited, this, &QgsPanelWidget::widgetChanged );
+  leNoDataValue->setValidator( new QgsDoubleValidator( std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max(), this ) );
   connect( mNodataColorButton, &QgsColorButton::colorChanged, this, &QgsPanelWidget::widgetChanged );
 
   mPixelSelectorTool = nullptr;
@@ -72,7 +71,7 @@ QgsRasterTransparencyWidget::QgsRasterTransparencyWidget( QgsRasterLayer *layer,
     pbnAddValuesFromDisplay->setEnabled( false );
   }
 
-  initializeDataDefinedButton( mOpacityDDBtn, QgsRasterPipe::RendererOpacity );
+  initializeDataDefinedButton( mOpacityDDBtn, QgsRasterPipe::Property::RendererOpacity );
 }
 
 void QgsRasterTransparencyWidget::setContext( const QgsSymbolWidgetContext &context )
@@ -129,27 +128,22 @@ void QgsRasterTransparencyWidget::syncToLayer()
 
     cboxTransparencyBand->setShowNotSetOption( true, tr( "None" ) );
     cboxTransparencyBand->setLayer( mRasterLayer );
+    if ( provider->sourceHasNoDataValue( 1 ) )
+    {
+      lblSrcNoDataValue->setText( QgsRasterBlock::printValue( provider->sourceNoDataValue( 1 ) ) );
+    }
+    else
+    {
+      lblSrcNoDataValue->setText( tr( "not defined" ) );
+    }
 
-    mOpacityWidget->setOpacity( renderer->opacity() );
+    mSrcNoDataValueCheckBox->setChecked( provider->useSourceNoDataValue( 1 ) );
 
-    cboxTransparencyBand->setBand( renderer->alphaBand() );
+    const bool enableSrcNoData = provider->sourceHasNoDataValue( 1 ) && !std::isnan( provider->sourceNoDataValue( 1 ) );
+
+    mSrcNoDataValueCheckBox->setEnabled( enableSrcNoData );
+    lblSrcNoDataValue->setEnabled( enableSrcNoData );
   }
-
-  if ( mRasterLayer->dataProvider()->sourceHasNoDataValue( 1 ) )
-  {
-    lblSrcNoDataValue->setText( QgsRasterBlock::printValue( mRasterLayer->dataProvider()->sourceNoDataValue( 1 ) ) );
-  }
-  else
-  {
-    lblSrcNoDataValue->setText( tr( "not defined" ) );
-  }
-
-  mSrcNoDataValueCheckBox->setChecked( mRasterLayer->dataProvider()->useSourceNoDataValue( 1 ) );
-
-  const bool enableSrcNoData = mRasterLayer->dataProvider()->sourceHasNoDataValue( 1 ) && !std::isnan( mRasterLayer->dataProvider()->sourceNoDataValue( 1 ) );
-
-  mSrcNoDataValueCheckBox->setEnabled( enableSrcNoData );
-  lblSrcNoDataValue->setEnabled( enableSrcNoData );
 
   if ( renderer )
   {
@@ -157,14 +151,25 @@ void QgsRasterTransparencyWidget::syncToLayer()
       mNodataColorButton->setColor( renderer->nodataColor() );
     else
       mNodataColorButton->setToNull();
+
+    mOpacityWidget->setOpacity( renderer->opacity() );
+
+    cboxTransparencyBand->setBand( renderer->alphaBand() );
   }
 
-  const QgsRasterRangeList noDataRangeList = mRasterLayer->dataProvider()->userNoDataValues( 1 );
-  QgsDebugMsg( QStringLiteral( "noDataRangeList.size = %1" ).arg( noDataRangeList.size() ) );
-  if ( !noDataRangeList.isEmpty() )
+  if ( provider )
   {
-    const double v = QgsRasterBlock::printValue( noDataRangeList.value( 0 ).min() ).toDouble();
-    leNoDataValue->setText( QLocale().toString( v ) );
+    const QgsRasterRangeList noDataRangeList = provider->userNoDataValues( 1 );
+    QgsDebugMsgLevel( QStringLiteral( "noDataRangeList.size = %1" ).arg( noDataRangeList.size() ), 2 );
+    if ( !noDataRangeList.isEmpty() )
+    {
+      const double v = QgsRasterBlock::printValue( noDataRangeList.value( 0 ).min() ).toDouble();
+      leNoDataValue->setText( QLocale().toString( v ) );
+    }
+    else
+    {
+      leNoDataValue->setText( QString() );
+    }
   }
   else
   {
@@ -180,7 +185,7 @@ void QgsRasterTransparencyWidget::syncToLayer()
 void QgsRasterTransparencyWidget::transparencyCellTextEdited( const QString &text )
 {
   Q_UNUSED( text )
-  QgsDebugMsg( QStringLiteral( "text = %1" ).arg( text ) );
+  QgsDebugMsgLevel( QStringLiteral( "text = %1" ).arg( text ), 2 );
   QgsRasterRenderer *renderer = mRasterLayer->renderer();
   if ( !renderer )
   {
@@ -206,14 +211,14 @@ void QgsRasterTransparencyWidget::transparencyCellTextEdited( const QString &tex
       }
       if ( row != -1 ) break;
     }
-    QgsDebugMsg( QStringLiteral( "row = %1 column =%2" ).arg( row ).arg( column ) );
+    QgsDebugMsgLevel( QStringLiteral( "row = %1 column =%2" ).arg( row ).arg( column ), 2 );
 
     if ( column == 0 )
     {
       QLineEdit *toLineEdit = dynamic_cast<QLineEdit *>( tableTransparency->cellWidget( row, 1 ) );
       if ( !toLineEdit ) return;
       const bool toChanged = mTransparencyToEdited.value( row );
-      QgsDebugMsg( QStringLiteral( "toChanged = %1" ).arg( toChanged ) );
+      QgsDebugMsgLevel( QStringLiteral( "toChanged = %1" ).arg( toChanged ), 2 );
       if ( !toChanged )
       {
         toLineEdit->setText( lineEdit->text() );
@@ -255,8 +260,8 @@ void QgsRasterTransparencyWidget::pbnAddValuesManually_clicked()
 
   setTransparencyCell( tableTransparency->rowCount() - 1, n, 100 );
 
-  tableTransparency->resizeColumnsToContents();
-  tableTransparency->resizeRowsToContents();
+  //tableTransparency->resizeColumnsToContents();
+  //tableTransparency->resizeRowsToContents();
 }
 
 void QgsRasterTransparencyWidget::pbnDefaultValues_clicked()
@@ -271,8 +276,8 @@ void QgsRasterTransparencyWidget::pbnDefaultValues_clicked()
 
   setupTransparencyTable( nBands );
 
-  tableTransparency->resizeColumnsToContents(); // works only with values
-  tableTransparency->resizeRowsToContents();
+  //tableTransparency->resizeColumnsToContents(); // works only with values
+  //tableTransparency->resizeRowsToContents();
 
 }
 
@@ -351,11 +356,7 @@ void QgsRasterTransparencyWidget::pbnImportTransparentPixelValues_clicked()
         {
           if ( !myInputLine.simplified().startsWith( '#' ) )
           {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-            QStringList myTokens = myInputLine.split( QRegExp( "\\s+" ), QString::SkipEmptyParts );
-#else
             QStringList myTokens = myInputLine.split( QRegularExpression( "\\s+" ), Qt::SkipEmptyParts );
-#endif
             if ( myTokens.count() != 4 )
             {
               myImportError = true;
@@ -388,11 +389,7 @@ void QgsRasterTransparencyWidget::pbnImportTransparentPixelValues_clicked()
         {
           if ( !myInputLine.simplified().startsWith( '#' ) )
           {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-            QStringList myTokens = myInputLine.split( QRegExp( "\\s+" ), QString::SkipEmptyParts );
-#else
             QStringList myTokens = myInputLine.split( QRegularExpression( "\\s+" ), Qt::SkipEmptyParts );
-#endif
             if ( myTokens.count() != 3 && myTokens.count() != 2 ) // 2 for QGIS < 1.9 compatibility
             {
               myImportError = true;
@@ -424,8 +421,8 @@ void QgsRasterTransparencyWidget::pbnImportTransparentPixelValues_clicked()
   {
     QMessageBox::warning( this, tr( "Load Pixel Values from File" ), tr( "Read access denied. Adjust the file permissions and try again.\n\n" ) );
   }
-  tableTransparency->resizeColumnsToContents();
-  tableTransparency->resizeRowsToContents();
+  //tableTransparency->resizeColumnsToContents();
+  //tableTransparency->resizeRowsToContents();
   emit widgetChanged();
 }
 
@@ -457,10 +454,13 @@ void QgsRasterTransparencyWidget::apply()
       myNoDataRangeList << myNoDataRange;
     }
   }
-  for ( int bandNo = 1; bandNo <= mRasterLayer->dataProvider()->bandCount(); bandNo++ )
+  if ( QgsRasterDataProvider *provider = mRasterLayer->dataProvider() )
   {
-    mRasterLayer->dataProvider()->setUserNoDataValue( bandNo, myNoDataRangeList );
-    mRasterLayer->dataProvider()->setUseSourceNoDataValue( bandNo, mSrcNoDataValueCheckBox->isChecked() );
+    for ( int bandNo = 1; bandNo <= provider->bandCount(); bandNo++ )
+    {
+      provider->setUserNoDataValue( bandNo, myNoDataRangeList );
+      provider->setUseSourceNoDataValue( bandNo, mSrcNoDataValueCheckBox->isChecked() );
+    }
   }
 
   //transparency settings
@@ -474,31 +474,33 @@ void QgsRasterTransparencyWidget::apply()
     QgsRasterTransparency *rasterTransparency = new QgsRasterTransparency();
     if ( tableTransparency->columnCount() == 4 )
     {
-      QgsRasterTransparency::TransparentThreeValuePixel myTransparentPixel;
-      QList<QgsRasterTransparency::TransparentThreeValuePixel> myTransparentThreeValuePixelList;
+      QVector<QgsRasterTransparency::TransparentThreeValuePixel> myTransparentThreeValuePixelList;
       myTransparentThreeValuePixelList.reserve( tableTransparency->rowCount() );
       for ( int myListRunner = 0; myListRunner < tableTransparency->rowCount(); myListRunner++ )
       {
-        myTransparentPixel.red = transparencyCellValue( myListRunner, 0 );
-        myTransparentPixel.green = transparencyCellValue( myListRunner, 1 );
-        myTransparentPixel.blue = transparencyCellValue( myListRunner, 2 );
-        myTransparentPixel.percentTransparent = transparencyCellValue( myListRunner, 3 );
-        myTransparentThreeValuePixelList.append( myTransparentPixel );
+        const double red = transparencyCellValue( myListRunner, 0 );
+        const double green = transparencyCellValue( myListRunner, 1 );
+        const double blue = transparencyCellValue( myListRunner, 2 );
+        const double opacity = 1.0 - transparencyCellValue( myListRunner, 3 ) / 100.0;
+        myTransparentThreeValuePixelList.append(
+          QgsRasterTransparency::TransparentThreeValuePixel( red, green, blue, opacity )
+        );
       }
       rasterTransparency->setTransparentThreeValuePixelList( myTransparentThreeValuePixelList );
     }
     else if ( tableTransparency->columnCount() == 3 )
     {
-      QgsRasterTransparency::TransparentSingleValuePixel myTransparentPixel;
-      QList<QgsRasterTransparency::TransparentSingleValuePixel> myTransparentSingleValuePixelList;
+      QVector<QgsRasterTransparency::TransparentSingleValuePixel> myTransparentSingleValuePixelList;
       myTransparentSingleValuePixelList.reserve( tableTransparency->rowCount() );
       for ( int myListRunner = 0; myListRunner < tableTransparency->rowCount(); myListRunner++ )
       {
-        myTransparentPixel.min = transparencyCellValue( myListRunner, 0 );
-        myTransparentPixel.max = transparencyCellValue( myListRunner, 1 );
-        myTransparentPixel.percentTransparent = transparencyCellValue( myListRunner, 2 );
+        const double min = transparencyCellValue( myListRunner, 0 );
+        const double max = transparencyCellValue( myListRunner, 1 );
+        const double opacity = 1.0 - transparencyCellValue( myListRunner, 2 ) / 100.0;
 
-        myTransparentSingleValuePixelList.append( myTransparentPixel );
+        myTransparentSingleValuePixelList.append(
+          QgsRasterTransparency::TransparentSingleValuePixel( min, max, opacity )
+        );
       }
       rasterTransparency->setTransparentSingleValuePixelList( myTransparentSingleValuePixelList );
     }
@@ -515,7 +517,7 @@ void QgsRasterTransparencyWidget::apply()
 void QgsRasterTransparencyWidget::initializeDataDefinedButton( QgsPropertyOverrideButton *button, QgsRasterPipe::Property key )
 {
   button->blockSignals( true );
-  button->init( key, mPropertyCollection, QgsRasterPipe::propertyDefinitions(), nullptr );
+  button->init( static_cast< int >( key ), mPropertyCollection, QgsRasterPipe::propertyDefinitions(), nullptr );
   connect( button, &QgsPropertyOverrideButton::changed, this, &QgsRasterTransparencyWidget::updateProperty );
   button->registerExpressionContextGenerator( this );
   button->blockSignals( false );
@@ -559,7 +561,7 @@ void QgsRasterTransparencyWidget::pixelSelected( const QgsPointXY &canvasPoint )
   }
 
   //Get the pixel values and add a new entry to the transparency table
-  if ( mMapCanvas && mPixelSelectorTool )
+  if ( mMapCanvas && mPixelSelectorTool && mRasterLayer->dataProvider() )
   {
     mMapCanvas->unsetMapTool( mPixelSelectorTool );
 
@@ -571,7 +573,7 @@ void QgsRasterTransparencyWidget::pixelSelected( const QgsPointXY &canvasPoint )
     const int myWidth = mMapCanvas->extent().width() / mapUnitsPerPixel;
     const int myHeight = mMapCanvas->extent().height() / mapUnitsPerPixel;
 
-    const QMap<int, QVariant> myPixelMap = mRasterLayer->dataProvider()->identify( myPoint, QgsRaster::IdentifyFormatValue, myExtent, myWidth, myHeight ).results();
+    const QMap<int, QVariant> myPixelMap = mRasterLayer->dataProvider()->identify( myPoint, Qgis::RasterIdentifyFormat::Value, myExtent, myWidth, myHeight ).results();
 
     const QList<int> bands = renderer->usesBands();
 
@@ -581,12 +583,12 @@ void QgsRasterTransparencyWidget::pixelSelected( const QgsPointXY &canvasPoint )
       const int bandNo = bands.value( i );
       if ( myPixelMap.count( bandNo ) == 1 )
       {
-        if ( myPixelMap.value( bandNo ).isNull() )
+        if ( QgsVariantUtils::isNull( myPixelMap.value( bandNo ) ) )
         {
           return; // Don't add nodata, transparent anyway
         }
         const double value = myPixelMap.value( bandNo ).toDouble();
-        QgsDebugMsg( QStringLiteral( "value = %1" ).arg( value, 0, 'g', 17 ) );
+        QgsDebugMsgLevel( QStringLiteral( "value = %1" ).arg( value, 0, 'g', 17 ), 2 );
         values.append( value );
       }
     }
@@ -603,8 +605,8 @@ void QgsRasterTransparencyWidget::pixelSelected( const QgsPointXY &canvasPoint )
     setTransparencyCell( tableTransparency->rowCount() - 1, tableTransparency->columnCount() - 1, 100 );
   }
 
-  tableTransparency->resizeColumnsToContents();
-  tableTransparency->resizeRowsToContents();
+  //tableTransparency->resizeColumnsToContents();
+  //tableTransparency->resizeRowsToContents();
 }
 
 void QgsRasterTransparencyWidget::populateTransparencyTable( QgsRasterRenderer *renderer )
@@ -630,13 +632,13 @@ void QgsRasterTransparencyWidget::populateTransparencyTable( QgsRasterRenderer *
 
   if ( nBands == 1 )
   {
-    QList<QgsRasterTransparency::TransparentSingleValuePixel> pixelList = rasterTransparency->transparentSingleValuePixelList();
+    QVector<QgsRasterTransparency::TransparentSingleValuePixel> pixelList = rasterTransparency->transparentSingleValuePixelList();
     for ( int i = 0; i < pixelList.size(); ++i )
     {
       tableTransparency->insertRow( i );
       setTransparencyCell( i, 0, pixelList[i].min );
       setTransparencyCell( i, 1, pixelList[i].max );
-      setTransparencyCell( i, 2, pixelList[i].percentTransparent );
+      setTransparencyCell( i, 2, 100 * ( 1 - pixelList[i].opacity ) );
       // break synchronization only if values differ
       if ( pixelList[i].min != pixelList[i].max )
       {
@@ -646,14 +648,14 @@ void QgsRasterTransparencyWidget::populateTransparencyTable( QgsRasterRenderer *
   }
   else if ( nBands == 3 )
   {
-    QList<QgsRasterTransparency::TransparentThreeValuePixel> pixelList = rasterTransparency->transparentThreeValuePixelList();
+    QVector<QgsRasterTransparency::TransparentThreeValuePixel> pixelList = rasterTransparency->transparentThreeValuePixelList();
     for ( int i = 0; i < pixelList.size(); ++i )
     {
       tableTransparency->insertRow( i );
       setTransparencyCell( i, 0, pixelList[i].red );
       setTransparencyCell( i, 1, pixelList[i].green );
       setTransparencyCell( i, 2, pixelList[i].blue );
-      setTransparencyCell( i, 3, pixelList[i].percentTransparent );
+      setTransparencyCell( i, 3, 100 * ( 1 - pixelList[i].opacity ) );
     }
   }
 
@@ -702,12 +704,14 @@ void QgsRasterTransparencyWidget::setupTransparencyTable( int nBands )
 
 void QgsRasterTransparencyWidget::setTransparencyCell( int row, int column, double value )
 {
-  QgsDebugMsg( QStringLiteral( "value = %1" ).arg( value, 0, 'g', 17 ) );
+  QgsDebugMsgLevel( QStringLiteral( "value = %1" ).arg( value, 0, 'g', 17 ), 2 );
   QgsRasterDataProvider *provider = mRasterLayer->dataProvider();
-  if ( !provider ) return;
+  if ( !provider )
+    return;
 
   QgsRasterRenderer *renderer = mRasterLayer->renderer();
-  if ( !renderer ) return;
+  if ( !renderer )
+    return;
   const int nBands = renderer->usesBands().size();
 
   QLineEdit *lineEdit = new QLineEdit();
@@ -755,7 +759,7 @@ void QgsRasterTransparencyWidget::setTransparencyCell( int row, int column, doub
   {
     connect( lineEdit, &QLineEdit::textEdited, this, &QgsRasterTransparencyWidget::transparencyCellTextEdited );
   }
-  tableTransparency->resizeColumnsToContents();
+  //tableTransparency->resizeColumnsToContents();
   emit widgetChanged();
 }
 
@@ -788,4 +792,9 @@ double QgsRasterTransparencyWidget::transparencyCellValue( int row, int column )
   }
   return QgsDoubleValidator::toDouble( lineEdit->text() );
 
+}
+
+QgsMapToolEmitPoint *QgsRasterTransparencyWidget::pixelSelectorTool() const
+{
+  return mPixelSelectorTool;
 }

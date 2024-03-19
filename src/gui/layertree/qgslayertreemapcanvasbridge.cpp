@@ -154,7 +154,18 @@ void QgsLayerTreeMapCanvasBridge::setCanvasLayers( QgsLayerTreeNode *node, QList
 
   const QList<QgsLayerTreeNode *> children = node->children();
   for ( QgsLayerTreeNode *child : children )
+  {
+    if ( QgsLayerTree::isGroup( child ) )
+    {
+      if ( QgsGroupLayer *groupLayer = QgsLayerTree::toGroup( child )->groupLayer() )
+      {
+        if ( child->isVisible() )
+          canvasLayers << groupLayer;
+        continue;
+      }
+    }
     setCanvasLayers( child, canvasLayers, overviewLayers, allLayers );
+  }
 }
 
 void QgsLayerTreeMapCanvasBridge::deferredSetCanvasLayers()

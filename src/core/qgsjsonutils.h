@@ -25,6 +25,11 @@
 #include <QPointer>
 #include <QJsonObject>
 
+#ifndef SIP_RUN
+#include "json_fwd.hpp"
+using namespace nlohmann;
+#endif
+
 class QTextCodec;
 
 /**
@@ -34,7 +39,6 @@ class QTextCodec;
  *
  * Note that geometries will be automatically reprojected to WGS84 to match GeoJSON spec
  * if either the source vector layer or source CRS is set.
- * \since QGIS 2.16
  */
 
 class CORE_EXPORT QgsJsonExporter
@@ -241,6 +245,17 @@ class CORE_EXPORT QgsJsonExporter
      */
     json exportFeaturesToJsonObject( const QgsFeatureList &features ) const SIP_SKIP;
 
+    /**
+     * Set the destination CRS for feature geometry transformation to \a destinationCrs, this defaults to EPSG:4326
+     * and it is only effective when the automatic geometry transformation is active (it is by default).
+     *
+     * \see setTransformGeometries()
+     * \see  setSourceCrs()
+     *
+     * \since QGIS 3.30
+     */
+    void setDestinationCrs( const QgsCoordinateReferenceSystem &destinationCrs );
+
   private:
 
     //! Maximum number of decimal places for geometry coordinates
@@ -274,13 +289,14 @@ class CORE_EXPORT QgsJsonExporter
     bool mAttributeDisplayName = false;
 
     bool mTransformGeometries = true;
+
+    QgsCoordinateReferenceSystem mDestinationCrs;
 };
 
 /**
  * \ingroup core
  * \class QgsJsonUtils
  * \brief Helper utilities for working with JSON and GeoJSON conversions.
- * \since QGIS 2.16
  */
 
 class CORE_EXPORT QgsJsonUtils
@@ -297,7 +313,7 @@ class CORE_EXPORT QgsJsonUtils
      * \see stringToFields()
      * \note this function is a wrapper around QgsOgrUtils::stringToFeatureList()
      */
-    static QgsFeatureList stringToFeatureList( const QString &string, const QgsFields &fields = QgsFields(), QTextCodec *encoding = nullptr );
+    static QgsFeatureList stringToFeatureList( const QString &string, const QgsFields &fields = QgsFields(), QTextCodec *encoding SIP_PYARGREMOVE6 = nullptr );
 
     /**
      * Attempts to retrieve the fields from a GeoJSON  \a string representing a collection of features.
@@ -306,7 +322,7 @@ class CORE_EXPORT QgsJsonUtils
      * \see stringToFeatureList()
      * \note this function is a wrapper around QgsOgrUtils::stringToFields()
      */
-    static QgsFields stringToFields( const QString &string, QTextCodec *encoding = nullptr );
+    static QgsFields stringToFields( const QString &string, QTextCodec *encoding SIP_PYARGREMOVE6 = nullptr );
 
     /**
      * Encodes a value to a JSON string representation, adding appropriate quotations and escaping
@@ -346,10 +362,27 @@ class CORE_EXPORT QgsJsonUtils
      * \param type optional variant type of the elements, if specified (and not Invalid),
      *        the array items will be converted to the type, and discarded if
      *        the conversion is not possible.
-     * \since QGIS 3.0
      */
     Q_INVOKABLE static QVariantList parseArray( const QString &json, QVariant::Type type = QVariant::Invalid );
 
+    /**
+     * Parses a GeoJSON "geometry" value to a QgsGeometry object.
+     *
+     * Returns a null geometry if the geometry could not be parsed.
+     *
+     * \note Not available in Python bindings.
+     * \since QGIS 3.36
+     */
+    static QgsGeometry geometryFromGeoJson( const json &geometry ) SIP_SKIP;
+
+    /**
+     * Parses a GeoJSON "geometry" value to a QgsGeometry object.
+     *
+     * Returns a null geometry if the geometry could not be parsed.
+     *
+     * \since QGIS 3.36
+     */
+    static QgsGeometry geometryFromGeoJson( const QString &geometry );
 
     /**
      * Converts a QVariant \a v to a json object
@@ -359,11 +392,22 @@ class CORE_EXPORT QgsJsonUtils
     static json jsonFromVariant( const QVariant &v ) SIP_SKIP;
 
     /**
-     * Converts JSON \a jsonString to a QVariant, in case of parsing error an invalid QVariant is returned.
+     * Converts JSON \a jsonString to a QVariant, in case of parsing error an invalid QVariant is returned and an
+     * error is logged to the message log.
+     *
      * \note Not available in Python bindings
      * \since QGIS 3.8
      */
     static QVariant parseJson( const std::string &jsonString ) SIP_SKIP;
+
+    /**
+     * Converts JSON \a jsonString to a QVariant, in case of parsing error an invalid QVariant is returned
+     * and the \a error argument is populated accordingly.
+     *
+     * \note Not available in Python bindings
+     * \since QGIS 3.24
+     */
+    static QVariant parseJson( const std::string &jsonString, QString &error ) SIP_SKIP;
 
     /**
      * Converts JSON \a jsonString to a QVariant, in case of parsing error an invalid QVariant is returned.
@@ -371,6 +415,13 @@ class CORE_EXPORT QgsJsonUtils
      * \since QGIS 3.8
      */
     static QVariant parseJson( const QString &jsonString ) SIP_SKIP;
+
+    /**
+     * Converts a JSON \a value to a QVariant, in case of parsing error an invalid QVariant is returned.
+     * \note Not available in Python bindings
+     * \since QGIS 3.36
+     */
+    static QVariant jsonToVariant( const json &value ) SIP_SKIP;
 
 };
 

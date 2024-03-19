@@ -24,6 +24,7 @@
 #include "qgscoordinatereferencesystem.h"
 #include "qgsmargins.h"
 #include "qgsmaplayer.h"
+#include "qgsfeature.h"
 
 #include <QPointer>
 
@@ -46,7 +47,6 @@ class QgsFillSymbol;
  * Derived classes should implement their custom painting routines within
  * a renderAnnotation() override.
  *
- * \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsAnnotation : public QObject

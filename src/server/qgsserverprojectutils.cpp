@@ -188,6 +188,18 @@ bool QgsServerProjectUtils::wmsFeatureInfoSegmentizeWktGeometry( const QgsProjec
          || segmGeom.compare( QLatin1String( "true" ), Qt::CaseInsensitive ) == 0;
 }
 
+bool QgsServerProjectUtils::wmsAddLegendGroupsLegendGraphic( const QgsProject &project )
+{
+  const QString legendGroups = project.readEntry( QStringLiteral( "WMSAddLayerGroupsLegendGraphic" ), QStringLiteral( "/" ), "" );
+  return legendGroups.compare( QLatin1String( "enabled" ), Qt::CaseInsensitive ) == 0
+         || legendGroups.compare( QLatin1String( "true" ), Qt::CaseInsensitive ) == 0;
+}
+
+bool QgsServerProjectUtils::wmsSkipNameForGroup( const QgsProject &project )
+{
+  return project.readBoolEntry( QStringLiteral( "WMSSkipNameForGroup" ), QStringLiteral( "/" ), false );
+}
+
 int QgsServerProjectUtils::wmsFeatureInfoPrecision( const QgsProject &project )
 {
   return project.readNumEntry( QStringLiteral( "WMSPrecision" ), QStringLiteral( "/" ), 6 );
@@ -355,7 +367,7 @@ QString QgsServerProjectUtils::serviceUrl( const QString &service, const QgsServ
   QString proto;
   QString host;
 
-  QString  forwarded = request.header( QgsServerRequest::FORWARDED );
+  QString forwarded = request.header( QgsServerRequest::FORWARDED );
   if ( ! forwarded.isEmpty() )
   {
     forwarded = forwarded.split( QLatin1Char( ',' ) )[0];
@@ -407,7 +419,18 @@ QString QgsServerProjectUtils::serviceUrl( const QString &service, const QgsServ
   }
 
   // https://docs.qgis.org/3.16/en/docs/server_manual/services.html#wms-map
-  const QString map = request.parameter( QStringLiteral( "MAP" ) );
+  const QUrlQuery query { request.originalUrl().query() };
+  const QList<QPair<QString, QString>> constItems { query.queryItems( ) };
+  QString map;
+  for ( const QPair<QString, QString> &item : std::as_const( constItems ) )
+  {
+    if ( 0 == item.first.compare( QLatin1String( "MAP" ), Qt::CaseSensitivity::CaseInsensitive ) )
+    {
+      map = item.second;
+      break;
+    }
+  }
+
   if ( ! map.isEmpty() )
   {
     QUrlQuery query;
@@ -418,6 +441,7 @@ QString QgsServerProjectUtils::serviceUrl( const QString &service, const QgsServ
   {
     urlQUrl.setQuery( NULL );
   }
+
   return urlQUrl.url();
 }
 
@@ -521,3 +545,4 @@ bool QgsServerProjectUtils::wmsRenderMapTiles( const QgsProject &project )
 {
   return project.readBoolEntry( QStringLiteral( "RenderMapTile" ), QStringLiteral( "/" ), false );
 }
+

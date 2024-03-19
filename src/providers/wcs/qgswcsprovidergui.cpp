@@ -13,12 +13,17 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "qgswcsprovider.h"
+#include "qgswcsprovidergui.h"
 
+#include "qgswcsprovider.h"
 #include "qgswcssourceselect.h"
 #include "qgssourceselectprovider.h"
 #include "qgsproviderguimetadata.h"
+#include "qgsprovidersourcewidgetprovider.h"
+#include "qgsowssourcewidget.h"
 #include "qgswcsdataitemguiprovider.h"
+
+#include "qgsmaplayer.h"
 
 
 //! Provider for WCS layers source select
@@ -37,30 +42,59 @@ class QgsWcsSourceSelectProvider : public QgsSourceSelectProvider
 };
 
 
-class QgsWcsProviderGuiMetadata: public QgsProviderGuiMetadata
+
+QgsWcsSourceWidgetProvider::QgsWcsSourceWidgetProvider() {}
+
+QString QgsWcsSourceWidgetProvider::providerKey() const
 {
-  public:
-    QgsWcsProviderGuiMetadata()
-      : QgsProviderGuiMetadata( QgsWcsProvider::WCS_KEY )
-    {
-    }
+  return QStringLiteral( "wcs" );
+}
+bool QgsWcsSourceWidgetProvider::canHandleLayer( QgsMapLayer *layer ) const
+{
+  return layer->providerType() == QLatin1String( "wcs" );
+}
 
-    QList<QgsSourceSelectProvider *> sourceSelectProviders() override
-    {
-      QList<QgsSourceSelectProvider *> providers;
-      providers << new QgsWcsSourceSelectProvider;
-      return providers;
-    }
+QgsProviderSourceWidget *QgsWcsSourceWidgetProvider::createWidget( QgsMapLayer *layer, QWidget *parent )
+{
+  if ( layer->providerType() != QLatin1String( "wcs" ) )
+    return nullptr;
 
-    QList<QgsDataItemGuiProvider *> dataItemGuiProviders() override
-    {
-      return QList<QgsDataItemGuiProvider *>()
-             << new QgsWcsDataItemGuiProvider;
-    }
-};
+  QgsOWSSourceWidget *sourceWidget = new QgsOWSSourceWidget( QLatin1String( "wcs" ),  parent );
+
+  return sourceWidget;
+}
 
 
+
+QgsWcsProviderGuiMetadata::QgsWcsProviderGuiMetadata()
+  : QgsProviderGuiMetadata( QgsWcsProvider::WCS_KEY )
+{
+}
+
+QList<QgsSourceSelectProvider *> QgsWcsProviderGuiMetadata::sourceSelectProviders()
+{
+  QList<QgsSourceSelectProvider *> providers;
+  providers << new QgsWcsSourceSelectProvider;
+  return providers;
+}
+
+QList<QgsDataItemGuiProvider *> QgsWcsProviderGuiMetadata::dataItemGuiProviders()
+{
+  return QList<QgsDataItemGuiProvider *>()
+         << new QgsWcsDataItemGuiProvider;
+}
+
+QList<QgsProviderSourceWidgetProvider *> QgsWcsProviderGuiMetadata::sourceWidgetProviders()
+{
+  QList<QgsProviderSourceWidgetProvider *> providers;
+  providers << new QgsWcsSourceWidgetProvider();
+  return providers;
+}
+
+
+#ifndef HAVE_STATIC_PROVIDERS
 QGISEXTERN QgsProviderGuiMetadata *providerGuiMetadataFactory()
 {
   return new QgsWcsProviderGuiMetadata();
 }
+#endif

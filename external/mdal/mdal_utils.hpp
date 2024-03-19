@@ -15,7 +15,7 @@
 #include <cmath>
 #include <functional>
 
-#if defined (WIN32)
+#ifdef _WIN32
 #include <windows.h>
 #undef min
 #undef max
@@ -55,6 +55,14 @@ namespace MDAL
   //! returns quiet_NaN if value equals nodata value, otherwise returns val itself
   double safeValue( double val, double nodata, double eps = std::numeric_limits<double>::epsilon() );
 
+  //! Opens the file related to \a inputFileStream
+  bool openInputFile( std::ifstream &inputFileStream, const std::string &fileName, std::ifstream::openmode mode = std::ifstream::binary );
+  //! Returns a opened input stream file with\a fileName and \a mode
+  std::ifstream openInputFile( const std::string &fileName, std::ios_base::openmode mode = std::ifstream::in );
+
+  //! Returns a opened output stream file with\a fileName and \a mode
+  std::ofstream openOutputFile( const std::string &fileName, std::ios_base::openmode mode = std::ios_base::in );
+
   /** Return whether file exists */
   bool fileExists( const std::string &filename );
   std::string baseName( const std::string &filename, bool keepExtension = false );
@@ -89,6 +97,7 @@ namespace MDAL
   size_t toSizeT( const std::string &str );
   size_t toSizeT( const char &str );
   size_t toSizeT( const double value );
+  size_t toSizeT( const int value );
   int toInt( const std::string &str );
   int toInt( const size_t value );
   double toDouble( const std::string &str );
@@ -129,6 +138,9 @@ namespace MDAL
   std::string trim(
     const std::string &s,
     const std::string &delimiters = " \f\n\r\t\v" );
+
+  //! Returns a string file path encoded consistently with the system from a string encoded with UTF-8
+  std::string systemFileName( const std::string &utf8FileName );
 
   // extent
   BBox computeExtent( const Vertices &vertices );
@@ -268,7 +280,7 @@ namespace MDAL
       {
         if ( !isValid() )
           return std::function<T( Ts ... args )>();
-#ifdef WIN32
+#ifdef _WIN32
         FARPROC proc = GetProcAddress( d->mLibrary, symbolName.c_str() );
 
         if ( !proc )
@@ -299,12 +311,12 @@ namespace MDAL
     private:
       struct Data
       {
-#ifdef  WIN32
+#ifdef _WIN32
         HINSTANCE  mLibrary = nullptr;
 #else
         void *mLibrary = nullptr;
 #endif
-        mutable int mRef = 1;
+        mutable int mRef = 0;
         std::string mLibraryFile;
       };
 

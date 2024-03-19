@@ -19,7 +19,7 @@
 #define QGSLAYOUTSIZE_H
 
 #include "qgis_core.h"
-#include "qgsunittypes.h"
+#include "qgis.h"
 #include <QSizeF>
 
 
@@ -35,7 +35,6 @@
  * addition of two QgsLayoutSize with different unit types would automatically convert units. Instead,
  * all unit conversion must be handled by a QgsLayoutMeasurementConverter so that conversion between
  * paper and screen units can be correctly performed.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutSize
 {
@@ -47,18 +46,18 @@ class CORE_EXPORT QgsLayoutSize
      * \param height height
      * \param units units for width and height
     */
-    QgsLayoutSize( double width, double height, QgsUnitTypes::LayoutUnit units = QgsUnitTypes::LayoutMillimeters );
+    QgsLayoutSize( double width, double height, Qgis::LayoutUnit units = Qgis::LayoutUnit::Millimeters );
 
     /**
      * Constructor for QgsLayoutSize.
     */
-    explicit QgsLayoutSize( QSizeF size, QgsUnitTypes::LayoutUnit units = QgsUnitTypes::LayoutMillimeters );
+    explicit QgsLayoutSize( QSizeF size, Qgis::LayoutUnit units = Qgis::LayoutUnit::Millimeters );
 
     /**
      * Constructor for an empty layout size
      * \param units units for measurement
     */
-    explicit QgsLayoutSize( QgsUnitTypes::LayoutUnit units = QgsUnitTypes::LayoutMillimeters );
+    explicit QgsLayoutSize( Qgis::LayoutUnit units = Qgis::LayoutUnit::Millimeters );
 
     /**
      * Sets new \a width and \a height for the size.
@@ -100,14 +99,14 @@ class CORE_EXPORT QgsLayoutSize
      * Returns the units for the size.
      * \see setUnits()
     */
-    QgsUnitTypes::LayoutUnit units() const { return mUnits; }
+    Qgis::LayoutUnit units() const { return mUnits; }
 
     /**
      * Sets the \a units for the size. Does not alter the stored width or height,
      * ie. no conversion is done.
      * \see units()
     */
-    void setUnits( const QgsUnitTypes::LayoutUnit units ) { mUnits = units; }
+    void setUnits( const Qgis::LayoutUnit units ) { mUnits = units; }
 
     /**
      * Tests whether the size is empty, ie both its width and height
@@ -170,7 +169,7 @@ class CORE_EXPORT QgsLayoutSize
 
     double mWidth = 0.0;
     double mHeight = 0.0;
-    QgsUnitTypes::LayoutUnit mUnits = QgsUnitTypes::LayoutMillimeters;
+    Qgis::LayoutUnit mUnits = Qgis::LayoutUnit::Millimeters;
 
 };
 

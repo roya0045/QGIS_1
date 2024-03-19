@@ -19,10 +19,7 @@
 
 #include "qgis.h"
 #include "qgsmeshlayer.h"
-#include "qgsmeshlayerutils.h"
-#include "qgsmessagelog.h"
 #include "qgsmeshvariablestrokewidthwidget.h"
-#include "qgssettings.h"
 #include <QPointer>
 
 QgsMeshRendererScalarSettingsWidget::QgsMeshRendererScalarSettingsWidget( QWidget *parent )
@@ -37,15 +34,17 @@ QgsMeshRendererScalarSettingsWidget::QgsMeshRendererScalarSettingsWidget( QWidge
   mScalarMaxSpinBox->setSpecialValueText( QString( ) );
 
   // add items to data interpolation combo box
-  mScalarInterpolationTypeComboBox->addItem( tr( "None" ), QgsMeshRendererScalarSettings::None );
+  mScalarInterpolationTypeComboBox->addItem( tr( "No Resampling" ), QgsMeshRendererScalarSettings::NoResampling );
   mScalarInterpolationTypeComboBox->addItem( tr( "Neighbour Average" ), QgsMeshRendererScalarSettings::NeighbourAverage );
   mScalarInterpolationTypeComboBox->setCurrentIndex( 0 );
 
-  mScalarEdgeStrokeWidthUnitSelectionWidget->setUnits( QgsUnitTypes::RenderUnitList()
-      << QgsUnitTypes::RenderMillimeters
-      << QgsUnitTypes::RenderMetersInMapUnits
-      << QgsUnitTypes::RenderPixels
-      << QgsUnitTypes::RenderPoints );
+  mScalarEdgeStrokeWidthUnitSelectionWidget->setUnits(
+  {
+    Qgis::RenderUnit::Millimeters,
+    Qgis::RenderUnit::MetersInMapUnits,
+    Qgis::RenderUnit::Pixels,
+    Qgis::RenderUnit::Points,
+  } );
 
   // connect
   connect( mScalarRecalculateMinMaxButton, &QPushButton::clicked, this, &QgsMeshRendererScalarSettingsWidget::recalculateMinMaxButtonClicked );

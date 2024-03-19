@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsVectorLayerFeatureCounter.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,29 +9,21 @@ __author__ = 'Mathieu Pellerin'
 __date__ = '08/02/2021'
 __copyright__ = 'Copyright 2021, The QGIS Project'
 
-import qgis  # NOQA
-
-import os
-
-from qgis.PyQt.QtCore import QVariant, Qt, QDateTime, QDate, QTime
-from qgis.PyQt.QtGui import QPainter
-from qgis.PyQt.QtXml import QDomDocument
+from qgis.PyQt.QtCore import QDate, QDateTime, QTime
 from qgis.PyQt.QtTest import QSignalSpy
-
-from qgis.core import (QgsWkbTypes,
-                       QgsVectorLayer,
-                       QgsFeature,
-                       QgsGeometry,
-                       QgsField,
-                       QgsFields,
-                       NULL)
-from qgis.testing import start_app, unittest
-from utilities import unitTestDataPath
+from qgis.core import (
+    NULL,
+    QgsFeature,
+    QgsGeometry,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsVectorLayerFeatureCounter(unittest.TestCase):
+class TestQgsVectorLayerFeatureCounter(QgisTestCase):
 
     def setUp(self):
 
@@ -68,8 +59,8 @@ class TestQgsVectorLayerFeatureCounter(unittest.TestCase):
         assert (self.vl2.isValid())
 
     def tearDown(self):
-        del(self.vl)
-        del(self.vl2)
+        del self.vl
+        del self.vl2
 
     def testFeaturesCount(self):
 

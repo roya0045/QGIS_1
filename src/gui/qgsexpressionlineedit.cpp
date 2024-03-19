@@ -31,7 +31,7 @@
 
 QgsExpressionLineEdit::QgsExpressionLineEdit( QWidget *parent )
   : QWidget( parent )
-  , mExpressionDialogTitle( tr( "Expression Dialog" ) )
+  , mExpressionDialogTitle( tr( "Expression Builder" ) )
 {
   mButton = new QToolButton();
   mButton->setSizePolicy( QSizePolicy::Minimum, QSizePolicy::Minimum );
@@ -142,7 +142,8 @@ QString QgsExpressionLineEdit::expression() const
 bool QgsExpressionLineEdit::isValidExpression( QString *expressionError ) const
 {
   QString temp;
-  return QgsExpression::checkExpression( expression(), &mExpressionContext, expressionError ? *expressionError : temp );
+  const QgsExpressionContext context = mExpressionContextGenerator ? mExpressionContextGenerator->createExpressionContext() : mExpressionContext;
+  return QgsExpression::checkExpression( expression(), &context, expressionError ? *expressionError : temp );
 }
 
 void QgsExpressionLineEdit::registerExpressionContextGenerator( const QgsExpressionContextGenerator *generator )
@@ -203,10 +204,11 @@ void QgsExpressionLineEdit::updateLineEditStyle( const QString &expression )
   if ( !mLineEdit )
     return;
 
+  QPalette appPalette = qApp->palette();
   QPalette palette = mLineEdit->palette();
   if ( !isEnabled() )
   {
-    palette.setColor( QPalette::Text, Qt::gray );
+    palette.setColor( QPalette::Text, appPalette.color( QPalette::Disabled, QPalette::Text ) );
   }
   else
   {
@@ -221,7 +223,7 @@ void QgsExpressionLineEdit::updateLineEditStyle( const QString &expression )
     }
     else
     {
-      palette.setColor( QPalette::Text, Qt::black );
+      palette.setColor( QPalette::Text, appPalette.color( QPalette::Text ) );
     }
   }
   mLineEdit->setPalette( palette );
@@ -230,6 +232,8 @@ void QgsExpressionLineEdit::updateLineEditStyle( const QString &expression )
 bool QgsExpressionLineEdit::isExpressionValid( const QString &expressionStr )
 {
   QgsExpression expression( expressionStr );
+
+  const QgsExpressionContext context = mExpressionContextGenerator ? mExpressionContextGenerator->createExpressionContext() : mExpressionContext;
   expression.prepare( &mExpressionContext );
   return !expression.hasParserError();
 }

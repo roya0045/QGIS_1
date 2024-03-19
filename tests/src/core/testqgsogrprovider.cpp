@@ -24,6 +24,7 @@
 #include <qgsproviderregistry.h>
 #include <qgsvectorlayer.h>
 #include <qgsnetworkaccessmanager.h>
+#include <qgsprovidermetadata.h>
 
 #include <QObject>
 #include <QThread>
@@ -35,25 +36,27 @@
  * \ingroup UnitTests
  * This is a unit test for the ogr provider
  */
-class TestQgsOgrProvider : public QObject
+class TestQgsOgrProvider : public QgsTest
 {
     Q_OBJECT
+
+  public:
+    TestQgsOgrProvider() : QgsTest( QStringLiteral( "OGR Provider Tests" ) ) {}
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init() {}// will be called before each testfunction is executed.
-    void cleanup() {}// will be called after every testfunction.
 
     void setupProxy();
     void decodeUri();
     void encodeUri();
     void testThread();
     void testCsvFeatureAddition();
+    void absoluteRelativeUri();
+    void testExtent();
 
   private:
     QString mTestDataDir;
-    QString mReport;
   signals:
 
   public slots:
@@ -69,21 +72,12 @@ void TestQgsOgrProvider::initTestCase()
   QgsApplication::initQgis();
 
   mTestDataDir = QStringLiteral( TEST_DATA_DIR ) + '/'; //defined in CmakeLists.txt
-  mReport = QStringLiteral( "<h1>OGR Provider Tests</h1>\n" );
 }
 
 //runs after all tests
 void TestQgsOgrProvider::cleanupTestCase()
 {
   QgsApplication::exitQgis();
-  const QString myReportFile = QDir::tempPath() + "/qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-  }
 }
 
 void TestQgsOgrProvider::setupProxy()
@@ -92,7 +86,7 @@ void TestQgsOgrProvider::setupProxy()
   QgsSettings settings;
   {
     settings.setValue( QStringLiteral( "proxy/proxyEnabled" ), true );
-    settings.setValue( QStringLiteral( "proxy/proxyPort" ), QStringLiteral( "1234" ) );
+    settings.setValue( QStringLiteral( "proxy/proxyPort" ), QStringLiteral( "38124" ) );
     settings.setValue( QStringLiteral( "proxy/proxyHost" ), QStringLiteral( "myproxyhostname.com" ) );
     settings.setValue( QStringLiteral( "proxy/proxyUser" ), QStringLiteral( "username" ) );
     settings.setValue( QStringLiteral( "proxy/proxyPassword" ), QStringLiteral( "password" ) );
@@ -101,7 +95,7 @@ void TestQgsOgrProvider::setupProxy()
     const QgsVectorLayer vl( mTestDataDir + '/' + QStringLiteral( "lines.shp" ), QStringLiteral( "proxy_test" ), QLatin1String( "ogr" ) );
     QVERIFY( vl.isValid() );
     const char *proxyConfig = CPLGetConfigOption( "GDAL_HTTP_PROXY", nullptr );
-    QCOMPARE( proxyConfig, "myproxyhostname.com:1234" );
+    QCOMPARE( proxyConfig, "myproxyhostname.com:38124" );
     const char *proxyCredentials = CPLGetConfigOption( "GDAL_HTTP_PROXYUSERPWD", nullptr );
     QCOMPARE( proxyCredentials, "username:password" );
   }
@@ -127,11 +121,12 @@ void TestQgsOgrProvider::setupProxy()
 void TestQgsOgrProvider::decodeUri()
 {
   auto parts( QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "ogr" ), QStringLiteral( "MySQL:database_name,host=localhost,port=3306 authcfg='f8wwfx8'" ) ) );
-  QCOMPARE( parts.size(), 4 );
+  QCOMPARE( parts.size(), 5 );
   QCOMPARE( parts.value( QStringLiteral( "databaseName" ) ).toString(), QString( "database_name" ) );
   QVERIFY( parts.value( QStringLiteral( "layerName" ) ).toString().isEmpty() );
   QVERIFY( !parts.value( QStringLiteral( "layerId" ) ).isValid() );
-  QCOMPARE( parts.value( QStringLiteral( "path" ) ).toString(), QString( "MySQL:database_name,host=localhost,port=3306 authcfg='f8wwfx8'" ) );
+  QCOMPARE( parts.value( QStringLiteral( "path" ) ).toString(), QString( "MySQL:database_name,host=localhost,port=3306" ) );
+  QCOMPARE( parts.value( QStringLiteral( "authcfg" ) ).toString(), QString( "f8wwfx8" ) );
   QCOMPARE( QgsProviderRegistry::instance()->encodeUri( QStringLiteral( "ogr" ), parts ), QStringLiteral( "MySQL:database_name,host=localhost,port=3306 authcfg='f8wwfx8'" ) );
 
   parts = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "ogr" ), QStringLiteral( "MYSQL:westholland,user=root,password=psv9570,port=3306,tables=bedrijven" ) );
@@ -233,6 +228,11 @@ void TestQgsOgrProvider::decodeUri()
   parts = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "ogr" ), QStringLiteral( "/path/to/a/geopackage.gpkg|option:FOO=BAR|option:FOO2=BAR2" ) );
   QCOMPARE( parts.value( QStringLiteral( "path" ) ).toString(), QString( "/path/to/a/geopackage.gpkg" ) );
   QCOMPARE( parts.value( QStringLiteral( "openOptions" ) ).toStringList(), QStringList() << QStringLiteral( "FOO=BAR" ) << QStringLiteral( "FOO2=BAR2" ) );
+
+  // test authcfg with vsicurl URI
+  parts = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "ogr" ), QStringLiteral( "/vsicurl/https://www.qgis.org/dataset.gpkg authcfg='1234567'" ) );
+  QCOMPARE( parts.value( QStringLiteral( "path" ) ).toString(), QString( "/vsicurl/https://www.qgis.org/dataset.gpkg" ) );
+  QCOMPARE( parts.value( QStringLiteral( "authcfg" ) ).toString(), QString( "1234567" ) );
 }
 
 void TestQgsOgrProvider::encodeUri()
@@ -264,10 +264,17 @@ void TestQgsOgrProvider::encodeUri()
   parts.insert( QStringLiteral( "path" ), QStringLiteral( "/home/user/test.gpkg" ) );
   parts.insert( QStringLiteral( "openOptions" ), QStringList() << QStringLiteral( "FOO=BAR" ) << QStringLiteral( "FOO2=BAR2" ) );
   QCOMPARE( QgsProviderRegistry::instance()->encodeUri( QStringLiteral( "ogr" ), parts ), QStringLiteral( "/home/user/test.gpkg|option:FOO=BAR|option:FOO2=BAR2" ) );
+
+  // test authcfg with vsicurl
+  parts.clear();
+  parts.insert( QStringLiteral( "path" ), QStringLiteral( "/vsicurl/https://www.qgis.org/dataset.gpkg" ) );
+  parts.insert( QStringLiteral( "authcfg" ), QStringLiteral( "1234567" ) );
+  QCOMPARE( QgsProviderRegistry::instance()->encodeUri( QStringLiteral( "ogr" ), parts ), QStringLiteral( "/vsicurl/https://www.qgis.org/dataset.gpkg authcfg='1234567'" ) );
 }
 
 class ReadVectorLayer : public QThread
 {
+    Q_OBJECT
 
   public :
     ReadVectorLayer( const QString &filePath, QMutex &mutex, QWaitCondition &waitForVlCreation, QWaitCondition &waitForProcessEvents )
@@ -393,6 +400,69 @@ void TestQgsOgrProvider::testCsvFeatureAddition()
 
   delete csvLayer;
   QFile::remove( csvFilename );
+}
+
+void TestQgsOgrProvider::absoluteRelativeUri()
+{
+  QgsReadWriteContext context;
+  context.setPathResolver( QgsPathResolver( QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/project.qgs" ) ) );
+
+  QgsProviderMetadata *ogrMetadata = QgsProviderRegistry::instance()->providerMetadata( "ogr" );
+  QVERIFY( ogrMetadata );
+
+  QString absoluteUri = QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/points.shp" );
+  QString relativeUri = QStringLiteral( "./points.shp" );
+  QCOMPARE( ogrMetadata->absoluteToRelativeUri( absoluteUri, context ), relativeUri );
+  QCOMPARE( ogrMetadata->relativeToAbsoluteUri( relativeUri, context ), absoluteUri );
+
+  absoluteUri = QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/points_gpkg.gpkg|layername=points_small" );
+  relativeUri = QStringLiteral( "./points_gpkg.gpkg|layername=points_small" );
+  QCOMPARE( ogrMetadata->absoluteToRelativeUri( absoluteUri, context ), relativeUri );
+  QCOMPARE( ogrMetadata->relativeToAbsoluteUri( relativeUri, context ), absoluteUri );
+}
+
+void TestQgsOgrProvider::testExtent()
+{
+  QString uri2D = QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/points_gpkg.gpkg|layername=points_small" );
+  QgsVectorLayer *layer2D = new QgsVectorLayer( uri2D, QStringLiteral( "gpkg" ), QLatin1String( "ogr" ) );
+  QVERIFY( layer2D->isValid() );
+  QCOMPARE( layer2D->extent(), QgsRectangle( -102.436, 40.578, -93.1608, 41.2405 ) );
+  QCOMPARE( layer2D->extent3D(), QgsBox3D( -102.436, 40.578, std::numeric_limits<double>::quiet_NaN(), -93.1608, 41.2405, std::numeric_limits<double>::quiet_NaN() ) );
+  delete layer2D;
+
+  QString uri3D = QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/3d/points_with_z.shp" );
+  // QString uri3D = QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/3d/earth_size_sphere_4978.gpkg|layername=earth_size_sphere_4978" );
+  QgsVectorLayer *layer3D = new QgsVectorLayer( uri3D, QStringLiteral( "shp" ), QLatin1String( "ogr" ) );
+  QVERIFY( layer3D->isValid() );
+  QGSCOMPARENEAR( layer3D->extent().xMinimum(), 321384.94, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent().xMaximum(), 322342.3, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent().yMinimum(), 129147.09, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent().yMaximum(), 130554.6, 0.001 );
+
+  QGSCOMPARENEAR( layer3D->extent3D().xMinimum(), 321384.94, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().xMaximum(), 322342.3, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().yMinimum(), 129147.09, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().yMaximum(), 130554.6, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().zMinimum(), 64.9, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().zMaximum(), 105.6, 0.001 );
+  delete layer3D;
+
+  uri3D = QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/3d/points_with_z.gpkg|layername=points_with_z" );
+  // QString uri3D = QStringLiteral( TEST_DATA_DIR ) + QStringLiteral( "/3d/earth_size_sphere_4978.gpkg|layername=earth_size_sphere_4978" );
+  layer3D = new QgsVectorLayer( uri3D, QStringLiteral( "gpkg" ), QLatin1String( "ogr" ) );
+  QVERIFY( layer3D->isValid() );
+  QGSCOMPARENEAR( layer3D->extent().xMinimum(), -102.436, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent().xMaximum(), -93.160, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent().yMinimum(), 40.577, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent().yMaximum(), 41.240, 0.001 );
+
+  QGSCOMPARENEAR( layer3D->extent3D().xMinimum(), -102.436, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().xMaximum(), -93.160, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().yMinimum(), 40.577, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().yMaximum(), 41.240, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().zMinimum(), -50.0, 0.001 );
+  QGSCOMPARENEAR( layer3D->extent3D().zMaximum(), 75.0, 0.001 );
+  delete layer3D;
 }
 
 

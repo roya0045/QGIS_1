@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for the console
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,18 +9,18 @@ __author__ = 'Matthias Kuhn'
 __date__ = '15.4.2016'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
 import os
 
-from qgis.testing import unittest, start_app
 from console import console
-from qgis.core import QgsSettings
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import QgsSettings
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestConsole(unittest.TestCase):
+class TestConsole(QgisTestCase):
 
     def setUp(self):
         QgsSettings().setValue('pythonConsole/contextHelpOnFirstLaunch', False)

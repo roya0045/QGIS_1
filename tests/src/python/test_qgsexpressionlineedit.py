@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsExpressionLineEdit
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,7 +9,6 @@ __author__ = 'Nyall Dawson'
 __date__ = '20/08/2016'
 __copyright__ = 'Copyright 2016, The QGIS Project'
 
-import qgis  # NOQA
 
 try:
     from qgis.PyQt.QtTest import QSignalSpy
@@ -18,13 +16,14 @@ try:
 except:
     use_signal_spy = False
 
-from qgis.testing import start_app, unittest
 from qgis.gui import QgsExpressionLineEdit
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsExpressionLineEdit(unittest.TestCase):
+class TestQgsExpressionLineEdit(QgisTestCase):
 
     def testDialog(self):
         """ test dialog related methods """

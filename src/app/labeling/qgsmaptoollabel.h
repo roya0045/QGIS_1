@@ -20,10 +20,10 @@
 
 #include "qgsmaptooladvanceddigitizing.h"
 #include "qgspallabeling.h"
-#include "qgsnewauxiliarylayerdialog.h"
-#include "qgsauxiliarystorage.h"
+#include "qgslabelposition.h"
 #include "qgscalloutposition.h"
 #include "qgscallout.h"
+#include "qgsdiagramrenderer.h"
 #include "qgis_app.h"
 
 class QgsRubberBand;
@@ -46,15 +46,6 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     void deactivate() override;
 
     /**
-     * Returns TRUE if label move can be applied to a layer
-     * \param xCol out: index of the attribute for data defined x coordinate
-     * \param yCol out: index of the attribute for data defined y coordinate
-     * \returns TRUE if labels of layer can be moved
-    */
-    bool labelMoveable( QgsVectorLayer *vlayer, int &xCol, int &yCol ) const;
-    bool labelMoveable( QgsVectorLayer *vlayer, const QgsPalLayerSettings &settings, int &xCol, int &yCol ) const;
-
-    /**
      * Returns true if diagram move can be applied to a layer
      * \param xCol out: index of the attribute for data defined x coordinate
      * \param yCol out: index of the attribute for data defined y coordinate
@@ -63,17 +54,8 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     bool diagramMoveable( QgsVectorLayer *vlayer, int &xCol, int &yCol ) const;
 
     /**
-     * Returns TRUE if layer has attribute fields set up
-     * \param xCol out: index of the attribute for data defined x coordinate
-     * \param yCol out: index of the attribute for data defined y coordinate
-     * \returns TRUE if layer fields set up and exist
-    */
-    bool layerCanPin( QgsVectorLayer *vlayer, int &xCol, int &yCol ) const;
-
-    /**
      * Returns TRUE if layer has attribute field set up for diagrams
      * \param showCol out: attribute column for data defined diagram showing
-     * \since QGIS 2.16
     */
     bool diagramCanShowHide( QgsVectorLayer *vlayer, int &showCol ) const;
 
@@ -83,12 +65,18 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     */
     bool labelCanShowHide( QgsVectorLayer *vlayer, int &showCol ) const;
 
+    enum class PropertyStatus
+    {
+      Valid,
+      DoesNotExist,
+      CurrentExpressionInvalid
+    };
+
     /**
      * Checks if labels in a layer can be rotated
      * \param rotationCol out: attribute column for data defined label rotation
     */
-    bool layerIsRotatable( QgsVectorLayer *layer, int &rotationCol ) const;
-    bool labelIsRotatable( QgsVectorLayer *layer, const QgsPalLayerSettings &settings, int &rotationCol ) const;
+    PropertyStatus labelRotatableStatus( QgsVectorLayer *layer, const QgsPalLayerSettings &settings, int &rotationCol ) const;
 
   protected:
     QgsRubberBand *mHoverRubberBand = nullptr;
@@ -97,11 +85,12 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     QgsRubberBand *mFeatureRubberBand = nullptr;
     //! Shows label fixpoint (left/bottom by default)
     QgsRubberBand *mFixPointRubberBand = nullptr;
+    QgsRubberBand *mOffsetFromLineStartRubberBand = nullptr;
 
     struct APP_EXPORT LabelDetails
     {
       LabelDetails() = default;
-      explicit LabelDetails( const QgsLabelPosition &p );
+      explicit LabelDetails( const QgsLabelPosition &p, QgsMapCanvas *canvas );
       bool valid = false;
       QgsLabelPosition pos;
       QgsVectorLayer *layer = nullptr;
@@ -138,7 +127,7 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
      * \param ignoreUpsideDown treat label as right-side-up
      * \returns TRUE in case of success
     */
-    bool currentLabelRotationPoint( QgsPointXY &pos, bool ignoreUpsideDown = false, bool rotatingUnpinned = false );
+    bool currentLabelRotationPoint( QgsPointXY &pos, bool ignoreUpsideDown = false );
 
     //! Creates label / feature / fixpoint rubber bands for the current label position
     void createRubberBands();
@@ -152,7 +141,26 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     */
     QString currentLabelText( int trunc = 0 );
 
-    void currentAlignment( QString &hali, QString &vali );
+    enum class LabelAlignment
+    {
+      TopLeft,
+      TopCenter,
+      TopRight,
+      HalfLeft,
+      HalfCenter,
+      HalfRight,
+      BottomLeft,
+      BottomCenter,
+      BottomRight,
+      BaseLeft,
+      BaseCenter,
+      BaseRight,
+      CapLeft,
+      CapCenter,
+      CapRight
+    };
+
+    LabelAlignment currentAlignment();
 
     /**
      * Gets vector feature for current label pos
@@ -164,7 +172,7 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     QFont currentLabelFont();
 
     //! Returns a data defined attribute column name for particular property or empty string if not defined
-    QString dataDefinedColumnName( QgsPalLayerSettings::Property p, const QgsPalLayerSettings &labelSettings, const QgsVectorLayer *layer ) const;
+    QString dataDefinedColumnName( QgsPalLayerSettings::Property p, const QgsPalLayerSettings &labelSettings, const QgsVectorLayer *layer, PropertyStatus &status ) const;
 
     /**
      * Returns a data defined attribute column index
@@ -188,19 +196,44 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
      * \param ySuccess out: FALSE if attribute value is NULL
      * \param xCol out: index of the x position column
      * \param yCol out: index of the y position column
+     * \param pointCol out: index of the point position column
      * \returns FALSE if layer does not have data defined label position enabled
     */
-    bool currentLabelDataDefinedPosition( double &x, bool &xSuccess, double &y, bool &ySuccess, int &xCol, int &yCol ) const;
+    bool currentLabelDataDefinedPosition( double &x, bool &xSuccess, double &y, bool &ySuccess, int &xCol, int &yCol, int &pointCol ) const;
 
     /**
-     * Returns data defined rotation of current label
-     * \param rotation out: rotation value
-     * \param rotationSuccess out: FALSE if rotation value is NULL
-     * \param rCol out: index of the rotation column
-     * \param ignoreXY ignore that x and y are required to be data-defined
-     * \returns TRUE if data defined rotation is enabled on the layer
+     * Label anchor
      */
+    bool currentLabelDataDefinedLineAnchorPercent(
+      double &lineAnchorPercent, bool &lineAnchorPercentSuccess, int &lineAnchorPercentCol,
+      QString &lineAnchorClipping, bool &lineAnchorClippingSuccess, int &lineAnchorClippingCol,
+      QString &lineAnchorType, bool &lineAnchorTypeSuccess, int &lineAnchorTypeCol,
+      QString &lineAnchorTextPoint, bool &lineAnchorTextPointSuccess, int &lineAnchorTextPointCol ) const;
+
+    /**
+    * Returns data defined rotation of current label
+    * \param rotation out: rotation value
+    * \param rotationSuccess out: FALSE if rotation value is NULL
+    * \param rCol out: index of the rotation column
+    * \param ignoreXY ignore that x and y are required to be data-defined
+    * \returns TRUE if data defined rotation is enabled on the layer
+    */
     bool currentLabelDataDefinedRotation( double &rotation, bool &rotationSuccess, int &rCol, bool ignoreXY = false ) const;
+
+    /**
+     * Change the data defined position of current label
+     * \param x data defined x-coordinate
+     * \param y data defined y-coordinate
+     * \returns TRUE if data defined position could be changed
+     */
+    bool changeCurrentLabelDataDefinedPosition( const QVariant &x, const QVariant &y );
+
+    /**
+     * Change the data defined line anchor percent of current label
+     * \param anchorPercent data defined line anchor percent
+     * \returns TRUE if data defined curved offset could be changed
+     */
+    bool changeCurrentLabelDataDefinedLineAnchorPercent( const QVariant &lineAnchorPercent );
 
     /**
      * Returns data defined show/hide of a feature.
@@ -216,16 +249,18 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     /**
      * Returns the pin status for the current label/diagram
      * \returns TRUE if the label/diagram is pinned, FALSE otherwise
-     * \since QGIS 2.16
     */
     bool isPinned();
 
-    bool createAuxiliaryFields( QgsPalIndexes &palIndexes, bool overwriteExpression = true );
-    bool createAuxiliaryFields( LabelDetails &details, QgsPalIndexes &palIndexes, bool overwriteExpression = true ) const;
-    bool createAuxiliaryFields( QgsDiagramIndexes &diagIndexes, bool overwriteExpression = true );
-    bool createAuxiliaryFields( LabelDetails &details, QgsDiagramIndexes &diagIndexes, bool overwriteExpression = true );
-    bool createAuxiliaryFields( QgsCalloutIndexes &calloutIndexes, bool overwriteExpression = true );
-    bool createAuxiliaryFields( QgsCalloutPosition &details, QgsCalloutIndexes &calloutIndexes, bool overwriteExpression = true );
+    bool labelMoveable( QgsVectorLayer *vlayer, const QgsPalLayerSettings &settings, int &xCol, int &yCol, int &pointCol ) const;
+    bool labelAnchorPercentMovable( QgsVectorLayer *vlayer, const QgsPalLayerSettings &settings, int &lineAnchorPercentCol, int &lineAnchorClippingCol, int &lineAnchorTypeCol, int &lineAnchorTextPointCol ) const;
+
+    bool createAuxiliaryFields( QgsPalIndexes &palIndexes );
+    bool createAuxiliaryFields( LabelDetails &details, QgsPalIndexes &palIndexes ) const;
+    bool createAuxiliaryFields( QgsDiagramIndexes &diagIndexes );
+    bool createAuxiliaryFields( LabelDetails &details, QgsDiagramIndexes &diagIndexes );
+    bool createAuxiliaryFields( QgsCalloutIndexes &calloutIndexes );
+    bool createAuxiliaryFields( QgsCalloutPosition &details, QgsCalloutIndexes &calloutIndexes );
 
     void updateHoveredLabel( QgsMapMouseEvent *e );
     void clearHoveredLabel();
@@ -233,6 +268,7 @@ class APP_EXPORT QgsMapToolLabel: public QgsMapToolAdvancedDigitizing
     virtual bool canModifyCallout( const QgsCalloutPosition &callout, bool isOrigin, int &xCol, int &yCol );
 
     QList<QgsPalLayerSettings::Property> mPalProperties;
+    QList<QgsPalLayerSettings::Property> mPalAnchorProperties;
     QList<QgsDiagramLayerSettings::Property> mDiagramProperties;
     QList<QgsCallout::Property> mCalloutProperties;
 

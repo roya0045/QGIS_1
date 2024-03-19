@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsActionManager.
 
 From build dir, run: ctest -R PyQgsActionManager -V
@@ -12,31 +11,31 @@ __author__ = 'Nyall Dawson'
 __date__ = '28/05/2016'
 __copyright__ = 'Copyright 2016, The QGIS Project'
 
-import qgis  # NOQA switch sip api
-
-from qgis.core import (QgsVectorLayer,
-                       QgsFeature,
-                       QgsActionManager,
-                       QgsAction,
-                       QgsExpressionContext,
-                       QgsField,
-                       QgsFields
-                       )
-from qgis.PyQt.QtCore import QDir, QTemporaryFile, QUuid
-
-from qgis.testing import start_app, unittest
-
 import os
-import time
 import platform
+import time
+
+from qgis.PyQt.QtCore import QDir, QTemporaryFile, QUuid
+from qgis.core import (
+    QgsAction,
+    QgsActionManager,
+    QgsExpressionContext,
+    QgsFeature,
+    QgsField,
+    QgsFields,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsActionManager(unittest.TestCase):
+class TestQgsActionManager(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.layer = QgsVectorLayer("Point?field=fldtxt:string&field=fldint:integer&field=flddate:datetime",
                                    "test_layer", "memory")
         cls.manager = QgsActionManager(cls.layer)
@@ -52,6 +51,7 @@ class TestQgsActionManager(unittest.TestCase):
     def tearDownClass(cls):
         cls.layer = None
         cls.manager = None
+        super().tearDownClass()
 
     def get_temp_filename(self):
         tmpFile = QTemporaryFile()
@@ -63,7 +63,7 @@ class TestQgsActionManager(unittest.TestCase):
 
     def create_action(self, dest_file, text_to_write):
         """ returns an action which writes some output to a file """
-        return 'python {} {} {}'.format(self.run_script_file, dest_file, text_to_write)
+        return f'python {self.run_script_file} {dest_file} {text_to_write}'
 
     def testLayer(self):
         self.assertEqual(self.manager.layer(), self.layer)
@@ -75,24 +75,24 @@ class TestQgsActionManager(unittest.TestCase):
         self.assertEqual(self.manager.actions(), [])
 
         # add an action
-        action1 = QgsAction(QgsAction.GenericPython, 'Test Action', 'i=1')
+        action1 = QgsAction(QgsAction.ActionType.GenericPython, 'Test Action', 'i=1')
         self.manager.addAction(action1)
         self.assertEqual(len(self.manager.actions()), 1)
-        self.assertEqual(self.manager.actions()[0].type(), QgsAction.GenericPython)
+        self.assertEqual(self.manager.actions()[0].type(), QgsAction.ActionType.GenericPython)
         self.assertEqual(self.manager.actions()[0].name(), 'Test Action')
         self.assertEqual(self.manager.actions()[0].command(), 'i=1')
 
         # add another action
-        action2 = QgsAction(QgsAction.Windows, 'Test Action2', 'i=2')
+        action2 = QgsAction(QgsAction.ActionType.Windows, 'Test Action2', 'i=2')
         self.manager.addAction(action2)
         self.assertEqual(len(self.manager.actions()), 2)
-        self.assertEqual(self.manager.action(action2.id()).type(), QgsAction.Windows)
+        self.assertEqual(self.manager.action(action2.id()).type(), QgsAction.ActionType.Windows)
         self.assertEqual(self.manager.action(action2.id()).name(), 'Test Action2')
         self.assertEqual(self.manager.action(action2.id()).command(), 'i=2')
 
-        id3 = self.manager.addAction(QgsAction.Generic, 'Test Action3', 'i=3')
+        id3 = self.manager.addAction(QgsAction.ActionType.Generic, 'Test Action3', 'i=3')
         self.assertEqual(len(self.manager.actions()), 3)
-        self.assertEqual(self.manager.action(id3).type(), QgsAction.Generic)
+        self.assertEqual(self.manager.action(id3).type(), QgsAction.ActionType.Generic)
         self.assertEqual(self.manager.action(id3).name(), 'Test Action3')
         self.assertEqual(self.manager.action(id3).command(), 'i=3')
 
@@ -100,16 +100,16 @@ class TestQgsActionManager(unittest.TestCase):
         """ test removing actions """
 
         # add an action
-        self.manager.addAction(QgsAction.GenericPython, 'test_action', 'i=1')
+        self.manager.addAction(QgsAction.ActionType.GenericPython, 'test_action', 'i=1')
 
         # clear the manager and check that it's empty
         self.manager.clearActions()
         self.assertEqual(self.manager.actions(), [])
 
         # add some actions
-        id1 = self.manager.addAction(QgsAction.GenericPython, 'test_action', 'i=1')
-        id2 = self.manager.addAction(QgsAction.GenericPython, 'test_action2', 'i=2')
-        id3 = self.manager.addAction(QgsAction.GenericPython, 'test_action3', 'i=3')
+        id1 = self.manager.addAction(QgsAction.ActionType.GenericPython, 'test_action', 'i=1')
+        id2 = self.manager.addAction(QgsAction.ActionType.GenericPython, 'test_action2', 'i=2')
+        id3 = self.manager.addAction(QgsAction.ActionType.GenericPython, 'test_action3', 'i=3')
 
         # remove non-existent action
         self.manager.removeAction(QUuid.createUuid())
@@ -129,9 +129,9 @@ class TestQgsActionManager(unittest.TestCase):
         """ test default action for layer"""
 
         self.manager.clearActions()
-        action1 = QgsAction(QgsAction.GenericPython, 'test_action', '', 'i=1', False, actionScopes={'Feature'})
+        action1 = QgsAction(QgsAction.ActionType.GenericPython, 'test_action', '', 'i=1', False, actionScopes={'Feature'})
         self.manager.addAction(action1)
-        action2 = QgsAction(QgsAction.GenericPython, 'test_action2', 'i=2')
+        action2 = QgsAction(QgsAction.ActionType.GenericPython, 'test_action2', 'i=2')
         self.manager.addAction(action2)
 
         # initially should be not set
@@ -152,11 +152,11 @@ class TestQgsActionManager(unittest.TestCase):
         self.assertFalse(self.manager.defaultAction('Feature').isValid())
 
     def check_action_result(self, temp_file):
-        with open(temp_file, 'r') as result:
+        with open(temp_file) as result:
             output = result.read()
         return output
 
-    @unittest.expectedFailure(platform.system() != 'Linux')
+    @QgisTestCase.expectedFailure(platform.system() != 'Linux')
     @unittest.skipIf(os.environ.get('QGIS_CONTINUOUS_INTEGRATION_RUN', 'true'), 'Test is flaky on Travis environment')
     def testDoAction(self):
         """ test running action """
@@ -165,7 +165,7 @@ class TestQgsActionManager(unittest.TestCase):
 
         # simple action
         temp_file = self.get_temp_filename()
-        id1 = self.manager.addAction(QgsAction.Unix, 'test_action', self.create_action(temp_file, 'test output'))
+        id1 = self.manager.addAction(QgsAction.ActionType.Unix, 'test_action', self.create_action(temp_file, 'test output'))
 
         fields = QgsFields()
         fields.append(QgsField('my_field'))
@@ -182,7 +182,7 @@ class TestQgsActionManager(unittest.TestCase):
 
         # action with substitutions
         temp_file = self.get_temp_filename()
-        id2 = self.manager.addAction(QgsAction.Unix, 'test_action', self.create_action(temp_file, 'test [% $id %] output [% @layer_name %]'))
+        id2 = self.manager.addAction(QgsAction.ActionType.Unix, 'test_action', self.create_action(temp_file, 'test [% $id %] output [% @layer_name %]'))
         self.manager.doAction(id2, f, c)
         time.sleep(0.5)
 
@@ -190,7 +190,7 @@ class TestQgsActionManager(unittest.TestCase):
 
         # test doAction using field variant
         temp_file = self.get_temp_filename()
-        id3 = self.manager.addAction(QgsAction.Unix, 'test_action',
+        id3 = self.manager.addAction(QgsAction.ActionType.Unix, 'test_action',
                                      self.create_action(temp_file, 'test : [% @field_index %] : [% @field_name %] : [% @field_value%]'))
         self.manager.doActionFeature(id3, f, 0)
         time.sleep(0.5)

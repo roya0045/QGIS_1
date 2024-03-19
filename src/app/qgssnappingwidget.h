@@ -158,7 +158,7 @@ class APP_EXPORT QgsSnappingWidget : public QWidget
     QToolButton *mTypeButton = nullptr;
     QAction *mTypeAction = nullptr; // hide widget does not work on toolbar, action needed
     QList< QAction * > mSnappingFlagActions;
-    QDoubleSpinBox *mToleranceSpinBox = nullptr;
+    QgsDoubleSpinBox *mToleranceSpinBox = nullptr;
     QgsScaleWidget *mMinScaleWidget = nullptr;
     QgsScaleWidget *mMaxScaleWidget = nullptr;
     QAction *mToleranceAction = nullptr; // hide widget does not work on toolbar, action needed
@@ -180,6 +180,23 @@ class APP_EXPORT QgsSnappingWidget : public QWidget
     bool mRequireLayerTreeViewUpdate = false;
 
     void cleanGroup( QgsLayerTreeNode *node );
+};
+
+class SnapTypeMenu: public QMenu
+{
+    Q_OBJECT
+  public:
+    SnapTypeMenu( const QString &title, QWidget *parent = nullptr )
+      : QMenu( title, parent ) {}
+
+    void mouseReleaseEvent( QMouseEvent *e )
+    {
+      QAction *action = activeAction();
+      if ( action )
+        action->trigger();
+      else
+        QMenu::mouseReleaseEvent( e );
+    }
 };
 
 #endif

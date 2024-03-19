@@ -15,15 +15,12 @@
  *                                                                         *
  ***************************************************************************/
 #include "qgsmaptopixel.h"
+#include "qgsunittypes.h"
 
 #include <QPoint>
 #include <QTextStream>
 #include <QVector>
 #include <QTransform>
-
-#include "qgslogger.h"
-#include "qgspointxy.h"
-
 
 QgsMapToPixel::QgsMapToPixel( double mapUnitsPerPixel,
                               double xc,
@@ -31,7 +28,8 @@ QgsMapToPixel::QgsMapToPixel( double mapUnitsPerPixel,
                               int width,
                               int height,
                               double rotation )
-  : mMapUnitsPerPixel( mapUnitsPerPixel )
+  : mValid( true )
+  , mMapUnitsPerPixel( mapUnitsPerPixel )
   , mWidth( width )
   , mHeight( height )
   , mRotation( rotation )
@@ -45,7 +43,8 @@ QgsMapToPixel::QgsMapToPixel( double mapUnitsPerPixel,
 }
 
 QgsMapToPixel::QgsMapToPixel( double mapUnitsPerPixel )
-  : mMapUnitsPerPixel( mapUnitsPerPixel )
+  : mValid( true )
+  , mMapUnitsPerPixel( mapUnitsPerPixel )
   , mWidth( 0 )
   , mHeight( 0 )
   , mXCenter( 0 )
@@ -54,10 +53,10 @@ QgsMapToPixel::QgsMapToPixel( double mapUnitsPerPixel )
   updateMatrix();
 }
 
-QgsMapToPixel QgsMapToPixel::fromScale( double scale, QgsUnitTypes::DistanceUnit mapUnits, double dpi )
+QgsMapToPixel QgsMapToPixel::fromScale( double scale, Qgis::DistanceUnit mapUnits, double dpi )
 {
   const double metersPerPixel = 25.4 / dpi / 1000.0;
-  const double mapUnitsPerPixel = metersPerPixel * QgsUnitTypes::fromUnitToUnitFactor( QgsUnitTypes::DistanceMeters, mapUnits );
+  const double mapUnitsPerPixel = metersPerPixel * QgsUnitTypes::fromUnitToUnitFactor( Qgis::DistanceUnit::Meters, mapUnits );
   return QgsMapToPixel( mapUnitsPerPixel * scale );
 }
 
@@ -80,6 +79,8 @@ bool QgsMapToPixel::updateMatrix()
 
 void QgsMapToPixel::setMapUnitsPerPixel( double mapUnitsPerPixel )
 {
+  mValid = true;
+
   const double oldUnits = mMapUnitsPerPixel;
   mMapUnitsPerPixel = mapUnitsPerPixel;
   if ( !updateMatrix() )
@@ -90,6 +91,8 @@ void QgsMapToPixel::setMapUnitsPerPixel( double mapUnitsPerPixel )
 
 void QgsMapToPixel::setMapRotation( double degrees, double cx, double cy )
 {
+  mValid = true;
+
   const double oldRotation = mRotation;
   const double oldXCenter = mXCenter;
   const double oldYCenter = mYCenter;
@@ -121,6 +124,8 @@ void QgsMapToPixel::setParameters( double mapUnitsPerPixel,
                                    double rotation,
                                    bool *ok )
 {
+  mValid = true;
+
   const double oldMUPP = mMapUnitsPerPixel;
   const double oldXCenter = mXCenter;
   const double oldYCenter = mYCenter;
@@ -164,6 +169,7 @@ void QgsMapToPixel::setParameters( double mapUnitsPerPixel,
                                    int height,
                                    double rotation )
 {
+  mValid = true;
   bool ok;
   setParameters( mapUnitsPerPixel, xc, yc, width, height, rotation, &ok );
 }

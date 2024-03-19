@@ -13,10 +13,19 @@ set(TESTS
   testqgsappbrowserproviders.cpp
   testqgisappclipboard.cpp
   testqgisappdockwidgets.cpp
+  testqgsadvanceddigitizing.cpp
   testqgsattributetable.cpp
   testqgsapplocatorfilters.cpp
   testqgsdecorationscalebar.cpp
+  testqgsdwgimportdialog.cpp
   testqgsfieldcalculator.cpp
+  testqgslayerpropertiesdialogs.cpp
+  testqgsmapcanvasdockwidget.cpp
+  testqgsmaptooladdpart.cpp
+  testqgsmaptooldeletepart.cpp
+  testqgsmaptooladdring.cpp
+  testqgsmaptooldeletering.cpp
+  testqgsmaptooleditannotation.cpp
   testqgsmaptoolidentifyaction.cpp
   testqgsmaptoollabel.cpp
   testqgsmaptoolselect.cpp
@@ -24,16 +33,17 @@ set(TESTS
   testqgsmaptoolrotatefeature.cpp
   testqgsmaptoolscalefeature.cpp
   testqgsmaptoolcircularstring.cpp
-  testqgsmaptoolcircle.cpp
   testqgsmaptooleditmesh.cpp
   testqgsmaptoolmovefeature.cpp
   testqgsmaptoolellipse.cpp
+  testqgsmaptoolcircle.cpp
   testqgsmaptoolrectangle.cpp
   testqgsmaptoolregularpolygon.cpp
   testqgsmaptoolsplitparts.cpp
   testqgsmaptoolsplitfeatures.cpp
   testqgsmeasuretool.cpp
   testqgsmeasurebearingtool.cpp
+  testqgsvertexeditor.cpp
   testqgsvertextool.cpp
   testqgsvectorlayersaveasdialog.cpp
   testqgsmaptoolreverseline.cpp
@@ -41,9 +51,15 @@ set(TESTS
   testqgsprojectproperties.cpp
   testqgsapplayoutvaliditychecks.cpp
   testqgsmeshcalculatordialog.cpp
-  testqgsgpsinformationwidget.cpp
+  testqgsgpsintegration.cpp
   testqgslabelpropertydialog.cpp
+  testqgsmergeattributesdialog.cpp
 )
+
+if (HAVE_GEOREFERENCER)
+  set(TESTS ${TESTS} testqgsgeoreferencer.cpp)
+endif()
+
 if (WITH_BINDINGS)
   set(TESTS ${TESTS} testqgisapppython.cpp)
 endif()

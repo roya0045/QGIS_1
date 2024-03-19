@@ -109,7 +109,6 @@ class GUI_EXPORT QgsPropertyColorAssistantWidget : public QgsPropertyAbstractTra
  * \class QgsPropertyAssistantWidget
  * \ingroup gui
  * \brief Shows a user-friendly assistant guiding users through the creation of QgsProperty overrides.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsPropertyAssistantWidget : public QgsPanelWidget, private Ui::PropertyAssistantBase
 {
@@ -154,7 +153,6 @@ class GUI_EXPORT QgsPropertyAssistantWidget : public QgsPanelWidget, private Ui:
     void computeValuesFromLayer();
     void updatePreview();
 
-
   private:
 
     QgsPropertyDefinition mDefinition;
@@ -170,7 +168,6 @@ class GUI_EXPORT QgsPropertyAssistantWidget : public QgsPanelWidget, private Ui:
 
     bool computeValuesFromExpression( const QString &expression, double &minValue, double &maxValue ) const;
     bool computeValuesFromField( const QString &fieldName, double &minValue, double &maxValue ) const;
-
 };
 
 #ifndef SIP_RUN

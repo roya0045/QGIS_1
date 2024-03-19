@@ -32,11 +32,7 @@
 
 QgsRectangle QgsServerApiUtils::parseBbox( const QString &bbox )
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  const QStringList parts { bbox.split( ',', QString::SplitBehavior::SkipEmptyParts ) };
-#else
   const QStringList parts { bbox.split( ',', Qt::SplitBehaviorFlags::SkipEmptyParts ) };
-#endif
   // Note: Z is ignored
   bool ok { true };
   if ( parts.count() == 4 ||  parts.count() == 6 )
@@ -67,13 +63,15 @@ QgsRectangle QgsServerApiUtils::parseBbox( const QString &bbox )
   return QgsRectangle();
 }
 
-QList< QgsVectorLayerServerProperties::WmsDimensionInfo > QgsServerApiUtils::temporalDimensions( const QgsVectorLayer *layer )
+QList< QgsMapLayerServerProperties::WmsDimensionInfo > QgsServerApiUtils::temporalDimensions( const QgsVectorLayer *layer )
 {
-  QList< QgsVectorLayerServerProperties::WmsDimensionInfo > dimensions { layer->serverProperties()->wmsDimensions() };
+
+  const QgsMapLayerServerProperties *serverProperties = layer->serverProperties();
+  QList< QgsMapLayerServerProperties::WmsDimensionInfo > dimensions { serverProperties->wmsDimensions() };
   // Filter only date and time
   dimensions.erase( std::remove_if( dimensions.begin(),
                                     dimensions.end(),
-                                    [ ]( QgsVectorLayerServerProperties::WmsDimensionInfo & dim )
+                                    [ ]( QgsMapLayerServerProperties::WmsDimensionInfo & dim )
   {
     return dim.name.toLower() != QStringLiteral( "time" )
            && dim.name.toLower() != QStringLiteral( "date" ) ;
@@ -87,7 +85,7 @@ QList< QgsVectorLayerServerProperties::WmsDimensionInfo > QgsServerApiUtils::tem
     {
       if ( f.isDateOrTime() )
       {
-        dimensions.append( QgsVectorLayerServerProperties::WmsDimensionInfo( f.type() == QVariant::DateTime ?
+        dimensions.append( QgsMapLayerServerProperties::WmsDimensionInfo( f.type() == QVariant::DateTime ?
                            QStringLiteral( "time" ) :
                            QStringLiteral( "date" ), f.name() ) );
         break;
@@ -118,10 +116,11 @@ template<typename T, class T2> T QgsServerApiUtils::parseTemporalInterval( const
     }
   };
   const QStringList parts { interval.split( '/' ) };
-  if ( parts.length() != 2 )
+  if ( parts.size() != 2 )
   {
     throw QgsServerApiBadRequestException( QStringLiteral( "%1 is not a valid datetime interval." ).arg( interval ), QStringLiteral( "Server" ) );
   }
+  // cppcheck-suppress containerOutOfBounds
   T result { parseDate( parts[0] ), parseDate( parts[1] ) };
   // Check validity
   if ( result.isEmpty() )
@@ -271,6 +270,7 @@ QgsExpression QgsServerApiUtils::temporalFilterExpression( const QgsVectorLayer 
     testType = parts[0];
     if ( testType.isEmpty() || testType == QLatin1String( ".." ) )
     {
+      // cppcheck-suppress containerOutOfBounds
       testType = parts[1];
     }
   }
@@ -455,7 +455,7 @@ json QgsServerApiUtils::layerExtent( const QgsVectorLayer *layer )
 json QgsServerApiUtils::temporalExtent( const QgsVectorLayer *layer )
 {
   // Helper to get min/max from a dimension
-  auto range = [ & ]( const QgsVectorLayerServerProperties::WmsDimensionInfo & dimInfo ) -> QgsDateTimeRange
+  auto range = [ & ]( const QgsMapLayerServerProperties::WmsDimensionInfo & dimInfo ) -> QgsDateTimeRange
   {
     QgsDateTimeRange result;
     // min
@@ -495,7 +495,7 @@ json QgsServerApiUtils::temporalExtent( const QgsVectorLayer *layer )
     return { min, max };
   };
 
-  const QList<QgsVectorLayerServerProperties::WmsDimensionInfo> dimensions { QgsServerApiUtils::temporalDimensions( layer ) };
+  const QList<QgsMapLayerServerProperties::WmsDimensionInfo> dimensions { QgsServerApiUtils::temporalDimensions( layer ) };
   if ( dimensions.isEmpty() )
   {
     return nullptr;
@@ -559,7 +559,6 @@ QVariantList QgsServerApiUtils::temporalExtentList( const QgsVectorLayer *layer 
 
 QgsCoordinateReferenceSystem QgsServerApiUtils::parseCrs( const QString &bboxCrs )
 {
-  QgsCoordinateReferenceSystem crs;
   // We get this:
   // http://www.opengis.net/def/crs/OGC/1.3/CRS84
   // We want this:
@@ -567,17 +566,34 @@ QgsCoordinateReferenceSystem QgsServerApiUtils::parseCrs( const QString &bboxCrs
   const auto parts { QUrl( bboxCrs ).path().split( '/' ) };
   if ( parts.count() == 6 )
   {
-    return crs.fromOgcWmsCrs( QStringLiteral( "urn:ogc:def:crs:%1:%2:%3" ).arg( parts[3], parts[4], parts[5] ) );
+    return QgsCoordinateReferenceSystem::fromOgcWmsCrs( QStringLiteral( "urn:ogc:def:crs:%1:%2:%3" ).arg( parts[3], parts[4], parts[5] ) );
   }
   else
   {
-    return crs;
+    return QgsCoordinateReferenceSystem();
   }
 }
 
 const QVector<QgsVectorLayer *> QgsServerApiUtils::publishedWfsLayers( const QgsServerApiContext &context )
 {
   return publishedWfsLayers< QgsVectorLayer * >( context );
+}
+
+QString QgsServerApiUtils::fieldName( const QString &name, const QgsVectorLayer *layer )
+{
+  if ( layer->fields().names().contains( name ) )
+  {
+    return name;
+  }
+  const QgsFields fields { layer->fields() };
+  for ( const QgsField &field : std::as_const( fields ) )
+  {
+    if ( field.displayName() == name )
+    {
+      return field.name();
+    }
+  }
+  throw QgsServerApiBadRequestException{ QStringLiteral( "Field '%1' is not a valid field name for layer: %2" ).arg( name, layer->name() ) };
 }
 
 QString QgsServerApiUtils::sanitizedFieldValue( const QString &value )
@@ -595,7 +611,7 @@ QStringList QgsServerApiUtils::publishedCrsList( const QgsProject *project )
     const QStringList outputCrsList = QgsServerProjectUtils::wmsOutputCrsList( *project );
     for ( const QString &crsId : outputCrsList )
     {
-      const auto crsUri { crsToOgcUri( QgsCoordinateReferenceSystem::fromOgcWmsCrs( crsId ) ) };
+      const auto crsUri { QgsCoordinateReferenceSystem::fromOgcWmsCrs( crsId ).toOgcUri() };
       if ( ! crsUri.isEmpty() )
       {
         result.push_back( crsUri );
@@ -607,25 +623,7 @@ QStringList QgsServerApiUtils::publishedCrsList( const QgsProject *project )
 
 QString QgsServerApiUtils::crsToOgcUri( const QgsCoordinateReferenceSystem &crs )
 {
-  const auto parts { crs.authid().split( ':' ) };
-  if ( parts.length() == 2 )
-  {
-    if ( parts[0] == QLatin1String( "EPSG" ) )
-      return  QStringLiteral( "http://www.opengis.net/def/crs/EPSG/9.6.2/%1" ).arg( parts[1] ) ;
-    else if ( parts[0] == QLatin1String( "OGC" ) )
-    {
-      return  QStringLiteral( "http://www.opengis.net/def/crs/OGC/1.3/%1" ).arg( parts[1] ) ;
-    }
-    else
-    {
-      QgsMessageLog::logMessage( QStringLiteral( "Error converting published CRS to URI %1: (not OGC or EPSG)" ).arg( crs.authid() ), QStringLiteral( "Server" ), Qgis::MessageLevel::Critical );
-    }
-  }
-  else
-  {
-    QgsMessageLog::logMessage( QStringLiteral( "Error converting published CRS to URI: %1" ).arg( crs.authid() ), QStringLiteral( "Server" ), Qgis::MessageLevel::Critical );
-  }
-  return QString();
+  return crs.toOgcUri();
 }
 
 QString QgsServerApiUtils::appendMapParameter( const QString &path, const QUrl &requestUrl )

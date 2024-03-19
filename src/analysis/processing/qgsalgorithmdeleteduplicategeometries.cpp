@@ -18,6 +18,7 @@
 #include "qgsalgorithmdeleteduplicategeometries.h"
 #include "qgsvectorlayer.h"
 #include "qgsgeometryengine.h"
+#include "qgsspatialindex.h"
 
 ///@cond PRIVATE
 
@@ -168,7 +169,7 @@ QVariantMap QgsDeleteDuplicateGeometriesAlgorithm::processAlgorithm( const QVari
   outputFeatureIds.unite( nullGeometryFeatures );
   step = outputFeatureIds.empty() ? 1 : 100.0 / outputFeatureIds.size();
 
-  const QgsFeatureRequest request = QgsFeatureRequest().setFilterFids( outputFeatureIds ).setFlags( QgsFeatureRequest::NoGeometry );
+  const QgsFeatureRequest request = QgsFeatureRequest().setFilterFids( outputFeatureIds ).setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   it = mSource->getFeatures( request );
   current = 0;
   while ( it.nextFeature( f ) )
@@ -188,7 +189,7 @@ QVariantMap QgsDeleteDuplicateGeometriesAlgorithm::processAlgorithm( const QVari
     feedback->setProgress( 0.10 * current * step + 90 ); // takes about 10% of time
   }
 
-  feedback->pushInfo( QObject::tr( "%1 duplicate features removed" ).arg( removed ) );
+  feedback->pushInfo( QObject::tr( "%n duplicate feature(s) removed", nullptr, removed ) );
 
   QVariantMap outputs;
   outputs.insert( QStringLiteral( "OUTPUT" ), destId );

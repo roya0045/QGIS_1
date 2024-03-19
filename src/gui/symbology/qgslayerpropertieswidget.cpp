@@ -43,6 +43,11 @@
 #include "qgsmasksymbollayerwidget.h"
 #include "qgstemporalcontroller.h"
 #include "qgssymbollayerutils.h"
+#include "qgsgeometrygeneratorsymbollayer.h"
+#include "qgsmarkersymbol.h"
+#include "qgslinesymbol.h"
+#include "qgsfillsymbol.h"
+#include "qgsmarkersymbollayer.h"
 
 static bool _initWidgetFunction( const QString &name, QgsSymbolLayerWidgetFunc f )
 {
@@ -51,13 +56,13 @@ static bool _initWidgetFunction( const QString &name, QgsSymbolLayerWidgetFunc f
   QgsSymbolLayerAbstractMetadata *abstractMetadata = reg->symbolLayerMetadata( name );
   if ( !abstractMetadata )
   {
-    QgsDebugMsg( "Failed to find symbol layer's entry in registry: " + name );
+    QgsDebugError( "Failed to find symbol layer's entry in registry: " + name );
     return false;
   }
   QgsSymbolLayerMetadata *metadata = dynamic_cast<QgsSymbolLayerMetadata *>( abstractMetadata );
   if ( !metadata )
   {
-    QgsDebugMsg( "Failed to cast symbol layer's metadata: " + name );
+    QgsDebugError( "Failed to cast symbol layer's metadata: " + name );
     return false;
   }
   metadata->setWidgetFunction( f );
@@ -75,11 +80,15 @@ static void _initWidgetFunctions()
   _initWidgetFunction( QStringLiteral( "HashLine" ), QgsHashedLineSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "ArrowLine" ), QgsArrowSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "InterpolatedLine" ), QgsInterpolatedLineSymbolLayerWidget::create );
+  _initWidgetFunction( QStringLiteral( "RasterLine" ), QgsRasterLineSymbolLayerWidget::create );
+  _initWidgetFunction( QStringLiteral( "Lineburst" ), QgsLineburstSymbolLayerWidget::create );
+  _initWidgetFunction( QStringLiteral( "FilledLine" ), QgsFilledLineSymbolLayerWidget::create );
 
   _initWidgetFunction( QStringLiteral( "SimpleMarker" ), QgsSimpleMarkerSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "FilledMarker" ), QgsFilledMarkerSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "SvgMarker" ), QgsSvgMarkerSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "RasterMarker" ), QgsRasterMarkerSymbolLayerWidget::create );
+  _initWidgetFunction( QStringLiteral( "AnimatedMarker" ), QgsAnimatedMarkerSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "FontMarker" ), QgsFontMarkerSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "EllipseMarker" ), QgsEllipseSymbolLayerWidget::create );
   _initWidgetFunction( QStringLiteral( "VectorField" ), QgsVectorFieldSymbolLayerWidget::create );
@@ -147,7 +156,7 @@ QgsLayerPropertiesWidget::QgsLayerPropertiesWidget( QgsSymbolLayer *layer, const
   }
   mEffectWidget->setPaintEffect( mLayer->paintEffect() );
 
-  registerDataDefinedButton( mEnabledDDBtn, QgsSymbolLayer::PropertyLayerEnabled );
+  registerDataDefinedButton( mEnabledDDBtn, QgsSymbolLayer::Property::LayerEnabled );
 }
 
 void QgsLayerPropertiesWidget::setContext( const QgsSymbolWidgetContext &context )
@@ -273,6 +282,7 @@ QgsExpressionContext QgsLayerPropertiesWidget::createExpressionContext() const
   expContext.lastScope()->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_layer_index" ), 1, true ) );
   expContext.lastScope()->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_marker_row" ), 1, true ) );
   expContext.lastScope()->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_marker_column" ), 1, true ) );
+  expContext.lastScope()->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_frame" ), 1, true ) );
 
   // additional scopes
   const auto constAdditionalExpressionContextScopes = mContext.additionalExpressionContextScopes();
@@ -289,14 +299,15 @@ QgsExpressionContext QgsLayerPropertiesWidget::createExpressionContext() const
                                       << QgsExpressionContext::EXPR_GEOMETRY_RING_NUM
                                       << QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT << QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM
                                       << QgsExpressionContext::EXPR_CLUSTER_COLOR << QgsExpressionContext::EXPR_CLUSTER_SIZE
-                                      << QStringLiteral( "symbol_layer_count" ) << QStringLiteral( "symbol_layer_index" ) );
+                                      << QStringLiteral( "symbol_layer_count" ) << QStringLiteral( "symbol_layer_index" )
+                                      << QStringLiteral( "symbol_frame" ) );
 
   return expContext;
 }
 
 void QgsLayerPropertiesWidget::registerDataDefinedButton( QgsPropertyOverrideButton *button, QgsSymbolLayer::Property key )
 {
-  button->init( key, mLayer->dataDefinedProperties(), QgsSymbolLayer::propertyDefinitions(), mVectorLayer );
+  button->init( static_cast< int >( key ), mLayer->dataDefinedProperties(), QgsSymbolLayer::propertyDefinitions(), mVectorLayer );
   connect( button, &QgsPropertyOverrideButton::changed, this, &QgsLayerPropertiesWidget::updateProperty );
   button->registerExpressionContextGenerator( this );
 }
@@ -326,9 +337,104 @@ void QgsLayerPropertiesWidget::layerTypeChanged()
 
   // change layer to a new (with different type)
   // base new layer on existing layer's properties
-  QgsSymbolLayer *newLayer = am->createSymbolLayer( layer->properties() );
+  QVariantMap properties = layer->properties();
+
+  // if the old symbol layer was a "geometry generator" layer then
+  // we instead get the properties from the generator
+  if ( QgsGeometryGeneratorSymbolLayer *generator = dynamic_cast< QgsGeometryGeneratorSymbolLayer * >( layer ) )
+  {
+    if ( generator->subSymbol() && generator->subSymbol()->symbolLayerCount() > 0 )
+      properties = generator->subSymbol()->symbolLayer( 0 )->properties();
+  }
+
+  QgsSymbolLayer *newLayer = am->createSymbolLayer( properties );
   if ( !newLayer )
     return;
+
+  // if a symbol layer is changed to a "geometry generator" layer, then we move the old symbol layer into the
+  // geometry generator's subsymbol.
+  if ( QgsGeometryGeneratorSymbolLayer *generator = dynamic_cast< QgsGeometryGeneratorSymbolLayer * >( newLayer ) )
+  {
+    if ( mSymbol )
+    {
+      switch ( mSymbol->type() )
+      {
+        case Qgis::SymbolType::Marker:
+        {
+          std::unique_ptr< QgsMarkerSymbol > markerSymbol = std::make_unique< QgsMarkerSymbol >( QgsSymbolLayerList( {layer->clone() } ) );
+          generator->setSymbolType( Qgis::SymbolType::Marker );
+          generator->setSubSymbol( markerSymbol.release() );
+          break;
+        }
+        case Qgis::SymbolType::Line:
+        {
+          std::unique_ptr< QgsLineSymbol > lineSymbol = std::make_unique< QgsLineSymbol >( QgsSymbolLayerList( {layer->clone() } ) );
+          generator->setSymbolType( Qgis::SymbolType::Line );
+          generator->setSubSymbol( lineSymbol.release() );
+          break;
+        }
+        case Qgis::SymbolType::Fill:
+        {
+          std::unique_ptr< QgsFillSymbol > fillSymbol = std::make_unique< QgsFillSymbol >( QgsSymbolLayerList( {layer->clone() } ) );
+          generator->setSymbolType( Qgis::SymbolType::Fill );
+          generator->setSubSymbol( fillSymbol.release() );
+          break;
+        }
+        case Qgis::SymbolType::Hybrid:
+          break;
+      }
+    }
+  }
+  else
+  {
+    // try to copy the subsymbol, if its the same type as the new symbol layer's subsymbol
+    if ( newLayer->subSymbol() && layer->subSymbol() && newLayer->subSymbol()->type() == layer->subSymbol()->type() )
+    {
+      newLayer->setSubSymbol( layer->subSymbol()->clone() );
+    }
+  }
+
+  // special logic for when NEW symbol layers are created from GUI only...
+  // TODO: find a nicer generic way to handle this!
+  if ( QgsFontMarkerSymbolLayer *fontMarker = dynamic_cast< QgsFontMarkerSymbolLayer * >( newLayer ) )
+  {
+    const QString defaultFont = fontMarker->fontFamily();
+    const QFontDatabase fontDb;
+    if ( !fontDb.hasFamily( defaultFont ) )
+    {
+      // default font marker font choice doesn't exist on system, so just use first available symbol font
+      const QStringList candidates = fontDb.families( QFontDatabase::WritingSystem::Symbol );
+      bool foundGoodCandidate = false;
+      for ( const QString &candidate : candidates )
+      {
+        if ( fontDb.writingSystems( candidate ).size() == 1 )
+        {
+          // family ONLY offers symbol writing systems, so it's a good candidate!
+          fontMarker->setFontFamily( candidate );
+          foundGoodCandidate = true;
+          break;
+        }
+      }
+      if ( !foundGoodCandidate && !candidates.empty() )
+      {
+        // fallback to first available family which advertises symbol writing system
+        QString candidate = candidates.at( 0 );
+        fontMarker->setFontFamily( candidate );
+      }
+    }
+
+    // search (briefly!!) for a unicode character which actually exists in the font
+    const QFontMetrics fontMetrics( fontMarker->fontFamily() );
+    ushort character = fontMarker->character().at( 0 ).unicode();
+    for ( ; character < 1000; ++character )
+    {
+      if ( fontMetrics.inFont( QChar( character ) ) )
+      {
+        fontMarker->setCharacter( QChar( character ) );
+        break;
+      }
+    }
+  }
 
   updateSymbolLayerWidget( newLayer );
   emit changeLayer( newLayer );
@@ -345,7 +451,7 @@ void QgsLayerPropertiesWidget::emitSignalChanged()
     mLayer->paintEffect()->setEnabled( false );
     paintEffectToggled = true;
   }
-  mEffectWidget->setPreviewPicture( QgsSymbolLayerUtils::symbolLayerPreviewPicture( mLayer, QgsUnitTypes::RenderMillimeters, QSize( 60, 60 ) ) );
+  mEffectWidget->setPreviewPicture( QgsSymbolLayerUtils::symbolLayerPreviewPicture( mLayer, Qgis::RenderUnit::Millimeters, QSize( 60, 60 ), QgsMapUnitScale(), mSymbol ? mSymbol->type() : Qgis::SymbolType::Hybrid ) );
   if ( paintEffectToggled )
   {
     mLayer->paintEffect()->setEnabled( true );

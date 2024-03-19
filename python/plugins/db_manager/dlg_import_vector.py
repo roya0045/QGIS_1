@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : DB Manager
@@ -21,13 +19,13 @@ The content of this file is based on
  *                                                                         *
  ***************************************************************************/
 """
-from builtins import str
-from builtins import range
 
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QFileInfo
 from qgis.PyQt.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from qgis.core import (QgsDataSourceUri,
+                       QgsVectorDataProvider,
                        QgsVectorLayer,
                        QgsMapLayerType,
                        QgsProviderRegistry,
@@ -36,9 +34,11 @@ from qgis.core import (QgsDataSourceUri,
                        QgsProject,
                        QgsSettings)
 from qgis.gui import QgsMessageViewer
-from qgis.utils import OverrideCursor
+from qgis.utils import OverrideCursor, iface
 
-from .ui.ui_DlgImportVector import Ui_DbManagerDlgImportVector as Ui_Dialog
+from .gui_utils import GuiUtils
+
+Ui_Dialog, _ = uic.loadUiType(GuiUtils.get_ui_file_path('DlgImportVector.ui'))
 
 
 class DlgImportVector(QDialog, Ui_Dialog):
@@ -134,6 +134,12 @@ class DlgImportVector(QDialog, Ui_Dialog):
             # TODO: add import raster support!
             if layer is not None and layer.type() == QgsMapLayerType.VectorLayer:
                 self.cboInputLayer.addItem(layer.name(), layer.id())
+
+        # set the current index of the combo box to the active layer in the layer tree (if found in combo box)
+        if iface is not None and iface.activeLayer():
+            index = self.cboInputLayer.findData(iface.activeLayer().id())
+            if index != -1:
+                self.cboInputLayer.setCurrentIndex(index)
 
     def deleteInputLayer(self):
         """ unset the input layer, then destroy it but only if it was created from this dialog """
@@ -255,10 +261,11 @@ class DlgImportVector(QDialog, Ui_Dialog):
         self.cboTable.setEditText(currentText)
 
     def populateEncodings(self):
-        encodings = ['ISO-8859-1', 'ISO-8859-2', 'UTF-8', 'CP1250']
-        for enc in encodings:
-            self.cboEncoding.addItem(enc)
-        self.cboEncoding.setCurrentIndex(2)
+        # populate the combo with supported encodings
+        self.cboEncoding.addItems(QgsVectorDataProvider.availableEncodings())
+
+        self.cboEncoding.insertItem(0, self.tr('Automatic'), "")
+        self.cboEncoding.setCurrentIndex(0)
 
     def accept(self):
         if self.mode == self.ASK_FOR_INPUT_MODE:
@@ -287,7 +294,7 @@ class DlgImportVector(QDialog, Ui_Dialog):
                                      self.tr("Invalid target srid: must be a valid crs."))
                 return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             # store current input layer crs and encoding, so I can restore it
             prevInCrs = self.inLayer.crs()
             prevInEncoding = self.inLayer.dataProvider().encoding()
@@ -345,7 +352,7 @@ class DlgImportVector(QDialog, Ui_Dialog):
                     inCrs = self.widgetSourceSrid.crs()
                     self.inLayer.setCrs(inCrs)
 
-                if self.chkEncoding.isEnabled() and self.chkEncoding.isChecked():
+                if self.chkEncoding.isEnabled() and self.chkEncoding.isChecked() and self.cboEncoding.currentData() is None:
                     enc = self.cboEncoding.currentText()
                     self.inLayer.setProviderEncoding(enc)
 

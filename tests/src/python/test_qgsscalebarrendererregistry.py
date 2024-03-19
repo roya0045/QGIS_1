@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsScaleBarRendererRegistry
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,11 +9,10 @@ __author__ = 'Nyall Dawson'
 __date__ = '20/03/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.core import (QgsScaleBarRendererRegistry,
-                       QgsScaleBarRenderer)
-from qgis.testing import start_app, unittest
+from qgis.core import QgsScaleBarRenderer, QgsScaleBarRendererRegistry
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -34,7 +32,7 @@ class TestRenderer(QgsScaleBarRenderer):
         return TestRenderer()
 
 
-class TestQgsScaleBarRendererRegistry(unittest.TestCase):
+class TestQgsScaleBarRendererRegistry(QgisTestCase):
 
     def testRegistry(self):
         registry = QgsScaleBarRendererRegistry()

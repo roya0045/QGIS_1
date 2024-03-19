@@ -47,7 +47,7 @@ class GUI_EXPORT QgsGeoPdfLayerTreeModel : public QgsMapLayerModel
     {
       LayerColumn = 0, //!< Layer name
       GroupColumn, //!< PDF group
-      InitiallyVisible, //!< Initial visiblity state
+      InitiallyVisible, //!< Initial visibility state
       IncludeVectorAttributes //!< Vector attribute
     };
 
@@ -75,6 +75,7 @@ class GUI_EXPORT QgsGeoPdfLayerTreeModel : public QgsMapLayerModel
 ///@cond PRIVATE
 class GUI_EXPORT QgsGeoPdfLayerFilteredTreeModel : public QSortFilterProxyModel
 {
+    Q_OBJECT
   public:
 
     QgsGeoPdfLayerFilteredTreeModel( QgsGeoPdfLayerTreeModel *sourceModel, QObject *parent = nullptr );

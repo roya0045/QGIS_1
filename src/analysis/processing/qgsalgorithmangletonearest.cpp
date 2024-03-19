@@ -16,7 +16,7 @@
  ***************************************************************************/
 
 #include "qgsalgorithmangletonearest.h"
-#include "qgsprocessingoutputs.h"
+#include "qgsspatialindex.h"
 #include "qgslinestring.h"
 #include "qgsvectorlayer.h"
 #include "qgsrenderer.h"
@@ -108,7 +108,7 @@ void QgsAngleToNearestAlgorithm::initAlgorithm( const QVariantMap &configuration
   mIsInPlace = configuration.value( QStringLiteral( "IN_PLACE" ) ).toBool();
 
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ),
-                QObject::tr( "Input layer" ), QList< int >() << QgsProcessing::TypeVectorPoint ) );
+                QObject::tr( "Input layer" ), QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorPoint ) ) );
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "REFERENCE_LAYER" ),
                 QObject::tr( "Reference layer" ) ) );
 
@@ -122,13 +122,13 @@ void QgsAngleToNearestAlgorithm::initAlgorithm( const QVariantMap &configuration
 
   addParameter( new QgsProcessingParameterBoolean( QStringLiteral( "APPLY_SYMBOLOGY" ), QObject::tr( "Automatically apply symbology" ), true ) );
 
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Aligned layer" ), QgsProcessing::TypeVectorPoint ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Aligned layer" ), Qgis::ProcessingSourceType::VectorPoint ) );
 }
 
-QgsProcessingAlgorithm::Flags QgsAngleToNearestAlgorithm::flags() const
+Qgis::ProcessingAlgorithmFlags QgsAngleToNearestAlgorithm::flags() const
 {
-  Flags f = QgsProcessingAlgorithm::flags();
-  f |= QgsProcessingAlgorithm::FlagSupportsInPlaceEdits;
+  Qgis::ProcessingAlgorithmFlags f = QgsProcessingAlgorithm::flags();
+  f |= Qgis::ProcessingAlgorithmFlag::SupportsInPlaceEdits;
   return f;
 }
 
@@ -157,7 +157,7 @@ bool QgsAngleToNearestAlgorithm::supportInPlaceEdit( const QgsMapLayer *layer ) 
 {
   if ( const QgsVectorLayer *vl = qobject_cast< const QgsVectorLayer * >( layer ) )
   {
-    return vl->geometryType() == QgsWkbTypes::PointGeometry;
+    return vl->geometryType() == Qgis::GeometryType::Point;
   }
   return false;
 }
@@ -266,7 +266,7 @@ QVariantMap QgsAngleToNearestAlgorithm::processAlgorithm( const QVariantMap &par
       {
         if ( nearest.count() > 1 )
         {
-          feedback->pushInfo( QObject::tr( "Multiple matching features found at same distance from search feature, found %1 features" ).arg( nearest.count() ) );
+          feedback->pushInfo( QObject::tr( "Multiple matching features found at same distance from search feature, found %n feature(s)", nullptr, nearest.count() ) );
         }
 
         const QgsGeometry joinLine = f.geometry().shortestLine( index.geometry( nearest.at( 0 ) ) );

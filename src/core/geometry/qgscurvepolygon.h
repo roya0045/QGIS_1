@@ -21,6 +21,7 @@
 #include "qgis_core.h"
 #include "qgis_sip.h"
 #include "qgssurface.h"
+#include "qgscurve.h"
 #include <memory>
 
 class QgsPolygon;
@@ -29,7 +30,6 @@ class QgsPolygon;
  * \ingroup core
  * \class QgsCurvePolygon
  * \brief Curve polygon geometry type
- * \since QGIS 2.10
  */
 class CORE_EXPORT QgsCurvePolygon: public QgsSurface
 {
@@ -38,8 +38,80 @@ class CORE_EXPORT QgsCurvePolygon: public QgsSurface
     QgsCurvePolygon( const QgsCurvePolygon &p );
     QgsCurvePolygon &operator=( const QgsCurvePolygon &p );
 
-    bool operator==( const QgsAbstractGeometry &other ) const override;
-    bool operator!=( const QgsAbstractGeometry &other ) const override;
+#ifndef SIP_RUN
+  private:
+    bool fuzzyHelper( const QgsAbstractGeometry &other, double epsilon, bool useDistance ) const
+    {
+      const QgsCurvePolygon *otherPolygon = qgsgeometry_cast< const QgsCurvePolygon * >( &other );
+      if ( !otherPolygon )
+        return false;
+
+      //run cheap checks first
+      if ( mWkbType != otherPolygon->mWkbType )
+        return false;
+
+      if ( ( !mExteriorRing && otherPolygon->mExteriorRing ) || ( mExteriorRing && !otherPolygon->mExteriorRing ) )
+        return false;
+
+      if ( mInteriorRings.count() != otherPolygon->mInteriorRings.count() )
+        return false;
+
+      // compare rings
+      if ( mExteriorRing && otherPolygon->mExteriorRing )
+      {
+        if ( useDistance )
+        {
+          if ( !( *mExteriorRing ).fuzzyDistanceEqual( *otherPolygon->mExteriorRing, epsilon ) )
+            return false;
+        }
+        else
+        {
+          if ( !( *mExteriorRing ).fuzzyEqual( *otherPolygon->mExteriorRing, epsilon ) )
+            return false;
+        }
+      }
+
+      for ( int i = 0; i < mInteriorRings.count(); ++i )
+      {
+        if ( ( !mInteriorRings.at( i ) && otherPolygon->mInteriorRings.at( i ) ) ||
+             ( mInteriorRings.at( i ) && !otherPolygon->mInteriorRings.at( i ) ) )
+          return false;
+
+        if ( useDistance )
+        {
+          if ( mInteriorRings.at( i ) && otherPolygon->mInteriorRings.at( i ) &&
+               !( *mInteriorRings.at( i ) ).fuzzyDistanceEqual( *otherPolygon->mInteriorRings.at( i ), epsilon ) )
+            return false;
+        }
+        else
+        {
+          if ( mInteriorRings.at( i ) && otherPolygon->mInteriorRings.at( i ) &&
+               !( *mInteriorRings.at( i ) ).fuzzyEqual( *otherPolygon->mInteriorRings.at( i ), epsilon ) )
+            return false;
+        }
+      }
+
+      return true;
+    }
+#endif
+  public:
+    bool fuzzyEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper( other, epsilon, false );
+    }
+    bool fuzzyDistanceEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper( other, epsilon, true );
+    }
+    bool operator==( const QgsAbstractGeometry &other ) const override
+    {
+      return fuzzyEqual( other, 1e-8 );
+    }
+
+    bool operator!=( const QgsAbstractGeometry &other ) const override
+    {
+      return !operator==( other );
+    }
 
     ~QgsCurvePolygon() override;
 
@@ -67,7 +139,14 @@ class CORE_EXPORT QgsCurvePolygon: public QgsSurface
     QgsAbstractGeometry *boundary() const override SIP_FACTORY;
     QgsCurvePolygon *snappedToGrid( double hSpacing, double vSpacing, double dSpacing = 0, double mSpacing = 0 ) const override SIP_FACTORY;
     bool removeDuplicateNodes( double epsilon = 4 * std::numeric_limits<double>::epsilon(), bool useZValues = false ) override;
-    bool boundingBoxIntersects( const QgsRectangle &rectangle ) const override SIP_HOLDGIL;
+    bool boundingBoxIntersects( const QgsBox3D &box3d ) const override SIP_HOLDGIL;
+
+    /**
+     * Returns the roundness of the curve polygon.
+     * The returned value is between 0 and 1.
+     * \since QGIS 3.24
+     */
+    double roundness() const;
 
     //curve polygon interface
 
@@ -223,7 +302,6 @@ class CORE_EXPORT QgsCurvePolygon: public QgsSurface
      * parameter is specified then only rings smaller than this minimum
      * area will be removed.
      * \see removeInteriorRing()
-     * \since QGIS 3.0
      */
     void removeInteriorRings( double minimumAllowedArea = -1 );
 
@@ -232,7 +310,6 @@ class CORE_EXPORT QgsCurvePolygon: public QgsSurface
      *
      * For example, this removes unclosed rings and rings with less than 4 vertices.
      *
-     * \since QGIS 3.0
      */
     void removeInvalidRings();
 
@@ -242,13 +319,38 @@ class CORE_EXPORT QgsCurvePolygon: public QgsSurface
      * ring is oriented in a clockwise direction and the interior rings in a counter-clockwise
      * direction.
      *
+     * \warning Due to the conflicting definitions of the right-hand-rule in general use, it is recommended
+     * to use the explicit forceClockwise() or forceCounterClockwise() methods instead.
+     *
+     * \see forceClockwise()
+     * \see forceCounterClockwise()
      * \since QGIS 3.6
      */
     void forceRHR();
 
+    /**
+     * Forces the polygon to respect the exterior ring is clockwise, interior rings are counter-clockwise convention.
+     *
+     * This convention is used primarily by ESRI software.
+     *
+     * \see forceCounterClockwise()
+     * \since QGIS 3.24
+     */
+    void forceClockwise();
+
+    /**
+     * Forces the polygon to respect the exterior ring is counter-clockwise, interior rings are clockwise convention.
+     *
+     * This convention matches the OGC Simple Features specification.
+     *
+     * \see forceClockwise()
+     * \since QGIS 3.24
+     */
+    void forceCounterClockwise();
+
     QPainterPath asQPainterPath() const override;
     void draw( QPainter &p ) const override;
-    void transform( const QgsCoordinateTransform &ct, QgsCoordinateTransform::TransformDirection d = QgsCoordinateTransform::ForwardTransform, bool transformZ = false ) override SIP_THROW( QgsCsException );
+    void transform( const QgsCoordinateTransform &ct, Qgis::TransformDirection d = Qgis::TransformDirection::Forward, bool transformZ = false ) override SIP_THROW( QgsCsException );
     void transform( const QTransform &t, double zTranslate = 0.0, double zScale = 1.0, double mTranslate = 0.0, double mScale = 1.0 ) override;
 
     bool insertVertex( QgsVertexId position, const QgsPoint &vertex ) override;
@@ -304,17 +406,16 @@ class CORE_EXPORT QgsCurvePolygon: public QgsSurface
      * Should be used by qgsgeometry_cast<QgsCurvePolygon *>( geometry ).
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
-     * \since QGIS 3.0
      */
     inline static const QgsCurvePolygon *cast( const QgsAbstractGeometry *geom )
     {
       if ( !geom )
         return nullptr;
 
-      const QgsWkbTypes::Type flatType = QgsWkbTypes::flatType( geom->wkbType() );
-      if ( flatType == QgsWkbTypes::CurvePolygon
-           || flatType == QgsWkbTypes::Polygon
-           || flatType == QgsWkbTypes::Triangle )
+      const Qgis::WkbType flatType = QgsWkbTypes::flatType( geom->wkbType() );
+      if ( flatType == Qgis::WkbType::CurvePolygon
+           || flatType == Qgis::WkbType::Polygon
+           || flatType == Qgis::WkbType::Triangle )
         return static_cast<const QgsCurvePolygon *>( geom );
       return nullptr;
     }
@@ -344,7 +445,7 @@ class CORE_EXPORT QgsCurvePolygon: public QgsSurface
     std::unique_ptr< QgsCurve > mExteriorRing;
     QVector<QgsCurve *> mInteriorRings;
 
-    QgsRectangle calculateBoundingBox() const override;
+    QgsBox3D calculateBoundingBox3D() const override;
 };
 
 // clazy:excludeall=qstring-allocations

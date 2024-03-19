@@ -124,6 +124,9 @@ class QgsBackgroundCachedSharedData
     //! Return current BBOX used by the downloader
     const QgsRectangle &currentRect() const { return mRect; }
 
+    //! Set current BBOX used by the downloader.
+    void setCurrentRect( const QgsRectangle &rect ) { mRect = rect; }
+
     //! Returns a unique identifier made from feature content
     static QString getMD5( const QgsFeature &f );
 
@@ -136,7 +139,7 @@ class QgsBackgroundCachedSharedData
      * Used by a QgsBackgroundCachedFeatureIterator to start a downloader and get the
      * generation counter.
     */
-    int registerToCache( QgsBackgroundCachedFeatureIterator *iterator, int limit, const QgsRectangle &rect = QgsRectangle() );
+    int registerToCache( QgsBackgroundCachedFeatureIterator *iterator, int limit, const QgsRectangle &rect = QgsRectangle(), const QString &serverExpression = QString() );
 
     /**
      * Used by the rewind() method of an iterator so as to get the up-to-date
@@ -167,6 +170,9 @@ class QgsBackgroundCachedSharedData
 
     //////// Pure virtual methods
 
+    //! Returns computed server expression
+    virtual QString computedExpression( const QgsExpression &expression ) const = 0;
+
     //! Instantiate a new feature downloader implementation.
     virtual std::unique_ptr<QgsFeatureDownloaderImpl> newFeatureDownloaderImpl( QgsFeatureDownloader *, bool requestMadeFromMainThread ) = 0;
 
@@ -180,7 +186,7 @@ class QgsBackgroundCachedSharedData
     virtual QString layerName() const = 0;
 
     //! Called when an error must be raised to the provider
-    virtual void pushError( const QString &errorMsg ) = 0;
+    virtual void pushError( const QString &errorMsg ) const = 0;
 
   protected:
 
@@ -207,16 +213,28 @@ class QgsBackgroundCachedSharedData
     //! Bounding box for the layer as returned by GetCapabilities
     QgsRectangle mCapabilityExtent;
 
+    //! Extent computed from downloaded features
+    QgsRectangle mComputedExtent;
+
     //! Flag is a /items request returns a numberMatched property
     bool mHasNumberMatched = false;
 
     //! Whether progress dialog should be hidden
     bool mHideProgressDialog = false;
 
+    //! Server filter expression
+    QString mServerExpression;
+
     //////////// Methods
+
+    //! To be used by the clone() method of derived classes
+    void copyStateToClone( QgsBackgroundCachedSharedData *clone ) const;
 
     //! Should be called in the destructor of the implementation of this class !
     void cleanup();
+
+    //! Returns true if it is likely that the server doesn't properly honor axis order.
+    virtual bool detectPotentialServerAxisOrderIssueFromSingleFeatureExtent() const { return false; }
 
   private:
 
@@ -246,9 +264,6 @@ class QgsBackgroundCachedSharedData
      * notified in live by the downloader.
     */
     int mGenCounter = 0;
-
-    //! Extent computed from downloaded features
-    QgsRectangle mComputedExtent;
 
     //! Spatial index of requested cached regions
     QgsSpatialIndex mCachedRegions;

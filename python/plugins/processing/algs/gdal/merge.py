@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     merge.py
@@ -27,6 +25,7 @@ from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (QgsRasterFileWriter,
                        QgsProcessing,
+                       QgsProcessingException,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterMultipleLayers,
                        QgsProcessingParameterEnum,
@@ -53,7 +52,7 @@ class merge(GdalAlgorithm):
     NODATA_OUTPUT = 'NODATA_OUTPUT'
     OUTPUT = 'OUTPUT'
 
-    TYPES = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64', 'CInt16', 'CInt32', 'CFloat32', 'CFloat64']
+    TYPES = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64', 'CInt16', 'CInt32', 'CFloat32', 'CFloat64', 'Int8']
 
     def __init__(self):
         super().__init__()
@@ -61,7 +60,7 @@ class merge(GdalAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterMultipleLayers(self.INPUT,
                                                                self.tr('Input layers'),
-                                                               QgsProcessing.TypeRaster))
+                                                               QgsProcessing.SourceType.TypeRaster))
         self.addParameter(QgsProcessingParameterBoolean(self.PCT,
                                                         self.tr('Grab pseudocolor table from first layer'),
                                                         defaultValue=False))
@@ -70,26 +69,26 @@ class merge(GdalAlgorithm):
                                                         defaultValue=False))
 
         nodata_param = QgsProcessingParameterNumber(self.NODATA_INPUT,
-                                                    self.tr('Input pixel value to treat as "nodata"'),
-                                                    type=QgsProcessingParameterNumber.Integer,
+                                                    self.tr('Input pixel value to treat as NoData'),
+                                                    type=QgsProcessingParameterNumber.Type.Double,
                                                     defaultValue=None,
                                                     optional=True)
-        nodata_param.setFlags(nodata_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        nodata_param.setFlags(nodata_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(nodata_param)
 
         nodata_out_param = QgsProcessingParameterNumber(self.NODATA_OUTPUT,
-                                                        self.tr('Assign specified "nodata" value to output'),
-                                                        type=QgsProcessingParameterNumber.Integer,
+                                                        self.tr('Assign specified NoData value to output'),
+                                                        type=QgsProcessingParameterNumber.Type.Double,
                                                         defaultValue=None,
                                                         optional=True)
-        nodata_out_param.setFlags(nodata_out_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        nodata_out_param.setFlags(nodata_out_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(nodata_out_param)
 
         options_param = QgsProcessingParameterString(self.OPTIONS,
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         options_param.setMetadata({
             'widget_wrapper': {
                 'class': 'processing.algs.gdal.ui.RasterOptionsWidget.RasterOptionsWidgetWrapper'}})
@@ -99,7 +98,7 @@ class merge(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         self.addParameter(QgsProcessingParameterEnum(self.DATA_TYPE,
@@ -141,20 +140,27 @@ class merge(GdalAlgorithm):
             arguments.append('-separate')
 
         if self.NODATA_INPUT in parameters and parameters[self.NODATA_INPUT] is not None:
-            nodata_input = self.parameterAsInt(parameters, self.NODATA_INPUT, context)
+            nodata_input = self.parameterAsDouble(parameters, self.NODATA_INPUT, context)
             arguments.append('-n')
             arguments.append(str(nodata_input))
 
         if self.NODATA_OUTPUT in parameters and parameters[self.NODATA_OUTPUT] is not None:
-            nodata_output = self.parameterAsInt(parameters, self.NODATA_OUTPUT, context)
+            nodata_output = self.parameterAsDouble(parameters, self.NODATA_OUTPUT, context)
             arguments.append('-a_nodata')
             arguments.append(str(nodata_output))
 
-        arguments.append('-ot')
-        arguments.append(self.TYPES[self.parameterAsEnum(parameters, self.DATA_TYPE, context)])
+        data_type = self.parameterAsEnum(parameters, self.DATA_TYPE, context)
+        if self.TYPES[data_type] == 'Int8' and GdalUtils.version() < 3070000:
+            raise QgsProcessingException(self.tr('Int8 data type requires GDAL version 3.7 or later'))
+
+        arguments.append('-ot ' + self.TYPES[data_type])
+
+        output_format = QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1])
+        if not output_format:
+            raise QgsProcessingException(self.tr('Output format is invalid'))
 
         arguments.append('-of')
-        arguments.append(QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1]))
+        arguments.append(output_format)
 
         options = self.parameterAsString(parameters, self.OPTIONS, context)
         if options:

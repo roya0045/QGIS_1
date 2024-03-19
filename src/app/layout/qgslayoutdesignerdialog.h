@@ -18,9 +18,8 @@
 #define QGSLAYOUTDESIGNERDIALOG_H
 
 #include "ui_qgslayoutdesignerbase.h"
+#include "qgsconfig.h"
 #include "qgslayoutdesignerinterface.h"
-#include "qgslayoutexporter.h"
-#include "qgslayoutpagecollection.h"
 #include <QToolButton>
 
 class QgsLayoutDesignerDialog;
@@ -50,6 +49,9 @@ class QgsLayoutAtlas;
 class QgsFeature;
 class QgsMasterLayoutInterface;
 class QgsLayoutGuideWidget;
+class QgsScreenHelper;
+class QgsConfigureShortcutsDialog;
+class QgsShortcutsManager;
 
 class QgsAppLayoutDesignerInterface : public QgsLayoutDesignerInterface
 {
@@ -210,6 +212,12 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
      */
     std::unique_ptr< QgsLayoutDesignerInterface::ExportResults > lastExportResults() const;
 
+    /**
+     * Returns the keyboard shortcuts manager
+     *
+     */
+    QgsShortcutsManager *shortcutsManager();
+
   public slots:
 
     /**
@@ -354,7 +362,6 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
     void closeEvent( QCloseEvent * ) override;
     void dropEvent( QDropEvent *event ) override;
     void dragEnterEvent( QDragEnterEvent *event ) override;
-    void showEvent( QShowEvent *event ) override;
 
   private slots:
 
@@ -418,7 +425,7 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
     void backgroundTaskCountChanged( int total );
     void onMapPreviewRefreshed();
     void onItemAdded( QgsLayoutItem *item );
-    void updateDevicePixelFromScreen();
+    void onItemDestroyed( QObject *item );
 
   private:
 
@@ -429,6 +436,8 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
     QgsMasterLayoutInterface *mMasterLayout = nullptr;
 
     QgsLayout *mLayout = nullptr;
+
+    QgsScreenHelper *mScreenHelper = nullptr;
 
     QgsMessageBar *mMessageBar = nullptr;
 
@@ -504,8 +513,12 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
 
     QComboBox *mAtlasPageComboBox = nullptr;
 
+#if defined( HAVE_QTPRINTER )
     //! Page & Printer Setup
     std::unique_ptr< QPrinter > mPrinter;
+    QPrinter *printer();
+    void setPrinterPageOrientation( QgsLayoutItemPage::Orientation orientation );
+#endif
     bool mSetPageOrientation = false;
 
     QString mTitle;
@@ -518,8 +531,9 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
     std::unique_ptr< QgsLayoutDesignerInterface::ExportResults> mLastExportResults;
     QMap< QString, QgsLabelingResults *> mLastExportLabelingResults;
 
-    double mScreenDpi = 96.0;
-    QMetaObject::Connection mScreenDpiChangedConnection;
+    //! Shortcuts manager and dialog
+    QgsShortcutsManager *mShortcutsManager = nullptr;
+    QgsConfigureShortcutsDialog *mShortcutsDialog = nullptr;
 
     //! Save window state
     void saveWindowState();
@@ -543,7 +557,7 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
 
     void showSvgExportWarning();
 
-    //! Displays a warning because of incompatibility between blend modes and QPrinter
+    //! Displays a warning because of incompatibility between blend modes and QPagedPaintDevice
     void showRasterizationWarning();
     void showForceVectorWarning();
 
@@ -574,8 +588,6 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
 
     void toggleActions( bool layoutAvailable );
 
-    void setPrinterPageOrientation( QgsLayoutItemPage::Orientation orientation );
-    QPrinter *printer();
     QString reportTypeString();
     void updateActionNames( QgsMasterLayoutInterface::Type type );
 
@@ -591,4 +603,3 @@ class QgsLayoutDesignerDialog: public QMainWindow, public Ui::QgsLayoutDesignerB
 };
 
 #endif // QGSLAYOUTDESIGNERDIALOG_H
-

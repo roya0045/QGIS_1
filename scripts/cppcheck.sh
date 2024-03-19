@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 set -eu
 
@@ -19,6 +19,8 @@ LOG_FILE=/tmp/cppcheck_qgis.txt
 rm -f ${LOG_FILE}
 echo "Checking ${SCRIPT_DIR}/../src ..."
 
+# qgsgcptransformer.cpp causes an effective hang on newer cppcheck!
+
 cppcheck --library=qt.cfg --inline-suppr \
          --template='{file}:{line},{severity},{id},{message}' \
          --enable=all --inconclusive --std=c++11 \
@@ -29,11 +31,21 @@ cppcheck --library=qt.cfg --inline-suppr \
          -DSIP_INOUT= \
          -DSIP_OUT= \
          -DSIP_FACTORY= \
+         -DSIP_PYNAME= \
          -DSIP_THROW= \
+         -DFINAL="final" \
          -DCMAKE_SOURCE_DIR="/foo/bar" \
          -DQ_NOWARN_DEPRECATED_PUSH= \
          -DQ_NOWARN_DEPRECATED_POP= \
          -DQ_DECLARE_OPAQUE_POINTER= \
+         -DQGIS_PROTECT_QOBJECT_THREAD_ACCESS = \
+         -DQ_DECLARE_SQLDRIVER_PRIVATE = \
+         -DSIP_MONKEYPATCH_SCOPEENUM_UNNEST = \
+         -DSIP_ENUM_BASETYPE = \
+         -DQT3D_FUNCTOR = \
+         -DQgsSetCPLHTTPFetchOverriderInitiatorClass = \
+         -DBUILTIN_UNREACHABLE="__builtin_unreachable();" \
+         -i src/analysis/georeferencing/qgsgcptransformer.cpp \
          -j $(nproc) \
          ${SCRIPT_DIR}/../src \
          >>${LOG_FILE} 2>&1 &
@@ -54,22 +66,22 @@ ret_code=0
 cat ${LOG_FILE} | grep -v -e "syntaxError," -e "cppcheckError," > ${LOG_FILE}.tmp
 mv ${LOG_FILE}.tmp ${LOG_FILE}
 
+ERROR_CATEGORIES=("clarifyCalculation" "duplicateExpressionTernary" "redundantCondition" "postfixOperator" "functionConst" "unsignedLessThanZero" "duplicateBranch" "missingOverride")
+
+# unusedPrivateFunction not reliable enough in cppcheck 1.72 of Ubuntu 16.04
+if test "$(cppcheck --version)" != "Cppcheck 1.72"; then
+    ERROR_CATEGORIES+=("unusedPrivateFunction")
+fi
+
 for category in "style" "performance" "portability"; do
     if grep "${category}," ${LOG_FILE} >/dev/null; then
         echo "INFO: Issues in '${category}' category found, but not considered as making script to fail:"
-        grep "${category}," ${LOG_FILE} | grep -v -e "clarifyCalculation," -e "duplicateExpressionTernary," -e "redundantCondition," -e "unusedPrivateFunction," -e "postfixOperator,"
+        grep "${category}," ${LOG_FILE} | grep -v $(printf -- "-e %s, " "${ERROR_CATEGORIES[@]}")
         echo ""
     fi
 done
 
-# unusedPrivateFunction not reliable enough in cppcheck 1.72 of Ubuntu 16.04
-if test "$(cppcheck --version)" = "Cppcheck 1.72"; then
-    UNUSED_PRIVATE_FUNCTION=""
-else
-    UNUSED_PRIVATE_FUNCTION="unusedPrivateFunction"
-fi
-
-for category in "error" "warning" "clarifyCalculation" "duplicateExpressionTernary" "redundantCondition" "postfixOperator" "${UNUSED_PRIVATE_FUNCTION}"; do
+for category in "error" "warning" "${ERROR_CATEGORIES[@]}"; do
     if test "${category}" != ""; then
         if grep "${category}," ${LOG_FILE}  >/dev/null; then
             echo "ERROR: Issues in '${category}' category found:"

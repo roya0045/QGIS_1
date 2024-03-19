@@ -17,7 +17,6 @@
 #define QGS3DSCENEEXPORTER_H
 
 #include <Qt3DCore/QEntity>
-#include <Qt3DRender/QAttribute>
 #include <Qt3DExtras/QPlaneGeometry>
 #include <Qt3DRender/QSceneLoader>
 #include <Qt3DRender/QMesh>
@@ -26,6 +25,7 @@
 #include <QVector3D>
 
 #include "qgs3dexportobject.h"
+#include "qgsfeatureid.h"
 
 class QgsTessellatedPolygonGeometry;
 class QgsTerrainTileEntity;
@@ -41,6 +41,7 @@ class QgsPolygon3DSymbol;
 class QgsLine3DSymbol;
 class QgsPoint3DSymbol;
 class QgsMeshEntity;
+class TestQgs3DRendering;
 
 #define SIP_NO_FILE
 
@@ -54,6 +55,8 @@ class QgsMeshEntity;
  */
 class _3D_EXPORT Qgs3DSceneExporter : public Qt3DCore::QEntity
 {
+    Q_OBJECT
+
   public:
     //! Constructor
     Qgs3DSceneExporter() { }
@@ -145,9 +148,12 @@ class _3D_EXPORT Qgs3DSceneExporter : public Qt3DCore::QEntity
     int mTerrainTextureResolution = 512;
     float mScale = 1.0f;
 
+    QSet<QgsFeatureId> mExportedFeatureIds;
+
     friend QgsPolygon3DSymbol;
     friend QgsLine3DSymbol;
     friend QgsPoint3DSymbol;
+    friend TestQgs3DRendering;
 };
 
 #endif // QGS3DSCENEEXPORTER_H

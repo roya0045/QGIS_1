@@ -19,7 +19,6 @@
 
 #include "qgsexpressiontreeview.h"
 #include "qgis.h"
-#include "qgsfieldformatterregistry.h"
 #include "qgsvectorlayer.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgssettings.h"
@@ -259,33 +258,41 @@ void QgsExpressionTreeView::updateFunctionTree()
   mModel->clear();
   mExpressionGroups.clear();
 
-  // TODO Can we move this stuff to QgsExpression, like the functions?
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "+" ), QStringLiteral( " + " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "-" ), QStringLiteral( " - " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "*" ), QStringLiteral( " * " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "/" ), QStringLiteral( " / " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "%" ), QStringLiteral( " % " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "^" ), QStringLiteral( " ^ " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "=" ), QStringLiteral( " = " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "~" ), QStringLiteral( " ~ " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( ">" ), QStringLiteral( " > " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "<" ), QStringLiteral( " < " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "<>" ), QStringLiteral( " <> " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "<=" ), QStringLiteral( " <= " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( ">=" ), QStringLiteral( " >= " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "[]" ), QStringLiteral( "[ ]" ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "||" ), QStringLiteral( " || " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "IN" ), QStringLiteral( " IN " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "LIKE" ), QStringLiteral( " LIKE " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "ILIKE" ), QStringLiteral( " ILIKE " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "IS" ), QStringLiteral( " IS " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "IS NOT" ), QStringLiteral( " IS NOT " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "OR" ), QStringLiteral( " OR " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "AND" ), QStringLiteral( " AND " ) );
-  registerItem( QStringLiteral( "Operators" ), QStringLiteral( "NOT" ), QStringLiteral( " NOT " ) );
+  //list of pairs where the first is the name and the second is the expression value when adding it
+  static const QList< QPair<QString, QString> > operators = QList< QPair<QString, QString> >()
+      << QPair<QString, QString>( QStringLiteral( "+" ),  QStringLiteral( " + " ) )
+      << QPair<QString, QString>( QStringLiteral( "-" ),  QStringLiteral( " - " ) )
+      << QPair<QString, QString>( QStringLiteral( "*" ),  QStringLiteral( " * " ) )
+      << QPair<QString, QString>( QStringLiteral( "/" ),  QStringLiteral( " / " ) )
+      << QPair<QString, QString>( QStringLiteral( "//" ),  QStringLiteral( " // " ) )
+      << QPair<QString, QString>( QStringLiteral( "%" ),  QStringLiteral( " % " ) )
+      << QPair<QString, QString>( QStringLiteral( "^" ),  QStringLiteral( " ^ " ) )
+      << QPair<QString, QString>( QStringLiteral( "=" ),  QStringLiteral( " = " ) )
+      << QPair<QString, QString>( QStringLiteral( "~" ),  QStringLiteral( " ~ " ) )
+      << QPair<QString, QString>( QStringLiteral( ">" ),  QStringLiteral( " > " ) )
+      << QPair<QString, QString>( QStringLiteral( "<" ),  QStringLiteral( " < " ) )
+      << QPair<QString, QString>( QStringLiteral( "<>" ),  QStringLiteral( " <> " ) )
+      << QPair<QString, QString>( QStringLiteral( "<=" ),  QStringLiteral( " <= " ) )
+      << QPair<QString, QString>( QStringLiteral( ">=" ),  QStringLiteral( " >= " ) )
+      << QPair<QString, QString>( QStringLiteral( "[]" ),  QStringLiteral( "[]" ) )
+      << QPair<QString, QString>( QStringLiteral( "||" ),  QStringLiteral( " || " ) )
+      << QPair<QString, QString>( QStringLiteral( "BETWEEN" ),  QStringLiteral( " BETWEEN " ) )
+      << QPair<QString, QString>( QStringLiteral( "NOT BETWEEN" ),  QStringLiteral( " NOT BETWEEN " ) )
+      << QPair<QString, QString>( QStringLiteral( "IN" ),  QStringLiteral( " IN " ) )
+      << QPair<QString, QString>( QStringLiteral( "LIKE" ),  QStringLiteral( " LIKE " ) )
+      << QPair<QString, QString>( QStringLiteral( "ILIKE" ),  QStringLiteral( " ILIKE " ) )
+      << QPair<QString, QString>( QStringLiteral( "IS" ),  QStringLiteral( " IS " ) )
+      << QPair<QString, QString>( QStringLiteral( "IS NOT" ),  QStringLiteral( " IS NOT " ) )
+      << QPair<QString, QString>( QStringLiteral( "OR" ),  QStringLiteral( " OR " ) )
+      << QPair<QString, QString>( QStringLiteral( "AND" ),  QStringLiteral( " AND " ) )
+      << QPair<QString, QString>( QStringLiteral( "NOT" ),  QStringLiteral( " NOT " ) );
+  for ( const auto &name : operators )
+  {
+    registerItem( QStringLiteral( "Operators" ), name.first, name.second, QString(), QgsExpressionItem::ExpressionNode, false, -1, QIcon(), QgsExpression::tags( name.first ) );
+  }
 
   QString casestring = QStringLiteral( "CASE WHEN condition THEN result END" );
-  registerItem( QStringLiteral( "Conditionals" ), QStringLiteral( "CASE" ), casestring );
+  registerItem( QStringLiteral( "Conditionals" ), QStringLiteral( "CASE" ), casestring, QString(), QgsExpressionItem::ExpressionNode, false, -1, QIcon(), QgsExpression::tags( "CASE" ) );
 
   // use -1 as sort order here -- NULL should always show before the field list
   registerItem( QStringLiteral( "Fields and Values" ), QStringLiteral( "NULL" ), QStringLiteral( "NULL" ), QString(), QgsExpressionItem::ExpressionNode, false, -1 );
@@ -323,7 +330,7 @@ void QgsExpressionTreeView::updateFunctionTree()
   loadExpressionContext();
 }
 
-void QgsExpressionTreeView::registerItem( const QString &group,
+QgsExpressionItem *QgsExpressionTreeView::registerItem( const QString &group,
     const QString &label,
     const QString &expressionText,
     const QString &helpText,
@@ -366,6 +373,7 @@ void QgsExpressionTreeView::registerItem( const QString &group,
     topLevelItem->setFont( font );
     mModel->appendRow( topLevelItem );
   }
+  return item;
 }
 
 void QgsExpressionTreeView::registerItemForAllGroups( const QStringList &groups, const QString &label, const QString &expressionText, const QString &helpText, QgsExpressionItem::ItemType type, bool highlightedItem, int sortOrder, const QStringList &tags )
@@ -414,7 +422,31 @@ void QgsExpressionTreeView::loadLayers()
   for ( ; layerIt != layers.constEnd(); ++layerIt )
   {
     QIcon icon = QgsIconUtils::iconForLayer( layerIt.value() );
-    registerItem( QStringLiteral( "Map Layers" ), layerIt.value()->name(), QStringLiteral( "'%1'" ).arg( layerIt.key() ), formatLayerHelp( layerIt.value() ), QgsExpressionItem::ExpressionNode, false, 99, icon );
+    QgsExpressionItem *parentItem = registerItem( QStringLiteral( "Map Layers" ), layerIt.value()->name(), QStringLiteral( "'%1'" ).arg( layerIt.key() ), formatLayerHelp( layerIt.value() ), QgsExpressionItem::ExpressionNode, false, 99, icon );
+    loadLayerFields( qobject_cast<QgsVectorLayer *>( layerIt.value() ), parentItem );
+  }
+
+}
+
+void QgsExpressionTreeView::loadLayerFields( QgsVectorLayer *layer, QgsExpressionItem *parentItem )
+{
+  if ( !layer )
+    return;
+
+  const QgsFields fields = layer->fields();
+  for ( int fieldIdx = 0; fieldIdx < fields.count(); ++fieldIdx )
+  {
+    const QgsField field = fields.at( fieldIdx );
+    QIcon icon = fields.iconForField( fieldIdx );
+    const QString label { field.displayNameWithAlias() };
+    QgsExpressionItem *item = new QgsExpressionItem( label, " '" + field.name() + "' ", QString(), QgsExpressionItem::Field );
+    item->setData( label, Qt::UserRole );
+    item->setData( 99, QgsExpressionItem::CUSTOM_SORT_ROLE );
+    item->setData( QStringList(), QgsExpressionItem::SEARCH_TAGS_ROLE );
+    item->setData( field.name(), QgsExpressionItem::ITEM_NAME_ROLE );
+    item->setData( layer->id(), QgsExpressionItem::LAYER_ID_ROLE );
+    item->setIcon( icon );
+    parentItem->appendRow( item );
   }
 }
 
@@ -436,9 +468,30 @@ void QgsExpressionTreeView::loadFieldNames()
   {
     QgsExpressionItem *node = mExpressionGroups.value( QStringLiteral( "Fields and Values" ) );
     node->removeRows( 0, node->rowCount() );
-    // Re-add NULL
-    // use -1 as sort order here -- NULL should always show before the field list
+    // Re-add NULL and feature variables
+    // use -1 as sort order here -- NULL and feature variables should always show before the field list
     registerItem( QStringLiteral( "Fields and Values" ), QStringLiteral( "NULL" ), QStringLiteral( "NULL" ), QString(), QgsExpressionItem::ExpressionNode, false, -1 );
+  }
+
+  if ( mLayer )
+  {
+    // Add feature variables to record and attributes group (and highlighted items)
+
+    const QString currentFeatureHelp = formatVariableHelp( QStringLiteral( "feature" ), QgsExpression::variableHelpText( QStringLiteral( "feature" ) ), false, QVariant() );
+    const QString currentFeatureIdHelp = formatVariableHelp( QStringLiteral( "id" ), QgsExpression::variableHelpText( QStringLiteral( "id" ) ), false, QVariant() );
+    const QString currentGeometryHelp = formatVariableHelp( QStringLiteral( "geometry" ), QgsExpression::variableHelpText( QStringLiteral( "geometry" ) ), false, QVariant() );
+
+    registerItem( QStringLiteral( "Fields and Values" ), QStringLiteral( "feature" ), QStringLiteral( "@feature" ), currentFeatureHelp, QgsExpressionItem::ExpressionNode, false, -1 );
+    registerItem( QStringLiteral( "Fields and Values" ), QStringLiteral( "id" ), QStringLiteral( "@id" ), currentFeatureIdHelp, QgsExpressionItem::ExpressionNode, false, -1 );
+    registerItem( QStringLiteral( "Fields and Values" ), QStringLiteral( "geometry" ), QStringLiteral( "@geometry" ), currentGeometryHelp, QgsExpressionItem::ExpressionNode, false, -1 );
+
+    registerItem( QStringLiteral( "Variables" ), QStringLiteral( "feature" ), QStringLiteral( "@feature" ), currentFeatureHelp, QgsExpressionItem::ExpressionNode );
+    registerItem( QStringLiteral( "Variables" ), QStringLiteral( "id" ), QStringLiteral( "@id" ), currentFeatureIdHelp, QgsExpressionItem::ExpressionNode );
+    registerItem( QStringLiteral( "Variables" ), QStringLiteral( "geometry" ), QStringLiteral( "@geometry" ), currentGeometryHelp, QgsExpressionItem::ExpressionNode, false );
+
+    registerItem( QStringLiteral( "Record and Attributes" ), QStringLiteral( "feature" ), QStringLiteral( "@feature" ), currentFeatureHelp, QgsExpressionItem::ExpressionNode, true, -1 );
+    registerItem( QStringLiteral( "Record and Attributes" ), QStringLiteral( "id" ), QStringLiteral( "@id" ), currentFeatureIdHelp, QgsExpressionItem::ExpressionNode, true, -1 );
+    registerItem( QStringLiteral( "Record and Attributes" ), QStringLiteral( "geometry" ), QStringLiteral( "@geometry" ), currentGeometryHelp, QgsExpressionItem::ExpressionNode, true, -1 );
   }
 
   // this can happen if fields are manually set
@@ -743,7 +796,7 @@ void QgsExpressionTreeView::loadExpressionsFromJson( const QJsonDocument &expres
     QMessageBox::information( this,
                               tr( "Skipped Expression Imports" ),
                               QStringLiteral( "%1\n%2" ).arg( tr( "The following expressions have been skipped:" ),
-                                  skippedExpressionLabelsQuoted.join( QStringLiteral( ", " ) ) ) );
+                                  skippedExpressionLabelsQuoted.join( QLatin1String( ", " ) ) ) );
   }
 }
 
@@ -846,7 +899,7 @@ bool QgsExpressionItemSearchProxy::filterAcceptsRow( int source_row, const QMode
 void QgsExpressionItemSearchProxy::setFilterString( const QString &string )
 {
   mFilterString = string;
-  invalidateFilter();
+  invalidate();
 }
 
 bool QgsExpressionItemSearchProxy::lessThan( const QModelIndex &left, const QModelIndex &right ) const

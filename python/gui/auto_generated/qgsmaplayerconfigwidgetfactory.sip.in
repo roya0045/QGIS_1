@@ -13,8 +13,6 @@ class QgsMapLayerConfigWidgetFactory
 {
 %Docstring(signature="appended")
 Factory class for creating custom map layer property pages
-
-.. versionadded:: 2.16
 %End
 
 %TypeHeaderCode
@@ -126,6 +124,15 @@ Set support flag for style dock
 Check if the layer is supported for this widget.
 
 :return: ``True`` if this layer is supported for this widget
+%End
+
+    virtual bool supportsLayerTreeGroup( QgsLayerTreeGroup *group ) const;
+%Docstring
+Check if a layer tree group is supported for this widget.
+
+:return: ``True`` if the group is supported for this widget
+
+.. versionadded:: 3.24
 %End
 
     virtual ParentPage parentPage() const;

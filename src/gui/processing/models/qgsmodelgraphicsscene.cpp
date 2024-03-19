@@ -22,7 +22,7 @@
 #include "qgsmessagebar.h"
 #include "qgsmessagebaritem.h"
 #include "qgsmessageviewer.h"
-#include "qgsapplication.h"
+#include "qgsmessagelog.h"
 #include <QGraphicsSceneMouseEvent>
 #include <QPushButton>
 
@@ -159,7 +159,7 @@ void QgsModelGraphicsScene::createItems( QgsProcessingModelAlgorithm *model, Qgs
     const QgsProcessingParameterDefinitions parameters = it.value().algorithm()->parameterDefinitions();
     for ( const QgsProcessingParameterDefinition *parameter : parameters )
     {
-      if ( !( parameter->flags() & QgsProcessingParameterDefinition::FlagHidden ) )
+      if ( !( parameter->flags() & Qgis::ProcessingParameterFlag::Hidden ) )
       {
         QList< QgsProcessingModelChildParameterSource > sources;
         if ( it.value().parameterSources().contains( parameter->name() ) )
@@ -224,6 +224,12 @@ void QgsModelGraphicsScene::createItems( QgsProcessingModelAlgorithm *model, Qgs
     const QMap<QString, QgsProcessingModelOutput> outputs = it.value().modelOutputs();
     QMap< QString, QgsModelComponentGraphicItem * > outputItems;
 
+    // offsets from algorithm item needed to correctly place output items
+    // which does not have valid position assigned (https://github.com/qgis/QGIS/issues/48132)
+    QgsProcessingModelComponent *algItem = mChildAlgorithmItems[it.value().childId()]->component();
+    const double outputOffsetX = algItem->size().width();
+    double outputOffsetY = 1.5 * algItem->size().height();
+
     for ( auto outputIt = outputs.constBegin(); outputIt != outputs.constEnd(); ++outputIt )
     {
       QgsModelComponentGraphicItem *item = createOutputGraphicItem( model, outputIt.value().clone() );
@@ -232,7 +238,15 @@ void QgsModelGraphicsScene::createItems( QgsProcessingModelAlgorithm *model, Qgs
       connect( item, &QgsModelComponentGraphicItem::changed, this, &QgsModelGraphicsScene::componentChanged );
       connect( item, &QgsModelComponentGraphicItem::aboutToChange, this, &QgsModelGraphicsScene::componentAboutToChange );
 
-      const QPointF pos = outputIt.value().position();
+      // if output added not at the same time as algorithm then it does not have
+      // valid position and will be placed at (0,0). We need to calculate better position.
+      // See https://github.com/qgis/QGIS/issues/48132.
+      QPointF pos = outputIt.value().position();
+      if ( pos.isNull() )
+      {
+        pos = algItem->position() + QPointF( outputOffsetX, outputOffsetY );
+        outputOffsetY += 1.5 * outputIt.value().size().height();
+      }
       int idx = -1;
       int i = 0;
       // find the actual index of the linked output from the child algorithm it comes from
@@ -251,6 +265,7 @@ void QgsModelGraphicsScene::createItems( QgsProcessingModelAlgorithm *model, Qgs
       }
 
       item->setPos( pos );
+      item->component()->setPosition( pos );
       outputItems.insert( outputIt.key(), item );
       addItem( new QgsModelArrowItem( mChildAlgorithmItems[it.value().childId()], Qt::BottomEdge, idx, QgsModelArrowItem::Marker::Circle, item, QgsModelArrowItem::Marker::Circle ) );
 
@@ -380,19 +395,19 @@ QList<QgsModelGraphicsScene::LinkSource> QgsModelGraphicsScene::linkSourcesForPa
     for ( const QString &v : list )
       res.append( linkSourcesForParameterValue( model, v, childId, context ) );
   }
-  else if ( value.canConvert< QgsProcessingModelChildParameterSource >() )
+  else if ( value.userType() == QMetaType::type( "QgsProcessingModelChildParameterSource" ) )
   {
     const QgsProcessingModelChildParameterSource source = value.value< QgsProcessingModelChildParameterSource >();
     switch ( source.source() )
     {
-      case QgsProcessingModelChildParameterSource::ModelParameter:
+      case Qgis::ProcessingModelChildParameterSource::ModelParameter:
       {
         LinkSource l;
         l.item = mParameterItems.value( source.parameterName() );
         res.append( l );
         break;
       }
-      case QgsProcessingModelChildParameterSource::ChildOutput:
+      case Qgis::ProcessingModelChildParameterSource::ChildOutput:
       {
         if ( !model->childAlgorithm( source.outputChildId() ).algorithm() )
           break;
@@ -431,9 +446,9 @@ QList<QgsModelGraphicsScene::LinkSource> QgsModelGraphicsScene::linkSourcesForPa
         break;
       }
 
-      case QgsProcessingModelChildParameterSource::Expression:
+      case Qgis::ProcessingModelChildParameterSource::Expression:
       {
-        const QMap<QString, QgsProcessingModelAlgorithm::VariableDefinition> variables = model->variablesForChildAlgorithm( childId, context );
+        const QMap<QString, QgsProcessingModelAlgorithm::VariableDefinition> variables = model->variablesForChildAlgorithm( childId, &context );
         const QgsExpression exp( source.expression() );
         const QSet<QString> vars = exp.referencedVariables();
         for ( const QString &v : vars )
@@ -446,9 +461,9 @@ QList<QgsModelGraphicsScene::LinkSource> QgsModelGraphicsScene::linkSourcesForPa
         break;
       }
 
-      case QgsProcessingModelChildParameterSource::StaticValue:
-      case QgsProcessingModelChildParameterSource::ExpressionText:
-      case QgsProcessingModelChildParameterSource::ModelOutput:
+      case Qgis::ProcessingModelChildParameterSource::StaticValue:
+      case Qgis::ProcessingModelChildParameterSource::ExpressionText:
+      case Qgis::ProcessingModelChildParameterSource::ModelOutput:
         break;
     }
   }
@@ -484,7 +499,7 @@ void QgsModelGraphicsScene::setMessageBar( QgsMessageBar *messageBar )
 
 void QgsModelGraphicsScene::showWarning( const QString &shortMessage, const QString &title, const QString &longMessage, Qgis::MessageLevel level ) const
 {
-  QgsMessageBarItem *messageWidget = mMessageBar->createMessage( QString(), shortMessage );
+  QgsMessageBarItem *messageWidget = QgsMessageBar::createMessage( QString(), shortMessage );
   QPushButton *detailsButton = new QPushButton( tr( "Details" ) );
   connect( detailsButton, &QPushButton::clicked, detailsButton, [ = ]
   {

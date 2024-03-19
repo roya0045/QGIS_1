@@ -26,8 +26,6 @@ class QgsLayoutTableStyle
 {
 %Docstring(signature="appended")
 Styling option for a layout table cell
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -70,8 +68,6 @@ class QgsLayoutTable: QgsLayoutMultiFrame
 %Docstring(signature="appended")
 A class to display a table in the print layout, and allow
 the table to span over multiple frames
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -548,7 +544,12 @@ Replaces the columns in the table with a specified list of :py:class:`QgsLayoutT
 
     QgsLayoutTableSortColumns &sortColumns();
 %Docstring
-Returns a reference to the list of :py:class:`QgsLayoutTableSortColumns` shown in the table
+Returns a reference to the list of :py:class:`QgsLayoutTableSortColumns` shown in the table.
+
+.. warning::
+
+   It is expected that the :py:func:`QgsLayoutTableColumn.attribute()` values in the columns
+   are valid QGIS expression values, and that column references are correctly escaped accordingly.
 
 .. seealso:: :py:func:`setSortColumns`
 
@@ -560,6 +561,11 @@ Returns a reference to the list of :py:class:`QgsLayoutTableSortColumns` shown i
 Replaces the sorting columns in the table with a specified list of :py:class:`QgsLayoutTableSortColumns`.
 
 :param sortColumns: list of :py:class:`QgsLayoutTableColumns` used to sort the table.
+
+.. warning::
+
+   It is expected that the :py:func:`QgsLayoutTableColumn.attribute()` values in ``sortColumns``
+   are valid QGIS expression values, and that column references are correctly escaped accordingly.
 
 .. seealso:: :py:func:`sortColumns`
 

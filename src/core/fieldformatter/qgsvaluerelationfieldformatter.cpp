@@ -24,6 +24,7 @@
 #include "qgsvectorlayerref.h"
 #include "qgspostgresstringutils.h"
 #include "qgsmessagelog.h"
+#include "qgsvariantutils.h"
 
 #include <nlohmann/json.hpp>
 using namespace nlohmann;
@@ -32,12 +33,12 @@ using namespace nlohmann;
 
 bool orderByKeyLessThan( const QgsValueRelationFieldFormatter::ValueRelationItem &p1, const QgsValueRelationFieldFormatter::ValueRelationItem &p2 )
 {
-  return qgsVariantLessThan( p1.key, p2.key );
+  return p1.group == p2.group ? qgsVariantLessThan( p1.key, p2.key ) : qgsVariantLessThan( p1.group, p2.group );
 }
 
 bool orderByValueLessThan( const QgsValueRelationFieldFormatter::ValueRelationItem &p1, const QgsValueRelationFieldFormatter::ValueRelationItem &p2 )
 {
-  return qgsVariantLessThan( p1.value, p2.value );
+  return p1.group == p2.group ? qgsVariantLessThan( p1.value, p2.value ) : qgsVariantLessThan( p1.group, p2.group );
 }
 
 QgsValueRelationFieldFormatter::QgsValueRelationFieldFormatter()
@@ -91,7 +92,7 @@ QString QgsValueRelationFieldFormatter::representValue( QgsVectorLayer *layer, i
   }
   else
   {
-    if ( value.isNull() )
+    if ( QgsVariantUtils::isNull( value ) )
     {
       return QgsApplication::nullRepresentation();
     }
@@ -110,7 +111,7 @@ QString QgsValueRelationFieldFormatter::representValue( QgsVectorLayer *layer, i
 
 QVariant QgsValueRelationFieldFormatter::sortValue( QgsVectorLayer *layer, int fieldIndex, const QVariantMap &config, const QVariant &cache, const QVariant &value ) const
 {
-  return value.isNull() ? QString() : representValue( layer, fieldIndex, config, cache, value );
+  return QgsVariantUtils::isNull( value ) ? QString() : representValue( layer, fieldIndex, config, cache, value );
 }
 
 QVariant QgsValueRelationFieldFormatter::createCache( QgsVectorLayer *layer, int fieldIndex, const QVariantMap &config ) const
@@ -134,13 +135,19 @@ QgsValueRelationFieldFormatter::ValueRelationCache QgsValueRelationFieldFormatte
     return cache;
 
   QgsFields fields = layer->fields();
-  int ki = fields.indexOf( config.value( QStringLiteral( "Key" ) ).toString() );
-  int vi = fields.indexOf( config.value( QStringLiteral( "Value" ) ).toString() );
+  const int keyIdx = fields.indexOf( config.value( QStringLiteral( "Key" ) ).toString() );
+  const int valueIdx = fields.indexOf( config.value( QStringLiteral( "Value" ) ).toString() );
 
   QgsFeatureRequest request;
 
-  request.setFlags( QgsFeatureRequest::NoGeometry );
-  QgsAttributeIds subsetOfAttributes { ki, vi };
+  request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
+  QgsAttributeIds subsetOfAttributes { keyIdx, valueIdx };
+
+  const int groupIdx = fields.lookupField( config.value( QStringLiteral( "Group" ) ).toString() );
+  if ( groupIdx > -1 )
+  {
+    subsetOfAttributes << groupIdx;
+  }
 
   const QString descriptionExpressionString = config.value( "Description" ).toString();
   QgsExpression descriptionExpression( descriptionExpressionString );
@@ -179,7 +186,8 @@ QgsValueRelationFieldFormatter::ValueRelationCache QgsValueRelationFieldFormatte
       context.setFeature( f );
       description = descriptionExpression.evaluate( &context ).toString();
     }
-    cache.append( ValueRelationItem( f.attribute( ki ), f.attribute( vi ).toString(), description ) );
+    const QVariant group = groupIdx > -1 ? f.attribute( groupIdx ) : QVariant();
+    cache.append( ValueRelationItem( f.attribute( keyIdx ), f.attribute( valueIdx ).toString(), description, group ) );
   }
 
   if ( config.value( QStringLiteral( "OrderByValue" ) ).toBool() )
@@ -331,7 +339,8 @@ QSet<QString> QgsValueRelationFieldFormatter::expressionParentFormAttributes( co
     QgsExpressionFunction *fd = QgsExpression::QgsExpression::Functions()[f->fnIndex()];
     if ( formFunctions.contains( fd->name( ) ) )
     {
-      for ( const auto &param : f->args( )->list() )
+      const QList<QgsExpressionNode *> cExpressionNodes { f->args( )->list() };
+      for ( const auto &param : std::as_const( cExpressionNodes ) )
       {
         attributes.insert( param->eval( &exp, &context ).toString() );
       }
@@ -355,7 +364,8 @@ QSet<QString> QgsValueRelationFieldFormatter::expressionFormAttributes( const QS
     QgsExpressionFunction *fd = QgsExpression::QgsExpression::Functions()[f->fnIndex()];
     if ( formFunctions.contains( fd->name( ) ) )
     {
-      for ( const auto &param : f->args( )->list() )
+      const QList<QgsExpressionNode *> cExpressionNodes { f->args( )->list() };
+      for ( const auto &param : std::as_const( cExpressionNodes ) )
       {
         attributes.insert( param->eval( &exp, &context ).toString() );
       }
@@ -371,7 +381,7 @@ bool QgsValueRelationFieldFormatter::expressionIsUsable( const QString &expressi
   const QSet<QString> attrs = expressionFormAttributes( expression );
   for ( auto it = attrs.constBegin() ; it != attrs.constEnd(); it++ )
   {
-    if ( ! feature.attribute( *it ).isValid() )
+    if ( feature.fieldNameIndex( *it ) < 0 )
       return false;
   }
 

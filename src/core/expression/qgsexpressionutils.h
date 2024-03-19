@@ -21,15 +21,19 @@
 
 #include "qgsfeature.h"
 #include "qgsexpression.h"
-#include "qgscolorramp.h"
-#include "qgsvectorlayerfeatureiterator.h"
-#include "qgsrasterlayer.h"
-#include "qgsproject.h"
-#include "qgsrelationmanager.h"
-#include "qgsvectorlayer.h"
+#include "qgsvariantutils.h"
+#include "qgsfeaturerequest.h"
 
+#include <QDate>
+#include <QDateTime>
+#include <QTime>
 #include <QThread>
 #include <QLocale>
+#include <functional>
+
+class QgsMapLayer;
+class QgsGradientColorRamp;
+class QgsVectorLayerFeatureSource;
 
 #define ENSURE_NO_EVAL_ERROR   {  if ( parent->hasEvalError() ) return QVariant(); }
 #define SET_EVAL_ERROR(x)   { parent->setEvalErrorString( x ); return QVariant(); }
@@ -37,13 +41,19 @@
 #define FEAT_FROM_CONTEXT(c, f) if ( !(c) || !( c )->hasFeature() ) return QVariant(); \
   QgsFeature f = ( c )->feature();
 
-///////////////////////////////////////////////
-// three-value logic
+/**
+ * \ingroup core
+ * \class QgsExpressionUtils
+ * \brief A set of expression-related functions
+ * \since QGIS 3.22
+ */
 
-/// @cond PRIVATE
-class QgsExpressionUtils
+class CORE_EXPORT QgsExpressionUtils
 {
   public:
+/// @cond PRIVATE
+///////////////////////////////////////////////
+// three-value logic
     enum TVL
     {
       False,
@@ -80,17 +90,17 @@ class QgsExpressionUtils
     static TVL getTVLValue( const QVariant &value, QgsExpression *parent )
     {
       // we need to convert to TVL
-      if ( value.isNull() )
+      if ( QgsVariantUtils::isNull( value ) )
         return Unknown;
 
       //handle some special cases
-      if ( value.canConvert<QgsGeometry>() )
+      if ( value.userType() == QMetaType::type( "QgsGeometry" ) )
       {
         //geom is false if empty
         const QgsGeometry geom = value.value<QgsGeometry>();
         return geom.isNull() ? False : True;
       }
-      else if ( value.canConvert<QgsFeature>() )
+      else if ( value.userType() == QMetaType::type( "QgsFeature" ) )
       {
         //feat is false if non-valid
         const QgsFeature feat = value.value<QgsFeature>();
@@ -163,7 +173,7 @@ class QgsExpressionUtils
 
     static inline bool isIntervalSafe( const QVariant &v )
     {
-      if ( v.canConvert<QgsInterval>() )
+      if ( v.userType() == QMetaType::type( "QgsInterval" ) )
       {
         return true;
       }
@@ -177,12 +187,12 @@ class QgsExpressionUtils
 
     static inline bool isNull( const QVariant &v )
     {
-      return v.isNull();
+      return QgsVariantUtils::isNull( v );
     }
 
     static inline bool isList( const QVariant &v )
     {
-      return v.type() == QVariant::List;
+      return v.type() == QVariant::List || v.type() == QVariant::StringList;
     }
 
 // implicit conversion to string
@@ -300,7 +310,7 @@ class QgsExpressionUtils
 
     static QgsInterval getInterval( const QVariant &value, QgsExpression *parent, bool report_error = false )
     {
-      if ( value.canConvert<QgsInterval>() )
+      if ( value.userType() == QMetaType::type( "QgsInterval" ) )
         return value.value<QgsInterval>();
 
       QgsInterval inter = QgsInterval::fromString( value.toString() );
@@ -315,21 +325,11 @@ class QgsExpressionUtils
       return QgsInterval();
     }
 
-    static QgsGradientColorRamp getRamp( const QVariant &value, QgsExpression *parent, bool report_error = false )
-    {
-      if ( value.canConvert<QgsGradientColorRamp>() )
-        return value.value<QgsGradientColorRamp>();
-
-      // If we get here then we can't convert so we just error and return invalid.
-      if ( report_error )
-        parent->setEvalErrorString( QObject::tr( "Cannot convert '%1' to gradient ramp" ).arg( value.toString() ) );
-
-      return QgsGradientColorRamp();
-    }
+    static QgsGradientColorRamp getRamp( const QVariant &value, QgsExpression *parent, bool report_error = false );
 
     static QgsGeometry getGeometry( const QVariant &value, QgsExpression *parent )
     {
-      if ( value.canConvert<QgsGeometry>() )
+      if ( value.userType() == QMetaType::type( "QgsGeometry" ) )
         return value.value<QgsGeometry>();
 
       parent->setEvalErrorString( QStringLiteral( "Cannot convert to geometry" ) );
@@ -338,7 +338,7 @@ class QgsExpressionUtils
 
     static QgsFeature getFeature( const QVariant &value, QgsExpression *parent )
     {
-      if ( value.canConvert<QgsFeature>() )
+      if ( value.userType() == QMetaType::type( "QgsFeature" ) )
         return value.value<QgsFeature>();
 
       parent->setEvalErrorString( QStringLiteral( "Cannot convert to feature" ) );
@@ -354,56 +354,41 @@ class QgsExpressionUtils
       return nullptr;
     }
 
-    static QgsMapLayer *getMapLayer( const QVariant &value, QgsExpression * )
-    {
-      // First check if we already received a layer pointer
-      QgsMapLayer *ml = value.value< QgsWeakMapLayerPointer >().data();
-      QgsProject *project = QgsProject::instance();
+    /**
+     * \deprecated Not actually deprecated, but this method is not thread safe -- use with extreme caution only when the thread safety has already been taken care of by the caller!
+     */
+    Q_DECL_DEPRECATED static QgsMapLayer *getMapLayer( const QVariant &value, const QgsExpressionContext *context, QgsExpression * );
 
-      // No pointer yet, maybe it's a layer id?
-      if ( !ml )
-        ml = project->mapLayer( value.toString() );
+    /**
+     * Executes a lambda \a function for a \a value which corresponds to a map layer, in a thread-safe way.
+     *
+     * \since QGIS 3.30
+     */
+    static void executeLambdaForMapLayer( const QVariant &value, const QgsExpressionContext *context, QgsExpression *expression, const std::function< void( QgsMapLayer * )> &function, bool &foundLayer );
 
-      // Still nothing? Check for layer name
-      if ( !ml )
-        ml = project->mapLayersByName( value.toString() ).value( 0 );
+    /**
+     * Evaluates a \a value to a map layer, then runs a \a function on the layer in a thread safe way before returning the result of the function.
+     *
+     * \since QGIS 3.30
+     */
+    static QVariant runMapLayerFunctionThreadSafe( const QVariant &value, const QgsExpressionContext *context, QgsExpression *expression, const std::function<QVariant( QgsMapLayer * ) > &function, bool &foundLayer );
 
-      return ml;
-    }
+    /**
+     * Gets a vector layer feature source for a \a value which corresponds to a vector layer, in a thread-safe way.
+     */
+    static std::unique_ptr<QgsVectorLayerFeatureSource> getFeatureSource( const QVariant &value, const QgsExpressionContext *context, QgsExpression *e, bool &foundLayer );
 
-    static std::unique_ptr<QgsVectorLayerFeatureSource> getFeatureSource( const QVariant &value, QgsExpression *e )
-    {
-      std::unique_ptr<QgsVectorLayerFeatureSource> featureSource;
+    /**
+     * \deprecated Not actually deprecated, but this method is not thread safe -- use with extreme caution only when the thread safety has already been taken care of by the caller!
+     */
+    Q_DECL_DEPRECATED static QgsVectorLayer *getVectorLayer( const QVariant &value, const QgsExpressionContext *context, QgsExpression *e );
 
-      auto getFeatureSource = [ &value, e, &featureSource ]
-      {
-        QgsVectorLayer *layer = getVectorLayer( value, e );
-
-        if ( layer )
-        {
-          featureSource.reset( new QgsVectorLayerFeatureSource( layer ) );
-        }
-      };
-
-      // Make sure we only deal with the vector layer on the main thread where it lives.
-      // Anything else risks a crash.
-      if ( QThread::currentThread() == qApp->thread() )
-        getFeatureSource();
-      else
-        QMetaObject::invokeMethod( qApp, getFeatureSource, Qt::BlockingQueuedConnection );
-
-      return featureSource;
-    }
-
-    static QgsVectorLayer *getVectorLayer( const QVariant &value, QgsExpression *e )
-    {
-      return qobject_cast<QgsVectorLayer *>( getMapLayer( value, e ) );
-    }
-
-    static QgsRasterLayer *getRasterLayer( const QVariant &value, QgsExpression *e )
-    {
-      return qobject_cast<QgsRasterLayer *>( getMapLayer( value, e ) );
-    }
+    /**
+     * Tries to convert a \a value to a file path.
+     *
+     * \since QGIS 3.24
+     */
+    static QString getFilePathValue( const QVariant &value, const QgsExpressionContext *context, QgsExpression *parent );
 
     static QVariantList getListValue( const QVariant &value, QgsExpression *parent )
     {
@@ -485,8 +470,27 @@ class QgsExpressionUtils
         return value.toString();
       }
     }
+/// @endcond
+
+    /**
+     * Returns a value type and user type for a given expression.
+     * \param expression An expression string.
+     * \param layer A vector layer from which the expression will be executed against.
+     * \param request A feature request object.
+     * \param context An expression context object.
+     * \param foundFeatures An optional boolean parameter that will be set when features are found.
+     * \since QGIS 3.22
+     */
+    static std::tuple<QVariant::Type, int> determineResultType( const QString &expression, const QgsVectorLayer *layer, QgsFeatureRequest request = QgsFeatureRequest(), QgsExpressionContext context = QgsExpressionContext(), bool *foundFeatures = nullptr );
+
+  private:
+
+    /**
+     * \warning Only call when thread safety has been taken care of by the caller!
+     */
+    static QgsMapLayer *getMapLayerPrivate( const QVariant &value, const QgsExpressionContext *context, QgsExpression * );
+
 };
 
-/// @endcond
 
 #endif // QGSEXPRESSIONUTILS_H

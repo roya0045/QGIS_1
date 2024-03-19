@@ -26,6 +26,7 @@
 #include "qgslayertree.h"
 #include "qgsvectorlayer.h"
 #include "nlohmann/json.hpp"
+#include "qgscoordinatetransform.h"
 
 #include <mutex>
 #include <QCryptographicHash>
@@ -115,7 +116,7 @@ QMap<QString, QString> QgsLandingPageUtils::projects( const QgsServerSettings &s
 
   // PG projects (there is no watcher for PG: scan every time)
   const QString envPgName = QgsServerSettings::name( QgsServerSettingsEnv::QGIS_SERVER_LANDING_PAGE_PROJECTS_PG_CONNECTIONS );
-  const auto storage { QgsApplication::instance()->projectStorageRegistry()->projectStorageFromType( QStringLiteral( "postgresql" ) ) };
+  const auto storage { QgsApplication::projectStorageRegistry()->projectStorageFromType( QStringLiteral( "postgresql" ) ) };
   Q_ASSERT( storage );
   const auto cPgConnections { pgConnections.split( QStringLiteral( "||" ) ) };
   for ( const auto &connectionString : cPgConnections )
@@ -240,7 +241,7 @@ json QgsLandingPageUtils::projectInfo( const QString &projectUri, const QgsServe
     {
       QgsRectangle extent { viewSettings->defaultViewExtent() };
       // Need conversion?
-      if ( viewSettings->defaultViewExtent().crs().authid() != 4326 )
+      if ( viewSettings->defaultViewExtent().crs().authid() != QLatin1String( "EPSG:4326" ) )
       {
         QgsCoordinateTransform ct { p->crs(), QgsCoordinateReferenceSystem::fromEpsgId( 4326 ), p->transformContext() };
         extent = ct.transform( extent );
@@ -251,7 +252,7 @@ json QgsLandingPageUtils::projectInfo( const QString &projectUri, const QgsServe
       // Old projects do not have view extent information, we have no choice than
       // re-read the project and extract the information from there
     {
-      QgsProject temporaryProject;
+      QgsProject temporaryProject( nullptr, Qgis::ProjectCapabilities() );
       QObject::connect( &temporaryProject, &QgsProject::readProject, qApp, [ & ]( const QDomDocument & projectDoc )
       {
         const QDomNodeList canvasElements { projectDoc.elementsByTagName( QStringLiteral( "mapcanvas" ) ) };
@@ -273,7 +274,7 @@ json QgsLandingPageUtils::projectInfo( const QString &projectUri, const QgsServe
               canvasElement.firstChildElement( QStringLiteral( "ymax" ) ).text().toDouble(),
             };
             // Need conversion?
-            if ( temporaryProject.crs().authid() != 4326 )
+            if ( temporaryProject.crs().authid() != QLatin1String( "EPSG:4326" ) )
             {
               QgsCoordinateTransform ct { temporaryProject.crs(), QgsCoordinateReferenceSystem::fromEpsgId( 4326 ), temporaryProject.transformContext() };
               extent = ct.transform( extent );
@@ -293,10 +294,6 @@ json QgsLandingPageUtils::projectInfo( const QString &projectUri, const QgsServe
     QString title { p->metadata().title() };
     if ( title.isEmpty() )
       title = QgsServerProjectUtils::owsServiceTitle( *p );
-    if ( title.isEmpty() )
-      title = p->title();
-    if ( title.isEmpty() )
-      title = p->baseName();
     info["title"] = title.toStdString();
     // Description
     QString description { p->metadata().abstract() };
@@ -358,7 +355,7 @@ json QgsLandingPageUtils::projectInfo( const QString &projectUri, const QgsServe
     }
     info["extent"] = json::array( { extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() } );
     QgsRectangle geographicExtent { extent };
-    if ( targetCrs.authid() != 4326 )
+    if ( targetCrs.authid() != QLatin1String( "EPSG:4326" ) )
     {
       QgsCoordinateTransform ct { targetCrs,  QgsCoordinateReferenceSystem::fromEpsgId( 4326 ), p->transformContext() };
       geographicExtent = ct.transform( geographicExtent );
@@ -456,9 +453,9 @@ json QgsLandingPageUtils::projectInfo( const QString &projectUri, const QgsServe
           { "name", l->name().toStdString() },
           { "id", l->id().toStdString() },
           { "crs", l->crs().authid().toStdString() },
-          { "type", l->type() ==  QgsMapLayerType::VectorLayer ? "vector" : "raster" },
+          { "type", l->type() ==  Qgis::LayerType::Vector ? "vector" : "raster" },
         };
-        if ( l->type() == QgsMapLayerType::VectorLayer )
+        if ( l->type() == Qgis::LayerType::Vector )
         {
           const QgsVectorLayer *vl = static_cast<const QgsVectorLayer *>( l );
           wmsLayer[ "pk" ] = vl->primaryKeyAttributes();
@@ -467,7 +464,7 @@ json QgsLandingPageUtils::projectInfo( const QString &projectUri, const QgsServe
           const QgsFields &cFields { vl->fields() };
           for ( const QgsField &field : cFields )
           {
-            if ( field.configurationFlags().testFlag( QgsField::ConfigurationFlag::HideFromWfs ) )
+            if ( field.configurationFlags().testFlag( Qgis::FieldConfigurationFlag::HideFromWfs ) )
             {
               ++fieldIdx;
               continue;
@@ -596,7 +593,7 @@ json QgsLandingPageUtils::layerTree( const QgsProject &project, const QStringLis
     if ( QgsLayerTree::isLayer( node ) )
     {
       const QgsLayerTreeLayer *l { static_cast<const QgsLayerTreeLayer *>( node ) };
-      if ( l->layer() && ( l->layer()->type() == QgsMapLayerType::VectorLayer || l->layer()->type() == QgsMapLayerType::RasterLayer )
+      if ( l->layer() && ( l->layer()->type() == Qgis::LayerType::Vector || l->layer()->type() == Qgis::LayerType::Raster )
            && ! wmsRestrictedLayers.contains( l->name() ) )
       {
         rec[ "id" ] = l->layerId().toStdString();
@@ -624,7 +621,7 @@ json QgsLandingPageUtils::layerTree( const QgsProject &project, const QStringLis
         rec["max_scale"] = l->layer()->maximumScale();
       }
       rec[ "is_layer" ] = true;
-      rec[ "layer_type" ] = l->layer()->type() == QgsMapLayerType::VectorLayer ? "vector" : "raster";
+      rec[ "layer_type" ] = l->layer()->type() == Qgis::LayerType::Vector ? "vector" : "raster";
     }
     else
     {

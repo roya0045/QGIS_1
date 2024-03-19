@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsScaleWidget
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,18 +9,17 @@ __author__ = 'Nyall Dawson'
 __date__ = '13/03/2019'
 __copyright__ = 'Copyright 2019, The QGIS Project'
 
-import qgis  # NOQA
 import math
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtTest import QSignalSpy
 
+from qgis.PyQt.QtTest import QSignalSpy
 from qgis.gui import QgsScaleWidget
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsScaleWidget(unittest.TestCase):
+class TestQgsScaleWidget(QgisTestCase):
 
     def testBasic(self):
         w = QgsScaleWidget()

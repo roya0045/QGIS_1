@@ -26,8 +26,6 @@ task commences (ie via calling :py:func:`~run` ).
 Long running tasks should periodically check the :py:func:`~isCanceled` flag to detect if the task
 has been canceled via some external event. If this flag is ``True`` then the task should
 clean up and terminate at the earliest possible convenience.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -48,6 +46,8 @@ clean up and terminate at the earliest possible convenience.
     {
       CanCancel,
       CancelWithoutPrompt,
+      Hidden,
+      Silent,
       AllFlags,
     };
     typedef QFlags<QgsTask::Flag> Flags;
@@ -308,8 +308,6 @@ class QgsTaskManager : QObject
 %Docstring(signature="appended")
 Task manager for managing a set of long-running QgsTask tasks. This class can be created directly,
 or accessed via :py:func:`QgsApplication.taskManager()`.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -340,6 +338,13 @@ but will be transferred to a QgsTaskManager.
       QgsTaskList dependentTasks;
 
     };
+
+    QThreadPool *threadPool();
+%Docstring
+Returns the threadpool utilized by the task manager.
+
+.. versionadded:: 3.34
+%End
 
     long addTask( QgsTask *task /Transfer/, int priority = 0 );
 %Docstring
@@ -430,9 +435,11 @@ Returns a list of the active (queued or running) tasks.
 .. seealso:: :py:func:`countActiveTasks`
 %End
 
-    int countActiveTasks() const;
+    int countActiveTasks( bool includeHidden = true ) const;
 %Docstring
 Returns the number of active (queued or running) tasks.
+
+The ``includeHidden`` argument dictates whether hidden tasks should be shown.
 
 .. seealso:: :py:func:`activeTasks`
 

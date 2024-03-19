@@ -23,6 +23,7 @@
 #include "qgsvectorlayer.h"
 #include "qgssnappingconfig.h"
 #include "qgssettingsregistrycore.h"
+#include "qgsrendercontext.h"
 
 #include <QAction>
 
@@ -49,7 +50,7 @@ QgsMapCanvasTracer::QgsMapCanvasTracer( QgsMapCanvas *canvas, QgsMessageBar *mes
 
   // arbitrarily chosen limit that should allow for fairly fast initialization
   // of the underlying graph structure
-  setMaxFeatureCount( QgsSettingsRegistryCore::settingsDigitizingTracingMaxFeatureCount.value() );
+  setMaxFeatureCount( QgsSettingsRegistryCore::settingsDigitizingTracingMaxFeatureCount->value() );
 }
 
 QgsMapCanvasTracer::~QgsMapCanvasTracer()
@@ -104,19 +105,19 @@ void QgsMapCanvasTracer::configure()
   setExtent( mCanvas->extent() );
 
   QList<QgsVectorLayer *> layers;
-  const QList<QgsMapLayer *> visibleLayers = mCanvas->mapSettings().layers();
+  const QList<QgsMapLayer *> visibleLayers = mCanvas->mapSettings().layers( true );
 
   switch ( mCanvas->snappingUtils()->config().mode() )
   {
     default:
-    case QgsSnappingConfig::ActiveLayer:
+    case Qgis::SnappingMode::ActiveLayer:
     {
       QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( mCanvas->currentLayer() );
       if ( vl && visibleLayers.contains( vl ) )
         layers << vl;
     }
     break;
-    case QgsSnappingConfig::AllLayers:
+    case Qgis::SnappingMode::AllLayers:
     {
       const auto constVisibleLayers = visibleLayers;
       for ( QgsMapLayer *layer : constVisibleLayers )
@@ -127,7 +128,7 @@ void QgsMapCanvasTracer::configure()
       }
     }
     break;
-    case QgsSnappingConfig::AdvancedConfiguration:
+    case Qgis::SnappingMode::AdvancedConfiguration:
     {
       const auto constLayers = mCanvas->snappingUtils()->layers();
       for ( const QgsSnappingUtils::LayerConfig &cfg : constLayers )
@@ -145,6 +146,6 @@ void QgsMapCanvasTracer::configure()
 void QgsMapCanvasTracer::onCurrentLayerChanged()
 {
   // no need to bother if we are not snapping
-  if ( mCanvas->snappingUtils()->config().mode() == QgsSnappingConfig::ActiveLayer )
+  if ( mCanvas->snappingUtils()->config().mode() == Qgis::SnappingMode::ActiveLayer )
     invalidateGraph();
 }

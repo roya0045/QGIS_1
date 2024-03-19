@@ -17,8 +17,13 @@ on:
   workflow_dispatch:
     # POST https://api.github.com/repos/qgis/QGIS/actions/workflows/2264135/dispatches:
 
+permissions:
+  contents: read
+
 jobs:
   define-strategy:
+    permissions:
+      contents: none
     if: github.repository_owner == 'qgis'
     runs-on: ubuntu-latest
     outputs:
@@ -27,9 +32,9 @@ jobs:
       - id: matrix
         run: |
           if [[ "${GITHUB_REF}" =~ ^refs/tags ]]; then
-            echo "::set-output name=matrix::{\"branch\":[\"${GITHUB_REF##*/}\"]}"
+            echo "matrix={\"branch\":[\"${GITHUB_REF##*/}\"]}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=matrix::{\"branch\":[\"master\", \"release-3_16\", \"release-3_20\"]}"
+            echo "matrix={\"branch\":[\"master\", \"release-3_34\", \"release-3_36\"]}" >> $GITHUB_OUTPUT
           fi
 
   build-docker:
@@ -46,9 +51,18 @@ jobs:
       DOCKER_BUILD_DEPS_FILE: qgis3-qt5-build-deps.dockerfile
 
     strategy:
+      fail-fast: false
       matrix: ${{ fromJSON( needs.define-strategy.outputs.matrix ) }}
 
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
       - name: Free additional space
         run: |
           df -h
@@ -64,7 +78,7 @@ jobs:
 
       - name: Cache
         id: cache
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v4
         with:
           path: ~/.ccache
           key: docker-build-${{ matrix.branch }}-${{ github.sha }}
@@ -73,7 +87,7 @@ jobs:
             docker-build-master-
 
       - name: checkout ${{ matrix.branch }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
 

@@ -111,25 +111,14 @@ QgsLayoutPictureWidget::QgsLayoutPictureWidget( QgsLayoutItemPicture *picture )
 
   setGuiElementValues();
 
-  switch ( mPicture->mode() )
-  {
-    case QgsLayoutItemPicture::FormatSVG:
-    case QgsLayoutItemPicture::FormatUnknown:
-      mRadioSVG->setChecked( true );
-      break;
-    case QgsLayoutItemPicture::FormatRaster:
-      mRadioRaster->setChecked( true );
-      break;
-  }
-
   connect( mPicture, &QgsLayoutObject::changed, this, &QgsLayoutPictureWidget::setGuiElementValues );
   connect( mPicture, &QgsLayoutItemPicture::pictureRotationChanged, this, &QgsLayoutPictureWidget::setPicRotationSpinValue );
 
   //connections for data defined buttons
-  registerDataDefinedButton( mSvgSelectorWidget->propertyOverrideToolButton(), QgsLayoutObject::PictureSource );
-  registerDataDefinedButton( mFillColorDDBtn, QgsLayoutObject::PictureSvgBackgroundColor );
-  registerDataDefinedButton( mStrokeColorDDBtn, QgsLayoutObject::PictureSvgStrokeColor );
-  registerDataDefinedButton( mStrokeWidthDDBtn, QgsLayoutObject::PictureSvgStrokeWidth );
+  registerDataDefinedButton( mSvgSelectorWidget->propertyOverrideToolButton(), QgsLayoutObject::DataDefinedProperty::PictureSource );
+  registerDataDefinedButton( mFillColorDDBtn, QgsLayoutObject::DataDefinedProperty::PictureSvgBackgroundColor );
+  registerDataDefinedButton( mStrokeColorDDBtn, QgsLayoutObject::DataDefinedProperty::PictureSvgStrokeColor );
+  registerDataDefinedButton( mStrokeWidthDDBtn, QgsLayoutObject::DataDefinedProperty::PictureSvgStrokeWidth );
 }
 
 void QgsLayoutPictureWidget::setMasterLayout( QgsMasterLayoutInterface *masterLayout )
@@ -330,6 +319,17 @@ void QgsLayoutPictureWidget::setGuiElementValues()
       mAnchorPointComboBox->setEnabled( false );
     }
 
+    switch ( mPicture->originalMode() )
+    {
+      case QgsLayoutItemPicture::FormatSVG:
+      case QgsLayoutItemPicture::FormatUnknown:
+        mRadioSVG->setChecked( true );
+        break;
+      case QgsLayoutItemPicture::FormatRaster:
+        mRadioRaster->setChecked( true );
+        break;
+    }
+
     mSvgSelectorWidget->setSvgPath( mPicture->picturePath() );
     mSvgSelectorWidget->setSvgParameters( mPicture->svgDynamicParameters() );
 
@@ -383,6 +383,7 @@ void QgsLayoutPictureWidget::updateSvgParamGui( bool resetValues )
     mFillColorButton->setColor( fill );
   }
   mFillColorButton->setEnabled( hasFillParam );
+  mFillColorDDBtn->setEnabled( hasFillParam );
   mFillColorButton->setAllowOpacity( hasFillOpacityParam );
   if ( resetValues )
   {
@@ -396,12 +397,14 @@ void QgsLayoutPictureWidget::updateSvgParamGui( bool resetValues )
     mStrokeColorButton->setColor( stroke );
   }
   mStrokeColorButton->setEnabled( hasStrokeParam );
+  mStrokeColorDDBtn->setEnabled( hasStrokeParam );
   mStrokeColorButton->setAllowOpacity( hasStrokeOpacityParam );
   if ( hasDefaultStrokeWidth && resetValues )
   {
     mStrokeWidthSpinBox->setValue( defaultStrokeWidth );
   }
   mStrokeWidthSpinBox->setEnabled( hasStrokeWidthParam );
+  mStrokeWidthDDBtn->setEnabled( hasStrokeWidthParam );
 }
 
 void QgsLayoutPictureWidget::mFillColorButton_colorChanged( const QColor &color )
@@ -496,4 +499,3 @@ void QgsLayoutPictureWidget::populateDataDefinedButtons()
   updateDataDefinedButton( mStrokeColorDDBtn );
   updateDataDefinedButton( mStrokeWidthDDBtn );
 }
-

@@ -16,33 +16,26 @@
 #include "qgsapplication.h"
 #include "qgisapp.h"
 #include "qgsattributetabledialog.h"
-#include "qgsdistancearea.h"
 #include "qgsfeature.h"
 #include "qgsfeaturestore.h"
-#include "qgsfields.h"
 #include "qgsgeometry.h"
 #include "qgslogger.h"
 #include "qgsidentifycontext.h"
 #include "qgsidentifyresultsdialog.h"
 #include "qgsidentifymenu.h"
 #include "qgsmapcanvas.h"
-#include "qgsmaptopixel.h"
-#include "qgsmessageviewer.h"
 #include "qgsmaptoolidentifyaction.h"
 #include "qgsmaptoolselectionhandler.h"
 #include "qgsrasterlayer.h"
-#include "qgscoordinatereferencesystem.h"
 #include "qgsvectordataprovider.h"
 #include "qgsvectorlayer.h"
 #include "qgsproject.h"
-#include "qgsrenderer.h"
-#include "qgsunittypes.h"
 #include "qgsstatusbar.h"
-#include "qgsactionscoperegistry.h"
 #include "qgssettings.h"
 #include "qgsmapmouseevent.h"
-#include "qgspointcloudlayer.h"
 #include "qgslayertreeview.h"
+#include "qgsmaplayeraction.h"
+#include "qgsunittypes.h"
 
 #include <QCursor>
 #include <QPixmap>
@@ -56,12 +49,11 @@ QgsMapToolIdentifyAction::QgsMapToolIdentifyAction( QgsMapCanvas *canvas )
   setCursor( QgsApplication::getThemeCursor( QgsApplication::Cursor::Identify ) );
   connect( this, &QgsMapToolIdentify::changedRasterResults, this, &QgsMapToolIdentifyAction::handleChangedRasterResults );
   mIdentifyMenu->setAllowMultipleReturn( true );
-  QgsMapLayerAction *attrTableAction = new QgsMapLayerAction( tr( "Show Attribute Table" ), mIdentifyMenu, QgsMapLayerType::VectorLayer, QgsMapLayerAction::MultipleFeatures );
-  connect( attrTableAction, &QgsMapLayerAction::triggeredForFeatures, this, &QgsMapToolIdentifyAction::showAttributeTable );
+  QgsMapLayerAction *attrTableAction = new QgsMapLayerAction( tr( "Show Attribute Table" ), mIdentifyMenu, Qgis::LayerType::Vector, Qgis::MapLayerActionTarget::MultipleFeatures );
+  connect( attrTableAction, &QgsMapLayerAction::triggeredForFeaturesV2, this, &QgsMapToolIdentifyAction::showAttributeTable );
   identifyMenu()->addCustomAction( attrTableAction );
   mSelectionHandler = new QgsMapToolSelectionHandler( canvas, QgsMapToolSelectionHandler::SelectSimple );
   connect( mSelectionHandler, &QgsMapToolSelectionHandler::geometryChanged, this, &QgsMapToolIdentifyAction::identifyFromGeometry );
-
 }
 
 QgsMapToolIdentifyAction::~QgsMapToolIdentifyAction()
@@ -90,7 +82,7 @@ QgsIdentifyResultsDialog *QgsMapToolIdentifyAction::resultsDialog()
   return mResultsDialog;
 }
 
-void QgsMapToolIdentifyAction::showAttributeTable( QgsMapLayer *layer, const QList<QgsFeature> &featureList )
+void QgsMapToolIdentifyAction::showAttributeTable( QgsMapLayer *layer, const QList<QgsFeature> &featureList, const QgsMapLayerActionContext & )
 {
   resultsDialog()->clear();
 
@@ -98,19 +90,18 @@ void QgsMapToolIdentifyAction::showAttributeTable( QgsMapLayer *layer, const QLi
   if ( !vl || !vl->dataProvider() )
     return;
 
-  QString filter = QStringLiteral( "$id IN (" );
-  const auto constFeatureList = featureList;
-  for ( const QgsFeature &feature : constFeatureList )
+  QStringList idList;
+  idList.reserve( featureList.size() );
+  for ( const QgsFeature &feature : featureList )
   {
-    filter.append( QStringLiteral( "%1," ).arg( feature.id() ) );
+    idList.append( FID_TO_STRING( feature.id() ) );
   }
-  filter = filter.replace( QRegExp( ",$" ), QStringLiteral( ")" ) );
+  const QString filter = QStringLiteral( "$id IN (%1)" ).arg( idList.join( ',' ) );
 
   QgsAttributeTableDialog *tableDialog = new QgsAttributeTableDialog( vl, QgsAttributeTableFilterModel::ShowFilteredList );
   tableDialog->setFilterExpression( filter );
   tableDialog->show();
 }
-
 
 void QgsMapToolIdentifyAction::identifyFromGeometry()
 {
@@ -118,7 +109,7 @@ void QgsMapToolIdentifyAction::identifyFromGeometry()
   connect( this, &QgsMapToolIdentifyAction::identifyMessage, QgisApp::instance(), &QgisApp::showStatusMessage );
 
   const QgsGeometry geometry = mSelectionHandler->selectedGeometry();
-  const bool isSinglePoint = geometry.type() == QgsWkbTypes::PointGeometry;
+  const bool isSinglePoint = geometry.type() == Qgis::GeometryType::Point;
 
   if ( isSinglePoint )
     setClickContextScope( geometry.asPoint() );
@@ -141,6 +132,7 @@ void QgsMapToolIdentifyAction::identifyFromGeometry()
   QgsIdentifyContext identifyContext;
   if ( mCanvas->mapSettings().isTemporal() )
     identifyContext.setTemporalRange( mCanvas->temporalRange() );
+  identifyContext.setZRange( mCanvas->zRange() );
   const QList<IdentifyResult> results = QgsMapToolIdentify::identify( geometry, mode, layerList, AllLayers, identifyContext );
 
   disconnect( this, &QgsMapToolIdentifyAction::identifyMessage, QgisApp::instance(), &QgisApp::showStatusMessage );
@@ -191,11 +183,11 @@ void QgsMapToolIdentifyAction::canvasReleaseEvent( QgsMapMouseEvent *e )
 void QgsMapToolIdentifyAction::handleChangedRasterResults( QList<IdentifyResult> &results )
 {
   // Add new result after raster format change
-  QgsDebugMsg( QStringLiteral( "%1 raster results" ).arg( results.size() ) );
+  QgsDebugMsgLevel( QStringLiteral( "%1 raster results" ).arg( results.size() ), 2 );
   QList<IdentifyResult>::const_iterator rresult;
   for ( rresult = results.constBegin(); rresult != results.constEnd(); ++rresult )
   {
-    if ( rresult->mLayer->type() == QgsMapLayerType::RasterLayer )
+    if ( rresult->mLayer->type() == Qgis::LayerType::Raster )
     {
       resultsDialog()->addFeature( *rresult );
     }
@@ -240,19 +232,31 @@ void QgsMapToolIdentifyAction::showResultsForFeature( QgsVectorLayer *vlayer, Qg
   resultsDialog()->updateViewModes();
 }
 
-QgsUnitTypes::DistanceUnit QgsMapToolIdentifyAction::displayDistanceUnits() const
+Qgis::DistanceUnit QgsMapToolIdentifyAction::displayDistanceUnits() const
 {
-  return QgsProject::instance()->distanceUnits();
+  Qgis::DistanceUnit units = QgsProject::instance()->distanceUnits();
+  // unknown units used as a placeholder for map units
+  if ( units == Qgis::DistanceUnit::Unknown )
+  {
+    return QgsProject::instance()->crs().mapUnits();
+  }
+  return units;
 }
 
-QgsUnitTypes::AreaUnit QgsMapToolIdentifyAction::displayAreaUnits() const
+Qgis::AreaUnit QgsMapToolIdentifyAction::displayAreaUnits() const
 {
-  return QgsProject::instance()->areaUnits();
+  Qgis::AreaUnit units = QgsProject::instance()->areaUnits();
+  // unknown units used as a placeholder for map units
+  if ( units == Qgis::AreaUnit::Unknown )
+  {
+    return QgsUnitTypes::distanceToAreaUnit( QgsProject::instance()->crs().mapUnits() );
+  }
+  return units;
 }
 
 void QgsMapToolIdentifyAction::handleCopyToClipboard( QgsFeatureStore &featureStore )
 {
-  QgsDebugMsg( QStringLiteral( "features count = %1" ).arg( featureStore.features().size() ) );
+  QgsDebugMsgLevel( QStringLiteral( "features count = %1" ).arg( featureStore.features().size() ), 2 );
   emit copyToClipboard( featureStore );
 }
 
@@ -270,7 +274,6 @@ void QgsMapToolIdentifyAction::setClickContextScope( const QgsPointXY &point )
   }
 }
 
-
 void QgsMapToolIdentifyAction::keyReleaseEvent( QKeyEvent *e )
 {
   if ( mSelectionHandler->keyReleaseEvent( e ) )
@@ -278,7 +281,6 @@ void QgsMapToolIdentifyAction::keyReleaseEvent( QKeyEvent *e )
 
   QgsMapTool::keyReleaseEvent( e );
 }
-
 
 void QgsMapToolIdentifyAction::showIdentifyResults( const QList<IdentifyResult> &identifyResults )
 {

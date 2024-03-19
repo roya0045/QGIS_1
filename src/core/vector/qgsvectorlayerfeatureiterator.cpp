@@ -28,9 +28,13 @@
 #include "qgsexception.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgsgeometryengine.h"
+#include "qgsconfig.h"
 
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
 #include <QThreadStorage>
-#include <QStack>
+#endif
+
+#include <deque>
 
 QgsVectorLayerFeatureSource::QgsVectorLayerFeatureSource( const QgsVectorLayer *layer )
 {
@@ -46,6 +50,16 @@ QgsVectorLayerFeatureSource::QgsVectorLayerFeatureSource( const QgsVectorLayer *
     layer->mJoinBuffer->createJoinCaches();
 
   mJoinBuffer.reset( layer->mJoinBuffer->clone() );
+  for ( const QgsVectorLayerJoinInfo &joinInfo : mJoinBuffer->vectorJoins() )
+  {
+    if ( QgsVectorLayer *joinLayer = joinInfo.joinLayer() )
+    {
+      JoinLayerSource source;
+      source.joinSource = std::make_shared< QgsVectorLayerFeatureSource >( joinLayer );
+      source.joinLayerFields = joinLayer->fields();
+      mJoinSources.insert( joinLayer->id(), source );
+    }
+  }
 
   mExpressionFieldBuffer.reset( new QgsExpressionFieldBuffer( *layer->mExpressionFieldBuffer ) );
   mCrs = layer->crs();
@@ -127,20 +141,13 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
   if ( mRequest.destinationCrs().isValid() && mRequest.destinationCrs() != mSource->mCrs )
   {
     mTransform = QgsCoordinateTransform( mSource->mCrs, mRequest.destinationCrs(), mRequest.transformContext() );
+    mHasValidTransform = mTransform.isValid();
   }
-  try
-  {
-    mFilterRect = filterRectToSourceCrs( mTransform );
-  }
-  catch ( QgsCsException & )
-  {
-    // can't reproject mFilterRect
-    close();
-    return;
-  }
-
 
   // prepare spatial filter geometries for optimal speed
+  // since the mDistanceWithin* constraint member variables are all in the DESTINATION CRS,
+  // we set all these upfront before any transformation to the source CRS is done.
+
   switch ( mRequest.spatialFilterType() )
   {
     case Qgis::SpatialFilterType::NoFilter:
@@ -150,18 +157,41 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
     case Qgis::SpatialFilterType::DistanceWithin:
       if ( !mRequest.referenceGeometry().isEmpty() )
       {
+        // Note that regardless of whether or not we'll ultimately be able to handoff this check to the underlying provider,
+        // we still need these reference geometry constraints in the vector layer iterator as we need them to check against
+        // the features from the vector layer's edit buffer! (In other words, we cannot completely hand off responsibility for
+        // these checks to the provider and ignore them locally)
         mDistanceWithinGeom = mRequest.referenceGeometry();
-        mDistanceWithinEngine.reset( QgsGeometry::createGeometryEngine( mDistanceWithinGeom.constGet() ) );
+        mDistanceWithinEngine = mRequest.referenceGeometryEngine();
         mDistanceWithinEngine->prepareGeometry();
         mDistanceWithin = mRequest.distanceWithin();
       }
       break;
   }
 
-  if ( !mFilterRect.isNull() )
+  bool canDelegateLimitToProvider = true;
+  try
   {
-    // update request to be the unprojected filter rect
-    mRequest.setFilterRect( mFilterRect );
+    switch ( updateRequestToSourceCrs( mRequest, mTransform ) )
+    {
+      case QgsAbstractFeatureIterator::RequestToSourceCrsResult::Success:
+        break;
+
+      case QgsAbstractFeatureIterator::RequestToSourceCrsResult::DistanceWithinMustBeCheckedManually:
+        // we have to disable any limit on the provider's request -- since that request may be returning features which are outside the
+        // distance tolerance, we'll have to fetch them all and then handle the limit check manually only after testing for the distance within constraint
+        canDelegateLimitToProvider = false;
+        break;
+    }
+
+    // mFilterRect is in the source CRS, so we set that now (after request transformation has been done)
+    mFilterRect = mRequest.filterRect();
+  }
+  catch ( QgsCsException & )
+  {
+    // can't reproject request filters
+    close();
+    return;
   }
 
   // check whether the order by clause(s) can be delegated to the provider
@@ -178,19 +208,19 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
       attributeIndexes << attrIndex;
     }
 
-    if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes && !mDelegatedOrderByToProvider )
+    if ( ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes ) && !mDelegatedOrderByToProvider )
     {
       attributeIndexes += qgis::listToSet( mRequest.subsetOfAttributes() );
       mRequest.setSubsetOfAttributes( qgis::setToList( attributeIndexes ) );
     }
   }
 
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression )
   {
     mRequest.expressionContext()->setFields( mSource->mFields );
     mRequest.filterExpression()->prepare( mRequest.expressionContext() );
 
-    if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+    if ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
     {
       // ensure that all fields required for filter expressions are prepared
       QSet<int> attributeIndexes = mRequest.filterExpression()->referencedAttributeIndexes( mSource->mFields );
@@ -218,7 +248,12 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
     mProviderRequest.setOrderBy( QgsFeatureRequest::OrderBy() );
   }
 
-  if ( mProviderRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+  if ( !canDelegateLimitToProvider )
+  {
+    mProviderRequest.setLimit( -1 );
+  }
+
+  if ( mProviderRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
   {
     // prepare list of attributes to match provider fields
     QSet<int> providerSubset;
@@ -249,7 +284,7 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
     mProviderRequest.setSubsetOfAttributes( qgis::setToList( providerSubset ) );
   }
 
-  if ( mProviderRequest.filterType() == QgsFeatureRequest::FilterExpression )
+  if ( mProviderRequest.filterType() == Qgis::FeatureRequestFilterType::Expression )
   {
     const bool needsGeom = mProviderRequest.filterExpression()->needsGeometry();
     const auto constReferencedColumns = mProviderRequest.filterExpression()->referencedColumns();
@@ -267,7 +302,7 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
         if ( needsGeom )
         {
           // have to get geometry from provider in order to evaluate expression on client
-          mProviderRequest.setFlags( mProviderRequest.flags() & ~QgsFeatureRequest::NoGeometry );
+          mProviderRequest.setFlags( mProviderRequest.flags() & ~( static_cast<int>( Qgis::FeatureRequestFlag::NoGeometry ) ) );
         }
         break;
       }
@@ -292,13 +327,13 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
       // features may be deleted in buffer, so increase limit sent to provider
       providerLimit += mSource->mDeletedFeatureIds.size();
 
-      if ( mProviderRequest.filterType() == QgsFeatureRequest::FilterExpression )
+      if ( mProviderRequest.filterType() == Qgis::FeatureRequestFilterType::Expression )
       {
         // attribute changes may mean some features no longer match expression, so increase limit sent to provider
         providerLimit += mSource->mChangedAttributeValues.size();
       }
 
-      if ( mProviderRequest.filterType() == QgsFeatureRequest::FilterExpression || mProviderRequest.spatialFilterType() != Qgis::SpatialFilterType::NoFilter )
+      if ( mProviderRequest.filterType() == Qgis::FeatureRequestFilterType::Expression || mProviderRequest.spatialFilterType() != Qgis::SpatialFilterType::NoFilter )
       {
         // geometry changes may mean some features no longer match expression or rect, so increase limit sent to provider
         providerLimit += mSource->mChangedGeometries.size();
@@ -309,7 +344,7 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
     }
   }
 
-  if ( request.filterType() == QgsFeatureRequest::FilterFid )
+  if ( request.filterType() == Qgis::FeatureRequestFilterType::Fid )
   {
     mFetchedFid = false;
   }
@@ -350,26 +385,42 @@ class QgsThreadStackOverflowGuard
 {
   public:
 
-    QgsThreadStackOverflowGuard( QThreadStorage<QStack<QString>> &storage, const QString &stackFrameInformation, int maxDepth )
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
+    QgsThreadStackOverflowGuard( QThreadStorage<std::deque<QString>> &storage, const QString &stackFrameInformation, int maxDepth )
+#else
+    QgsThreadStackOverflowGuard( std::deque<QString> &storage, const QString &stackFrameInformation, int maxDepth )
+#endif
       : mStorage( storage )
       , mMaxDepth( maxDepth )
     {
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
       if ( !storage.hasLocalData() )
       {
-        storage.setLocalData( QStack<QString>() );
+        storage.setLocalData( std::deque<QString>() );
       }
 
-      storage.localData().push( stackFrameInformation );
+      storage.localData().emplace_back( stackFrameInformation );
+#else
+      storage.emplace_back( stackFrameInformation );
+#endif
     }
 
     ~QgsThreadStackOverflowGuard()
     {
-      mStorage.localData().pop();
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
+      mStorage.localData().pop_back();
+#else
+      mStorage.pop_back();
+#endif
     }
 
     bool hasStackOverflow() const
     {
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
       if ( mStorage.localData().size() > mMaxDepth )
+#else
+      if ( mStorage.size() > mMaxDepth )
+#endif
         return true;
       else
         return false;
@@ -378,25 +429,38 @@ class QgsThreadStackOverflowGuard
     QString topFrames() const
     {
       QStringList dumpStack;
-      const QStack<QString> &stack = mStorage.localData();
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
+      const std::deque<QString> &stack = mStorage.localData();
+#else
+      const std::deque<QString> &stack = mStorage;
+#endif
 
       const int dumpSize = std::min( static_cast<int>( stack.size() ), 10 );
-      for ( int i = 0; i < dumpSize; ++i )
+      auto stackIt = stack.begin();
+      for ( int i = 0; i < dumpSize; ++i, stackIt++ )
       {
-        dumpStack += stack.at( i );
+        dumpStack += *stackIt;
       }
 
       return dumpStack.join( '\n' );
     }
 
-    int depth() const
+    std::size_t depth() const
     {
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
       return mStorage.localData().size();
+#else
+      return mStorage.size();
+#endif
     }
 
   private:
-    QThreadStorage<QStack<QString>> &mStorage;
-    int mMaxDepth;
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
+    QThreadStorage<std::deque<QString>> &mStorage;
+#else
+    std::deque<QString> &mStorage;
+#endif
+    std::size_t mMaxDepth;
 };
 
 /// @endcond private
@@ -408,17 +472,21 @@ bool QgsVectorLayerFeatureIterator::fetchFeature( QgsFeature &f )
   if ( mClosed )
     return false;
 
-  static QThreadStorage<QStack<QString>> sStack;
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
+  static QThreadStorage<std::deque<QString>> sStack;
+#else
+  static thread_local std::deque<QString> sStack;
+#endif
 
   const QgsThreadStackOverflowGuard guard( sStack, mSource->id(), 4 );
 
   if ( guard.hasStackOverflow() )
   {
-    QgsMessageLog::logMessage( QObject::tr( "Stack overflow, too many nested feature iterators.\nIterated layers:\n%3\n..." ).arg( mSource->id(), guard.topFrames() ), QObject::tr( "General" ), Qgis::MessageLevel::Critical );
+    QgsMessageLog::logMessage( QObject::tr( "Stack overflow, too many nested feature iterators.\nIterated layers:\n%1\n..." ).arg( guard.topFrames() ), QObject::tr( "General" ), Qgis::MessageLevel::Critical );
     return false;
   }
 
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid )
   {
     if ( mFetchedFid )
       return false;
@@ -442,7 +510,7 @@ bool QgsVectorLayerFeatureIterator::fetchFeature( QgsFeature &f )
     // no more changed geometries
   }
 
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression )
   {
     if ( fetchNextChangedAttributeFeature( f ) )
       return true;
@@ -483,8 +551,10 @@ bool QgsVectorLayerFeatureIterator::fetchFeature( QgsFeature &f )
 
     if ( mHasVirtualAttributes )
       addVirtualAttributes( f );
+    else
+      f.padAttributes( mSource->mFields.count() - f.attributeCount() );
 
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression && mProviderRequest.filterType() != QgsFeatureRequest::FilterExpression )
+    if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression && mProviderRequest.filterType() != Qgis::FeatureRequestFilterType::Expression )
     {
       //filtering by expression, and couldn't do it on the provider side
       mRequest.expressionContext()->setFeature( f );
@@ -497,7 +567,7 @@ bool QgsVectorLayerFeatureIterator::fetchFeature( QgsFeature &f )
 
     // update geometry
     // TODO[MK]: FilterRect check after updating the geometry
-    if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) )
+    if ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) )
       updateFeatureGeometry( f );
 
     if ( !postProcessFeature( f ) )
@@ -518,7 +588,7 @@ bool QgsVectorLayerFeatureIterator::rewind()
   if ( mClosed )
     return false;
 
-  if ( mRequest.filterType() == QgsFeatureRequest::FilterFid )
+  if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Fid )
   {
     mFetchedFid = false;
   }
@@ -552,7 +622,7 @@ void QgsVectorLayerFeatureIterator::setInterruptionChecker( QgsFeedback *interru
 
 bool QgsVectorLayerFeatureIterator::isValid() const
 {
-  return mProviderIterator.isValid();
+  return mChangedFeaturesIterator.isValid() || mProviderIterator.isValid();
 }
 
 bool QgsVectorLayerFeatureIterator::fetchNextAddedFeature( QgsFeature &f )
@@ -596,6 +666,8 @@ void QgsVectorLayerFeatureIterator::useAddedFeature( const QgsFeature &src, QgsF
 
   if ( mHasVirtualAttributes )
     addVirtualAttributes( f );
+  else
+    f.padAttributes( mSource->mFields.count() - f.attributeCount() );
 }
 
 
@@ -619,7 +691,7 @@ bool QgsVectorLayerFeatureIterator::fetchNextChangedGeomFeature( QgsFeature &f )
 
     useChangedAttributeFeature( fid, *mFetchChangedGeomIt, f );
 
-    if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression )
+    if ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression )
     {
       mRequest.expressionContext()->setFeature( f );
       if ( !mRequest.filterExpression()->evaluate( mRequest.expressionContext() ).toBool() )
@@ -644,12 +716,22 @@ bool QgsVectorLayerFeatureIterator::fetchNextChangedAttributeFeature( QgsFeature
   while ( mChangedFeaturesIterator.nextFeature( f ) )
   {
     if ( mFetchConsidered.contains( f.id() ) )
-      // skip deleted features and those already handled by the geometry
       continue;
 
     mFetchConsidered << f.id();
 
     updateChangedAttributes( f );
+
+    // also update geometry if needed
+    const auto changedGeometryIt = mSource->mChangedGeometries.constFind( f.id() );
+    if ( changedGeometryIt != mSource->mChangedGeometries.constEnd() )
+    {
+      if ( !mFilterRect.isNull() && !changedGeometryIt->intersects( mFilterRect ) )
+        // skip changed geometries not in rectangle and don't check again
+        continue;
+
+      f.setGeometry( *changedGeometryIt );
+    }
 
     if ( mHasVirtualAttributes )
       addVirtualAttributes( f );
@@ -671,20 +753,20 @@ void QgsVectorLayerFeatureIterator::useChangedAttributeFeature( QgsFeatureId fid
   f.setValid( true );
   f.setFields( mSource->mFields );
 
-  if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) ||
-       ( mRequest.filterType() == QgsFeatureRequest::FilterExpression && mRequest.filterExpression()->needsGeometry() ) )
+  if ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) ||
+       ( mRequest.filterType() == Qgis::FeatureRequestFilterType::Expression && mRequest.filterExpression()->needsGeometry() ) )
   {
     f.setGeometry( geom );
   }
 
-  const bool subsetAttrs = ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes );
+  const bool subsetAttrs = ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes );
   if ( !subsetAttrs || !mRequest.subsetOfAttributes().isEmpty() )
   {
     // retrieve attributes from provider
     QgsFeature tmp;
     //mDataProvider->featureAtId( fid, tmp, false, mFetchProvAttributes );
     QgsFeatureRequest request;
-    request.setFilterFid( fid ).setFlags( QgsFeatureRequest::NoGeometry );
+    request.setFilterFid( fid ).setFlags( Qgis::FeatureRequestFlag::NoGeometry );
     if ( subsetAttrs )
     {
       request.setSubsetOfAttributes( mProviderRequest.subsetOfAttributes() );
@@ -723,25 +805,25 @@ void QgsVectorLayerFeatureIterator::prepareJoin( int fieldIdx )
   const QgsVectorLayerJoinInfo *joinInfo = mSource->mJoinBuffer->joinForFieldIndex( fieldIdx, mSource->mFields, sourceLayerIndex );
   Q_ASSERT( joinInfo );
 
-  QgsVectorLayer *joinLayer = joinInfo->joinLayer();
-  if ( !joinLayer )
+  auto joinSourceIt = mSource->mJoinSources.constFind( joinInfo->joinLayerId() );
+  if ( joinSourceIt == mSource->mJoinSources.constEnd() )
     return;  // invalid join (unresolved reference to layer)
 
   if ( !mFetchJoinInfo.contains( joinInfo ) )
   {
     FetchJoinInfo info;
     info.joinInfo = joinInfo;
-    info.joinSource = std::make_shared< QgsVectorLayerFeatureSource >( joinLayer );
+    info.joinSource = joinSourceIt->joinSource;
     info.indexOffset = mSource->mJoinBuffer->joinedFieldsOffset( joinInfo, mSource->mFields );
     info.targetField = mSource->mFields.indexFromName( joinInfo->targetFieldName() );
-    info.joinField = joinLayer->fields().indexFromName( joinInfo->joinFieldName() );
-    info.joinLayerFields = joinLayer->fields();
+    info.joinField = joinSourceIt->joinLayerFields.indexFromName( joinInfo->joinFieldName() );
+    info.joinLayerFields = joinSourceIt->joinLayerFields;
 
     // for joined fields, we always need to request the targetField from the provider too
     if ( !mPreparedFields.contains( info.targetField ) && !mFieldsToPrepare.contains( info.targetField ) )
       mFieldsToPrepare << info.targetField;
 
-    if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes && !mRequest.subsetOfAttributes().contains( info.targetField ) )
+    if ( ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes ) && !mRequest.subsetOfAttributes().contains( info.targetField ) )
       mRequest.setSubsetOfAttributes( mRequest.subsetOfAttributes() << info.targetField );
 
     mFetchJoinInfo.insert( joinInfo, info );
@@ -755,7 +837,11 @@ void QgsVectorLayerFeatureIterator::prepareJoin( int fieldIdx )
 
 void QgsVectorLayerFeatureIterator::prepareExpression( int fieldIdx )
 {
-  static QThreadStorage<QStack<QString>> sStack;
+#if !defined(USE_THREAD_LOCAL) || defined(Q_OS_WIN)
+  static QThreadStorage<std::deque<QString>> sStack;
+#else
+  static thread_local std::deque<QString> sStack;
+#endif
 
   const QgsThreadStackOverflowGuard guard( sStack, mSource->id(), 4 );
 
@@ -786,7 +872,7 @@ void QgsVectorLayerFeatureIterator::prepareExpression( int fieldIdx )
 
   for ( const int dependentFieldIdx : referencedColumns )
   {
-    if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+    if ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
     {
       requestedAttributes += dependentFieldIdx;
     }
@@ -795,14 +881,14 @@ void QgsVectorLayerFeatureIterator::prepareExpression( int fieldIdx )
       mFieldsToPrepare << dependentFieldIdx;
   }
 
-  if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+  if ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
   {
     mRequest.setSubsetOfAttributes( qgis::setToList( requestedAttributes ) );
   }
 
   if ( exp->needsGeometry() )
   {
-    mRequest.setFlags( mRequest.flags() & ~QgsFeatureRequest::NoGeometry );
+    mRequest.setFlags( mRequest.flags() & ~( static_cast<int>( Qgis::FeatureRequestFlag::NoGeometry ) ) );
   }
 
   mExpressionFieldInfo.insert( fieldIdx, exp.release() );
@@ -817,7 +903,7 @@ void QgsVectorLayerFeatureIterator::prepareFields()
 
   mExpressionContext.reset();
 
-  mFieldsToPrepare = ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+  mFieldsToPrepare = ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
                      ? mRequest.subsetOfAttributes()
                      : mSource->mFields.allAttributesList();
 
@@ -836,6 +922,7 @@ void QgsVectorLayerFeatureIterator::prepareFields()
   {
     createOrderedJoinList();
   }
+
 }
 
 void QgsVectorLayerFeatureIterator::createOrderedJoinList()
@@ -898,12 +985,12 @@ void QgsVectorLayerFeatureIterator::createOrderedJoinList()
 bool QgsVectorLayerFeatureIterator::postProcessFeature( QgsFeature &feature )
 {
   bool result = handleGeometryValidity( feature );
-  if ( result )
+  if ( result && mHasValidTransform )
     geometryToDestinationCrs( feature, mTransform );
 
   if ( result && mDistanceWithinEngine && feature.hasGeometry() )
   {
-    result = mDistanceWithinEngine->distance( feature.geometry().constGet() ) <= mDistanceWithin;
+    result = mDistanceWithinEngine->distanceWithin( feature.geometry().constGet(), mDistanceWithin );
   }
 
   return result;
@@ -911,16 +998,16 @@ bool QgsVectorLayerFeatureIterator::postProcessFeature( QgsFeature &feature )
 
 bool QgsVectorLayerFeatureIterator::handleGeometryValidity( QgsFeature &feature )
 {
-  if ( !feature.hasGeometry() )
-    return true;
-
   switch ( mRequest.invalidGeometryCheck() )
   {
-    case QgsFeatureRequest::GeometryNoCheck:
+    case Qgis::InvalidGeometryCheck::NoCheck:
       return true;
 
-    case QgsFeatureRequest::GeometrySkipInvalid:
+    case Qgis::InvalidGeometryCheck::SkipInvalid:
     {
+      if ( !feature.hasGeometry() )
+        return true;
+
       if ( !feature.geometry().isGeosValid() )
       {
         QgsMessageLog::logMessage( QObject::tr( "Geometry error: One or more input features have invalid geometry." ), QString(), Qgis::MessageLevel::Critical );
@@ -933,7 +1020,10 @@ bool QgsVectorLayerFeatureIterator::handleGeometryValidity( QgsFeature &feature 
       break;
     }
 
-    case QgsFeatureRequest::GeometryAbortOnInvalid:
+    case Qgis::InvalidGeometryCheck::AbortOnInvalid:
+      if ( !feature.hasGeometry() )
+        return true;
+
       if ( !feature.geometry().isGeosValid() )
       {
         QgsMessageLog::logMessage( QObject::tr( "Geometry error: One or more input features have invalid geometry." ), QString(), Qgis::MessageLevel::Critical );
@@ -1162,7 +1252,7 @@ void QgsVectorLayerFeatureIterator::FetchJoinInfo::addJoinedAttributesDirect( Qg
 
   subsetString.append( QStringLiteral( "\"%1\"" ).arg( joinFieldName ) );
 
-  if ( joinValue.isNull() )
+  if ( QgsVariantUtils::isNull( joinValue ) )
   {
     subsetString += QLatin1String( " IS NULL" );
   }
@@ -1191,7 +1281,7 @@ void QgsVectorLayerFeatureIterator::FetchJoinInfo::addJoinedAttributesDirect( Qg
   // so we do not have to cache everything
   if ( joinInfo->hasSubset() )
   {
-    const QStringList subsetNames = QgsVectorLayerJoinInfo::joinFieldNamesSubset( *joinInfo );
+    const QStringList subsetNames = QgsVectorLayerJoinInfo::joinFieldNamesSubset( *joinInfo, joinLayerFields );
     const QVector<int> subsetIndices = QgsVectorLayerJoinBuffer::joinSubsetIndices( joinLayerFields, subsetNames );
     joinedAttributeIndices = qgis::setToList( qgis::listToSet( attributes ).intersect( qgis::listToSet( subsetIndices.toList() ) ) );
   }
@@ -1205,7 +1295,7 @@ void QgsVectorLayerFeatureIterator::FetchJoinInfo::addJoinedAttributesDirect( Qg
 
   // select (no geometry)
   QgsFeatureRequest request;
-  request.setFlags( QgsFeatureRequest::NoGeometry );
+  request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   request.setSubsetOfAttributes( joinedAttributeIndices );
   request.setFilterExpression( subsetString );
   request.setLimit( 1 );
@@ -1246,7 +1336,7 @@ bool QgsVectorLayerFeatureIterator::nextFeatureFid( QgsFeature &f )
     return false;
 
   // has changed geometry?
-  if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) && mSource->mChangedGeometries.contains( featureId ) )
+  if ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) && mSource->mChangedGeometries.contains( featureId ) )
   {
     useChangedAttributeFeature( featureId, mSource->mChangedGeometries[featureId], f );
     return true;
@@ -1273,6 +1363,8 @@ bool QgsVectorLayerFeatureIterator::nextFeatureFid( QgsFeature &f )
 
     if ( mHasVirtualAttributes )
       addVirtualAttributes( f );
+    else
+      f.padAttributes( mSource->mFields.count() - f.attributeCount() );
 
     return true;
   }
@@ -1347,7 +1439,7 @@ QgsFeatureIterator QgsVectorLayerSelectedFeatureSource::getFeatures( const QgsFe
   // note that we can't do this for some request types - e.g. expression based requests, so
   // in that case we just pass the request on to the provider and let QgsVectorLayerSelectedFeatureIterator
   // do ALL the filtering
-  if ( req.filterFids().isEmpty() && req.filterType() == QgsFeatureRequest::FilterNone )
+  if ( req.filterFids().isEmpty() && req.filterType() == Qgis::FeatureRequestFilterType::NoFilter )
   {
     req.setFilterFids( mSelectedFeatureIds );
   }
@@ -1371,7 +1463,7 @@ QgsFields QgsVectorLayerSelectedFeatureSource::fields() const
   return mSource.fields();
 }
 
-QgsWkbTypes::Type QgsVectorLayerSelectedFeatureSource::wkbType() const
+Qgis::WkbType QgsVectorLayerSelectedFeatureSource::wkbType() const
 {
   return mWkbType;
 }
@@ -1394,12 +1486,12 @@ QgsExpressionContextScope *QgsVectorLayerSelectedFeatureSource::createExpression
     return nullptr;
 }
 
-QgsFeatureSource::SpatialIndexPresence QgsVectorLayerSelectedFeatureSource::hasSpatialIndex() const
+Qgis::SpatialIndexPresence QgsVectorLayerSelectedFeatureSource::hasSpatialIndex() const
 {
   if ( mLayer )
     return mLayer->hasSpatialIndex();
   else
-    return QgsFeatureSource::SpatialIndexUnknown;
+    return Qgis::SpatialIndexPresence::Unknown;
 }
 
 //
@@ -1412,7 +1504,7 @@ QgsVectorLayerSelectedFeatureIterator::QgsVectorLayerSelectedFeatureIterator( co
   , mSelectedFeatureIds( selectedFeatureIds )
 {
   QgsFeatureRequest sourceRequest = request;
-  if ( sourceRequest.filterType() == QgsFeatureRequest::FilterExpression && sourceRequest.limit() > 0 )
+  if ( sourceRequest.filterType() == Qgis::FeatureRequestFilterType::Expression && sourceRequest.limit() > 0 )
   {
     // we can't pass the request limit to the provider here - otherwise the provider will
     // limit the number of returned features and may only return a bunch of matching features

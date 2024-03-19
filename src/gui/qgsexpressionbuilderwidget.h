@@ -1,5 +1,5 @@
 /***************************************************************************
-    qgisexpressionbuilderwidget.h - A generic expression string builder widget.
+    qgisexpressionbuilderwidget.h - A generic expression builder widget.
      --------------------------------------
     Date                 :  29-May-2011
     Copyright            : (C) 2011 by Nathan Woodrow
@@ -48,7 +48,7 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Flag to determine what should be loaded
      * \since QGIS 3.14
      */
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       LoadNothing = 0, //!< Do not load anything
       LoadRecent = 1 << 1, //!< Load recent expressions given the collection key
@@ -102,7 +102,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
 
     /**
      * Loads field names and values from the specified map.
-     *  \since QGIS 2.12
      * \deprecated since QGIS 3.14 this will not do anything, use setLayer() instead
      */
     Q_DECL_DEPRECATED void loadFieldsAndValues( const QMap<QString, QStringList> &fieldValues ) SIP_DEPRECATED;
@@ -138,7 +137,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Returns the expression context for the widget. The context is used for the expression
      * preview result and for populating the list of available functions and variables.
      * \see setExpressionContext
-     * \since QGIS 2.12
      */
     QgsExpressionContext expressionContext() const { return mExpressionContext; }
 
@@ -147,7 +145,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * preview result and to populate the list of available functions and variables.
      * \param context expression context
      * \see expressionContext
-     * \since QGIS 2.12
      */
     void setExpressionContext( const QgsExpressionContext &context );
 
@@ -223,7 +220,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
     /**
      * Returns a pointer to the dialog's function item model.
      * This method is exposed for testing purposes only - it should not be used to modify the model.
-     * \since QGIS 3.0
      * \deprecated since QGIS 3.14
      */
     Q_DECL_DEPRECATED QStandardItemModel *model() SIP_DEPRECATED;
@@ -231,7 +227,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
     /**
      * Returns the project currently associated with the widget.
      * \see setProject()
-     * \since QGIS 3.0
      */
     QgsProject *project();
 
@@ -239,7 +234,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Sets the \a project currently associated with the widget. This
      * controls which layers and relations and other project-specific items are shown in the widget.
      * \see project()
-     * \since QGIS 3.0
      */
     void setProject( QgsProject *project );
 
@@ -247,7 +241,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Will be set to TRUE if the current expression text reported an eval error
      * with the context.
      *
-     * \since QGIS 3.0
      */
     bool evalError() const;
 
@@ -255,9 +248,15 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Will be set to TRUE if the current expression text reports a parser error
      * with the context.
      *
-     * \since QGIS 3.0
      */
     bool parserError() const;
+
+    /**
+     * Sets whether the expression preview is visible.
+     *
+     * \since QGIS 3.22
+     */
+    void setExpressionPreviewVisible( bool isVisible );
 
   public slots:
 
@@ -376,7 +375,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Will be set to TRUE if the current expression text reported an eval error
      * with the context.
      *
-     * \since QGIS 3.0
      */
     void evalErrorChanged();
 
@@ -384,7 +382,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Will be set to TRUE if the current expression text reported a parser error
      * with the context.
      *
-     * \since QGIS 3.0
      */
     void parserErrorChanged();
 
@@ -412,7 +409,8 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
     void clearFunctionMarkers();
     void clearErrors();
     void runPythonCode( const QString &code );
-    void fillFieldValues( const QString &fieldName, int countLimit, bool forceUsedValues = false );
+    QgsVectorLayer *contextLayer( const QgsExpressionItem *item ) const;
+    void fillFieldValues( const QString &fieldName, QgsVectorLayer *layer, int countLimit, bool forceUsedValues = false );
     QString getFunctionHelp( QgsExpressionFunction *function );
     QString loadFunctionHelp( QgsExpressionItem *functionName );
     QString helpStylesheet() const;

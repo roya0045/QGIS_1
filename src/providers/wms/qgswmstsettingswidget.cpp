@@ -92,21 +92,31 @@ QgsWmstSettingsWidget::QgsWmstSettingsWidget( QgsMapLayer *layer, QgsMapCanvas *
 void QgsWmstSettingsWidget::syncToLayer( QgsMapLayer *layer )
 {
   mRasterLayer = qobject_cast< QgsRasterLayer * >( layer );
-  if ( mRasterLayer->dataProvider() && mRasterLayer->dataProvider()->temporalCapabilities()->hasTemporalCapabilities() )
+  const QgsRasterDataProvider *provider = mRasterLayer->dataProvider() ;
+  if ( !provider )
+    return;
+  const QgsRasterDataProviderTemporalCapabilities *temporalCapabilities = provider->temporalCapabilities();
+  if ( temporalCapabilities && temporalCapabilities->hasTemporalCapabilities() )
   {
-    const QgsDateTimeRange availableProviderRange = mRasterLayer->dataProvider()->temporalCapabilities()->availableTemporalRange();
-    const QgsDateTimeRange availableReferenceRange = mRasterLayer->dataProvider()->temporalCapabilities()->availableReferenceTemporalRange();
+    const QgsDateTimeRange availableProviderRange = temporalCapabilities->availableTemporalRange();
+    const QgsDateTimeRange availableReferenceRange = temporalCapabilities->availableReferenceTemporalRange();
 
-    const QList< QgsDateTimeRange > allAvailableRanges = mRasterLayer->dataProvider()->temporalCapabilities()->allAvailableTemporalRanges();
+    const QList< QgsDateTimeRange > allAvailableRanges = temporalCapabilities->allAvailableTemporalRanges();
     // determine if available ranges are a set of non-contiguous instants, and if so, we show a combobox to users instead of the free-form date widgets
-    if ( allAvailableRanges.size() < 50 && std::all_of( allAvailableRanges.cbegin(), allAvailableRanges.cend(), []( const QgsDateTimeRange & range ) { return range.isInstant(); } ) )
+    if ( ( temporalCapabilities->flags() & Qgis::RasterTemporalCapabilityFlag::RequestedTimesMustExactlyMatchAllAvailableTemporalRanges )
+         || (
+           allAvailableRanges.size() < 50 &&
+    std::all_of( allAvailableRanges.cbegin(), allAvailableRanges.cend(), []( const QgsDateTimeRange & range ) { return range.isInstant(); } ) )
+       )
     {
       mStaticWmstRangeFrame->hide();
       mStaticWmstChoiceFrame->show();
       mStaticWmstRangeCombo->clear();
       for ( const QgsDateTimeRange &range : allAvailableRanges )
       {
-        mStaticWmstRangeCombo->addItem( range.begin().toString( Qt::ISODate ), QVariant::fromValue( range ) );
+        const QString identifier = range.isInstant() ? range.begin().toString( Qt::ISODate )
+                                   : tr( "%1 to %2" ).arg( range.begin().toString( Qt::ISODate ), range.end().toString( Qt::ISODate ) );
+        mStaticWmstRangeCombo->addItem( identifier, QVariant::fromValue( range ) );
       }
       mStaticTemporalRangeRadio->setText( tr( "Predefined date" ) );
     }
@@ -207,12 +217,12 @@ void QgsWmstSettingsWidget::syncToLayer( QgsMapLayer *layer )
         mReferenceTimeCombo->setCurrentIndex( 0 );
     }
 
-    mFetchModeComboBox->addItem( tr( "Use Whole Temporal Range" ), QgsRasterDataProviderTemporalCapabilities::MatchUsingWholeRange );
-    mFetchModeComboBox->addItem( tr( "Match to Start of Range" ), QgsRasterDataProviderTemporalCapabilities::MatchExactUsingStartOfRange );
-    mFetchModeComboBox->addItem( tr( "Match to End of Range" ), QgsRasterDataProviderTemporalCapabilities::MatchExactUsingEndOfRange );
-    mFetchModeComboBox->addItem( tr( "Closest Match to Start of Range" ), QgsRasterDataProviderTemporalCapabilities::FindClosestMatchToStartOfRange );
-    mFetchModeComboBox->addItem( tr( "Closest Match to End of Range" ), QgsRasterDataProviderTemporalCapabilities::FindClosestMatchToEndOfRange );
-    mFetchModeComboBox->setCurrentIndex( mFetchModeComboBox->findData( qobject_cast< QgsRasterLayerTemporalProperties * >( mRasterLayer->temporalProperties() )->intervalHandlingMethod() ) );
+    mFetchModeComboBox->addItem( tr( "Use Whole Temporal Range" ), static_cast< int >( Qgis::TemporalIntervalMatchMethod::MatchUsingWholeRange ) );
+    mFetchModeComboBox->addItem( tr( "Match to Start of Range" ), static_cast< int >( Qgis::TemporalIntervalMatchMethod::MatchExactUsingStartOfRange ) );
+    mFetchModeComboBox->addItem( tr( "Match to End of Range" ), static_cast< int >( Qgis::TemporalIntervalMatchMethod::MatchExactUsingEndOfRange ) );
+    mFetchModeComboBox->addItem( tr( "Closest Match to Start of Range" ), static_cast< int >( Qgis::TemporalIntervalMatchMethod::FindClosestMatchToStartOfRange ) );
+    mFetchModeComboBox->addItem( tr( "Closest Match to End of Range" ), static_cast< int >( Qgis::TemporalIntervalMatchMethod::FindClosestMatchToEndOfRange ) );
+    mFetchModeComboBox->setCurrentIndex( mFetchModeComboBox->findData( static_cast< int >( qobject_cast< QgsRasterLayerTemporalProperties * >( mRasterLayer->temporalProperties() )->intervalHandlingMethod() ) ) );
 
     const QString temporalSource = uri.value( QStringLiteral( "temporalSource" ) ).toString();
     mDisableTime->setChecked( !uri.value( QStringLiteral( "enableTime" ), true ).toBool() );
@@ -258,7 +268,7 @@ void QgsWmstSettingsWidget::apply()
        mRasterLayer->dataProvider()->temporalCapabilities()->hasTemporalCapabilities() )
   {
     uri[ QStringLiteral( "enableTime" ) ] = !mDisableTime->isChecked();
-    qobject_cast< QgsRasterLayerTemporalProperties * >( mRasterLayer->temporalProperties() )->setIntervalHandlingMethod( static_cast< QgsRasterDataProviderTemporalCapabilities::IntervalHandlingMethod >(
+    qobject_cast< QgsRasterLayerTemporalProperties * >( mRasterLayer->temporalProperties() )->setIntervalHandlingMethod( static_cast< Qgis::TemporalIntervalMatchMethod >(
           mFetchModeComboBox->currentData().toInt() ) );
 
     if ( mReferenceTimeGroupBox->isChecked() )

@@ -16,8 +16,10 @@
  ***************************************************************************/
 
 #include "qgscoloreffect.h"
+#include "qgscolorutils.h"
 #include "qgsimageoperation.h"
-#include "qgssymbollayerutils.h"
+#include "qgsrendercontext.h"
+
 #include <algorithm>
 
 QgsPaintEffect *QgsColorEffect::create( const QVariantMap &map )
@@ -43,14 +45,29 @@ void QgsColorEffect::draw( QgsRenderContext &context )
   //rasterize source and apply modifications
   QImage image = sourceAsImage( context )->copy();
 
-  QgsImageOperation::adjustBrightnessContrast( image, mBrightness, mContrast / 100.0 + 1 );
+  QgsImageOperation::adjustBrightnessContrast( image, mBrightness, mContrast / 100.0 + 1, context.feedback() );
+
+  if ( context.feedback() && context.feedback()->isCanceled() )
+    return;
+
   if ( mGrayscaleMode != QgsImageOperation::GrayscaleOff )
   {
-    QgsImageOperation::convertToGrayscale( image, static_cast< QgsImageOperation::GrayscaleMode >( mGrayscaleMode ) );
+    QgsImageOperation::convertToGrayscale( image, static_cast< QgsImageOperation::GrayscaleMode >( mGrayscaleMode ), context.feedback() );
   }
-  QgsImageOperation::adjustHueSaturation( image, mSaturation, mColorizeOn ? mColorizeColor : QColor(), mColorizeStrength / 100.0 );
 
-  QgsImageOperation::multiplyOpacity( image, mOpacity );
+  if ( context.feedback() && context.feedback()->isCanceled() )
+    return;
+
+  QgsImageOperation::adjustHueSaturation( image, mSaturation, mColorizeOn ? mColorizeColor : QColor(), mColorizeStrength / 100.0, context.feedback() );
+
+  if ( context.feedback() && context.feedback()->isCanceled() )
+    return;
+
+  QgsImageOperation::multiplyOpacity( image, mOpacity, context.feedback() );
+
+  if ( context.feedback() && context.feedback()->isCanceled() )
+    return;
+
   QgsScopedQPainterState painterState( painter );
   painter->setCompositionMode( mBlendMode );
   painter->drawImage( imageOffset( context ), image );
@@ -69,7 +86,7 @@ QVariantMap QgsColorEffect::properties() const
   props.insert( QStringLiteral( "saturation" ), QString::number( mSaturation ) );
   props.insert( QStringLiteral( "grayscale_mode" ), QString::number( int( mGrayscaleMode ) ) );
   props.insert( QStringLiteral( "colorize" ), mColorizeOn ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
-  props.insert( QStringLiteral( "colorize_color" ), QgsSymbolLayerUtils::encodeColor( mColorizeColor ) );
+  props.insert( QStringLiteral( "colorize_color" ), QgsColorUtils::colorToString( mColorizeColor ) );
   props.insert( QStringLiteral( "colorize_strength" ), QString::number( mColorizeStrength ) );
 
   return props;
@@ -109,7 +126,7 @@ void QgsColorEffect::readProperties( const QVariantMap &props )
   mColorizeOn = props.value( QStringLiteral( "colorize" ), QStringLiteral( "0" ) ).toInt();
   if ( props.contains( QStringLiteral( "colorize_color" ) ) )
   {
-    setColorizeColor( QgsSymbolLayerUtils::decodeColor( props.value( QStringLiteral( "colorize_color" ) ).toString() ) );
+    setColorizeColor( QgsColorUtils::colorFromString( props.value( QStringLiteral( "colorize_color" ) ).toString() ) );
   }
   mColorizeStrength = props.value( QStringLiteral( "colorize_strength" ), QStringLiteral( "100" ) ).toInt();
 }

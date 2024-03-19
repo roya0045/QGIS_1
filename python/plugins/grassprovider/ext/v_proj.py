@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     v_proj.py
@@ -22,17 +20,17 @@ __date__ = 'November 2017'
 __copyright__ = '(C) 2017, Médéric Ribreux'
 
 from qgis.core import QgsProcessingParameterString
-from grassprovider.Grass7Utils import Grass7Utils
+from grassprovider.grass_utils import GrassUtils
 
 
 def processInputs(alg, parameters, context, feedback):
     # Grab the projection from the input vector layer
     layer = alg.parameterAsLayer(parameters, 'input', context)
-    alg.setSessionProjectionFromLayer(layer)
+    alg.setSessionProjectionFromLayer(layer, context)
     layerCrs = layer.crs().toProj()
 
     # Creates a new location with this Crs
-    wkt_file_name = Grass7Utils.exportCrsWktToFile(layer.crs())
+    wkt_file_name = GrassUtils.exportCrsWktToFile(layer.crs(), context)
     newLocation = 'newProj{}'.format(alg.uniqueSuffix)
     alg.commands.append('g.proj wkt="{}" location={}'.format(
         wkt_file_name, newLocation))
@@ -50,7 +48,7 @@ def processInputs(alg, parameters, context, feedback):
 
     # Grab the projected Crs
     crs = alg.parameterAsCrs(parameters, 'crs', context)
-    wkt_file_name = Grass7Utils.exportCrsWktToFile(crs)
+    wkt_file_name = GrassUtils.exportCrsWktToFile(crs, context)
     alg.commands.append('g.proj -c wkt="{}"'.format(wkt_file_name))
 
     # Remove crs parameter

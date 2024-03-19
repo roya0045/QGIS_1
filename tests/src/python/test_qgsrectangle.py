@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsRectangle.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,17 +9,16 @@ __author__ = 'Tim Sutton'
 __date__ = '20/08/2012'
 __copyright__ = 'Copyright 2012, The QGIS Project'
 
-import qgis  # NOQA
+from qgis.core import QgsPointXY, QgsRectangle, QgsVector
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
-from qgis.core import QgsRectangle, QgsPointXY, QgsVector
-
-from qgis.testing import start_app, unittest
 from utilities import compareWkt
 
 start_app()
 
 
-class TestQgsRectangle(unittest.TestCase):
+class TestQgsRectangle(QgisTestCase):
 
     def testCtor(self):
         rect = QgsRectangle(5.0, 5.0, 10.0, 10.0)
@@ -109,8 +107,7 @@ class TestQgsRectangle(unittest.TestCase):
         myExpectedWkt = ('0 0, '
                          '5 5')
         myWkt = rect1.asWktCoordinates()
-        myMessage = ('Expected: %s\nGot: %s\n' %
-                     (myExpectedWkt, myWkt))
+        myMessage = f'Expected: {myExpectedWkt}\nGot: {myWkt}\n'
         self.assertTrue(compareWkt(myWkt, myExpectedWkt), myMessage)
 
     def testAsWktPolygon(self):
@@ -122,13 +119,12 @@ class TestQgsRectangle(unittest.TestCase):
                          '0 5, '
                          '0 0))')
         myWkt = rect1.asWktPolygon()
-        myMessage = ('Expected: %s\nGot: %s\n' %
-                     (myExpectedWkt, myWkt))
+        myMessage = f'Expected: {myExpectedWkt}\nGot: {myWkt}\n'
         self.assertTrue(compareWkt(myWkt, myExpectedWkt), myMessage)
 
     def testToString(self):
         """Test the different string representations"""
-        self.assertEqual(QgsRectangle().toString(), 'Empty')
+        self.assertEqual(QgsRectangle().toString(), 'Null')
         rect = QgsRectangle(0, 0.1, 0.2, 0.3)
         self.assertEqual(rect.toString(), '0.0000000000000000,0.1000000000000000 : 0.2000000000000000,0.3000000000000000')
 
@@ -146,7 +142,7 @@ class TestQgsRectangle(unittest.TestCase):
 
     def testAsPolygon(self):
         """Test string representation as polygon"""
-        self.assertEqual(QgsRectangle().asPolygon(), '0.00000000 0.00000000, 0.00000000 0.00000000, 0.00000000 0.00000000, 0.00000000 0.00000000, 0.00000000 0.00000000')
+        self.assertEqual(QgsRectangle().asPolygon(), 'EMPTY')
         self.assertEqual(QgsRectangle(0, 0.1, 0.2, 0.3).asPolygon(), '0.00000000 0.10000000, 0.00000000 0.30000000, 0.20000000 0.30000000, 0.20000000 0.10000000, 0.00000000 0.10000000')
 
     def testToBox3d(self):

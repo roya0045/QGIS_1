@@ -22,7 +22,7 @@
 #include "qgscolordialog.h"
 #include "qgssettings.h"
 #include "qgsproject.h"
-#include "qgscolorrampshaderwidget.h"
+#include "qgscolorrampimpl.h"
 #include "qgslocaleawarenumericlineeditdelegate.h"
 
 #include <QColorDialog>
@@ -155,7 +155,7 @@ void QgsPalettedRendererWidget::setFromRenderer( const QgsRasterRenderer *r )
   const QgsPalettedRasterRenderer *pr = dynamic_cast<const QgsPalettedRasterRenderer *>( r );
   if ( pr )
   {
-    mBand = pr->band();
+    mBand = pr->inputBand();
     whileBlocking( mBandComboBox )->setBand( mBand );
 
     //read values and colors and fill into tree widget
@@ -834,6 +834,18 @@ void QgsPalettedRendererModel::deleteAll()
   emit classesChanged();
 }
 
+//
+// QgsPalettedRendererClassGatherer
+//
+
+QgsPalettedRendererClassGatherer::QgsPalettedRendererClassGatherer( QgsRasterLayer *layer, int bandNumber, const QgsPalettedRasterRenderer::ClassData &existingClasses, QgsColorRamp *ramp )
+  : mProvider( ( layer && layer->dataProvider() ) ? layer->dataProvider()->clone() : nullptr )
+  , mBandNumber( bandNumber )
+  , mRamp( ramp )
+  , mClasses( existingClasses )
+  , mWasCanceled( false )
+{}
+
 void QgsPalettedRendererClassGatherer::run()
 {
   mWasCanceled = false;
@@ -842,28 +854,31 @@ void QgsPalettedRendererClassGatherer::run()
   mFeedback = new QgsRasterBlockFeedback();
   connect( mFeedback, &QgsRasterBlockFeedback::progressChanged, this, &QgsPalettedRendererClassGatherer::progressChanged );
 
-  QgsPalettedRasterRenderer::ClassData newClasses = QgsPalettedRasterRenderer::classDataFromRaster( mLayer->dataProvider(), mBandNumber, mRamp.get(), mFeedback );
-
-  // combine existing classes with new classes
-  QgsPalettedRasterRenderer::ClassData::iterator classIt = newClasses.begin();
-  emit progressChanged( 0 );
-  qlonglong i = 0;
-  for ( ; classIt != newClasses.end(); ++classIt )
+  if ( mProvider )
   {
-    // check if existing classes contains this same class
-    for ( const QgsPalettedRasterRenderer::Class &existingClass : std::as_const( mClasses ) )
+    QgsPalettedRasterRenderer::ClassData newClasses = QgsPalettedRasterRenderer::classDataFromRaster( mProvider.get(), mBandNumber, mRamp.get(), mFeedback );
+
+    // combine existing classes with new classes
+    QgsPalettedRasterRenderer::ClassData::iterator classIt = newClasses.begin();
+    emit progressChanged( 0 );
+    qlonglong i = 0;
+    for ( ; classIt != newClasses.end(); ++classIt )
     {
-      if ( existingClass.value == classIt->value )
+      // check if existing classes contains this same class
+      for ( const QgsPalettedRasterRenderer::Class &existingClass : std::as_const( mClasses ) )
       {
-        classIt->color = existingClass.color;
-        classIt->label = existingClass.label;
-        break;
+        if ( existingClass.value == classIt->value )
+        {
+          classIt->color = existingClass.color;
+          classIt->label = existingClass.label;
+          break;
+        }
       }
+      i ++;
+      emit progressChanged( 100 * ( static_cast< double >( i ) / static_cast<double>( newClasses.count() ) ) );
     }
-    i ++;
-    emit progressChanged( 100 * ( i / static_cast<float>( newClasses.count() ) ) );
+    mClasses = newClasses;
   }
-  mClasses = newClasses;
 
   // be overly cautious - it's *possible* stop() might be called between deleting mFeedback and nulling it
   mFeedbackMutex.lock();

@@ -54,26 +54,26 @@ QgsServiceAreaFromLayerAlgorithm *QgsServiceAreaFromLayerAlgorithm::createInstan
 void QgsServiceAreaFromLayerAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addCommonParams();
-  addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "START_POINTS" ), QObject::tr( "Vector layer with start points" ), QList< int >() << QgsProcessing::TypeVectorPoint ) );
+  addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "START_POINTS" ), QObject::tr( "Vector layer with start points" ), QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorPoint ) ) );
 
-  std::unique_ptr< QgsProcessingParameterNumber > travelCost = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "TRAVEL_COST" ), QObject::tr( "Travel cost (distance for 'Shortest', time for 'Fastest')" ), QgsProcessingParameterNumber::Double, 0, true, 0 );
-  travelCost->setFlags( travelCost->flags() | QgsProcessingParameterDefinition::FlagHidden );
+  std::unique_ptr< QgsProcessingParameterNumber > travelCost = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "TRAVEL_COST" ), QObject::tr( "Travel cost (distance for 'Shortest', time for 'Fastest')" ), Qgis::ProcessingNumberParameterType::Double, 0, true, 0 );
+  travelCost->setFlags( travelCost->flags() | Qgis::ProcessingParameterFlag::Hidden );
   addParameter( travelCost.release() );
 
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "TRAVEL_COST2" ), QObject::tr( "Travel cost (distance for 'Shortest', time for 'Fastest')" ),
-                QgsProcessingParameterNumber::Double, 0, false, 0 ) );
+                Qgis::ProcessingNumberParameterType::Double, 0, false, 0 ) );
 
   std::unique_ptr< QgsProcessingParameterBoolean > includeBounds = std::make_unique< QgsProcessingParameterBoolean >( QStringLiteral( "INCLUDE_BOUNDS" ), QObject::tr( "Include upper/lower bound points" ), false, true );
-  includeBounds->setFlags( includeBounds->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  includeBounds->setFlags( includeBounds->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( includeBounds.release() );
 
   std::unique_ptr< QgsProcessingParameterFeatureSink > outputLines = std::make_unique< QgsProcessingParameterFeatureSink >( QStringLiteral( "OUTPUT_LINES" ),  QObject::tr( "Service area (lines)" ),
-      QgsProcessing::TypeVectorLine, QVariant(), true );
+      Qgis::ProcessingSourceType::VectorLine, QVariant(), true );
   outputLines->setCreateByDefault( true );
   addParameter( outputLines.release() );
 
   std::unique_ptr< QgsProcessingParameterFeatureSink > outputPoints = std::make_unique< QgsProcessingParameterFeatureSink >( QStringLiteral( "OUTPUT" ),  QObject::tr( "Service area (boundary nodes)" ),
-      QgsProcessing::TypeVectorPoint, QVariant(), true );
+      Qgis::ProcessingSourceType::VectorPoint, QVariant(), true );
   outputPoints->setCreateByDefault( false );
   addParameter( outputPoints.release() );
 }
@@ -117,11 +117,11 @@ QVariantMap QgsServiceAreaFromLayerAlgorithm::processAlgorithm( const QVariantMa
 
   QString pointsSinkId;
   std::unique_ptr< QgsFeatureSink > pointsSink( parameterAsSink( parameters, QStringLiteral( "OUTPUT" ), context, pointsSinkId, fields,
-      QgsWkbTypes::MultiPoint, mNetwork->sourceCrs() ) );
+      Qgis::WkbType::MultiPoint, mNetwork->sourceCrs() ) );
 
   QString linesSinkId;
   std::unique_ptr< QgsFeatureSink > linesSink( parameterAsSink( parameters, QStringLiteral( "OUTPUT_LINES" ), context, linesSinkId, fields,
-      QgsWkbTypes::MultiLineString, mNetwork->sourceCrs() ) );
+      Qgis::WkbType::MultiLineString, mNetwork->sourceCrs() ) );
 
   int idxStart;
   QString origPoint;

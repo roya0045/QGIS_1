@@ -49,10 +49,10 @@ QString QgsExtractSpecificVerticesAlgorithm::groupId() const
 
 QString QgsExtractSpecificVerticesAlgorithm::shortHelpString() const
 {
-  return QObject::tr( "This algorithm takes a line or polygon layer and generates a point layer with points "
-                      "representing specific vertices in the input lines or polygons. For instance, this algorithm "
+  return QObject::tr( "This algorithm takes a vector layer and generates a point layer with points "
+                      "representing specific vertices in the input geometries. For instance, this algorithm "
                       "can be used to extract the first or last vertices in the geometry. The attributes associated "
-                      "to each point are the same ones associated to the line or polygon that the point belongs to." ) +
+                      "to each point are the same ones associated to the feature that the point belongs to." ) +
          QStringLiteral( "\n\n" )  +
          QObject::tr( "The vertex indices parameter accepts a comma separated string specifying the indices of the "
                       "vertices to extract. The first vertex corresponds to an index of 0, the second vertex has an "
@@ -74,9 +74,9 @@ QgsExtractSpecificVerticesAlgorithm *QgsExtractSpecificVerticesAlgorithm::create
   return new QgsExtractSpecificVerticesAlgorithm();
 }
 
-QgsProcessing::SourceType QgsExtractSpecificVerticesAlgorithm::outputLayerType() const
+Qgis::ProcessingSourceType QgsExtractSpecificVerticesAlgorithm::outputLayerType() const
 {
-  return QgsProcessing::TypeVectorPoint;
+  return Qgis::ProcessingSourceType::VectorPoint;
 }
 
 QgsFields QgsExtractSpecificVerticesAlgorithm::outputFields( const QgsFields &inputFields ) const
@@ -85,7 +85,7 @@ QgsFields QgsExtractSpecificVerticesAlgorithm::outputFields( const QgsFields &in
   outputFields.append( QgsField( QStringLiteral( "vertex_pos" ), QVariant::Int ) );
   outputFields.append( QgsField( QStringLiteral( "vertex_index" ), QVariant::Int ) );
   outputFields.append( QgsField( QStringLiteral( "vertex_part" ), QVariant::Int ) );
-  if ( mGeometryType == QgsWkbTypes::PolygonGeometry )
+  if ( mGeometryType == Qgis::GeometryType::Polygon )
   {
     outputFields.append( QgsField( QStringLiteral( "vertex_part_ring" ), QVariant::Int ) );
   }
@@ -96,9 +96,9 @@ QgsFields QgsExtractSpecificVerticesAlgorithm::outputFields( const QgsFields &in
   return outputFields;
 }
 
-QgsWkbTypes::Type QgsExtractSpecificVerticesAlgorithm::outputWkbType( QgsWkbTypes::Type inputWkbType ) const
+Qgis::WkbType QgsExtractSpecificVerticesAlgorithm::outputWkbType( Qgis::WkbType inputWkbType ) const
 {
-  QgsWkbTypes::Type outputWkbType = QgsWkbTypes::Point;
+  Qgis::WkbType outputWkbType = Qgis::WkbType::Point;
   if ( QgsWkbTypes::hasM( inputWkbType ) )
   {
     outputWkbType = QgsWkbTypes::addM( outputWkbType );
@@ -111,9 +111,9 @@ QgsWkbTypes::Type QgsExtractSpecificVerticesAlgorithm::outputWkbType( QgsWkbType
   return outputWkbType;
 }
 
-QgsProcessingFeatureSource::Flag QgsExtractSpecificVerticesAlgorithm::sourceFlags() const
+Qgis::ProcessingFeatureSourceFlags QgsExtractSpecificVerticesAlgorithm::sourceFlags() const
 {
-  return QgsProcessingFeatureSource::FlagSkipGeometryValidityChecks;
+  return Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks;
 }
 
 QgsFeatureSink::SinkFlags QgsExtractSpecificVerticesAlgorithm::sinkFlags() const
@@ -132,11 +132,7 @@ bool QgsExtractSpecificVerticesAlgorithm::prepareAlgorithm( const QVariantMap &p
   mGeometryType = QgsWkbTypes::geometryType( source->wkbType() );
 
   const QString verticesString = parameterAsString( parameters, QStringLiteral( "VERTICES" ), context );
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  const QStringList verticesList = verticesString.split( ',', QString::SkipEmptyParts );
-#else
   const QStringList verticesList = verticesString.split( ',', Qt::SkipEmptyParts );
-#endif
   for ( const QString &vertex : verticesList )
   {
     bool ok = false;
@@ -160,13 +156,13 @@ QgsFeatureList QgsExtractSpecificVerticesAlgorithm::processFeature( const QgsFea
 
   QgsFeature f = feature;
   const QgsGeometry inputGeom = f.geometry();
-  if ( inputGeom.isNull() )
+  if ( inputGeom.isEmpty() )
   {
     QgsAttributes attrs = f.attributes();
     attrs << QVariant()
           << QVariant()
           << QVariant();
-    if ( mGeometryType == QgsWkbTypes::PolygonGeometry )
+    if ( mGeometryType == Qgis::GeometryType::Polygon )
     {
       attrs << QVariant();
     }
@@ -174,6 +170,7 @@ QgsFeatureList QgsExtractSpecificVerticesAlgorithm::processFeature( const QgsFea
           << QVariant()
           << QVariant();
 
+    f.clearGeometry();
     f.setAttributes( attrs );
     outputFeatures << f;
   }
@@ -206,7 +203,7 @@ QgsFeatureList QgsExtractSpecificVerticesAlgorithm::processFeature( const QgsFea
       attrs << vertex
             << vertexIndex
             << vertexId.part;
-      if ( mGeometryType == QgsWkbTypes::PolygonGeometry )
+      if ( mGeometryType == Qgis::GeometryType::Polygon )
       {
         attrs << vertexId.ring;
       }

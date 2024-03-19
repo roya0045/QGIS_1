@@ -44,7 +44,6 @@ class QgsFields;
  *   entire layer to the destination provider.
  * # Create an instance of the class and issue calls to addFeature(...)
  *
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsVectorLayerExporter : public QgsFeatureSink
 {
@@ -88,7 +87,7 @@ class CORE_EXPORT QgsVectorLayerExporter : public QgsFeatureSink
     QgsVectorLayerExporter( const QString &uri,
                             const QString &provider,
                             const QgsFields &fields,
-                            QgsWkbTypes::Type geometryType,
+                            Qgis::WkbType geometryType,
                             const QgsCoordinateReferenceSystem &crs,
                             bool overwrite = false,
                             const QMap<QString, QVariant> &options = QMap<QString, QVariant>(),
@@ -119,6 +118,13 @@ class CORE_EXPORT QgsVectorLayerExporter : public QgsFeatureSink
      * \see errorCode()
      */
     int errorCount() const { return mErrorCount; }
+
+    /**
+     * Returns the attribute capabilities of the exporter.
+     *
+     * \since QGIS 3.32
+     */
+    Qgis::VectorDataProviderAttributeEditCapabilities attributeEditCapabilities() const;
 
     bool addFeatures( QgsFeatureList &features, QgsFeatureSink::Flags flags = QgsFeatureSink::Flags() ) override;
     bool addFeature( QgsFeature &feature, QgsFeatureSink::Flags flags = QgsFeatureSink::Flags() ) override;
@@ -168,7 +174,6 @@ class CORE_EXPORT QgsVectorLayerExporter : public QgsFeatureSink
  * QGIS interface.
  * \see QgsVectorFileWriterTask
  * \see QgsRasterFileWriterTask
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsVectorLayerExporterTask : public QgsTask
 {

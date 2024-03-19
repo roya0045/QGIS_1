@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsPropertyOverrideButton.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,29 +9,27 @@ __author__ = 'Nyall Dawson'
 __date__ = '11/01/2019'
 __copyright__ = 'Copyright 2019, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (QgsPropertyDefinition,
-                       QgsProperty,
-                       QgsApplication,
-                       QgsProjectColorScheme)
-
-from qgis.gui import (QgsColorButton,
-                      QgsPropertyOverrideButton)
-
-from qgis.testing import start_app, unittest
 from qgis.PyQt.QtGui import QColor
+from qgis.core import (
+    QgsApplication,
+    QgsProjectColorScheme,
+    QgsProperty,
+    QgsPropertyDefinition,
+)
+from qgis.gui import QgsColorButton, QgsPropertyOverrideButton
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsPropertyOverrideButton(unittest.TestCase):
+class TestQgsPropertyOverrideButton(QgisTestCase):
 
     def testProjectColor(self):
         scheme = [s for s in QgsApplication.colorSchemeRegistry().schemes() if isinstance(s, QgsProjectColorScheme)][0]
         scheme.setColors([])
 
-        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.ColorWithAlpha)
+        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.StandardPropertyTemplate.ColorWithAlpha)
         button = QgsPropertyOverrideButton()
         button.init(0, QgsProperty(), definition)
 
@@ -67,7 +64,7 @@ class TestQgsPropertyOverrideButton(unittest.TestCase):
         self.assertEqual([a.isChecked() for a in color_action.menu().actions()], [False, True])
 
         # should also see color menu for ColorNoAlpha properties
-        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.ColorNoAlpha)
+        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.StandardPropertyTemplate.ColorNoAlpha)
         button = QgsPropertyOverrideButton()
         button.init(0, QgsProperty(), definition)
 
@@ -76,7 +73,7 @@ class TestQgsPropertyOverrideButton(unittest.TestCase):
         self.assertIn('Color', [a.text() for a in button.menu().actions()])
 
         # but no color menu for other types
-        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.Double)
+        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.StandardPropertyTemplate.Double)
         button = QgsPropertyOverrideButton()
         button.init(0, QgsProperty(), definition)
 
@@ -85,7 +82,7 @@ class TestQgsPropertyOverrideButton(unittest.TestCase):
         self.assertNotIn('Color', [a.text() for a in button.menu().actions()])
 
     def testLinkedColorButton(self):
-        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.ColorWithAlpha)
+        definition = QgsPropertyDefinition('test', 'test', QgsPropertyDefinition.StandardPropertyTemplate.ColorWithAlpha)
         button = QgsPropertyOverrideButton()
         button.init(0, QgsProperty(), definition)
         cb = QgsColorButton()

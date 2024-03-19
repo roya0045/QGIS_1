@@ -25,7 +25,6 @@
 #include "qgis_core.h"
 #include "qgis.h"
 #include "qgscolorrampshader.h"
-#include "qgsmeshdataprovider.h"
 #include "qgsmesh3daveraging.h"
 #include "qgsinterpolatedlinerenderer.h"
 
@@ -61,14 +60,14 @@ class CORE_EXPORT QgsMeshRendererMeshSettings
      *
      * \since QGIS 3.14
      */
-    QgsUnitTypes::RenderUnit lineWidthUnit() const;
+    Qgis::RenderUnit lineWidthUnit() const;
 
     /**
      * Sets units of the width of the mesh frame
      *
      * \since QGIS 3.14
      */
-    void setLineWidthUnit( const QgsUnitTypes::RenderUnit &lineWidthUnit );
+    void setLineWidthUnit( Qgis::RenderUnit lineWidthUnit );
 
     //! Writes configuration to a new DOM element
     QDomElement writeXml( QDomDocument &doc ) const;
@@ -78,7 +77,7 @@ class CORE_EXPORT QgsMeshRendererMeshSettings
   private:
     bool mEnabled = false;
     double mLineWidth = DEFAULT_LINE_WIDTH;
-    QgsUnitTypes::RenderUnit mLineWidthUnit = QgsUnitTypes::RenderMillimeters;
+    Qgis::RenderUnit mLineWidthUnit = Qgis::RenderUnit::Millimeters;
     QColor mColor = Qt::black;
 };
 
@@ -108,7 +107,7 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
       /**
        * Does not use resampling
        */
-      None = 0,
+      NoResampling = 0,
 
       /**
        * Does a simple average of values defined for all surrounding faces/vertices
@@ -168,14 +167,14 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
     *
     * \since QGIS 3.14
     */
-    QgsUnitTypes::RenderUnit edgeStrokeWidthUnit() const;
+    Qgis::RenderUnit edgeStrokeWidthUnit() const;
 
     /**
      * Sets the stroke width unit used to render edges scalar dataset
      *
      * \since QGIS 3.14
      */
-    void setEdgeStrokeWidthUnit( const QgsUnitTypes::RenderUnit &edgeStrokeWidthUnit );
+    void setEdgeStrokeWidthUnit( Qgis::RenderUnit edgeStrokeWidthUnit );
 
     //! Writes configuration to a new DOM element
     QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context = QgsReadWriteContext() ) const;
@@ -184,13 +183,13 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
 
   private:
     QgsColorRampShader mColorRampShader;
-    DataResamplingMethod mDataResamplingMethod = DataResamplingMethod::None;
+    DataResamplingMethod mDataResamplingMethod = DataResamplingMethod::NoResampling;
     double mClassificationMinimum = 0;
     double mClassificationMaximum = 0;
     double mOpacity = 1;
 
     QgsInterpolatedLineWidth mEdgeStrokeWidth;
-    QgsUnitTypes::RenderUnit mEdgeStrokeWidthUnit = QgsUnitTypes::RenderMillimeters;
+    Qgis::RenderUnit mEdgeStrokeWidthUnit = Qgis::RenderUnit::Millimeters;
 };
 
 /**
@@ -380,21 +379,19 @@ class CORE_EXPORT QgsMeshRendererVectorTracesSettings
     //! Sets particles count
     void setParticlesCount( int value );
     //! Returns the maximum tail length unit
-    QgsUnitTypes::RenderUnit maximumTailLengthUnit() const;
+    Qgis::RenderUnit maximumTailLengthUnit() const;
     //! Sets the maximum tail length unit
-    void setMaximumTailLengthUnit( const QgsUnitTypes::RenderUnit &maximumTailLengthUnit );
+    void setMaximumTailLengthUnit( Qgis::RenderUnit maximumTailLengthUnit );
 
     //! Reads configuration from the given DOM element
     void readXml( const QDomElement &elem );
     //! Writes configuration to a new DOM element
     QDomElement writeXml( QDomDocument &doc ) const;
 
-
-
   private:
     int mParticlesCount = 1000;
     double mMaximumTailLength = 100;
-    QgsUnitTypes::RenderUnit mMaximumTailLengthUnit = QgsUnitTypes::RenderMillimeters;
+    Qgis::RenderUnit mMaximumTailLengthUnit = Qgis::RenderUnit::Millimeters;
 
 };
 
@@ -622,8 +619,21 @@ class CORE_EXPORT QgsMeshRendererSettings
 
     //! Returns renderer settings
     QgsMeshRendererScalarSettings scalarSettings( int groupIndex ) const { return mRendererScalarSettings.value( groupIndex ); }
+
     //! Sets new renderer settings
     void setScalarSettings( int groupIndex, const QgsMeshRendererScalarSettings &settings ) { mRendererScalarSettings[groupIndex] = settings; }
+
+    /**
+     * Returns whether \a groupIndex has existing scalar settings
+     * \since QGIS 3.30.2
+     */
+    bool hasScalarSettings( int groupIndex ) const {return mRendererScalarSettings.contains( groupIndex );}
+
+    /**
+     * Removes scalar settings with \a groupIndex
+     * \since QGIS 3.30.2
+     */
+    bool removeScalarSettings( int groupIndex )  {return mRendererScalarSettings.remove( groupIndex );}
 
     //! Returns renderer settings
     QgsMeshRendererVectorSettings vectorSettings( int groupIndex ) const { return mRendererVectorSettings.value( groupIndex ); }
@@ -631,18 +641,30 @@ class CORE_EXPORT QgsMeshRendererSettings
     void setVectorSettings( int groupIndex, const QgsMeshRendererVectorSettings &settings ) { mRendererVectorSettings[groupIndex] = settings; }
 
     /**
+     * Returns whether \a groupIndex has existing vector settings
+     * \since QGIS 3.30.2
+     */
+    bool hasVectorSettings( int groupIndex ) const {return mRendererVectorSettings.contains( groupIndex );}
+
+    /**
+     * Removes vector settings for \a groupIndex
+     * \since QGIS 3.30.2
+     */
+    bool removeVectorSettings( int groupIndex )  {return mRendererVectorSettings.remove( groupIndex );}
+
+    /**
      * Returns averaging method for conversion of 3d stacked mesh data to 2d data
      *
      * Caller does not own the resulting pointer
      */
-    QgsMesh3dAveragingMethod *averagingMethod() const;
+    QgsMesh3DAveragingMethod *averagingMethod() const;
 
     /**
      * Sets averaging method for conversion of 3d stacked mesh data to 2d data
      *
      * Ownership of the method is not transferred.
      */
-    void setAveragingMethod( QgsMesh3dAveragingMethod *method );
+    void setAveragingMethod( QgsMesh3DAveragingMethod *method );
 
     //! Writes configuration to a new DOM element
     QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context = QgsReadWriteContext() ) const;
@@ -673,6 +695,13 @@ class CORE_EXPORT QgsMeshRendererSettings
      */
     void setActiveVectorDatasetGroup( int activeVectorDatasetGroup );
 
+    /**
+    * Returns whether the group with \a index has render settings (scalar or vector)
+    *
+    * \since QGIS 3.22
+    */
+    bool hasSettings( int datasetGroupIndex ) const;
+
   private:
     QgsMeshRendererMeshSettings mRendererNativeMeshSettings;
     QgsMeshRendererMeshSettings mRendererTriangularMeshSettings;
@@ -688,7 +717,7 @@ class CORE_EXPORT QgsMeshRendererSettings
     int mActiveVectorDatasetGroup = -1;
 
     //! Averaging method to get 2D datasets from 3D stacked mesh datasets
-    std::shared_ptr<QgsMesh3dAveragingMethod> mAveragingMethod;
+    std::shared_ptr<QgsMesh3DAveragingMethod> mAveragingMethod;
 };
 
 #endif //QGSMESHRENDERERSETTINGS_H

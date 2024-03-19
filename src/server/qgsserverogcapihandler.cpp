@@ -46,7 +46,8 @@ QVariantMap QgsServerOgcApiHandler::values( const QgsServerApiContext &context )
     // value() calls the validators and throws an exception if validation fails
     result[p.name()] = p.value( context );
   }
-  const auto match { path().match( context.request()->url().toString() ) };
+  const auto sanitizedPath { QgsServerOgcApi::sanitizeUrl( context.handlerPath( ) ).path() };
+  const auto match { path().match( sanitizedPath ) };
   if ( match.hasMatch() )
   {
     const auto constNamed { path().namedCaptureGroups() };
@@ -140,7 +141,7 @@ std::string QgsServerOgcApiHandler::href( const QgsServerApiContext &context, co
 {
   QUrl url { context.request()->url() };
   QString urlBasePath { context.matchedPath() };
-  const auto match { path().match( url.path() ) };
+  const auto match { path().match( QgsServerOgcApi::sanitizeUrl( context.handlerPath( ) ).path( ) ) };
   if ( match.captured().count() > 0 )
   {
     url.setPath( urlBasePath + match.captured( 0 ) );
@@ -332,7 +333,8 @@ void QgsServerOgcApiHandler::htmlDump( const json &data, const QgsServerApiConte
       auto fName { fi.filePath()};
       fName.chop( suffix.length() + 1 );
       // Chomp last segment
-      fName = fName.replace( QRegularExpression( R"raw(\/[^/]+$)raw" ), QString() );
+      const thread_local QRegularExpression segmentRx( R"raw(\/[^/]+$)raw" );
+      fName = fName.replace( segmentRx, QString() );
       if ( !suffix.isEmpty() )
       {
         fName += '.' + suffix;
@@ -367,7 +369,7 @@ void QgsServerOgcApiHandler::htmlDump( const json &data, const QgsServerApiConte
     // Returns a short name from content types
     env.add_callback( "content_type_name", 1, [ = ]( Arguments & args )
     {
-      const QgsServerOgcApi::ContentType ct { QgsServerOgcApi::contenTypeFromExtension( args.at( 0 )->get<std::string>( ) ) };
+      const QgsServerOgcApi::ContentType ct { QgsServerOgcApi::contentTypeFromExtension( args.at( 0 )->get<std::string>( ) ) };
       return QgsServerOgcApi::contentTypeToStdString( ct );
     } );
 
@@ -414,6 +416,13 @@ void QgsServerOgcApiHandler::htmlDump( const json &data, const QgsServerApiConte
         matchedPath.clear();
       }
       return matchedPath.toStdString() + "/static/" + asset;
+    } );
+
+
+    // Returns true if a string begins with the provided string prefix, false otherwise
+    env.add_callback( "starts_with", 2, [ ]( Arguments & args )
+    {
+      return string_view::starts_with( args.at( 0 )->get<std::string_view>( ), args.at( 1 )->get<std::string_view>( ) );
     } );
 
     context.response()->write( env.render_file( pathInfo.fileName().toStdString(), data ) );
@@ -513,7 +522,7 @@ QString QgsServerOgcApiHandler::parentLink( const QUrl &url, int levels )
   {
     path.chop( 1 );
   }
-  QRegularExpression re( R"raw(\/[^/]+$)raw" );
+  const thread_local QRegularExpression re( R"raw(\/[^/]+$)raw" );
   for ( int i = 0; i < levels ; i++ )
   {
     path = path.replace( re, QString() );

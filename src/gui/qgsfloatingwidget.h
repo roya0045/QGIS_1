@@ -16,6 +16,7 @@
 #define QGSFLOATINGWIDGET_H
 
 #include <QWidget>
+#include <QPointer>
 #include "qgis_sip.h"
 #include "qgis_gui.h"
 
@@ -27,7 +28,6 @@ class QgsFloatingWidgetEventFilter;
  * \brief A QWidget subclass for creating widgets which float outside of the normal Qt layout
  * system. Floating widgets use an "anchor widget" to determine how they are anchored
  * within their parent widget.
- * \since QGIS 3.0
  */
 
 class GUI_EXPORT QgsFloatingWidget: public QWidget
@@ -129,7 +129,7 @@ class GUI_EXPORT QgsFloatingWidget: public QWidget
 
   private:
 
-    QWidget *mAnchorWidget = nullptr;
+    QPointer< QWidget > mAnchorWidget;
     QgsFloatingWidgetEventFilter *mParentEventFilter = nullptr;
     QgsFloatingWidgetEventFilter *mAnchorEventFilter = nullptr;
     AnchorPoint mFloatAnchorPoint = BottomMiddle;

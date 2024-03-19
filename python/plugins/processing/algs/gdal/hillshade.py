@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     hillshade.py
@@ -64,23 +62,23 @@ class hillshade(GdalAlgorithm):
                                                      parentLayerParameterName=self.INPUT))
         self.addParameter(QgsProcessingParameterNumber(self.Z_FACTOR,
                                                        self.tr('Z factor (vertical exaggeration)'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        minValue=0.0,
                                                        defaultValue=1.0))
         self.addParameter(QgsProcessingParameterNumber(self.SCALE,
                                                        self.tr('Scale (ratio of vertical units to horizontal)'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        minValue=0.0,
                                                        defaultValue=1.0))
         self.addParameter(QgsProcessingParameterNumber(self.AZIMUTH,
                                                        self.tr('Azimuth of the light'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        minValue=0.0,
                                                        maxValue=360,
                                                        defaultValue=315.0))
         self.addParameter(QgsProcessingParameterNumber(self.ALTITUDE,
                                                        self.tr('Altitude of the light'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        minValue=0.0,
                                                        defaultValue=45.0))
         self.addParameter(QgsProcessingParameterBoolean(self.COMPUTE_EDGES,
@@ -100,7 +98,7 @@ class hillshade(GdalAlgorithm):
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         options_param.setMetadata({
             'widget_wrapper': {
                 'class': 'processing.algs.gdal.ui.RasterOptionsWidget.RasterOptionsWidgetWrapper'}})
@@ -110,7 +108,7 @@ class hillshade(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         self.addParameter(QgsProcessingParameterRasterDestination(self.OUTPUT, self.tr('Hillshade')))
@@ -142,8 +140,12 @@ class hillshade(GdalAlgorithm):
         self.setOutputValue(self.OUTPUT, out)
         arguments.append(out)
 
+        output_format = QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1])
+        if not output_format:
+            raise QgsProcessingException(self.tr('Output format is invalid'))
+
         arguments.append('-of')
-        arguments.append(QgsRasterFileWriter.driverForExtension(os.path.splitext(out)[1]))
+        arguments.append(output_format)
 
         arguments.append('-b')
         arguments.append(str(self.parameterAsInt(parameters, self.BAND, context)))
@@ -168,11 +170,13 @@ class hillshade(GdalAlgorithm):
             arguments.append('-alg')
             arguments.append('ZevenbergenThorne')
 
-        if self.parameterAsBoolean(parameters, self.COMBINED, context):
+        combined = self.parameterAsBoolean(parameters, self.COMBINED, context)
+        if combined and not multidirectional:
             arguments.append('-combined')
-
-        if multidirectional:
+        elif multidirectional and not combined:
             arguments.append('-multidirectional')
+        elif multidirectional and combined:
+            raise QgsProcessingException(self.tr('Options -multirectional and -combined are mutually exclusive.'))
 
         options = self.parameterAsString(parameters, self.OPTIONS, context)
         if options:

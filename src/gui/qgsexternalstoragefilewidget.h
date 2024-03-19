@@ -29,6 +29,7 @@ class QgsMessageBar;
 
 #include "qgsfilewidget.h"
 #include "qgsexpressioncontext.h"
+#include "qgsexpression.h"
 
 /**
  * \ingroup gui
@@ -104,7 +105,7 @@ class GUI_EXPORT QgsExternalStorageFileWidget : public QgsFileWidget
      * Set \a urlExpression expression, which once evaluated, provide the URL used to store selected
      * documents. This is used only if an external storage has been defined
      * \see setStorageType(), externalStorage()
-     * \since 3.22
+     * \since QGIS 3.22
      */
     void setStorageUrlExpression( const QString &urlExpression );
 
@@ -113,7 +114,7 @@ class GUI_EXPORT QgsExternalStorageFileWidget : public QgsFileWidget
      * URL used to store selected documents. This is used only if an external storage has been defined.
      * Returns null if no expression has been set.
      * \see setStorageUrlExpression()
-     * \since 3.22
+     * \since QGIS 3.22
      */
     QString storageUrlExpressionString() const;
 
@@ -122,21 +123,21 @@ class GUI_EXPORT QgsExternalStorageFileWidget : public QgsFileWidget
      * documents. This is used only if an external storage has been defined.
      * Returns null if no expression has been set.
      * \see setStorageUrlExpression()
-     * \since 3.22
+     * \since QGIS 3.22
      */
     QgsExpression *storageUrlExpression() const;
 
     /**
      * Set expression context to be used when for storage URL expression evaluation
      * \see setStorageUrlExpression
-     * \since 3.22
+     * \since QGIS 3.22
      */
     void setExpressionContext( const QgsExpressionContext &context );
 
     /**
      * Returns expression context used for storage url expression evaluation
      * \see storageUrlExpression
-     * \since 3.22
+     * \since QGIS 3.22
      */
     const QgsExpressionContext &expressionContext() const;
 
@@ -155,9 +156,11 @@ class GUI_EXPORT QgsExternalStorageFileWidget : public QgsFileWidget
     /**
      * Creates and Returns an expression context scope specific to QgsExternalStorageFileWidget
      * It defines the variable containing the user selected file name
-     * \since 3.22
+     * \since QGIS 3.22
      */
     static QgsExpressionContextScope *createFileWidgetScope();
+
+    void setReadOnly( bool readOnly ) override;
 
   protected:
 
@@ -170,6 +173,10 @@ class GUI_EXPORT QgsExternalStorageFileWidget : public QgsFileWidget
      */
     void addFileWidgetScope();
 
+    void dragEnterEvent( QDragEnterEvent *event ) override;
+
+    void dropEvent( QDropEvent *event ) override;
+
   private:
 
     // stores \a fileNames files using current external storage.
@@ -177,6 +184,9 @@ class GUI_EXPORT QgsExternalStorageFileWidget : public QgsFileWidget
     // fileNames. When all files have been successfully stored, current mFilePath
     // is updated
     void storeExternalFiles( QStringList fileNames, QStringList storedUrls = QStringList() );
+
+    //! Update whether the widget accept drop or not
+    void updateAcceptDrops();
 
     bool mStoreInProgress = false;
 

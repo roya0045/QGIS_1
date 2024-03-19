@@ -66,19 +66,19 @@ bool QgsFeatureSelectionModel::isSelected( QgsFeatureId fid )
 
 bool QgsFeatureSelectionModel::isSelected( const QModelIndex &index )
 {
-  return isSelected( index.model()->data( index, QgsAttributeTableModel::FeatureIdRole ).toLongLong() );
+  return isSelected( index.model()->data( index, static_cast< int >( QgsAttributeTableModel::CustomRole::FeatureId ) ).toLongLong() );
 }
 
 void QgsFeatureSelectionModel::selectFeatures( const QItemSelection &selection, QItemSelectionModel::SelectionFlags command )
 {
   QgsFeatureIds ids;
 
-  QgsDebugMsg( QStringLiteral( "Index count: %1" ).arg( selection.indexes().size() ) );
+  QgsDebugMsgLevel( QStringLiteral( "Index count: %1" ).arg( selection.indexes().size() ), 2 );
 
   const auto constIndexes = selection.indexes();
   for ( const QModelIndex &index : constIndexes )
   {
-    const QgsFeatureId id = index.model()->data( index, QgsAttributeTableModel::FeatureIdRole ).toLongLong();
+    const QgsFeatureId id = index.model()->data( index, static_cast< int >( QgsAttributeTableModel::CustomRole::FeatureId ) ).toLongLong();
 
     ids << id;
   }

@@ -17,8 +17,6 @@
 
 #include "qgslayoutmousehandles.h"
 #include "qgis.h"
-#include "qgslogger.h"
-#include "qgsproject.h"
 #include "qgslayout.h"
 #include "qgslayoutitem.h"
 #include "qgslayoututils.h"
@@ -27,6 +25,7 @@
 #include "qgslayoutsnapper.h"
 #include "qgslayoutitemgroup.h"
 #include "qgslayoutundostack.h"
+#include "qgslayoutrendercontext.h"
 #include <QGraphicsView>
 #include <QGraphicsSceneHoverEvent>
 #include <QPainter>
@@ -100,7 +99,17 @@ void QgsLayoutMouseHandles::setViewportCursor( Qt::CursorShape cursor )
 
 QList<QGraphicsItem *> QgsLayoutMouseHandles::sceneItemsAtPoint( QPointF scenePoint )
 {
-  QList< QGraphicsItem * > items = mLayout->items( scenePoint );
+  QList< QGraphicsItem * > items;
+  if ( QgsLayoutViewToolSelect *tool = qobject_cast< QgsLayoutViewToolSelect *>( mView->tool() ) )
+  {
+    const double searchTolerance = tool->searchToleranceInLayoutUnits();
+    const QRectF area( scenePoint.x() - searchTolerance, scenePoint.y() - searchTolerance, 2 * searchTolerance, 2 * searchTolerance );
+    items = mLayout->items( area );
+  }
+  else
+  {
+    items = mLayout->items( scenePoint );
+  }
   items.erase( std::remove_if( items.begin(), items.end(), []( QGraphicsItem * item )
   {
     return !dynamic_cast<QgsLayoutItem *>( item );
@@ -209,9 +218,25 @@ void QgsLayoutMouseHandles::expandItemList( const QList<QGraphicsItem *> &items,
     {
       // if a group is selected, we don't draw the bounds of the group - instead we draw the bounds of the grouped items
       const QList<QgsLayoutItem *> groupItems = static_cast< QgsLayoutItemGroup * >( item )->items();
-      collected.reserve( collected.size() + groupItems.size() );
-      for ( QgsLayoutItem *groupItem : groupItems )
-        collected.append( groupItem );
+      expandItemList( groupItems, collected );
+    }
+    else
+    {
+      collected << item;
+    }
+  }
+}
+
+
+void QgsLayoutMouseHandles::expandItemList( const QList<QgsLayoutItem *> &items, QList<QGraphicsItem *> &collected ) const
+{
+  for ( QGraphicsItem *item : items )
+  {
+    if ( item->type() == QgsLayoutItemRegistry::LayoutGroup )
+    {
+      // if a group is selected, we don't draw the bounds of the group - instead we draw the bounds of the grouped items
+      const QList<QgsLayoutItem *> groupItems = static_cast< QgsLayoutItemGroup * >( item )->items();
+      expandItemList( groupItems, collected );
     }
     else
     {

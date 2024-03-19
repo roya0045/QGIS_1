@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsLayerTreeMapCanvasBridge.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,30 +9,29 @@ __author__ = 'Nyall Dawson'
 __date__ = '8/03/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import os
+from qgis.core import (
+    QgsProject,
+    QgsVectorLayer,
+)
+from qgis.gui import (
+    QgsCustomLayerOrderWidget,
+    QgsLayerTreeMapCanvasBridge,
+    QgsMapCanvas,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
-import qgis  # NOQA
-
-from qgis.core import (QgsProject,
-                       QgsApplication,
-                       QgsUnitTypes,
-                       QgsCoordinateReferenceSystem,
-                       QgsVectorLayer)
-from qgis.gui import (QgsLayerTreeMapCanvasBridge,
-                      QgsMapCanvas,
-                      QgsCustomLayerOrderWidget)
-from qgis.testing import start_app, unittest
-from utilities import (unitTestDataPath)
+from utilities import unitTestDataPath
 
 app = start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsLayerTreeMapCanvasBridge(unittest.TestCase):
+class TestQgsLayerTreeMapCanvasBridge(QgisTestCase):
 
     def __init__(self, methodName):
         """Run once on class initialization."""
-        unittest.TestCase.__init__(self, methodName)
+        QgisTestCase.__init__(self, methodName)
 
     def testLayerOrderUpdatedThroughBridge(self):
         """ test that project layer order is updated when layer tree changes """

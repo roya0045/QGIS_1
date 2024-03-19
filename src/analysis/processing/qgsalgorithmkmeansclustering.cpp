@@ -50,20 +50,20 @@ QString QgsKMeansClusteringAlgorithm::groupId() const
 void QgsKMeansClusteringAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ),
-                QObject::tr( "Input layer" ), QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QObject::tr( "Input layer" ), QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "CLUSTERS" ), QObject::tr( "Number of clusters" ),
-                QgsProcessingParameterNumber::Integer, 5, false, 1 ) );
+                Qgis::ProcessingNumberParameterType::Integer, 5, false, 1 ) );
 
   auto fieldNameParam = std::make_unique<QgsProcessingParameterString>( QStringLiteral( "FIELD_NAME" ),
                         QObject::tr( "Cluster field name" ), QStringLiteral( "CLUSTER_ID" ) );
-  fieldNameParam->setFlags( fieldNameParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  fieldNameParam->setFlags( fieldNameParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( fieldNameParam.release() );
   auto sizeFieldNameParam = std::make_unique<QgsProcessingParameterString>( QStringLiteral( "SIZE_FIELD_NAME" ),
                             QObject::tr( "Cluster size field name" ), QStringLiteral( "CLUSTER_SIZE" ) );
-  sizeFieldNameParam->setFlags( sizeFieldNameParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  sizeFieldNameParam->setFlags( sizeFieldNameParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( sizeFieldNameParam.release() );
 
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Clusters" ), QgsProcessing::TypeVectorAnyGeometry ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Clusters" ), Qgis::ProcessingSourceType::VectorAnyGeometry ) );
 }
 
 QString QgsKMeansClusteringAlgorithm::shortHelpString() const
@@ -123,7 +123,7 @@ QVariantMap QgsKMeansClusteringAlgorithm::processAlgorithm( const QVariantMap &p
     featureWithGeometryCount++;
 
     QgsPointXY point;
-    if ( QgsWkbTypes::flatType( feat.geometry().wkbType() ) == QgsWkbTypes::Point )
+    if ( QgsWkbTypes::flatType( feat.geometry().wkbType() ) == Qgis::WkbType::Point )
       point = QgsPointXY( *qgsgeometry_cast< const QgsPoint * >( feat.geometry().constGet() ) );
     else
     {
@@ -242,7 +242,7 @@ void QgsKMeansClusteringAlgorithm::initClusters( std::vector<Feature> &points, s
 
   if ( feedback && duplicateCount > 1 )
   {
-    feedback->pushInfo( QObject::tr( "There are at least %1 duplicate inputs, the number of output clusters may be less than was requested" ).arg( duplicateCount ) );
+    feedback->pushInfo( QObject::tr( "There are at least %n duplicate input(s), the number of output clusters may be less than was requested", nullptr, duplicateCount ) );
   }
 
   // By now two points should be found and be not the same
@@ -322,9 +322,9 @@ void QgsKMeansClusteringAlgorithm::calculateKMeans( std::vector<QgsKMeansCluster
   }
 
   if ( !converged && feedback )
-    feedback->reportError( QObject::tr( "Clustering did not converge after %1 iterations" ).arg( i ) );
+    feedback->reportError( QObject::tr( "Clustering did not converge after %n iteration(s)", nullptr, i ) );
   else if ( feedback )
-    feedback->pushInfo( QObject::tr( "Clustering converged after %1 iterations" ).arg( i ) );
+    feedback->pushInfo( QObject::tr( "Clustering converged after %n iteration(s)", nullptr, i ) );
 }
 
 // ported from https://github.com/postgis/postgis/blob/svn-trunk/liblwgeom/lwkmeans.c

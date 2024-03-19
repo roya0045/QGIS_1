@@ -18,25 +18,27 @@
 #include "qgsapplication.h"
 #include "qgslayoutitemhtml.h"
 #include "qgslayoutframe.h"
-#include "qgslayout.h"
-#include "qgsmultirenderchecker.h"
 #include "qgsfontutils.h"
 #include "qgsvectorlayer.h"
 #include "qgsrelationmanager.h"
 #include "qgsvectordataprovider.h"
 #include "qgsproject.h"
+#include "qgslayout.h"
+#include "qgslayoutreportcontext.h"
+
 #include <QObject>
 #include "qgstest.h"
 
-class TestQgsLayoutHtml : public QObject
+class TestQgsLayoutHtml : public QgsTest
 {
     Q_OBJECT
+
+  public:
+    TestQgsLayoutHtml() : QgsTest( QStringLiteral( "Layout HTML Tests" ), QStringLiteral( "composer_html" ) ) {}
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init();// will be called before each testfunction is executed.
-    void cleanup();// will be called after every testfunction.
     void sourceMode(); //test if rendering manual HTML works
     void userStylesheets(); //test if user stylesheets work
     void evalExpressions(); //test if rendering with expressions works
@@ -47,7 +49,6 @@ class TestQgsLayoutHtml : public QObject
     void javascriptSetFeature(); //test that JavaScript setFeature() function is correctly called
 
   private:
-    QString mReport;
     QFont mTestFont;
 };
 
@@ -56,33 +57,13 @@ void TestQgsLayoutHtml::initTestCase()
   QgsApplication::init();
   QgsApplication::initQgis();
 
-  mReport = QStringLiteral( "<h1>Layout HTML Tests</h1>\n" );
-
   QgsFontUtils::loadStandardTestFonts( QStringList() << QStringLiteral( "Oblique" ) );
   mTestFont = QgsFontUtils::getStandardTestFont( QStringLiteral( "Oblique " ) );
 }
 
 void TestQgsLayoutHtml::cleanupTestCase()
 {
-  const QString myReportFile = QDir::tempPath() + "/qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-  }
   QgsApplication::exitQgis();
-}
-
-void TestQgsLayoutHtml::init()
-{
-
-}
-
-void TestQgsLayoutHtml::cleanup()
-{
-
 }
 
 void TestQgsLayoutHtml::sourceMode()
@@ -98,10 +79,7 @@ void TestQgsLayoutHtml::sourceMode()
   htmlItem->setHtml( QStringLiteral( "<body style=\"margin: 10px;\"><div style=\"width: 100px; height: 50px; background-color: red;\"></div></body>" ) );
   htmlItem->loadHtml();
 
-  QgsLayoutChecker checker( QStringLiteral( "composerhtml_manual" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  const bool result = checker.testLayout( mReport, 0, 100 );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_manual" ), &l, 0, 100 );
 }
 
 void TestQgsLayoutHtml::userStylesheets()
@@ -121,10 +99,7 @@ void TestQgsLayoutHtml::userStylesheets()
   //setting user stylesheet enabled automatically loads html
   htmlItem->setUserStylesheetEnabled( true );
 
-  QgsLayoutChecker checker( QStringLiteral( "composerhtml_userstylesheet" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  const bool result = checker.testLayout( mReport, 0, 100 );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_userstylesheet" ), &l, 0, 100 );
 }
 
 void TestQgsLayoutHtml::evalExpressions()
@@ -142,10 +117,7 @@ void TestQgsLayoutHtml::evalExpressions()
 
   htmlItem->loadHtml();
 
-  QgsLayoutChecker checker( QStringLiteral( "composerhtml_expressions_enabled" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_expressions_enabled" ), &l );
 }
 
 void TestQgsLayoutHtml::evalExpressionsOff()
@@ -161,10 +133,7 @@ void TestQgsLayoutHtml::evalExpressionsOff()
   htmlItem->setHtml( QStringLiteral( "<body style=\"margin: 10px;\"><div style=\"width: [% 10 * 10 %]px; height: [% 30 + 20 %]px; background-color: [% 'yel' || 'low' %];\"></div></body>" ) );
   htmlItem->loadHtml();
 
-  QgsLayoutChecker checker( QStringLiteral( "composerhtml_expressions_disabled" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_expressions_disabled" ), &l );
 }
 
 void TestQgsLayoutHtml::table()
@@ -177,10 +146,7 @@ void TestQgsLayoutHtml::table()
   htmlItem->addFrame( htmlFrame );
   htmlItem->setUrl( QUrl( QStringLiteral( "file:///%1/test_html.html" ).arg( TEST_DATA_DIR ) ) );
 
-  QgsLayoutChecker checker( QStringLiteral( "composerhtml_table" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_table" ), &l );
 }
 
 void TestQgsLayoutHtml::tableMultiFrame()
@@ -197,16 +163,10 @@ void TestQgsLayoutHtml::tableMultiFrame()
   //page1
   htmlItem->setUrl( QUrl( QStringLiteral( "file:///%1/test_html.html" ).arg( TEST_DATA_DIR ) ) );
   htmlItem->frame( 0 )->setFrameEnabled( true );
-  QgsLayoutChecker checker1( QStringLiteral( "composerhtml_multiframe1" ), &l );
-  checker1.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  bool result = checker1.testLayout( mReport );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_multiframe1" ), &l );
 
   //page2
-  QgsLayoutChecker checker2( QStringLiteral( "composerhtml_multiframe2" ), &l );
-  checker2.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  result = checker2.testLayout( mReport, 1 ) && result;
-
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_multiframe2" ), &l, 1 );
 }
 
 void TestQgsLayoutHtml::htmlMultiFrameSmartBreak()
@@ -223,16 +183,10 @@ void TestQgsLayoutHtml::htmlMultiFrameSmartBreak()
   //page1
   htmlItem->setUrl( QUrl( QStringLiteral( "file:///%1/test_html.html" ).arg( TEST_DATA_DIR ) ) );
   htmlItem->frame( 0 )->setFrameEnabled( true );
-  QgsLayoutChecker checker1( QStringLiteral( "composerhtml_smartbreaks1" ), &l );
-  checker1.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  bool result = checker1.testLayout( mReport, 0, 200 );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_smartbreaks1" ), &l, 0, 200 );
 
   //page2
-  QgsLayoutChecker checker2( QStringLiteral( "composerhtml_smartbreaks2" ), &l );
-  checker2.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  result = checker2.testLayout( mReport, 1, 200 ) && result;
-
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_smartbreaks2" ), &l, 1, 200 );
 }
 
 void TestQgsLayoutHtml::javascriptSetFeature()
@@ -303,10 +257,7 @@ void TestQgsLayoutHtml::javascriptSetFeature()
 
   htmlItem->loadHtml();
 
-  QgsLayoutChecker checker( QStringLiteral( "composerhtml_setfeature" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "composer_html" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "composerhtml_setfeature" ), &l );
 
   QgsProject::instance()->removeMapLayers( QList<QgsMapLayer *>() << childLayer << parentLayer );
 }

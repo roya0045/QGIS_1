@@ -18,8 +18,6 @@ The :py:class:`QgsMapLayerModel` class is a model to display layers in widgets.
 .. seealso:: :py:class:`QgsMapLayerProxyModel`
 
 .. seealso:: :py:class:`QgsFieldModel`
-
-.. versionadded:: 2.3
 %End
 
 %TypeHeaderCode
@@ -27,12 +25,13 @@ The :py:class:`QgsMapLayerModel` class is a model to display layers in widgets.
 %End
   public:
 
-    enum ItemDataRole
+
+    enum class CustomRole
     {
-      LayerIdRole,
-      LayerRole,
-      EmptyRole,
-      AdditionalRole,
+      LayerId,
+      Layer,
+      Empty,
+      Additional,
     };
 
     explicit QgsMapLayerModel( QObject *parent /TransferThis/ = 0, QgsProject *project = 0 );
@@ -54,6 +53,13 @@ populate the model.
     void setItemsCheckable( bool checkable );
 %Docstring
 setItemsCheckable defines if layers should be selectable in the widget
+%End
+
+    void setProject( QgsProject *project );
+%Docstring
+Sets the :py:class:`QgsProject` from which map layers are shown
+
+.. versionadded:: 3.24
 %End
 
     void setItemsCanBeReordered( bool allow );
@@ -86,8 +92,6 @@ Sets whether an optional empty layer ("not set") option is present in the model.
 Since QGIS 3.20, the optional ``text`` and ``icon`` arguments allows the text and icon for the empty layer item to be set.
 
 .. seealso:: :py:func:`allowEmptyLayer`
-
-.. versionadded:: 3.0
 %End
 
     bool allowEmptyLayer() const;
@@ -95,8 +99,6 @@ Since QGIS 3.20, the optional ``text`` and ``icon`` arguments allows the text an
 Returns ``True`` if the model allows the empty layer ("not set") choice.
 
 .. seealso:: :py:func:`setAllowEmptyLayer`
-
-.. versionadded:: 3.0
 %End
 
     void setShowCrs( bool showCrs );
@@ -104,8 +106,6 @@ Returns ``True`` if the model allows the empty layer ("not set") choice.
 Sets whether the CRS of layers is also included in the model's display role.
 
 .. seealso:: :py:func:`showCrs`
-
-.. versionadded:: 3.0
 %End
 
     bool showCrs() const;
@@ -113,8 +113,6 @@ Sets whether the CRS of layers is also included in the model's display role.
 Returns ``True`` if the model includes layer's CRS in the display role.
 
 .. seealso:: :py:func:`setShowCrs`
-
-.. versionadded:: 3.0
 %End
 
     QList<QgsMapLayer *> layersChecked( Qt::CheckState checkState = Qt::Checked );
@@ -144,19 +142,15 @@ indexFromLayer returns the model index for a given layer
 Returns the map layer corresponding to the specified ``index``.
 
 .. seealso:: :py:func:`indexFromLayer`
-
-.. versionadded:: 3.0
 %End
 
     void setAdditionalItems( const QStringList &items );
 %Docstring
 Sets a list of additional (non map layer) items to include at the end of the model.
-These may represent additional layers such as layers which are not included in the map
-layer registry, or paths to layers which have not yet been loaded into QGIS.
+These may represent additional layers such as layers which are not included in the active project,
+or paths to layers which have not yet been loaded into QGIS.
 
 .. seealso:: :py:func:`additionalItems`
-
-.. versionadded:: 3.0
 %End
 
     QStringList additionalItems() const;
@@ -164,8 +158,27 @@ layer registry, or paths to layers which have not yet been loaded into QGIS.
 Returns the list of additional (non map layer) items included at the end of the model.
 
 .. seealso:: :py:func:`setAdditionalItems`
+%End
 
-.. versionadded:: 3.0
+    void setAdditionalLayers( const QList<QgsMapLayer *> &layers );
+%Docstring
+Sets a list of additional ``layers`` to include in the model.
+
+This method allows adding additional layers, which are not part of a project's
+layers, into the model.
+
+.. seealso:: :py:func:`additionalLayers`
+
+.. versionadded:: 3.22
+%End
+
+    QList< QgsMapLayer * > additionalLayers() const;
+%Docstring
+Returns the list of additional layers added to the model.
+
+.. seealso:: :py:func:`setAdditionalLayers`
+
+.. versionadded:: 3.22
 %End
 
     virtual QModelIndex index( int row, int column, const QModelIndex &parent = QModelIndex() ) const;
@@ -201,8 +214,6 @@ Returns the list of additional (non map layer) items included at the end of the 
     static QIcon iconForLayer( QgsMapLayer *layer );
 %Docstring
 Returns the icon corresponding to a specified map ``layer``.
-
-.. versionadded:: 3.0
 %End
 
   protected slots:

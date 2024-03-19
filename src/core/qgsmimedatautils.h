@@ -53,7 +53,6 @@ class CORE_EXPORT QgsMimeDataUtils
 
       /**
        * Returns whether the object contains valid data
-       * \since QGIS 3.0
        */
       bool isValid() const { return !layerType.isEmpty(); }
 
@@ -100,6 +99,9 @@ class CORE_EXPORT QgsMimeDataUtils
        * - "vector": vector layers
        * - "raster": raster layers
        * - "mesh": mesh layers
+       * - "pointcloud": point cloud layers
+       * - "vector-tile": vector tile layers
+       * - "tiled-scene": tiled scene layers
        * - "plugin": plugin layers
        * - "custom": custom types
        * - "project": QGS/QGZ project file
@@ -143,7 +145,7 @@ class CORE_EXPORT QgsMimeDataUtils
        *
        * \since QGIS 3.8
        */
-      QgsWkbTypes::Type wkbType = QgsWkbTypes::Unknown;
+      Qgis::WkbType wkbType = Qgis::WkbType::Unknown;
 
       /**
        * Path to file, if uri is associated with a file.
@@ -172,7 +174,6 @@ class CORE_EXPORT QgsMimeDataUtils
 
     /**
      * Returns encoded URI list from a list of layer tree nodes.
-     * \since QGIS 3.0
      */
     static QByteArray layerTreeNodesToUriList( const QList<QgsLayerTreeNode *> &nodes );
 

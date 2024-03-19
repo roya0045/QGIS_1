@@ -102,7 +102,7 @@ class CORE_EXPORT QgsMeshMemoryDataProvider final: public QgsMeshDataProvider
      *
      * Data string contains simple definition of datasets
      * Each entry is separated by "\n" sign and section deliminer "---"
-     * First section defines the dataset group: Vertex/Edge/Face Vector/Scalar Name
+     * First section defines the dataset group: vertex/edge/face vector/scalar Name
      * Second section defines the group metadata: key: value pairs
      * Third section defines the datasets (timesteps). First line is time,
      * other lines are values (one value on line). For vectors separated by comma
@@ -111,7 +111,7 @@ class CORE_EXPORT QgsMeshMemoryDataProvider final: public QgsMeshDataProvider
      *
      *  \code
      *    QString uri(
-     *      "Vertex Vector MyVertexVectorDataset\n" \
+     *      "vertex vector MyVertexVectorDataset\n" \
      *      "---"
      *      "description: My great dataset \n" \
      *      "reference_time: Midnight  \n" \
@@ -135,7 +135,7 @@ class CORE_EXPORT QgsMeshMemoryDataProvider final: public QgsMeshDataProvider
     QgsMeshDatasetMetadata datasetMetadata( QgsMeshDatasetIndex index ) const override;
     QgsMeshDatasetValue datasetValue( QgsMeshDatasetIndex index, int valueIndex ) const override;
     QgsMeshDataBlock datasetValues( QgsMeshDatasetIndex index, int valueIndex, int count ) const override;
-    QgsMesh3dDataBlock dataset3dValues( QgsMeshDatasetIndex index, int faceIndex, int count ) const override;
+    QgsMesh3DDataBlock dataset3dValues( QgsMeshDatasetIndex index, int faceIndex, int count ) const override;
 
     bool isFaceActive( QgsMeshDatasetIndex index, int faceIndex ) const override;
     QgsMeshDataBlock areFacesActive( QgsMeshDatasetIndex index, int faceIndex, int count ) const override;
@@ -161,10 +161,6 @@ class CORE_EXPORT QgsMeshMemoryDataProvider final: public QgsMeshDataProvider
     static QString providerKey();
     //! Returns the memory provider description
     static QString providerDescription();
-    //! Provider factory
-    static QgsMeshMemoryDataProvider *createProvider( const QString &uri,
-        const QgsDataProvider::ProviderOptions &providerOptions,
-        QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() );
 
   private:
     QgsRectangle calculateExtent( ) const;
@@ -189,6 +185,17 @@ class CORE_EXPORT QgsMeshMemoryDataProvider final: public QgsMeshDataProvider
 
     bool mIsValid = false;
     QStringList mExtraDatasetUris;
+};
+
+class QgsMeshMemoryProviderMetadata final: public QgsProviderMetadata
+{
+    Q_OBJECT
+
+  public:
+    QgsMeshMemoryProviderMetadata();
+    QIcon icon() const override;
+    QgsDataProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() ) override;
+    QList< Qgis::LayerType > supportedLayerTypes() const override;
 };
 
 ///@endcond

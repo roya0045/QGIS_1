@@ -27,7 +27,7 @@
 #include "qgsserverprojectutils.h"
 #include "qgsserverapicontext.h"
 #include "qgsserverexception.h"
-#include "qgsvectorlayerserverproperties.h"
+#include "qgsmaplayerserverproperties.h"
 #include "qgsrange.h"
 #include "qgsjsonutils.h"
 
@@ -66,7 +66,7 @@ class SERVER_EXPORT QgsServerApiUtils
      * Returns a list of temporal dimensions information for the given \a layer (either configured in wmsDimensions or the first date/datetime field)
      * \since QGIS 3.12
      */
-    static QList< QgsVectorLayerServerProperties::WmsDimensionInfo > temporalDimensions( const QgsVectorLayer *layer );
+    static QList< QgsServerWmsDimensionProperties::WmsDimensionInfo > temporalDimensions( const QgsVectorLayer *layer );
 
     /**
      * Parses a date \a interval and returns a QgsDateRange
@@ -83,6 +83,14 @@ class SERVER_EXPORT QgsServerApiUtils
      * \since QGIS 3.12
      */
     static QgsDateTimeRange parseTemporalDateTimeInterval( const QString &interval ) SIP_THROW( QgsServerApiBadRequestException );
+
+
+    /**
+     * Given a field \a name (or display name) and a \a layer returns the actual name of the field.
+     * \throws QgsServerApiBadRequestException if \a name is neither a field name or a display name.
+     * \since QGIS 3.28
+     */
+    static QString fieldName( const QString &name, const QgsVectorLayer *layer ) SIP_THROW( QgsServerApiBadRequestException );
 
 ///@cond PRIVATE
     // T is TemporalDateInterval|TemporalDateTimeInterval, T2 is QDate|QdateTime
@@ -217,8 +225,10 @@ class SERVER_EXPORT QgsServerApiUtils
     /**
      * Returns a \a crs as OGC URI (format: http://www.opengis.net/def/crs/OGC/1.3/CRS84)
      * Returns an empty string on failure.
+     *
+     * \deprecated since QGIS 3.30 use QgsCoordinateReferenceSystem::toOgcUri() instead
      */
-    static QString crsToOgcUri( const QgsCoordinateReferenceSystem &crs );
+    Q_DECL_DEPRECATED static QString crsToOgcUri( const QgsCoordinateReferenceSystem &crs ) SIP_DEPRECATED;
 
     /**
      * Appends MAP query string parameter from current \a requestUrl to the given \a path

@@ -38,13 +38,17 @@ class TestQgsJsonUtils : public QObject
   private slots:
     void testStringList();
     void testJsonArray();
+    void testJsonToVariant();
     void testParseJson();
     void testIntList();
     void testDoubleList();
     void testExportAttributesJson_data();
     void testExportAttributesJson();
     void testExportFeatureJson();
+    void testExportFeatureJsonCrs();
     void testExportGeomToJson();
+    void testParseNumbers();
+    void testParseNumbers_data();
 };
 
 
@@ -109,6 +113,19 @@ void TestQgsJsonUtils::testJsonArray()
   }
 }
 
+void TestQgsJsonUtils::testJsonToVariant()
+{
+  const json value = json::parse( "{\"_bool\":true,\"_double\":1234.45,\"_int\":123,\"_list\":[1,2,3.4,null],\"_null\":null,\"_object\":{\"int\":123}}" );
+  const QVariant variant = QgsJsonUtils::jsonToVariant( value );
+  QCOMPARE( variant.type(), QVariant::Map );
+  QCOMPARE( variant.toMap().value( QStringLiteral( "_bool" ) ), true );
+  QCOMPARE( variant.toMap().value( QStringLiteral( "_double" ) ), 1234.45 );
+  QCOMPARE( variant.toMap().value( QStringLiteral( "_int" ) ), 123 );
+  QCOMPARE( variant.toMap().value( QStringLiteral( "_list" ) ), QVariantList( {1, 2, 3.4, QVariant()} ) );
+  QCOMPARE( variant.toMap().value( QStringLiteral( "_null" ) ), QVariant() );
+  QCOMPARE( variant.toMap().value( QStringLiteral( "_object" ) ), QVariantMap( {{ QStringLiteral( "int" ), 123 }} ) );
+}
+
 void TestQgsJsonUtils::testParseJson()
 {
   const QStringList tests {{
@@ -117,6 +134,9 @@ void TestQgsJsonUtils::testParseJson()
       "true",
       "123",
       "123.45",
+      "4294967295",
+      "-9223372036854775807",
+      "9223372036854775807",
       R"j("a string")j",
       "[1,2,3.4,null]",
       R"j({"_bool":true,"_double":1234.45,"_int":123,"_list":[1,2,3.4,null],"_null":null,"_object":{"int":123}})j",
@@ -248,6 +268,32 @@ void TestQgsJsonUtils::testExportFeatureJson()
 
 }
 
+void TestQgsJsonUtils::testExportFeatureJsonCrs()
+{
+  QgsVectorLayer vl { QStringLiteral( "Polygon?field=fldtxt:string&field=fldint:integer&field=flddbl:double" ), QStringLiteral( "mem" ), QStringLiteral( "memory" ) };
+  QgsFeature feature { vl.fields() };
+  feature.setGeometry( QgsGeometry::fromWkt( QStringLiteral( "POLYGON((1.12 1.34,5.45 1.12,5.34 5.33,1.56 5.2,1.12 1.34),(2 2, 3 2, 3 3, 2 3,2 2))" ) ) );
+  feature.setAttributes( QgsAttributes() << QStringLiteral( "a value" ) << 1 << 2.0 );
+
+  QgsJsonExporter exporterPrecision { &vl, 1 };
+  exporterPrecision.setDestinationCrs( QgsCoordinateReferenceSystem( "EPSG:3857" ) );
+
+
+  const auto expectedJsonPrecision { QStringLiteral( "{\"bbox\":[124677.8,124685.8,606691.2,594190.5],\"geometry\":"
+                                     "{\"coordinates\":[[[124677.8,149181.7],[606691.2,124685.8],[594446.1,594190.5],[173658.4,579657.7],"
+                                     "[124677.8,149181.7]],[[222639.0,222684.2],[333958.5,222684.2],[333958.5,334111.2],[222639.0,334111.2],"
+                                     "[222639.0,222684.2]]],\"type\":\"Polygon\"},\"id\":123,\"properties\":{\"flddbl\":2.0,\"fldint\":1,"
+                                     "\"fldtxt\":\"a value\"},\"type\":\"Feature\"}" ) };
+
+  feature.setId( 123 );
+  const auto jPrecision( exporterPrecision.exportFeatureToJsonObject( feature ) );
+  qDebug() << QString::fromStdString( jPrecision.dump() );
+  QCOMPARE( QString::fromStdString( jPrecision.dump() ),  expectedJsonPrecision );
+  const auto jsonPrecision { exporterPrecision.exportFeature( feature ) };
+  QCOMPARE( jsonPrecision, expectedJsonPrecision );
+
+}
+
 void TestQgsJsonUtils::testExportGeomToJson()
 {
   const QMap<QString, QString> testWkts
@@ -292,6 +338,31 @@ void TestQgsJsonUtils::testExportGeomToJson()
     }
   }
 }
+
+void TestQgsJsonUtils::testParseNumbers()
+{
+  QFETCH( QString, number );
+  QFETCH( int, type );
+
+  qDebug() << number << QgsJsonUtils::parseJson( number ) << QgsJsonUtils::parseJson( number ).type() << type;
+  QCOMPARE( QgsJsonUtils::parseJson( number ).type(), type );
+}
+
+void TestQgsJsonUtils::testParseNumbers_data()
+{
+  QTest::addColumn<QString>( "number" );
+  QTest::addColumn<int>( "type" );
+
+  QTest::newRow( "zero" ) << "0" << static_cast<int>( QVariant::Type::Int );
+  QTest::newRow( "int max" ) << QString::number( std::numeric_limits<int>::max() ) << static_cast<int>( QVariant::Type::Int );
+  QTest::newRow( "int min" ) << QString::number( std::numeric_limits<int>::lowest() ) << static_cast<int>( QVariant::Type::Int );
+  QTest::newRow( "uint max" ) << QString::number( std::numeric_limits<uint>::max() ) << static_cast<int>( QVariant::Type::LongLong );
+  QTest::newRow( "ulong max" ) << QString::number( std::numeric_limits<qulonglong>::max() ) << static_cast<int>( QVariant::Type::ULongLong );
+  QTest::newRow( "longlong max" ) << QString::number( std::numeric_limits<qlonglong>::max() ) << static_cast<int>( QVariant::Type::LongLong );
+  QTest::newRow( "longlong min" ) << QString::number( std::numeric_limits<qlonglong>::lowest() ) << static_cast<int>( QVariant::Type::LongLong );
+}
+
+
 
 QGSTEST_MAIN( TestQgsJsonUtils )
 #include "testqgsjsonutils.moc"

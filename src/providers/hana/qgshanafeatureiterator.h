@@ -22,6 +22,7 @@
 #include "qgshanaprimarykeys.h"
 #include "qgshanaprovider.h"
 #include "qgshanaresultset.h"
+#include "qgscoordinatetransform.h"
 
 #include "odbc/Forwards.h"
 
@@ -34,7 +35,7 @@ class QgsHanaFeatureSource : public QgsAbstractFeatureSource
     QgsFeatureIterator getFeatures( const QgsFeatureRequest &request ) override;
 
   private:
-    bool isSpatial() const { return !mGeometryColumn.isEmpty() && mGeometryType != QgsWkbTypes::Unknown; }
+    bool isSpatial() const { return !mGeometryColumn.isEmpty() && mGeometryType != Qgis::WkbType::Unknown; }
 
   private:
     QVersionNumber mDatabaseVersion;
@@ -46,7 +47,7 @@ class QgsHanaFeatureSource : public QgsAbstractFeatureSource
     std::shared_ptr<QgsHanaPrimaryKeyContext> mPrimaryKeyCntx;
     QgsFields mFields;
     QString mGeometryColumn;
-    QgsWkbTypes::Type mGeometryType;
+    Qgis::WkbType mGeometryType;
     int mSrid;
     QgsRectangle mSrsExtent;
     QgsCoordinateReferenceSystem mCrs;

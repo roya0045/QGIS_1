@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsDataItemProviderRegistry
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,13 +9,15 @@ __author__ = 'Nyall Dawson'
 __date__ = '27/10/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.core import (QgsApplication,
-                       QgsDataItemProvider,
-                       QgsDataProvider,
-                       QgsDataItemProviderRegistry)
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsApplication,
+    QgsDataItemProvider,
+    QgsDataItemProviderRegistry,
+    QgsDataProvider,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 app = start_app()
 
@@ -31,13 +32,13 @@ class TestProvider(QgsDataItemProvider):
         return self._name
 
     def capabilities(self):
-        return QgsDataProvider.File
+        return QgsDataProvider.DataCapability.File
 
     def createDataItem(self, path, parent):
         return None
 
 
-class TestQgsDataItemProviderRegistry(unittest.TestCase):
+class TestQgsDataItemProviderRegistry(QgisTestCase):
 
     def testAppRegistry(self):
         # ensure there is an application instance

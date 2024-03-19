@@ -68,17 +68,17 @@ QString QgsPointsAlongGeometryAlgorithm::shortDescription() const
 
 QList<int> QgsPointsAlongGeometryAlgorithm::inputLayerTypes() const
 {
-  return QList<int>() << QgsProcessing::TypeVectorLine << QgsProcessing::TypeVectorPolygon;
+  return QList<int>() << static_cast< int >( Qgis::ProcessingSourceType::VectorLine ) << static_cast< int >( Qgis::ProcessingSourceType::VectorPolygon );
 }
 
-QgsProcessing::SourceType QgsPointsAlongGeometryAlgorithm::outputLayerType() const
+Qgis::ProcessingSourceType QgsPointsAlongGeometryAlgorithm::outputLayerType() const
 {
-  return QgsProcessing::TypeVectorPoint;
+  return Qgis::ProcessingSourceType::VectorPoint;
 }
 
-QgsWkbTypes::Type QgsPointsAlongGeometryAlgorithm::outputWkbType( QgsWkbTypes::Type inputType ) const
+Qgis::WkbType QgsPointsAlongGeometryAlgorithm::outputWkbType( Qgis::WkbType inputType ) const
 {
-  QgsWkbTypes::Type out = QgsWkbTypes::Point;
+  Qgis::WkbType out = Qgis::WkbType::Point;
   if ( QgsWkbTypes::hasZ( inputType ) )
     out = QgsWkbTypes::addZ( out );
   if ( QgsWkbTypes::hasM( inputType ) )
@@ -133,10 +133,10 @@ QString QgsPointsAlongGeometryAlgorithm::svgIconPath() const
   return QgsApplication::iconPath( QStringLiteral( "/algorithms/mAlgorithmExtractVertices.svg" ) );
 }
 
-QgsProcessingFeatureSource::Flag QgsPointsAlongGeometryAlgorithm::sourceFlags() const
+Qgis::ProcessingFeatureSourceFlags QgsPointsAlongGeometryAlgorithm::sourceFlags() const
 {
   // skip geometry checks - this algorithm doesn't care about invalid geometries
-  return QgsProcessingFeatureSource::FlagSkipGeometryValidityChecks;
+  return Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks;
 }
 
 QgsFeatureSink::SinkFlags QgsPointsAlongGeometryAlgorithm::sinkFlags() const
@@ -185,7 +185,7 @@ QgsFeatureList QgsPointsAlongGeometryAlgorithm::processFeature( const QgsFeature
     if ( mDynamicEndOffset )
       endOffset = mEndOffsetProperty.valueAsDouble( context.expressionContext(), endOffset );
 
-    const double totalLength = geometry.type() == QgsWkbTypes::PolygonGeometry ? geometry.constGet()->perimeter()
+    const double totalLength = geometry.type() == Qgis::GeometryType::Polygon ? geometry.constGet()->perimeter()
                                : geometry.length() - endOffset;
 
     double currentDistance = startOffset;

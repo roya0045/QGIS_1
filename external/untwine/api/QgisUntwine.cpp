@@ -1,5 +1,5 @@
+#include <cstdint>
 #include <iostream>
-#include <algorithm>
 
 #include "QgisUntwine.hpp"
 
@@ -51,6 +51,13 @@ std::string QgisUntwine::progressMessage() const
     readPipe();
 
     return m_progressMsg;
+}
+
+std::string QgisUntwine::errorMessage() const
+{
+    readPipe();
+
+    return m_errorMsg;
 }
 
 } // namespace untwine

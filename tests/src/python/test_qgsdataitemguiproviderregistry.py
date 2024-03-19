@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsDataItemGuiProviderRegistry
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,14 +9,16 @@ __author__ = 'Nyall Dawson'
 __date__ = '27/10/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.gui import (QgsGui,
-                      QgsDataItemGuiContext,
-                      QgsDataItemGuiProvider,
-                      QgsDataItemGuiProviderRegistry,
-                      QgsMessageBar)
-from qgis.testing import start_app, unittest
+from qgis.gui import (
+    QgsDataItemGuiContext,
+    QgsDataItemGuiProvider,
+    QgsDataItemGuiProviderRegistry,
+    QgsGui,
+    QgsMessageBar,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 app = start_app()
 
@@ -32,7 +33,7 @@ class TestProvider(QgsDataItemGuiProvider):
         return self._name
 
 
-class TestQgsDataItemGuiContext(unittest.TestCase):
+class TestQgsDataItemGuiContext(QgisTestCase):
 
     def testContext(self):
         context = QgsDataItemGuiContext()
@@ -43,7 +44,7 @@ class TestQgsDataItemGuiContext(unittest.TestCase):
         self.assertEqual(context.messageBar(), mb)
 
 
-class TestQgsDataItemGuiProviderRegistry(unittest.TestCase):
+class TestQgsDataItemGuiProviderRegistry(QgisTestCase):
 
     def testAppRegistry(self):
         # ensure there is an application instance

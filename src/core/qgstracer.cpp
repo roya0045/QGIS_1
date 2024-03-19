@@ -22,10 +22,11 @@
 #include "qgsgeos.h"
 #include "qgslogger.h"
 #include "qgsvectorlayer.h"
-#include "qgsexception.h"
 #include "qgsrenderer.h"
 #include "qgssettingsregistrycore.h"
 #include "qgsexpressioncontextutils.h"
+#include "qgsrendercontext.h"
+#include "qgssettingsentryimpl.h"
 
 #include <queue>
 #include <vector>
@@ -35,7 +36,7 @@ typedef std::pair<int, double> DijkstraQueueItem; // first = vertex index, secon
 // utility comparator for queue items based on distance
 struct comp
 {
-  bool operator()( DijkstraQueueItem a, DijkstraQueueItem b )
+  bool operator()( DijkstraQueueItem a, DijkstraQueueItem b ) const
   {
     return a.second > b.second;
   }
@@ -56,7 +57,7 @@ double distance2D( const QgsPolylineXY &coords )
   {
     x1 = coords[i].x();
     y1 = coords[i].y();
-    dist += std::sqrt( ( x1 - x0 ) * ( x1 - x0 ) + ( y1 - y0 ) * ( y1 - y0 ) );
+    dist += QgsGeometryUtilsBase::distance2D( x1, y1, x0, y0 );
     x0 = x1;
     y0 = y1;
   }
@@ -76,7 +77,7 @@ double closestSegment( const QgsPolylineXY &pl, const QgsPointXY &pt, int &verte
   {
     double currentX = pldata[i].x();
     double currentY = pldata[i].y();
-    double testDist = QgsGeometryUtils::sqrDistToLine( pt.x(), pt.y(), prevX, prevY, currentX, currentY, segmentPtX, segmentPtY, epsilon );
+    double testDist = QgsGeometryUtilsBase::sqrDistToLine( pt.x(), pt.y(), prevX, prevY, currentX, currentY, segmentPtX, segmentPtY, epsilon );
     if ( testDist < sqrDist )
     {
       sqrDist = testDist;
@@ -425,11 +426,11 @@ void extractLinework( const QgsGeometry &g, QgsMultiPolylineXY &mpl )
 
   switch ( QgsWkbTypes::flatType( geom.wkbType() ) )
   {
-    case QgsWkbTypes::LineString:
+    case Qgis::WkbType::LineString:
       mpl << geom.asPolyline();
       break;
 
-    case QgsWkbTypes::Polygon:
+    case Qgis::WkbType::Polygon:
     {
       const auto polygon = geom.asPolygon();
       for ( const QgsPolylineXY &ring : polygon )
@@ -437,7 +438,7 @@ void extractLinework( const QgsGeometry &g, QgsMultiPolylineXY &mpl )
     }
     break;
 
-    case QgsWkbTypes::MultiLineString:
+    case Qgis::WkbType::MultiLineString:
     {
       const auto multiPolyline = geom.asMultiPolyline();
       for ( const QgsPolylineXY &linestring : multiPolyline )
@@ -445,7 +446,7 @@ void extractLinework( const QgsGeometry &g, QgsMultiPolylineXY &mpl )
     }
     break;
 
-    case QgsWkbTypes::MultiPolygon:
+    case Qgis::WkbType::MultiPolygon:
     {
       const auto multiPolygon = geom.asMultiPolygon();
       for ( const QgsPolygonXY &polygon : multiPolygon )
@@ -491,7 +492,7 @@ bool QgsTracer::initGraph()
     std::unique_ptr< QgsFeatureRenderer > renderer;
     std::unique_ptr<QgsRenderContext> ctx;
 
-    bool enableInvisibleFeature = QgsSettingsRegistryCore::settingsDigitizingSnapInvisibleFeature.value();
+    bool enableInvisibleFeature = QgsSettingsRegistryCore::settingsDigitizingSnapInvisibleFeature->value();
     if ( !enableInvisibleFeature && mRenderContext && vl->renderer() )
     {
       renderer.reset( vl->renderer()->clone() );
@@ -571,7 +572,7 @@ bool QgsTracer::initGraph()
 
     mHasTopologyProblem = true;
 
-    QgsDebugMsg( QStringLiteral( "Tracer Noding Exception: %1" ).arg( e.what() ) );
+    QgsDebugError( QStringLiteral( "Tracer Noding Exception: %1" ).arg( e.what() ) );
   }
 #endif
 

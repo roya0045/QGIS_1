@@ -51,8 +51,10 @@ class CORE_EXPORT QgsRendererCategory
     * The \a label argument specifies the label used for this category in legends and the layer tree.
     *
     * The \a render argument indicates whether the category should initially be rendered and appear checked in the layer tree.
+    *
+    * The optional \a uuid argument manually set the UUID key identifier for the category (since QGIS 3.34).
     */
-    QgsRendererCategory( const QVariant &value, QgsSymbol *symbol SIP_TRANSFER, const QString &label, bool render = true );
+    QgsRendererCategory( const QVariant &value, QgsSymbol *symbol SIP_TRANSFER, const QString &label, bool render = true, const QString &uuid = QString() );
 
     /**
      * Copy constructor.
@@ -60,6 +62,12 @@ class CORE_EXPORT QgsRendererCategory
     QgsRendererCategory( const QgsRendererCategory &cat );
     QgsRendererCategory &operator=( QgsRendererCategory cat );
     ~QgsRendererCategory();
+
+    /**
+     * Returns the unique identifier for this category.
+     * \since QGIS 3.34
+     */
+    QString uuid() const;
 
     /**
      * Returns the value corresponding to this category.
@@ -111,14 +119,12 @@ class CORE_EXPORT QgsRendererCategory
     /**
      * Returns TRUE if the category is currently enabled and should be rendered.
      * \see setRenderState()
-     * \since QGIS 2.5
      */
     bool renderState() const;
 
     /**
      * Sets whether the category is currently enabled and should be rendered.
      * \see renderState()
-     * \since QGIS 2.5
      */
     void setRenderState( bool render );
 
@@ -134,11 +140,24 @@ class CORE_EXPORT QgsRendererCategory
      */
     void toSld( QDomDocument &doc, QDomElement &element, QVariantMap props ) const;
 
+#ifdef SIP_RUN
+    SIP_PYOBJECT __repr__();
+    % MethodCode
+    const QString str = !sipCpp->value().isValid()
+                        ? QStringLiteral( "<QgsRendererCategory>" )
+                        : sipCpp->label().isEmpty()
+                        ? QStringLiteral( "<QgsRendererCategory: %1>" ).arg( sipCpp->value().toString() )
+                        : QStringLiteral( "<QgsRendererCategory: %1 (%2)>" ).arg( sipCpp->value().toString(), sipCpp->label() );
+    sipRes = PyUnicode_FromString( str.toUtf8().constData() );
+    % End
+#endif
+
   protected:
     QVariant mValue;
     std::unique_ptr<QgsSymbol> mSymbol;
     QString mLabel;
     bool mRender = true;
+    QString mUuid;
 
     void swap( QgsRendererCategory &other );
 };
@@ -198,7 +217,6 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
 
     /**
      * Returns the index of the category with the specified label (or -1 if the label was not found, or is not unique).
-     * \since QGIS 2.5
      */
     int categoryIndexForLabel( const QString &val );
 
@@ -246,7 +264,6 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
      * \see updateCategorySymbol()
      * \see updateCategoryLabel()
      *
-     * \since QGIS 2.5
      */
     bool updateCategoryRenderState( int catIndex, bool render );
 
@@ -316,6 +333,7 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
     QDomElement save( QDomDocument &doc, const QgsReadWriteContext &context ) override;
     QgsLegendSymbolList legendSymbolItems() const override;
     QSet< QString > legendKeysForFeature( const QgsFeature &feature, QgsRenderContext &context ) const override;
+    QString legendKeyToExpression( const QString &key, QgsVectorLayer *layer, bool &ok ) const override;
 
     /**
      * Returns the renderer's source symbol, which is the base symbol used for the each categories' symbol before applying
@@ -369,7 +387,6 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
     /**
      * Update the color ramp used and all symbols colors.
       * \param ramp color ramp. Ownership is transferred to the renderer
-      * \since QGIS 2.5
       */
     void updateColorRamp( QgsColorRamp *ramp SIP_TRANSFER );
 
@@ -385,7 +402,6 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
      * Since QGIS 3.20, the optional \a layer parameter is required for conversions of some renderer types.
      *
      * \returns a new renderer if the conversion was possible, otherwise NULLPTR.
-     * \since QGIS 2.5
      */
     static QgsCategorizedSymbolRenderer *convertFromRenderer( const QgsFeatureRenderer *renderer, QgsVectorLayer *layer = nullptr ) SIP_FACTORY;
 
@@ -397,14 +413,12 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
      * When renderer does not use data-defined size or does not use marker symbols, these settings will be ignored.
      * Takes ownership of the passed settings objects. NULLPTR is a valid input that disables data-defined
      * size legend.
-     * \since QGIS 3.0
      */
     void setDataDefinedSizeLegend( QgsDataDefinedSizeLegend *settings SIP_TRANSFER );
 
     /**
      * Returns configuration of appearance of legend when using data-defined size for marker symbols.
      * Will return NULLPTR if the functionality is disabled.
-     * \since QGIS 3.0
      */
     QgsDataDefinedSizeLegend *dataDefinedSizeLegend() const;
 
@@ -440,6 +454,18 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
      * \since QGIS 3.6
      */
     static QgsCategoryList createCategories( const QVariantList &values, const QgsSymbol *symbol, QgsVectorLayer *layer = nullptr, const QString &fieldName = QString() );
+
+    /**
+     *  Returns a localized representation of \a value with the given \a precision,
+     *  if precision is -1 then precision is guessed from the default QVariant::toString
+     *  output.
+     *
+     *  \note Precision is ignored for integers.
+     *
+     *  \since QGIS 3.22.1
+     */
+    static QString displayString( const QVariant &value, int precision = -1 );
+
 
   protected:
     QString mAttrName;
@@ -498,6 +524,7 @@ class CORE_EXPORT QgsCategorizedSymbolRenderer : public QgsFeatureRenderer
 
     //! Returns list of legend symbol items from individual categories
     QgsLegendSymbolList baseLegendSymbolItems() const;
+
 };
 
 #endif // QGSCATEGORIZEDSYMBOLRENDERER_H

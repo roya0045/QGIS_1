@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsLayoutItemMapAtlasClippingSettings.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,28 +9,27 @@ __author__ = '(C) 2020 Nyall Dawson'
 __date__ = '03/07/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
-
-from qgis.core import (QgsLayoutItemMap,
-                       QgsLayout,
-                       QgsProject,
-                       QgsLayoutItemMapAtlasClippingSettings,
-                       QgsMapClippingRegion,
-                       QgsVectorLayer,
-                       QgsReadWriteContext)
-
-from qgis.testing import start_app, unittest
-from utilities import unitTestDataPath
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import (
+    QgsLayout,
+    QgsLayoutItemMap,
+    QgsLayoutItemMapAtlasClippingSettings,
+    QgsMapClippingRegion,
+    QgsProject,
+    QgsReadWriteContext,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
+from utilities import unitTestDataPath
 
 start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsLayoutItemMapAtlasClippingSettings(unittest.TestCase):
+class TestQgsLayoutItemMapAtlasClippingSettings(QgisTestCase):
 
     def testSettings(self):
         p = QgsProject()

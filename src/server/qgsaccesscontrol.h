@@ -31,7 +31,6 @@ SIP_IF_MODULE( HAVE_SERVER_PYTHON_PLUGINS )
  * \ingroup server
  * \class QgsAccessControl
  * \brief A helper class that centralizes restrictions given by all the access control filter plugins.
- * \since QGIS 2.14
  */
 class SERVER_EXPORT QgsAccessControl : public QgsFeatureFilterProvider
 {
@@ -76,9 +75,19 @@ class SERVER_EXPORT QgsAccessControl : public QgsFeatureFilterProvider
 
     /**
      * Resolve features' filter of layers
+     * The method fetch filter's expressions returned from access control plugins and
+     * and combine them to a unique expression for each layer.
+     * The resulted expressions are stored in cache for efficiency; between each requests, the cache
+     * must be cleared using 'unresolveFilterFeatures()'.
+     *
      * \param layers to filter
      */
     void resolveFilterFeatures( const QList<QgsMapLayer *> &layers );
+
+    /**
+     *  Clear expression's cache computed from `resolveFilterFeatures`
+     */
+    void unresolveFilterFeatures();
 
     /**
      * Filter the features of the layer

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for the OGR/Shapefile provider.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,36 +9,38 @@ __author__ = 'Matthias Kuhn'
 __date__ = '2015-04-23'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
+import glob
 import os
 import re
-import tempfile
 import shutil
-import glob
+import sys
+import tempfile
+
 import osgeo.gdal
 import osgeo.ogr
-import sys
-
 from osgeo import gdal
+from qgis.PyQt.QtCore import QVariant
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsDataProvider,
-    QgsSettings,
     QgsFeature,
+    QgsFeatureRequest,
     QgsField,
     QgsGeometry,
-    QgsVectorLayer,
-    QgsFeatureRequest,
     QgsProviderRegistry,
     QgsRectangle,
+    QgsSettings,
     QgsVectorDataProvider,
-    QgsWkbTypes,
+    QgsVectorLayer,
     QgsVectorLayerExporter,
-    Qgis
+    QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant
-from qgis.testing import start_app, unittest
-from utilities import unitTestDataPath
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from providertestbase import ProviderTestCase
+from utilities import unitTestDataPath
 
 start_app()
 TEST_DATA_DIR = unitTestDataPath()
@@ -58,11 +59,12 @@ class ErrorReceiver():
         self.msg = msg
 
 
-class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
+class TestPyQgsShapefileProvider(QgisTestCase, ProviderTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestPyQgsShapefileProvider, cls).setUpClass()
         # Create test layer
         cls.basetestpath = tempfile.mkdtemp()
         cls.repackfilepath = tempfile.mkdtemp()
@@ -76,11 +78,11 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         cls.basetestfile = os.path.join(cls.basetestpath, 'shapefile.shp')
         cls.repackfile = os.path.join(cls.repackfilepath, 'shapefile.shp')
         cls.basetestpolyfile = os.path.join(cls.basetestpath, 'shapefile_poly.shp')
-        cls.vl = QgsVectorLayer('{}|layerid=0'.format(cls.basetestfile), 'test', 'ogr')
-        assert(cls.vl.isValid())
+        cls.vl = QgsVectorLayer(f'{cls.basetestfile}|layerid=0', 'test', 'ogr')
+        assert cls.vl.isValid()
         cls.source = cls.vl.dataProvider()
-        cls.vl_poly = QgsVectorLayer('{}|layerid=0'.format(cls.basetestpolyfile), 'test', 'ogr')
-        assert (cls.vl_poly.isValid())
+        cls.vl_poly = QgsVectorLayer(f'{cls.basetestpolyfile}|layerid=0', 'test', 'ogr')
+        assert cls.vl_poly.isValid()
         cls.poly_provider = cls.vl_poly.dataProvider()
 
         cls.dirs_to_cleanup = [cls.basetestpath, cls.repackfilepath]
@@ -88,10 +90,11 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
     @classmethod
     def tearDownClass(cls):
         """Run after all tests"""
-        del(cls.vl)
-        del(cls.vl_poly)
+        del cls.vl
+        del cls.vl_poly
         for dirname in cls.dirs_to_cleanup:
             shutil.rmtree(dirname, True)
+        super(TestPyQgsShapefileProvider, cls).tearDownClass()
 
     def treat_time_as_string(self):
         return True
@@ -107,7 +110,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         return vl
 
     def getEditableLayer(self):
@@ -121,123 +124,126 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         QgsSettings().setValue('/qgis/compileExpressions', False)
 
     def uncompiledFilters(self):
-        filters = set(['name ILIKE \'QGIS\'',
-                       '"name" NOT LIKE \'Ap%\'',
-                       '"name" NOT ILIKE \'QGIS\'',
-                       '"name" NOT ILIKE \'pEAR\'',
-                       'name <> \'Apple\'',
-                       '"name" <> \'apple\'',
-                       '(name = \'Apple\') is not null',
-                       'name ILIKE \'aPple\'',
-                       'name ILIKE \'%pp%\'',
-                       'cnt = 1100 % 1000',
-                       '"name" || \' \' || "name" = \'Orange Orange\'',
-                       '"name" || \' \' || "cnt" = \'Orange 100\'',
-                       '\'x\' || "name" IS NOT NULL',
-                       '\'x\' || "name" IS NULL',
-                       'cnt = 10 ^ 2',
-                       '"name" ~ \'[OP]ra[gne]+\'',
-                       'false and NULL',
-                       'true and NULL',
-                       'NULL and false',
-                       'NULL and true',
-                       'NULL and NULL',
-                       'false or NULL',
-                       'true or NULL',
-                       'NULL or false',
-                       'NULL or true',
-                       'NULL or NULL',
-                       'not name = \'Apple\'',
-                       'not name = \'Apple\' or name = \'Apple\'',
-                       'not name = \'Apple\' or not name = \'Apple\'',
-                       'not name = \'Apple\' and pk = 4',
-                       'not name = \'Apple\' and not pk = 4',
-                       'num_char IN (2, 4, 5)',
-                       '-cnt > 0',
-                       '-cnt < 0',
-                       '-cnt - 1 = -101',
-                       '-(-cnt) = 100',
-                       '-(cnt) = -(100)',
-                       'sqrt(pk) >= 2',
-                       'radians(cnt) < 2',
-                       'degrees(pk) <= 200',
-                       'abs(cnt) <= 200',
-                       'cos(pk) < 0',
-                       'sin(pk) < 0',
-                       'tan(pk) < 0',
-                       'acos(-1) < pk',
-                       'asin(1) < pk',
-                       'atan(3.14) < pk',
-                       'atan2(3.14, pk) < 1',
-                       'exp(pk) < 10',
-                       'ln(pk) <= 1',
-                       'log(3, pk) <= 1',
-                       'log10(pk) < 0.5',
-                       'round(3.14) <= pk',
-                       'round(0.314,1) * 10 = pk',
-                       'floor(3.14) <= pk',
-                       'ceil(3.14) <= pk',
-                       'pk < pi()',
-                       'round(cnt / 66.67) <= 2',
-                       'floor(cnt / 66.67) <= 2',
-                       'ceil(cnt / 66.67) <= 2',
-                       'pk < pi() / 2',
-                       'pk = char(51)',
-                       'pk = coalesce(NULL,3,4)',
-                       'lower(name) = \'apple\'',
-                       'upper(name) = \'APPLE\'',
-                       'name = trim(\'   Apple   \')',
-                       'x($geometry) < -70',
-                       'y($geometry) > 70',
-                       'xmin($geometry) < -70',
-                       'ymin($geometry) > 70',
-                       'xmax($geometry) < -70',
-                       'ymax($geometry) > 70',
-                       'disjoint($geometry,geom_from_wkt( \'Polygon ((-72.2 66.1, -65.2 66.1, -65.2 72.0, -72.2 72.0, -72.2 66.1))\'))',
-                       'intersects($geometry,geom_from_wkt( \'Polygon ((-72.2 66.1, -65.2 66.1, -65.2 72.0, -72.2 72.0, -72.2 66.1))\'))',
-                       'contains(geom_from_wkt( \'Polygon ((-72.2 66.1, -65.2 66.1, -65.2 72.0, -72.2 72.0, -72.2 66.1))\'),$geometry)',
-                       'distance($geometry,geom_from_wkt( \'Point (-70 70)\')) > 7',
-                       'intersects($geometry,geom_from_gml( \'<gml:Polygon srsName="EPSG:4326"><gml:outerBoundaryIs><gml:LinearRing><gml:coordinates>-72.2,66.1 -65.2,66.1 -65.2,72.0 -72.2,72.0 -72.2,66.1</gml:coordinates></gml:LinearRing></gml:outerBoundaryIs></gml:Polygon>\'))',
-                       'x($geometry) < -70',
-                       'y($geometry) > 79',
-                       'xmin($geometry) < -70',
-                       'ymin($geometry) < 76',
-                       'xmax($geometry) > -68',
-                       'ymax($geometry) > 80',
-                       'area($geometry) > 10',
-                       'perimeter($geometry) < 12',
-                       'relate($geometry,geom_from_wkt( \'Polygon ((-68.2 82.1, -66.95 82.1, -66.95 79.05, -68.2 79.05, -68.2 82.1))\')) = \'FF2FF1212\'',
-                       'relate($geometry,geom_from_wkt( \'Polygon ((-68.2 82.1, -66.95 82.1, -66.95 79.05, -68.2 79.05, -68.2 82.1))\'), \'****F****\')',
-                       'crosses($geometry,geom_from_wkt( \'Linestring (-68.2 82.1, -66.95 82.1, -66.95 79.05)\'))',
-                       'overlaps($geometry,geom_from_wkt( \'Polygon ((-68.2 82.1, -66.95 82.1, -66.95 79.05, -68.2 79.05, -68.2 82.1))\'))',
-                       'within($geometry,geom_from_wkt( \'Polygon ((-75.1 76.1, -75.1 81.6, -68.8 81.6, -68.8 76.1, -75.1 76.1))\'))',
-                       'overlaps(translate($geometry,-1,-1),geom_from_wkt( \'Polygon ((-75.1 76.1, -75.1 81.6, -68.8 81.6, -68.8 76.1, -75.1 76.1))\'))',
-                       'overlaps(buffer($geometry,1),geom_from_wkt( \'Polygon ((-75.1 76.1, -75.1 81.6, -68.8 81.6, -68.8 76.1, -75.1 76.1))\'))',
-                       'intersects(centroid($geometry),geom_from_wkt( \'Polygon ((-74.4 78.2, -74.4 79.1, -66.8 79.1, -66.8 78.2, -74.4 78.2))\'))',
-                       'intersects(point_on_surface($geometry),geom_from_wkt( \'Polygon ((-74.4 78.2, -74.4 79.1, -66.8 79.1, -66.8 78.2, -74.4 78.2))\'))',
-                       '"dt" <= format_date(make_datetime(2020, 5, 4, 12, 13, 14), \'yyyy-MM-dd hh:mm:ss\')',
-                       '"dt" < format_date(make_date(2020, 5, 4), \'yyyy-MM-dd hh:mm:ss\')',
-                       '"dt" = format_date(to_datetime(\'000www14ww13ww12www4ww5ww2020\',\'zzzwwwsswwmmwwhhwwwdwwMwwyyyy\'),\'yyyy-MM-dd hh:mm:ss\')',
-                       '"date" = to_date(\'www4ww5ww2020\',\'wwwdwwMwwyyyy\')',
-                       'to_time("time") >= make_time(12, 14, 14)',
-                       'to_time("time") = to_time(\'000www14ww13ww12www\',\'zzzwwwsswwmmwwhhwww\')',
-                       'to_datetime("dt", \'yyyy-MM-dd hh:mm:ss\') + make_interval(days:=1) <= make_datetime(2020, 5, 4, 12, 13, 14)',
-                       'to_datetime("dt", \'yyyy-MM-dd hh:mm:ss\') + make_interval(days:=0.01) <= make_datetime(2020, 5, 4, 12, 13, 14)'
-                       ])
+        filters = {'name ILIKE \'QGIS\'',
+                   '"name" NOT LIKE \'Ap%\'',
+                   '"name" NOT ILIKE \'QGIS\'',
+                   '"name" NOT ILIKE \'pEAR\'',
+                   'name <> \'Apple\'',
+                   '"name" <> \'apple\'',
+                   '(name = \'Apple\') is not null',
+                   'name ILIKE \'aPple\'',
+                   'name ILIKE \'%pp%\'',
+                   'cnt = 1100 % 1000',
+                   '"name" || \' \' || "name" = \'Orange Orange\'',
+                   '"name" || \' \' || "cnt" = \'Orange 100\'',
+                   '\'x\' || "name" IS NOT NULL',
+                   '\'x\' || "name" IS NULL',
+                   'cnt = 10 ^ 2',
+                   '"name" ~ \'[OP]ra[gne]+\'',
+                   'false and NULL',
+                   'true and NULL',
+                   'NULL and false',
+                   'NULL and true',
+                   'NULL and NULL',
+                   'false or NULL',
+                   'true or NULL',
+                   'NULL or false',
+                   'NULL or true',
+                   'NULL or NULL',
+                   'not name = \'Apple\'',
+                   'not name = \'Apple\' or name = \'Apple\'',
+                   'not name = \'Apple\' or not name = \'Apple\'',
+                   'not name = \'Apple\' and pk = 4',
+                   'not name = \'Apple\' and not pk = 4',
+                   'num_char IN (2, 4, 5)',
+                   '-cnt > 0',
+                   '-cnt < 0',
+                   '-cnt - 1 = -101',
+                   '-(-cnt) = 100',
+                   '-(cnt) = -(100)',
+                   'sqrt(pk) >= 2',
+                   'radians(cnt) < 2',
+                   'degrees(pk) <= 200',
+                   'abs(cnt) <= 200',
+                   'cos(pk) < 0',
+                   'sin(pk) < 0',
+                   'tan(pk) < 0',
+                   'acos(-1) < pk',
+                   'asin(1) < pk',
+                   'atan(3.14) < pk',
+                   'atan2(3.14, pk) < 1',
+                   'exp(pk) < 10',
+                   'ln(pk) <= 1',
+                   'log(3, pk) <= 1',
+                   'log10(pk) < 0.5',
+                   'round(3.14) <= pk',
+                   'round(0.314,1) * 10 = pk',
+                   'floor(3.14) <= pk',
+                   'ceil(3.14) <= pk',
+                   'pk < pi()',
+                   'round(cnt / 66.67) <= 2',
+                   'floor(cnt / 66.67) <= 2',
+                   'ceil(cnt / 66.67) <= 2',
+                   'pk < pi() / 2',
+                   'pk = char(51)',
+                   'pk = coalesce(NULL,3,4)',
+                   'lower(name) = \'apple\'',
+                   'upper(name) = \'APPLE\'',
+                   'name = trim(\'   Apple   \')',
+                   'x($geometry) < -70',
+                   'y($geometry) > 70',
+                   'xmin($geometry) < -70',
+                   'ymin($geometry) > 70',
+                   'xmax($geometry) < -70',
+                   'ymax($geometry) > 70',
+                   'disjoint($geometry,geom_from_wkt( \'Polygon ((-72.2 66.1, -65.2 66.1, -65.2 72.0, -72.2 72.0, -72.2 66.1))\'))',
+                   'intersects($geometry,geom_from_wkt( \'Polygon ((-72.2 66.1, -65.2 66.1, -65.2 72.0, -72.2 72.0, -72.2 66.1))\'))',
+                   'contains(geom_from_wkt( \'Polygon ((-72.2 66.1, -65.2 66.1, -65.2 72.0, -72.2 72.0, -72.2 66.1))\'),$geometry)',
+                   'distance($geometry,geom_from_wkt( \'Point (-70 70)\')) > 7',
+                   'intersects($geometry,geom_from_gml( \'<gml:Polygon srsName="EPSG:4326"><gml:outerBoundaryIs><gml:LinearRing><gml:coordinates>-72.2,66.1 -65.2,66.1 -65.2,72.0 -72.2,72.0 -72.2,66.1</gml:coordinates></gml:LinearRing></gml:outerBoundaryIs></gml:Polygon>\'))',
+                   'x($geometry) < -70',
+                   'y($geometry) > 79',
+                   'xmin($geometry) < -70',
+                   'ymin($geometry) < 76',
+                   'xmax($geometry) > -68',
+                   'ymax($geometry) > 80',
+                   'area($geometry) > 10',
+                   'perimeter($geometry) < 12',
+                   'relate($geometry,geom_from_wkt( \'Polygon ((-68.2 82.1, -66.95 82.1, -66.95 79.05, -68.2 79.05, -68.2 82.1))\')) = \'FF2FF1212\'',
+                   'relate($geometry,geom_from_wkt( \'Polygon ((-68.2 82.1, -66.95 82.1, -66.95 79.05, -68.2 79.05, -68.2 82.1))\'), \'****F****\')',
+                   'crosses($geometry,geom_from_wkt( \'Linestring (-68.2 82.1, -66.95 82.1, -66.95 79.05)\'))',
+                   'overlaps($geometry,geom_from_wkt( \'Polygon ((-68.2 82.1, -66.95 82.1, -66.95 79.05, -68.2 79.05, -68.2 82.1))\'))',
+                   'within($geometry,geom_from_wkt( \'Polygon ((-75.1 76.1, -75.1 81.6, -68.8 81.6, -68.8 76.1, -75.1 76.1))\'))',
+                   'overlaps(translate($geometry,-1,-1),geom_from_wkt( \'Polygon ((-75.1 76.1, -75.1 81.6, -68.8 81.6, -68.8 76.1, -75.1 76.1))\'))',
+                   'overlaps(buffer($geometry,1),geom_from_wkt( \'Polygon ((-75.1 76.1, -75.1 81.6, -68.8 81.6, -68.8 76.1, -75.1 76.1))\'))',
+                   'intersects(centroid($geometry),geom_from_wkt( \'Polygon ((-74.4 78.2, -74.4 79.1, -66.8 79.1, -66.8 78.2, -74.4 78.2))\'))',
+                   'intersects(point_on_surface($geometry),geom_from_wkt( \'Polygon ((-74.4 78.2, -74.4 79.1, -66.8 79.1, -66.8 78.2, -74.4 78.2))\'))',
+                   '"dt" <= format_date(make_datetime(2020, 5, 4, 12, 13, 14), \'yyyy-MM-dd hh:mm:ss\')',
+                   '"dt" < format_date(make_date(2020, 5, 4), \'yyyy-MM-dd hh:mm:ss\')',
+                   '"dt" = format_date(to_datetime(\'000www14ww13ww12www4ww5ww2020\',\'zzzwwwsswwmmwwhhwwwdwwMwwyyyy\'),\'yyyy-MM-dd hh:mm:ss\')',
+                   """dt BETWEEN format_date(make_datetime(2020, 5, 3, 12, 13, 14),  'yyyy-MM-dd hh:mm:ss') AND format_date(make_datetime(2020, 5, 4, 12, 14, 14), 'yyyy-MM-dd hh:mm:ss')""",
+                   """dt NOT BETWEEN format_date(make_datetime(2020, 5, 3, 12, 13, 14), 'yyyy-MM-dd hh:mm:ss') AND format_date(make_datetime(2020, 5, 4, 12, 14, 14), 'yyyy-MM-dd hh:mm:ss')""",
+                   '"date" = to_date(\'www4ww5ww2020\',\'wwwdwwMwwyyyy\')',
+                   'to_time("time") >= make_time(12, 14, 14)',
+                   'to_time("time") = to_time(\'000www14ww13ww12www\',\'zzzwwwsswwmmwwhhwww\')',
+                   'to_datetime("dt", \'yyyy-MM-dd hh:mm:ss\') + make_interval(days:=1) <= make_datetime(2020, 5, 4, 12, 13, 14)',
+                   'to_datetime("dt", \'yyyy-MM-dd hh:mm:ss\') + make_interval(days:=0.01) <= make_datetime(2020, 5, 4, 12, 13, 14)',
+                   'cnt BETWEEN -200 AND 200'  # NoUnaryMinus
+                   }
         return filters
 
     def partiallyCompiledFilters(self):
-        return set(['name = \'Apple\'',
-                    'name = \'apple\'',
-                    '\"NaMe\" = \'Apple\'',
-                    'name LIKE \'Apple\'',
-                    'name LIKE \'aPple\'',
-                    'name LIKE \'Ap_le\'',
-                    'name LIKE \'Ap\\_le\'',
-                    '"name"="name2"'])
+        return {'name = \'Apple\'',
+                'name = \'apple\'',
+                '\"NaMe\" = \'Apple\'',
+                'name LIKE \'Apple\'',
+                'name LIKE \'aPple\'',
+                'name LIKE \'Ap_le\'',
+                'name LIKE \'Ap\\_le\'',
+                '"name"="name2"'}
 
     def testRepack(self):
-        vl = QgsVectorLayer('{}|layerid=0'.format(self.repackfile), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{self.repackfile}|layerid=0', 'test', 'ogr')
 
         ids = [f.id() for f in vl.getFeatures(QgsFeatureRequest().setFilterExpression('pk=1'))]
         vl.selectByIds(ids)
@@ -258,16 +264,16 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         caps = vl.dataProvider().capabilities()
-        self.assertTrue(caps & QgsVectorDataProvider.AddFeatures)
-        self.assertTrue(caps & QgsVectorDataProvider.DeleteFeatures)
-        self.assertTrue(caps & QgsVectorDataProvider.ChangeAttributeValues)
-        self.assertTrue(caps & QgsVectorDataProvider.AddAttributes)
-        self.assertTrue(caps & QgsVectorDataProvider.DeleteAttributes)
-        self.assertTrue(caps & QgsVectorDataProvider.CreateSpatialIndex)
-        self.assertTrue(caps & QgsVectorDataProvider.SelectAtId)
-        self.assertTrue(caps & QgsVectorDataProvider.ChangeGeometries)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.AddFeatures)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.DeleteFeatures)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.ChangeAttributeValues)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.AddAttributes)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.DeleteAttributes)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.CreateSpatialIndex)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.SelectAtId)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.ChangeGeometries)
         # self.assertTrue(caps & QgsVectorDataProvider.ChangeFeatures)
 
         # We should be really opened in read-only mode even if write capabilities are declared
@@ -289,7 +295,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         self.assertTrue(vl.dataProvider().enterUpdateMode())
         self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
         caps = vl.dataProvider().capabilities()
-        self.assertTrue(caps & QgsVectorDataProvider.AddFeatures)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.AddFeatures)
 
         f = QgsFeature()
         f.setAttributes([200])
@@ -361,7 +367,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
 
         os.unlink(datasource)
 
@@ -393,8 +399,8 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl1 = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
-        vl2 = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl1 = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
+        vl2 = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         self.assertTrue(vl1.startEditing())
         self.assertTrue(vl1.deleteAttributes([1]))
         self.assertTrue(vl1.commitChanges())
@@ -414,7 +420,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         provider = vl.dataProvider()
 
         # bad rename
@@ -442,7 +448,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         # close file and reopen, then recheck to confirm that changes were saved to file
         del vl
         vl = None
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         provider = vl.dataProvider()
         self.assertEqual(provider.fields().at(2).name(), 'newname2')
         self.assertEqual(provider.fields().at(3).name(), 'another')
@@ -460,11 +466,11 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         self.assertTrue(vl.dataProvider().changeGeometryValues({0: QgsGeometry()}))
         vl = None
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         fet = next(vl.getFeatures())
         self.assertFalse(fet.hasGeometry())
 
@@ -478,7 +484,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         feature_count = vl.featureCount()
         # Start an iterator that will open a new connection
         iterator = vl.getFeatures()
@@ -492,7 +498,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         # Test the content of the shapefile while it is still opened
         ds = osgeo.ogr.Open(datasource)
         # Test repacking has been done
-        self.assertTrue(ds.GetLayer(0).GetFeatureCount() == feature_count - 1)
+        self.assertEqual(ds.GetLayer(0).GetFeatureCount(), feature_count - 1)
         ds = None
 
         # Delete another feature while in update mode
@@ -502,13 +508,13 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
         # Test that repacking has not been done (since in update mode)
         ds = osgeo.ogr.Open(datasource)
-        self.assertTrue(ds.GetLayer(0).GetFeatureCount() == feature_count - 1)
+        self.assertEqual(ds.GetLayer(0).GetFeatureCount(), feature_count - 1)
         ds = None
 
         # Test that repacking was performed when leaving updateMode
         vl.dataProvider().leaveUpdateMode()
         ds = osgeo.ogr.Open(datasource)
-        self.assertTrue(ds.GetLayer(0).GetFeatureCount() == feature_count - 2)
+        self.assertEqual(ds.GetLayer(0).GetFeatureCount(), feature_count - 2)
         ds = None
 
         vl = None
@@ -523,7 +529,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         feature_count = vl.featureCount()
         # Start an iterator that will open a new connection
         iterator = vl.getFeatures()
@@ -536,7 +542,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
         # Test that repacking has not been done (since in update mode)
         ds = osgeo.ogr.Open(datasource)
-        self.assertTrue(ds.GetLayer(0).GetFeatureCount() == feature_count)
+        self.assertEqual(ds.GetLayer(0).GetFeatureCount(), feature_count)
         ds = None
 
         vl = None
@@ -550,7 +556,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         feature_count = vl.featureCount()
 
         # Keep a file descriptor opened on the .dbf, .shp and .shx
@@ -594,7 +600,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         lyr.DeleteFeature(2)
         ds = None
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
 
         self.assertTrue(vl.featureCount(), original_feature_count)
 
@@ -619,7 +625,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
     def testOpenWithFilter(self):
         file_path = os.path.join(TEST_DATA_DIR, 'provider', 'shapefile.shp')
-        uri = '{}|layerid=0|subset="name" = \'Apple\''.format(file_path)
+        uri = f'{file_path}|layerid=0|subset="name" = \'Apple\''
         options = QgsDataProvider.ProviderOptions()
         # ensure that no longer required ogr SQL layers are correctly cleaned up
         # we need to run this twice for the incorrect cleanup asserts to trip,
@@ -627,14 +633,14 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         # connection pool
         for i in range(2):
             vl = QgsVectorLayer(uri)
-            self.assertTrue(vl.isValid(), 'Layer not valid, iteration {}'.format(i + 1))
+            self.assertTrue(vl.isValid(), f'Layer not valid, iteration {i + 1}')
             self.assertEqual(vl.featureCount(), 1)
             f = next(vl.getFeatures())
             self.assertEqual(f['name'], 'Apple')
             # force close of data provider
             vl.setDataSource('', 'test', 'ogr', options)
 
-    def testEncoding(self):
+    def testEncoding_iso(self):
         file_path = os.path.join(TEST_DATA_DIR, 'shapefile', 'iso-8859-1.shp')
         vl = QgsVectorLayer(file_path)
         self.assertTrue(vl.isValid())
@@ -674,7 +680,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         if int(gdal.VersionInfo('VERSION_NUM')) >= GDAL_COMPUTE_VERSION(3, 1, 0):
             # correct autodetection of vsizip based shapefiles depends on GDAL 3.1
             file_path = os.path.join(TEST_DATA_DIR, 'shapefile', 'windows-1252.zip')
-            vl = QgsVectorLayer('/vsizip/{}'.format(file_path))
+            vl = QgsVectorLayer(f'/vsizip/{file_path}')
             self.assertTrue(vl.isValid())
             self.assertEqual(vl.dataProvider().encoding(), 'windows-1252')
             self.assertEqual(next(vl.getFeatures())[1], 'äöü')
@@ -698,9 +704,9 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         self.assertTrue(vl.isValid())
-        self.assertTrue(vl.dataProvider().capabilities() & QgsVectorDataProvider.CreateAttributeIndex)
+        self.assertTrue(vl.dataProvider().capabilities() & QgsVectorDataProvider.Capability.CreateAttributeIndex)
         self.assertFalse(vl.dataProvider().createAttributeIndex(-1))
         self.assertFalse(vl.dataProvider().createAttributeIndex(100))
         self.assertTrue(vl.dataProvider().createAttributeIndex(1))
@@ -713,16 +719,16 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
         self.assertTrue(vl.isValid())
-        self.assertTrue(vl.dataProvider().capabilities() & QgsVectorDataProvider.CreateSpatialIndex)
+        self.assertTrue(vl.dataProvider().capabilities() & QgsVectorDataProvider.Capability.CreateSpatialIndex)
         self.assertTrue(vl.dataProvider().createSpatialIndex())
 
     def testSubSetStringEditable_bug17795_but_with_modified_behavior(self):
         """Test that a layer is still editable after setting a subset"""
 
         testPath = TEST_DATA_DIR + '/' + 'lines.shp'
-        isEditable = QgsVectorDataProvider.ChangeAttributeValues
+        isEditable = QgsVectorDataProvider.Capability.ChangeAttributeValues
 
         vl = QgsVectorLayer(testPath, 'subset_test', 'ogr')
         self.assertTrue(vl.isValid())
@@ -750,13 +756,13 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
         testPath = TEST_DATA_DIR + '/' + 'points.shp'
         subSetString = '"Class" = \'Biplane\''
-        subSet = '|layerid=0|subset=%s' % subSetString
+        subSet = f'|layerid=0|subset={subSetString}'
 
         # unfiltered
         vl = QgsVectorLayer(testPath, 'test', 'ogr')
         self.assertTrue(vl.isValid())
         unfiltered_extent = _lessdigits(vl.extent().toString())
-        del(vl)
+        del vl
 
         # filter after construction ...
         subSet_vl2 = QgsVectorLayer(testPath, 'test', 'ogr')
@@ -766,7 +772,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         self.assertEqual(subSet_vl2.subsetString(), subSetString)
         self.assertNotEqual(_lessdigits(subSet_vl2.extent().toString()), unfiltered_extent)
         filtered_extent = _lessdigits(subSet_vl2.extent().toString())
-        del(subSet_vl2)
+        del subSet_vl2
 
         # filtered in constructor
         subSet_vl = QgsVectorLayer(testPath + subSet, 'subset_test', 'ogr')
@@ -804,9 +810,9 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         testPath = TEST_DATA_DIR + '/' + 'multipatch.shp'
         vl = QgsVectorLayer(testPath, 'test', 'ogr')
         self.assertTrue(vl.isValid())
-        self.assertEqual(vl.wkbType(), QgsWkbTypes.MultiPolygonZ)
+        self.assertEqual(vl.wkbType(), QgsWkbTypes.Type.MultiPolygonZ)
         f = next(vl.getFeatures())
-        self.assertEqual(f.geometry().wkbType(), QgsWkbTypes.MultiPolygonZ)
+        self.assertEqual(f.geometry().wkbType(), QgsWkbTypes.Type.MultiPolygonZ)
         self.assertEqual(f.geometry().constGet().asWkt(),
                          'MultiPolygonZ (((0 0 0, 0 1 0, 1 1 0, 0 0 0)),((0 0 0, 1 1 0, 1 0 0, 0 0 0)),((0 0 0, 0 -1 0, 1 -1 0, 0 0 0)),((0 0 0, 1 -1 0, 1 0 0, 0 0 0)))')
 
@@ -829,7 +835,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
         vl = QgsVectorLayer(tmpfile, 'test', 'ogr')
         self.assertTrue(vl.isValid())
-        self.assertEqual(vl.wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(vl.wkbType(), QgsWkbTypes.Type.Point)
         f = next(vl.getFeatures())
         assert f['attr'] == 1
         self.assertEqual(f.geometry().constGet().asWkt(), 'Point (0 0)')
@@ -875,8 +881,8 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         vl2 = QgsVectorLayer(tmpfile + '|layername=layer2', 'test', 'ogr')
         self.assertTrue(vl1.isValid())
         self.assertTrue(vl2.isValid())
-        self.assertEqual(vl1.wkbType(), QgsWkbTypes.Point)
-        self.assertEqual(vl2.wkbType(), QgsWkbTypes.MultiLineString)
+        self.assertEqual(vl1.wkbType(), QgsWkbTypes.Type.Point)
+        self.assertEqual(vl2.wkbType(), QgsWkbTypes.Type.MultiLineString)
         f1 = next(vl1.getFeatures())
         f2 = next(vl2.getFeatures())
         assert f1['attr'] == 1
@@ -937,7 +943,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
                                                                          False,
                                                                          {"driverName": "ESRI Shapefile"}
                                                                          )
-        self.assertEqual(write_result, QgsVectorLayerExporter.NoError, error_message)
+        self.assertEqual(write_result, QgsVectorLayerExporter.ExportError.NoError, error_message)
 
         # Open the newly created layer
         shapefile_layer = QgsVectorLayer(dest_file_name)
@@ -952,7 +958,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
                                                                              "forceSinglePartGeometryType": True,
                                                                              "driverName": "GPKG",
                                                                          })
-        self.assertEqual(write_result, QgsVectorLayerExporter.NoError, error_message)
+        self.assertEqual(write_result, QgsVectorLayerExporter.ExportError.NoError, error_message)
 
         # Load result layer and check that it's NOT MULTI
         single_layer = QgsVectorLayer(dest_singlepart_file_name)
@@ -970,7 +976,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
                                                                              "forceSinglePartGeometryType": False,
                                                                              "driverName": "GPKG",
                                                                          })
-        self.assertEqual(write_result, QgsVectorLayerExporter.NoError, error_message)
+        self.assertEqual(write_result, QgsVectorLayerExporter.ExportError.NoError, error_message)
         # Load result layer and check that it's MULTI
         multi_layer = QgsVectorLayer(dest_multipart_file_name)
         self.assertTrue(multi_layer.isValid())
@@ -995,34 +1001,34 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
                                                                              "driverName": "GPKG",
                                                                          })
         self.assertTrue(QgsWkbTypes.isMultiType(multi_layer.wkbType()))
-        self.assertEqual(write_result, QgsVectorLayerExporter.ErrFeatureWriteFailed, "Failed to transform a feature with ID '1' to single part. Writing stopped.")
+        self.assertEqual(write_result, QgsVectorLayerExporter.ExportError.ErrFeatureWriteFailed, "Failed to transform a feature with ID '1' to single part. Writing stopped.")
 
     def testReadingLayerGeometryTypes(self):
 
-        tests = [(osgeo.ogr.wkbPoint, 'Point (0 0)', QgsWkbTypes.Point, 'Point (0 0)'),
-                 (osgeo.ogr.wkbPoint25D, 'Point Z (0 0 1)', QgsWkbTypes.PointZ, 'PointZ (0 0 1)'),
-                 (osgeo.ogr.wkbPointM, 'Point M (0 0 1)', QgsWkbTypes.PointM, 'PointM (0 0 1)'),
-                 (osgeo.ogr.wkbPointZM, 'Point ZM (0 0 1 2)', QgsWkbTypes.PointZM, 'PointZM (0 0 1 2)'),
-                 (osgeo.ogr.wkbLineString, 'LineString (0 0, 1 1)', QgsWkbTypes.MultiLineString, 'MultiLineString ((0 0, 1 1))'),
-                 (osgeo.ogr.wkbLineString25D, 'LineString Z (0 0 10, 1 1 10)', QgsWkbTypes.MultiLineStringZ, 'MultiLineStringZ ((0 0 10, 1 1 10))'),
-                 (osgeo.ogr.wkbLineStringM, 'LineString M (0 0 10, 1 1 10)', QgsWkbTypes.MultiLineStringM, 'MultiLineStringM ((0 0 10, 1 1 10))'),
-                 (osgeo.ogr.wkbLineStringZM, 'LineString ZM (0 0 10 20, 1 1 10 20)', QgsWkbTypes.MultiLineStringZM, 'MultiLineStringZM ((0 0 10 20, 1 1 10 20))'),
-                 (osgeo.ogr.wkbPolygon, 'Polygon ((0 0,0 1,1 1,0 0))', QgsWkbTypes.MultiPolygon, 'MultiPolygon (((0 0, 0 1, 1 1, 0 0)))'),
-                 (osgeo.ogr.wkbPolygon25D, 'Polygon Z ((0 0 10, 0 1 10, 1 1 10, 0 0 10))', QgsWkbTypes.MultiPolygonZ, 'MultiPolygonZ (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
-                 (osgeo.ogr.wkbPolygonM, 'Polygon M ((0 0 10, 0 1 10, 1 1 10, 0 0 10))', QgsWkbTypes.MultiPolygonM, 'MultiPolygonM (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
-                 (osgeo.ogr.wkbPolygonZM, 'Polygon ZM ((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20))', QgsWkbTypes.MultiPolygonZM, 'MultiPolygonZM (((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20)))'),
-                 (osgeo.ogr.wkbMultiPoint, 'MultiPoint (0 0,1 1)', QgsWkbTypes.MultiPoint, 'MultiPoint ((0 0),(1 1))'),
-                 (osgeo.ogr.wkbMultiPoint25D, 'MultiPoint Z ((0 0 10), (1 1 10))', QgsWkbTypes.MultiPointZ, 'MultiPointZ ((0 0 10),(1 1 10))'),
-                 (osgeo.ogr.wkbMultiPointM, 'MultiPoint M ((0 0 10), (1 1 10))', QgsWkbTypes.MultiPointM, 'MultiPointM ((0 0 10),(1 1 10))'),
-                 (osgeo.ogr.wkbMultiPointZM, 'MultiPoint ZM ((0 0 10 20), (1 1 10 20))', QgsWkbTypes.MultiPointZM, 'MultiPointZM ((0 0 10 20),(1 1 10 20))'),
-                 (osgeo.ogr.wkbMultiLineString, 'MultiLineString ((0 0, 1 1))', QgsWkbTypes.MultiLineString, 'MultiLineString ((0 0, 1 1))'),
-                 (osgeo.ogr.wkbMultiLineString25D, 'MultiLineString Z ((0 0 10, 1 1 10))', QgsWkbTypes.MultiLineStringZ, 'MultiLineStringZ ((0 0 10, 1 1 10))'),
-                 (osgeo.ogr.wkbMultiLineStringM, 'MultiLineString M ((0 0 10, 1 1 10))', QgsWkbTypes.MultiLineStringM, 'MultiLineStringM ((0 0 10, 1 1 10))'),
-                 (osgeo.ogr.wkbMultiLineStringZM, 'MultiLineString ZM ((0 0 10 20, 1 1 10 20))', QgsWkbTypes.MultiLineStringZM, 'MultiLineStringZM ((0 0 10 20, 1 1 10 20))'),
-                 (osgeo.ogr.wkbMultiPolygon, 'MultiPolygon (((0 0,0 1,1 1,0 0)))', QgsWkbTypes.MultiPolygon, 'MultiPolygon (((0 0, 0 1, 1 1, 0 0)))'),
-                 (osgeo.ogr.wkbMultiPolygon25D, 'MultiPolygon Z (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))', QgsWkbTypes.MultiPolygonZ, 'MultiPolygonZ (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
-                 (osgeo.ogr.wkbMultiPolygonM, 'MultiPolygon M (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))', QgsWkbTypes.MultiPolygonM, 'MultiPolygonM (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
-                 (osgeo.ogr.wkbMultiPolygonZM, 'MultiPolygon ZM (((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20)))', QgsWkbTypes.MultiPolygonZM, 'MultiPolygonZM (((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20)))'),
+        tests = [(osgeo.ogr.wkbPoint, 'Point (0 0)', QgsWkbTypes.Type.Point, 'Point (0 0)'),
+                 (osgeo.ogr.wkbPoint25D, 'Point Z (0 0 1)', QgsWkbTypes.Type.PointZ, 'PointZ (0 0 1)'),
+                 (osgeo.ogr.wkbPointM, 'Point M (0 0 1)', QgsWkbTypes.Type.PointM, 'PointM (0 0 1)'),
+                 (osgeo.ogr.wkbPointZM, 'Point ZM (0 0 1 2)', QgsWkbTypes.Type.PointZM, 'PointZM (0 0 1 2)'),
+                 (osgeo.ogr.wkbLineString, 'LineString (0 0, 1 1)', QgsWkbTypes.Type.MultiLineString, 'MultiLineString ((0 0, 1 1))'),
+                 (osgeo.ogr.wkbLineString25D, 'LineString Z (0 0 10, 1 1 10)', QgsWkbTypes.Type.MultiLineStringZ, 'MultiLineStringZ ((0 0 10, 1 1 10))'),
+                 (osgeo.ogr.wkbLineStringM, 'LineString M (0 0 10, 1 1 10)', QgsWkbTypes.Type.MultiLineStringM, 'MultiLineStringM ((0 0 10, 1 1 10))'),
+                 (osgeo.ogr.wkbLineStringZM, 'LineString ZM (0 0 10 20, 1 1 10 20)', QgsWkbTypes.Type.MultiLineStringZM, 'MultiLineStringZM ((0 0 10 20, 1 1 10 20))'),
+                 (osgeo.ogr.wkbPolygon, 'Polygon ((0 0,0 1,1 1,0 0))', QgsWkbTypes.Type.MultiPolygon, 'MultiPolygon (((0 0, 0 1, 1 1, 0 0)))'),
+                 (osgeo.ogr.wkbPolygon25D, 'Polygon Z ((0 0 10, 0 1 10, 1 1 10, 0 0 10))', QgsWkbTypes.Type.MultiPolygonZ, 'MultiPolygonZ (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
+                 (osgeo.ogr.wkbPolygonM, 'Polygon M ((0 0 10, 0 1 10, 1 1 10, 0 0 10))', QgsWkbTypes.Type.MultiPolygonM, 'MultiPolygonM (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
+                 (osgeo.ogr.wkbPolygonZM, 'Polygon ZM ((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20))', QgsWkbTypes.Type.MultiPolygonZM, 'MultiPolygonZM (((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20)))'),
+                 (osgeo.ogr.wkbMultiPoint, 'MultiPoint (0 0,1 1)', QgsWkbTypes.Type.MultiPoint, 'MultiPoint ((0 0),(1 1))'),
+                 (osgeo.ogr.wkbMultiPoint25D, 'MultiPoint Z ((0 0 10), (1 1 10))', QgsWkbTypes.Type.MultiPointZ, 'MultiPointZ ((0 0 10),(1 1 10))'),
+                 (osgeo.ogr.wkbMultiPointM, 'MultiPoint M ((0 0 10), (1 1 10))', QgsWkbTypes.Type.MultiPointM, 'MultiPointM ((0 0 10),(1 1 10))'),
+                 (osgeo.ogr.wkbMultiPointZM, 'MultiPoint ZM ((0 0 10 20), (1 1 10 20))', QgsWkbTypes.Type.MultiPointZM, 'MultiPointZM ((0 0 10 20),(1 1 10 20))'),
+                 (osgeo.ogr.wkbMultiLineString, 'MultiLineString ((0 0, 1 1))', QgsWkbTypes.Type.MultiLineString, 'MultiLineString ((0 0, 1 1))'),
+                 (osgeo.ogr.wkbMultiLineString25D, 'MultiLineString Z ((0 0 10, 1 1 10))', QgsWkbTypes.Type.MultiLineStringZ, 'MultiLineStringZ ((0 0 10, 1 1 10))'),
+                 (osgeo.ogr.wkbMultiLineStringM, 'MultiLineString M ((0 0 10, 1 1 10))', QgsWkbTypes.Type.MultiLineStringM, 'MultiLineStringM ((0 0 10, 1 1 10))'),
+                 (osgeo.ogr.wkbMultiLineStringZM, 'MultiLineString ZM ((0 0 10 20, 1 1 10 20))', QgsWkbTypes.Type.MultiLineStringZM, 'MultiLineStringZM ((0 0 10 20, 1 1 10 20))'),
+                 (osgeo.ogr.wkbMultiPolygon, 'MultiPolygon (((0 0,0 1,1 1,0 0)))', QgsWkbTypes.Type.MultiPolygon, 'MultiPolygon (((0 0, 0 1, 1 1, 0 0)))'),
+                 (osgeo.ogr.wkbMultiPolygon25D, 'MultiPolygon Z (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))', QgsWkbTypes.Type.MultiPolygonZ, 'MultiPolygonZ (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
+                 (osgeo.ogr.wkbMultiPolygonM, 'MultiPolygon M (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))', QgsWkbTypes.Type.MultiPolygonM, 'MultiPolygonM (((0 0 10, 0 1 10, 1 1 10, 0 0 10)))'),
+                 (osgeo.ogr.wkbMultiPolygonZM, 'MultiPolygon ZM (((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20)))', QgsWkbTypes.Type.MultiPolygonZM, 'MultiPolygonZM (((0 0 10 20, 0 1 10 20, 1 1 10 20, 0 0 10 20)))'),
                  ]
         for ogr_type, wkt, qgis_type, expected_wkt in tests:
 
@@ -1044,7 +1050,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
             osgeo.ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource(tmpfile)
 
-    def testEncoding(self):
+    def testEncoding_cp852(self):
         """ Test that CP852 shapefile is read/written correctly """
 
         tmpdir = tempfile.mkdtemp()
@@ -1070,28 +1076,28 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         """Test QgsDataProvider.SkipFeatureCount on featureCount()"""
 
         testPath = TEST_DATA_DIR + '/' + 'lines.shp'
-        provider = QgsProviderRegistry.instance().createProvider('ogr', testPath, QgsDataProvider.ProviderOptions(), QgsDataProvider.SkipFeatureCount)
+        provider = QgsProviderRegistry.instance().createProvider('ogr', testPath, QgsDataProvider.ProviderOptions(), QgsDataProvider.ReadFlag.SkipFeatureCount)
         self.assertTrue(provider.isValid())
-        self.assertEqual(provider.featureCount(), QgsVectorDataProvider.UnknownCount)
+        self.assertEqual(provider.featureCount(), QgsVectorDataProvider.FeatureCountState.UnknownCount)
 
     def testSkipFeatureCountOnSubLayers(self):
         """Test QgsDataProvider.SkipFeatureCount on subLayers()"""
 
         datasource = os.path.join(TEST_DATA_DIR, 'shapefile')
-        provider = QgsProviderRegistry.instance().createProvider('ogr', datasource, QgsDataProvider.ProviderOptions(), QgsDataProvider.SkipFeatureCount)
+        provider = QgsProviderRegistry.instance().createProvider('ogr', datasource, QgsDataProvider.ProviderOptions(), QgsDataProvider.ReadFlag.SkipFeatureCount)
         self.assertTrue(provider.isValid())
         sublayers = provider.subLayers()
-        self.assertTrue(len(sublayers) > 1)
+        self.assertGreater(len(sublayers), 1)
         self.assertEqual(int(sublayers[0].split(QgsDataProvider.sublayerSeparator())[2]), int(Qgis.FeatureCountState.Uncounted))
 
     def testLayersOnSameOGRLayerWithAndWithoutFilter(self):
         """Test fix for https://github.com/qgis/QGIS/issues/43361"""
         file_path = os.path.join(TEST_DATA_DIR, 'provider', 'shapefile.shp')
-        uri = '{}|layerId=0|subset="name" = \'Apple\''.format(file_path)
+        uri = f'{file_path}|layerId=0|subset="name" = \'Apple\''
         options = QgsDataProvider.ProviderOptions()
         vl1 = QgsVectorLayer(uri, 'vl1', 'ogr')
         vl2 = QgsVectorLayer(uri, 'vl2', 'ogr')
-        vl3 = QgsVectorLayer('{}|layerId=0'.format(file_path), 'vl3', 'ogr')
+        vl3 = QgsVectorLayer(f'{file_path}|layerId=0', 'vl3', 'ogr')
         self.assertEqual(vl1.featureCount(), 1)
         vl1_extent = QgsGeometry.fromRect(vl1.extent())
         self.assertEqual(vl2.featureCount(), 1)
@@ -1101,12 +1107,69 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
         reference = QgsGeometry.fromRect(QgsRectangle(-68.2, 70.8, -68.2, 70.8))
         assert QgsGeometry.compare(vl1_extent.asPolygon()[0], reference.asPolygon()[0],
-                                   0.00001), 'Expected {}, got {}'.format(reference.asWkt(), vl1_extent.asWkt())
+                                   0.00001), f'Expected {reference.asWkt()}, got {vl1_extent.asWkt()}'
         assert QgsGeometry.compare(vl2_extent.asPolygon()[0], reference.asPolygon()[0],
-                                   0.00001), 'Expected {}, got {}'.format(reference.asWkt(), vl2_extent.asWkt())
+                                   0.00001), f'Expected {reference.asWkt()}, got {vl2_extent.asWkt()}'
         reference = QgsGeometry.fromRect(QgsRectangle(-71.123, 66.33, -65.32, 78.3))
         assert QgsGeometry.compare(vl3_extent.asPolygon()[0], reference.asPolygon()[0],
-                                   0.00001), 'Expected {}, got {}'.format(reference.asWkt(), vl3_extent.asWkt())
+                                   0.00001), f'Expected {reference.asWkt()}, got {vl3_extent.asWkt()}'
+
+    def testWritingMultiPolygon(self):
+        """Test that a MultiPolygon written to a Shape Polygon layer doesn't get converted to Polygon"""
+
+        tmpfile = os.path.join(self.basetestpath, 'testWritingMultiPolygon.shp')
+        ds = osgeo.ogr.GetDriverByName('ESRI Shapefile').CreateDataSource(tmpfile)
+        ds.CreateLayer('testWritingMultiPolygon', geom_type=osgeo.ogr.wkbPolygon)
+        ds = None
+
+        vl = QgsVectorLayer(tmpfile, 'test')
+        f = QgsFeature()
+        f.setAttributes([200])
+        wkt = "MultiPolygon (((0 0, 0 1, 1 1, 0 0)),((10 0, 10 1, 11 1, 10 0)))"
+        f.setGeometry(QgsGeometry.fromWkt(wkt))
+        vl.dataProvider().addFeatures([f])
+
+        f = next(vl.getFeatures())
+        self.assertEqual(f.geometry().constGet().asWkt(), wkt)
+
+    def testFilterWithComment(self):
+        file_path = os.path.join(TEST_DATA_DIR, 'provider', 'shapefile.shp')
+        uri = f'{file_path}|layerid=0|subset="name" = \'Apple\' -- comment'
+        vl = QgsVectorLayer(uri, 'test', 'ogr')
+        self.assertTrue(vl.isValid())
+        self.assertEqual(vl.subsetString(), '"name" = \'Apple\' -- comment')
+        self.assertEqual(vl.featureCount(), 1)
+        f = next(vl.getFeatures())
+        self.assertEqual(f['name'], 'Apple')
+
+    def testRecomputeExtent(self):
+        """Test that extents are recomputed correctly after update"""
+
+        tmpdir = tempfile.mkdtemp()
+        self.dirs_to_cleanup.append(tmpdir)
+        srcpath = os.path.join(TEST_DATA_DIR, 'provider')
+        for file in glob.glob(os.path.join(srcpath, 'shapefile.*')):
+            shutil.copy(os.path.join(srcpath, file), tmpdir)
+        datasource = os.path.join(tmpdir, 'shapefile.shp')
+
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
+        extent = vl.extent()
+        vl.startEditing()
+        for fet in vl.getFeatures():
+            vl.translateFeature(fet.id(), 1, -1)
+        vl.commitChanges()
+        updated_extent = vl.extent()
+        self.assertEqual(updated_extent.xMaximum(), extent.xMaximum() + 1)
+        self.assertEqual(updated_extent.xMinimum(), extent.xMinimum() + 1)
+        self.assertEqual(updated_extent.yMaximum(), extent.yMaximum() - 1)
+        self.assertEqual(updated_extent.yMinimum(), extent.yMinimum() - 1)
+
+        # close file and reopen, then recheck to confirm that changes were saved to file
+        del vl
+        vl = None
+        vl = QgsVectorLayer(f'{datasource}|layerid=0', 'test', 'ogr')
+        reopened_extent = vl.extent()
+        self.assertEqual(reopened_extent, updated_extent)
 
 
 if __name__ == '__main__':

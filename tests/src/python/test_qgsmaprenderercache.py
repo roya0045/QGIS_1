@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsMapRendererCache.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,21 +9,24 @@ __author__ = 'Nyall Dawson'
 __date__ = '1/02/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
+from time import sleep
 
-from qgis.core import (QgsMapRendererCache,
-                       QgsRectangle,
-                       QgsVectorLayer,
-                       QgsProject,
-                       QgsMapToPixel)
-from qgis.testing import start_app, unittest
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QImage
-from time import sleep
+from qgis.core import (
+    QgsMapRendererCache,
+    QgsMapToPixel,
+    QgsProject,
+    QgsRectangle,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 start_app()
 
 
-class TestQgsMapRendererCache(unittest.TestCase):
+class TestQgsMapRendererCache(QgisTestCase):
 
     def testSetCacheImages(self):
         cache = QgsMapRendererCache()
@@ -34,7 +36,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
         self.assertFalse(cache.hasCacheImage('littlehands'))
 
         # set image
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('littlehands', im)
         self.assertFalse(im.isNull())
         self.assertEqual(cache.cacheImage('littlehands'), im)
@@ -52,7 +54,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
         self.assertFalse(cache.hasCacheImage('littlehands'))
 
         # clear whole cache
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('littlehands', im)
         self.assertFalse(im.isNull())
         self.assertTrue(cache.hasCacheImage('littlehands'))
@@ -67,7 +69,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
         self.assertFalse(cache.init(extent, 1000))
 
         # add a cache image
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('layer', im)
         self.assertFalse(cache.cacheImage('layer').isNull())
         self.assertTrue(cache.hasCacheImage('layer'))
@@ -105,7 +107,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
 
         # add image to cache
         cache = QgsMapRendererCache()
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('xxx', im, [layer])
         self.assertFalse(cache.cacheImage('xxx').isNull())
         self.assertTrue(cache.hasCacheImage('xxx'))
@@ -133,7 +135,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
 
         # add image to cache
         cache = QgsMapRendererCache()
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('xxx', im, [layer])
         self.assertFalse(cache.cacheImage('xxx').isNull())
         self.assertTrue(cache.hasCacheImage('xxx'))
@@ -157,7 +159,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
 
         # add image to cache - no dependent layers
         cache = QgsMapRendererCache()
-        im1 = QImage(200, 200, QImage.Format_RGB32)
+        im1 = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('nolayer', im1)
         self.assertFalse(cache.cacheImage('nolayer').isNull())
         self.assertTrue(cache.hasCacheImage('nolayer'))
@@ -172,15 +174,15 @@ class TestQgsMapRendererCache(unittest.TestCase):
         self.assertTrue(cache.hasCacheImage('nolayer'))
 
         # image depends on 1 layer
-        im_l1 = QImage(200, 200, QImage.Format_RGB32)
+        im_l1 = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('im1', im_l1, [layer1])
 
         # image depends on 2 layers
-        im_l1_l2 = QImage(200, 200, QImage.Format_RGB32)
+        im_l1_l2 = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('im1_im2', im_l1_l2, [layer1, layer2])
 
         # image depends on 2nd layer alone
-        im_l2 = QImage(200, 200, QImage.Format_RGB32)
+        im_l2 = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('im2', im_l2, [layer2])
 
         self.assertFalse(cache.cacheImage('im1').isNull())
@@ -231,11 +233,11 @@ class TestQgsMapRendererCache(unittest.TestCase):
         layer2 = QgsVectorLayer("Point?field=fldtxt:string",
                                 "layer2", "memory")
 
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('no depends', im, [])
         self.assertEqual(cache.dependentLayers('no depends'), [])
         cache.setCacheImage('depends', im, [layer1, layer2])
-        self.assertEqual(set(cache.dependentLayers('depends')), set([layer1, layer2]))
+        self.assertEqual(set(cache.dependentLayers('depends')), {layer1, layer2})
 
     def testLayerRemoval(self):
         """test that cached image is cleared when a dependent layer is removed"""
@@ -244,7 +246,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
                                 "layer1", "memory")
         layer2 = QgsVectorLayer("Point?field=fldtxt:string",
                                 "layer2", "memory")
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('depends', im, [layer1, layer2])
         cache.setCacheImage('depends2', im, [layer1])
         cache.setCacheImage('depends3', im, [layer2])
@@ -272,7 +274,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
         cache = QgsMapRendererCache()
         layer1 = QgsVectorLayer("Point?field=fldtxt:string",
                                 "layer1", "memory")
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('l1', im, [layer1])
         self.assertTrue(cache.hasCacheImage('l1'))
 
@@ -293,14 +295,14 @@ class TestQgsMapRendererCache(unittest.TestCase):
         """
         cache = QgsMapRendererCache()
         cache.updateParameters(QgsRectangle(1, 1, 3, 3), QgsMapToPixel(5))
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         cache.setCacheImage('im1', im, [])
 
         self.assertEqual(cache.cacheImage('im1').width(), 200)
 
         # if existing cached image exists with matching parameters, we don't store a new image -- old
         # one should still be retained
-        im = QImage(201, 201, QImage.Format_RGB32)
+        im = QImage(201, 201, QImage.Format.Format_RGB32)
         cache.setCacheImageWithParameters('im1', im, QgsRectangle(1, 1, 3, 4), QgsMapToPixel(5), [])
         self.assertEqual(cache.cacheImage('im1').width(), 200)
         cache.setCacheImageWithParameters('im1', im, QgsRectangle(1, 1, 3, 3), QgsMapToPixel(6), [])
@@ -309,7 +311,7 @@ class TestQgsMapRendererCache(unittest.TestCase):
         # replace with matching parameters
         cache.setCacheImageWithParameters('im1', im, QgsRectangle(1, 1, 3, 3), QgsMapToPixel(5), [])
         self.assertEqual(cache.cacheImage('im1').width(), 201)
-        im = QImage(202, 202, QImage.Format_RGB32)
+        im = QImage(202, 202, QImage.Format.Format_RGB32)
         cache.setCacheImage('im1', im, [])
         self.assertEqual(cache.cacheImage('im1').width(), 202)
 

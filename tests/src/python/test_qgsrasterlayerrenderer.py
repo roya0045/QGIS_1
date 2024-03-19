@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsRasterLayerRenderer
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,24 +9,25 @@ __author__ = 'Nyall Dawson'
 __date__ = '2020-06'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
 import os
 
-from qgis.PyQt.QtCore import QSize, QDir
+from qgis.PyQt.QtCore import QSize
+from qgis.core import (
+    Qgis,
+    QgsCoordinateReferenceSystem,
+    QgsGeometry,
+    QgsMapClippingRegion,
+    QgsMapSettings,
+    QgsRasterLayer,
+    QgsRectangle,
+    QgsDoubleRange,
+    QgsSingleBandGrayRenderer,
+    QgsContrastEnhancement
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
-from qgis.core import (QgsRasterLayer,
-                       QgsMapClippingRegion,
-                       QgsRectangle,
-                       QgsMultiRenderChecker,
-                       QgsGeometry,
-                       QgsSingleSymbolRenderer,
-                       QgsMapSettings,
-                       QgsFillSymbol,
-                       QgsCoordinateReferenceSystem
-                       )
-from qgis.testing import start_app, unittest
-from utilities import (unitTestDataPath)
+from utilities import unitTestDataPath
 
 # Convenience instances in case you may need them
 # not used in this test
@@ -35,15 +35,11 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsRasterLayerRenderer(unittest.TestCase):
+class TestQgsRasterLayerRenderer(QgisTestCase):
 
-    def setUp(self):
-        self.report = "<h1>Python QgsRasterLayerRenderer Tests</h1>\n"
-
-    def tearDown(self):
-        report_file_path = "%s/qgistest.html" % QDir.tempPath()
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(self.report)
+    @classmethod
+    def control_path_prefix(cls):
+        return 'rasterlayerrenderer'
 
     def testRenderWithPainterClipRegions(self):
         raster_layer = QgsRasterLayer(os.path.join(TEST_DATA_DIR, 'rgb256x256.png'))
@@ -64,13 +60,192 @@ class TestQgsRasterLayerRenderer(unittest.TestCase):
         mapsettings.addClippingRegion(region)
         mapsettings.addClippingRegion(region2)
 
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('rasterlayerrenderer')
-        renderchecker.setControlName('expected_painterclip_region')
-        result = renderchecker.runTest('expected_painterclip_region')
-        self.report += renderchecker.report()
-        self.assertTrue(result)
+        self.assertTrue(
+            self.render_map_settings_check(
+                'painterclip_region',
+                'painterclip_region',
+                mapsettings)
+        )
+
+    def test_render_dem_with_z_range_filter(self):
+        raster_layer = QgsRasterLayer(os.path.join(TEST_DATA_DIR, '3d', 'dtm.tif'))
+        self.assertTrue(raster_layer.isValid())
+        # start with no elevation settings on layer
+        self.assertFalse(raster_layer.elevationProperties().hasElevation())
+
+        map_settings = QgsMapSettings()
+        map_settings.setOutputSize(QSize(400, 400))
+        map_settings.setOutputDpi(96)
+        map_settings.setDestinationCrs(raster_layer.crs())
+        map_settings.setExtent(raster_layer.extent())
+        map_settings.setLayers([raster_layer])
+        map_settings.setZRange(QgsDoubleRange(100, 130))
+
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings, not elevation enabled layer',
+                'dem_no_filter',
+                map_settings)
+        )
+
+        # set layer as elevation enabled
+        raster_layer.elevationProperties().setEnabled(True)
+        # no filter on map settings
+        map_settings.setZRange(QgsDoubleRange())
+        self.assertTrue(
+            self.render_map_settings_check(
+                'No Z range filter on map settings, elevation enabled layer',
+                'dem_no_filter',
+                map_settings)
+        )
+
+        # filter on map settings, elevation enabled layer => should be filtered
+        map_settings.setZRange(QgsDoubleRange(100, 130))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings, elevation enabled layer',
+                'dem_filter',
+                map_settings)
+        )
+
+        # with offset and scaling
+        raster_layer.elevationProperties().setZOffset(50)
+        raster_layer.elevationProperties().setZScale(0.75)
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings, elevation enabled layer with offset and scale',
+                'dem_filter_offset_and_scale',
+                map_settings)
+        )
+
+    def test_render_fixed_elevation_range_with_z_range_filter(self):
+        """
+        Test rendering a raster with a fixed elevation range when
+        map settings has a z range filter
+        """
+        raster_layer = QgsRasterLayer(os.path.join(TEST_DATA_DIR, '3d', 'dtm.tif'))
+        self.assertTrue(raster_layer.isValid())
+
+        # set layer as elevation enabled
+        raster_layer.elevationProperties().setEnabled(True)
+        raster_layer.elevationProperties().setMode(
+            Qgis.RasterElevationMode.FixedElevationRange
+        )
+        raster_layer.elevationProperties().setFixedRange(
+            QgsDoubleRange(33, 38)
+        )
+
+        map_settings = QgsMapSettings()
+        map_settings.setOutputSize(QSize(400, 400))
+        map_settings.setOutputDpi(96)
+        map_settings.setDestinationCrs(raster_layer.crs())
+        map_settings.setExtent(raster_layer.extent())
+        map_settings.setLayers([raster_layer])
+
+        # no filter on map settings
+        map_settings.setZRange(QgsDoubleRange())
+        self.assertTrue(
+            self.render_map_settings_check(
+                'No Z range filter on map settings, fixed elevation range layer',
+                'dem_no_filter',
+                map_settings)
+        )
+
+        # map settings range includes layer's range
+        map_settings.setZRange(QgsDoubleRange(30, 35))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings includes layers fixed range',
+                'fixed_elevation_range_included',
+                map_settings)
+        )
+
+        # map settings range excludes layer's range
+        map_settings.setZRange(QgsDoubleRange(130, 135))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings outside of layers fixed range',
+                'fixed_elevation_range_excluded',
+                map_settings)
+        )
+
+    def test_render_fixed_range_per_band_with_z_range_filter(self):
+        """
+        Test rendering a raster with a fixed range per band when
+        map settings has a z range filter
+        """
+        raster_layer = QgsRasterLayer(os.path.join(TEST_DATA_DIR, 'landsat_4326.tif'))
+        self.assertTrue(raster_layer.isValid())
+
+        renderer = QgsSingleBandGrayRenderer(raster_layer.dataProvider(), 3)
+        contrast = QgsContrastEnhancement()
+        contrast.setMinimumValue(70)
+        contrast.setMaximumValue(125)
+        renderer.setContrastEnhancement(contrast)
+        raster_layer.setRenderer(renderer)
+
+        # set layer as elevation enabled
+        raster_layer.elevationProperties().setEnabled(True)
+        raster_layer.elevationProperties().setMode(
+            Qgis.RasterElevationMode.FixedRangePerBand
+        )
+        raster_layer.elevationProperties().setFixedRangePerBand(
+            {3: QgsDoubleRange(33, 38),
+             4: QgsDoubleRange(35, 40),
+             5: QgsDoubleRange(40, 48)}
+        )
+
+        map_settings = QgsMapSettings()
+        map_settings.setOutputSize(QSize(400, 400))
+        map_settings.setOutputDpi(96)
+        map_settings.setDestinationCrs(raster_layer.crs())
+        map_settings.setExtent(raster_layer.extent())
+        map_settings.setLayers([raster_layer])
+
+        # no filter on map settings
+        map_settings.setZRange(QgsDoubleRange())
+        self.assertTrue(
+            self.render_map_settings_check(
+                'No Z range filter on map settings, elevation range per band',
+                'elevation_range_per_band_no_filter',
+                map_settings)
+        )
+
+        # map settings range matches band 3 only
+        map_settings.setZRange(QgsDoubleRange(30, 34))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings matches band 3 only',
+                'elevation_range_per_band_match_3',
+                map_settings)
+        )
+
+        # map settings range matches band 3 and 4, should pick the highest (4)
+        map_settings.setZRange(QgsDoubleRange(36, 38.5))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings matches band 3 and 4',
+                'elevation_range_per_band_match_4',
+                map_settings)
+        )
+
+        # map settings range matches band 5
+        map_settings.setZRange(QgsDoubleRange(46, 58.5))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings matches band 5',
+                'elevation_range_per_band_match_5',
+                map_settings)
+        )
+
+        # map settings range excludes layer's range
+        map_settings.setZRange(QgsDoubleRange(130, 135))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'Z range filter on map settings outside of layer band ranges',
+                'fixed_elevation_range_excluded',
+                map_settings)
+        )
 
 
 if __name__ == '__main__':

@@ -29,7 +29,6 @@
  *
  * A user profile is all settings and anything that used to be found in .qgis3 in the users home folder.
  *
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsUserProfile
 {
@@ -73,7 +72,7 @@ class CORE_EXPORT QgsUserProfile
      * \param alias A user friendly name for the profile.
      * \return TRUE of setting the alias was successful.
      */
-    QgsError setAlias( const QString &alias );
+    QgsError setAlias( const QString &alias ) const;
 
     /**
      * The icon for the user profile.

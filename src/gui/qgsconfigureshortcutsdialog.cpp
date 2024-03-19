@@ -20,6 +20,7 @@
 #include "qgslogger.h"
 #include "qgssettings.h"
 #include "qgsgui.h"
+#include "qgsprojectversion.h"
 
 #include <QKeyEvent>
 #include <QKeySequence>
@@ -28,7 +29,15 @@
 #include <QDomDocument>
 #include <QFileDialog>
 #include <QTextStream>
-#include <QDebug>
+#include <QMenu>
+#include <QAction>
+#include <QPdfWriter>
+#include <QTextDocument>
+#include <QTextCursor>
+#include <QTextTable>
+#include <QTextTableFormat>
+#include <QTextTableCellFormat>
+#include <QTextCharFormat>
 
 QgsConfigureShortcutsDialog::QgsConfigureShortcutsDialog( QWidget *parent, QgsShortcutsManager *manager )
   : QDialog( parent )
@@ -36,6 +45,22 @@ QgsConfigureShortcutsDialog::QgsConfigureShortcutsDialog( QWidget *parent, QgsSh
 {
   setupUi( this );
   QgsGui::enableAutoGeometryRestore( this );
+
+  mSaveMenu = new QMenu( this );
+  mSaveUserShortcuts = new QAction( tr( "Save User Shortcuts…" ), this );
+  mSaveMenu->addAction( mSaveUserShortcuts );
+  connect( mSaveUserShortcuts, &QAction::triggered, this, [this] { saveShortcuts( false ); } );
+
+  mSaveAllShortcuts = new QAction( tr( "Save All Shortcuts…" ), this );
+  mSaveMenu->addAction( mSaveAllShortcuts );
+  connect( mSaveAllShortcuts, &QAction::triggered, this, [this] { saveShortcuts(); } );
+
+  mSaveAsPdf = new QAction( tr( "Save as PDF…" ), this );
+  mSaveMenu->addAction( mSaveAsPdf );
+  connect( mSaveAsPdf, &QAction::triggered, this, &QgsConfigureShortcutsDialog::saveShortcutsPdf );
+
+  btnSaveShortcuts->setMenu( mSaveMenu );
+
   connect( mLeFilter, &QgsFilterLineEdit::textChanged, this, &QgsConfigureShortcutsDialog::mLeFilter_textChanged );
 
   if ( !mManager )
@@ -45,7 +70,6 @@ QgsConfigureShortcutsDialog::QgsConfigureShortcutsDialog( QWidget *parent, QgsSh
   connect( btnChangeShortcut, &QAbstractButton::clicked, this, &QgsConfigureShortcutsDialog::changeShortcut );
   connect( btnResetShortcut, &QAbstractButton::clicked, this, &QgsConfigureShortcutsDialog::resetShortcut );
   connect( btnSetNoShortcut, &QAbstractButton::clicked, this, &QgsConfigureShortcutsDialog::setNoShortcut );
-  connect( btnSaveShortcuts, &QAbstractButton::clicked, this, &QgsConfigureShortcutsDialog::saveShortcuts );
   connect( btnLoadShortcuts, &QAbstractButton::clicked, this, &QgsConfigureShortcutsDialog::loadShortcuts );
 
   connect( treeActions, &QTreeWidget::currentItemChanged,
@@ -66,6 +90,7 @@ void QgsConfigureShortcutsDialog::populateActions()
     QString actionText;
     QString sequence;
     QIcon icon;
+    const QString settingKey = mManager->objectSettingKey( obj );
 
     if ( QAction *action = qobject_cast< QAction * >( obj ) )
     {
@@ -95,6 +120,7 @@ void QgsConfigureShortcutsDialog::populateActions()
     QTreeWidgetItem *item = new QTreeWidgetItem( lst );
     item->setIcon( 0, icon );
     item->setData( 0, Qt::UserRole, QVariant::fromValue( obj ) );
+    item->setToolTip( 0, settingKey );
     items.append( item );
   }
 
@@ -107,10 +133,13 @@ void QgsConfigureShortcutsDialog::populateActions()
   actionChanged( treeActions->currentItem(), nullptr );
 }
 
-void QgsConfigureShortcutsDialog::saveShortcuts()
+void QgsConfigureShortcutsDialog::saveShortcuts( bool saveAll )
 {
   QString fileName = QFileDialog::getSaveFileName( this, tr( "Save Shortcuts" ), QDir::homePath(),
                      tr( "XML file" ) + " (*.xml);;" + tr( "All files" ) + " (*)" );
+  // return dialog focus on Mac
+  activateWindow();
+  raise();
 
   if ( fileName.isEmpty() )
     return;
@@ -135,24 +164,52 @@ void QgsConfigureShortcutsDialog::saveShortcuts()
 
   QDomDocument doc( QStringLiteral( "shortcuts" ) );
   QDomElement root = doc.createElement( QStringLiteral( "qgsshortcuts" ) );
-  root.setAttribute( QStringLiteral( "version" ), QStringLiteral( "1.0" ) );
-  root.setAttribute( QStringLiteral( "locale" ), settings.value( QgsApplication::settingsLocaleUserLocale.key(), "en_US" ).toString() );
+  root.setAttribute( QStringLiteral( "version" ), QStringLiteral( "1.1" ) );
+  root.setAttribute( QStringLiteral( "locale" ), settings.value( QgsApplication::settingsLocaleUserLocale->key(), "en_US" ).toString() );
   doc.appendChild( root );
 
-  settings.beginGroup( mManager->settingsPath() );
-  QStringList keys = settings.childKeys();
-
-  QString actionText;
-  QString actionShortcut;
-
-  for ( int i = 0; i < keys.count(); ++i )
+  const QList<QObject *> objects = mManager->listAll();
+  for ( QObject *obj : objects )
   {
-    actionText = keys[ i ];
-    actionShortcut = settings.value( actionText, "" ).toString();
+    QString actionText;
+    QString actionShortcut;
+    QString actionSettingKey;
+    QKeySequence sequence;
 
-    QDomElement el = doc.createElement( QStringLiteral( "act" ) );
+    if ( QAction *action = qobject_cast< QAction * >( obj ) )
+    {
+      actionText = action->text().remove( '&' );
+      actionShortcut = action->shortcut().toString( QKeySequence::NativeText );
+      sequence = mManager->defaultKeySequence( action );
+    }
+    else if ( QShortcut *shortcut = qobject_cast< QShortcut * >( obj ) )
+    {
+      actionText = shortcut->whatsThis();
+      actionShortcut = shortcut->key().toString( QKeySequence::NativeText );
+      sequence = mManager->defaultKeySequence( shortcut );
+    }
+    else
+    {
+      continue;
+    }
+
+    actionSettingKey = mManager->objectSettingKey( obj );
+
+    if ( actionSettingKey.isEmpty() )
+    {
+      continue;
+    }
+
+    // skip unchanged shortcuts if only user-definied were requested
+    if ( !saveAll && sequence == QKeySequence( actionShortcut ) )
+    {
+      continue;
+    }
+
+    QDomElement el = doc.createElement( QStringLiteral( "action" ) );
     el.setAttribute( QStringLiteral( "name" ), actionText );
     el.setAttribute( QStringLiteral( "shortcut" ), actionShortcut );
+    el.setAttribute( QStringLiteral( "setting" ), actionSettingKey );
     root.appendChild( el );
   }
 
@@ -180,7 +237,7 @@ void QgsConfigureShortcutsDialog::loadShortcuts()
     return;
   }
 
-  QDomDocument  doc;
+  QDomDocument doc;
   QString errorStr;
   int errorLine;
   int errorColumn;
@@ -205,32 +262,55 @@ void QgsConfigureShortcutsDialog::loadShortcuts()
 
   QString currentLocale;
 
-  const bool localeOverrideFlag = QgsApplication::settingsLocaleOverrideFlag.value();
+  const bool localeOverrideFlag = QgsApplication::settingsLocaleOverrideFlag->value();
   if ( localeOverrideFlag )
   {
-    currentLocale = QgsApplication::settingsLocaleUserLocale.value( QString(), true, "en_US" );
+    currentLocale = QgsApplication::settingsLocaleUserLocale->valueWithDefaultOverride( "en_US" );
   }
   else // use QGIS locale
   {
     currentLocale = QLocale().name();
   }
 
+  const QString versionStr = root.attribute( QStringLiteral( "version" ) );
+  const QgsProjectVersion version( versionStr );
+
   if ( root.attribute( QStringLiteral( "locale" ) ) != currentLocale )
   {
-    QMessageBox::information( this, tr( "Loading Shortcuts" ),
-                              tr( "The file contains shortcuts created with different locale, so you can't use it." ) );
-    return;
+    if ( version < QgsProjectVersion( QStringLiteral( "1.1" ) ) )
+    {
+      QMessageBox::information( this, tr( "Loading Shortcuts" ),
+                                tr( "The file contains shortcuts created with different locale, so you can't use it." ) );
+      return;
+    }
+    else // From version 1.1, if objectName is not empty, it is used as key.
+    {
+      QMessageBox::information( this, tr( "Loading Shortcuts" ),
+                                tr( "The file contains shortcuts created with different locale, so some shortcuts may not work." ) );
+    }
   }
 
   QString actionName;
   QString actionShortcut;
+  QString actionSettingKey;
 
   QDomElement child = root.firstChildElement();
   while ( !child.isNull() )
   {
-    actionName = child.attribute( QStringLiteral( "name" ) );
     actionShortcut = child.attribute( QStringLiteral( "shortcut" ) );
-    mManager->setKeySequence( actionName, actionShortcut );
+    if ( version < QgsProjectVersion( QStringLiteral( "1.1" ) ) )
+    {
+      actionName = child.attribute( QStringLiteral( "name" ) );
+      mManager->setKeySequence( actionName, actionShortcut );
+    }
+    else
+    {
+      actionSettingKey = child.attribute( QStringLiteral( "setting" ) );
+      QObject *obj = mManager->objectForSettingKey( actionSettingKey );
+      if ( obj )
+        mManager->setObjectKeySequence( obj, actionShortcut );
+
+    }
 
     child = child.nextSiblingElement();
   }
@@ -481,5 +561,118 @@ void QgsConfigureShortcutsDialog::mLeFilter_textChanged( const QString &text )
 
 void QgsConfigureShortcutsDialog::showHelp()
 {
-  QgsHelp::openHelp( QStringLiteral( "introduction/qgis_configuration.html#keyboard-shortcuts" ) );
+  QgsHelp::openHelp( QStringLiteral( "introduction/qgis_configuration.html#shortcuts" ) );
+}
+
+void QgsConfigureShortcutsDialog::saveShortcutsPdf()
+{
+  QString fileName = QFileDialog::getSaveFileName( this, tr( "Save Shortcuts" ), QDir::homePath(),
+                     tr( "PDF file" ) + " (*.pdf);;" + tr( "All files" ) + " (*)" );
+  // return dialog focus on Mac
+  activateWindow();
+  raise();
+
+  if ( fileName.isEmpty() )
+    return;
+
+  if ( !fileName.endsWith( QLatin1String( ".pdf" ), Qt::CaseInsensitive ) )
+  {
+    fileName += QLatin1String( ".pdf" );
+  }
+
+  QTextDocument *document = new QTextDocument;
+  QTextCursor cursor( document );
+
+  QTextTableFormat tableFormat;
+  tableFormat.setBorder( 0 );
+  tableFormat.setCellSpacing( 0 );
+  tableFormat.setCellPadding( 4 );
+  tableFormat.setHeaderRowCount( 1 );
+
+  QVector<QTextLength> constraints;
+  constraints << QTextLength( QTextLength::PercentageLength, 5 );
+  constraints << QTextLength( QTextLength::PercentageLength, 80 );
+  constraints << QTextLength( QTextLength::PercentageLength, 15 );
+  tableFormat.setColumnWidthConstraints( constraints );
+
+  QTextTableCellFormat headerFormat;
+  headerFormat.setFontWeight( QFont::Bold );
+  headerFormat.setBottomPadding( 4 );
+
+  QTextCharFormat rowFormat;
+  rowFormat.setVerticalAlignment( QTextCharFormat::AlignMiddle );
+
+  QTextCharFormat altRowFormat;
+  altRowFormat.setBackground( QBrush( QColor( 238, 238, 236 ) ) );
+  altRowFormat.setVerticalAlignment( QTextCharFormat::AlignMiddle );
+
+  int row = 0;
+  QTextTable *table = cursor.insertTable( 1, 3, tableFormat );
+  table->mergeCells( 0, 0, 1, 2 );
+  QTextCursor c = table->cellAt( row, 0 ).firstCursorPosition();
+  c.setCharFormat( headerFormat );
+  c.insertText( tr( "Action" ) );
+  c = table->cellAt( row, 2 ).firstCursorPosition();
+  c.setCharFormat( headerFormat );
+  c.insertText( tr( "Shortcut" ) );
+
+  const QList<QObject *> objects = mManager->listAll();
+  for ( QObject *obj : objects )
+  {
+    QString actionText;
+    QString sequence;
+    QIcon icon;
+
+    if ( QAction *action = qobject_cast< QAction * >( obj ) )
+    {
+      actionText = action->text().remove( '&' );
+      sequence = action->shortcut().toString( QKeySequence::NativeText );
+      icon = action->icon();
+    }
+    else if ( QShortcut *shortcut = qobject_cast< QShortcut * >( obj ) )
+    {
+      actionText = shortcut->whatsThis();
+      sequence = shortcut->key().toString( QKeySequence::NativeText );
+      icon = shortcut->property( "Icon" ).value<QIcon>();
+    }
+    else
+    {
+      continue;
+    }
+
+    // skip actions without shortcut and name
+    if ( actionText.isEmpty() || sequence.isEmpty() )
+    {
+      continue;
+    }
+
+    row += 1;
+    table->appendRows( 1 );
+
+    if ( row % 2 )
+    {
+      table->cellAt( row, 0 ).setFormat( altRowFormat );
+      table->cellAt( row, 1 ).setFormat( altRowFormat );
+      table->cellAt( row, 2 ).setFormat( altRowFormat );
+    }
+    else
+    {
+      table->cellAt( row, 0 ).setFormat( rowFormat );
+      table->cellAt( row, 1 ).setFormat( rowFormat );
+      table->cellAt( row, 2 ).setFormat( rowFormat );
+    }
+
+    if ( !icon.isNull() )
+    {
+      c = table->cellAt( row, 0 ).firstCursorPosition();
+      c.insertImage( icon.pixmap( QSize( 24, 24 ) ).toImage() );
+    }
+    table->cellAt( row, 1 ).firstCursorPosition().insertText( actionText );
+    table->cellAt( row, 2 ).firstCursorPosition().insertText( sequence );
+  }
+
+  QPdfWriter pdfWriter( fileName );
+  pdfWriter.setPageLayout( QPageLayout( QPageSize( QPageSize::A4 ), QPageLayout::Portrait, QMarginsF( 20, 10, 10, 10 ) ) );
+  document->setPageSize( QSizeF( pdfWriter.pageLayout().fullRect( QPageLayout::Point ).size() ) );
+  document->print( &pdfWriter );
 }

@@ -26,9 +26,10 @@
 #include "qgsfeatureid.h"
 #include "qgsgeometry.h"
 #include "qgscustomdrophandler.h"
-#include "qgstemporalrangeobject.h"
 #include "qgsmapcanvasinteractionblocker.h"
 #include "qgsproject.h"
+#include "qgsdistancearea.h"
+#include "qgsmaprendererjob.h"
 
 #include <QDomDocument>
 #include <QGraphicsView>
@@ -70,8 +71,14 @@ class QgsSnappingUtils;
 class QgsRubberBand;
 class QgsMapCanvasAnnotationItem;
 class QgsReferencedRectangle;
+class QgsRenderedItemResults;
+class QgsTemporaryCursorOverride;
+class QgsOverlayWidgetLayout;
 
 class QgsTemporalController;
+class QgsScreenHelper;
+
+class QgsAbstract2DMapController;
 
 class QMenu;
 class QgsMapMouseEvent;
@@ -106,8 +113,19 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     ~QgsMapCanvas() override;
 
     /**
+     * Adds an overlay \a widget to the layout, which will be bound to the specified \a edge.
+     *
+     * The widget will always float above the map canvas.
+     *
+     * \note Widgets on the left and right edges will always be positioned first, with
+     * top and bottom edge widgets expanding to take the remaining horizontal space.
+     *
+     * \since QGIS 3.38
+     */
+    void addOverlayWidget( QWidget *widget SIP_TRANSFER, Qt::Edge edge );
+
+    /**
      * Returns the magnification factor
-     * \since QGIS 2.16
      */
     double magnificationFactor() const;
 
@@ -120,7 +138,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * empty string before setLayers() calls can be made.
      *
      * \see layers()
-     * \since QGIS 3.0
      */
     void setLayers( const QList<QgsMapLayer *> &layers );
 
@@ -128,9 +145,16 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Gets access to properties used for map rendering
-     * \since QGIS 2.4
      */
     const QgsMapSettings &mapSettings() const SIP_KEEPREFERENCE;
+
+    /**
+     * Returns a reference to the map settings used for map rendering.
+     *
+     * \note Not available in Python bindings.
+     * \since QGIS 3.34
+     */
+    QgsMapSettings &mapSettings() SIP_SKIP;
 
     /**
      * Sets the temporal \a controller for this canvas.
@@ -150,15 +174,13 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Sets destination coordinate reference system
-     * \since QGIS 2.4
      */
     void setDestinationCrs( const QgsCoordinateReferenceSystem &crs );
 
     /**
      * Resets the \a flags for the canvas' map settings.
-     * \since QGIS 3.0
      */
-    void setMapSettingsFlags( QgsMapSettings::Flags flags );
+    void setMapSettingsFlags( Qgis::MapSettingsFlags flags );
 
     /**
      * Gets access to the labeling results (may be NULLPTR).
@@ -166,27 +188,58 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * Since QGIS 3.20, if the \a allowOutdatedResults flag is FALSE then outdated labeling results (e.g.
      * as a result of an ongoing canvas render) will not be returned, and instead NULLPTR will be returned.
      *
-     * \since QGIS 2.4
      */
     const QgsLabelingResults *labelingResults( bool allowOutdatedResults = true ) const;
 
     /**
+     * Gets access to the rendered item results (may be NULLPTR), which includes the results of rendering
+     * annotation items in the canvas map.
+     *
+     * If the \a allowOutdatedResults flag is FALSE then outdated rendered item results (e.g.
+     * as a result of an ongoing canvas render) will not be returned, and instead NULLPTR will be returned.
+     *
+     * \since QGIS 3.22
+     */
+    const QgsRenderedItemResults *renderedItemResults( bool allowOutdatedResults = true ) const;
+
+    /**
      * Set whether to cache images of rendered layers
-     * \since QGIS 2.4
+     *
+     * \see isCachingEnabled()
+     * \see cache()
+     *
      */
     void setCachingEnabled( bool enabled );
 
     /**
      * Check whether images of rendered layers are curerently being cached
-     * \since QGIS 2.4
+     *
+     * \see setCachingEnabled()
+     * \see cache()
+     *
      */
     bool isCachingEnabled() const;
 
     /**
      * Make sure to remove any rendered images from cache (does nothing if cache is not enabled)
-     * \since QGIS 2.4
      */
     void clearCache();
+
+    /**
+     * Returns the map renderer cache, if caching is enabled.
+     *
+     * \see isCachingEnabled()
+     * \see setCachingEnabled()
+     *
+     * \since QGIS 3.32
+     */
+    QgsMapRendererCache *cache();
+
+    /**
+     * Cancel any rendering job, in a blocking way. Used for application closing.
+     * \note not available in Python bindings
+     */
+    void cancelJobs() SIP_SKIP;
 
     /**
      * Blocks until the rendering job has finished.
@@ -195,31 +248,26 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * until the rendering job is complete. It's included in API solely for
      * unit testing and standalone Python scripts.
      *
-     * \since QGIS 3.0
      */
     void waitWhileRendering();
 
     /**
      * Set whether the layers are rendered in parallel or sequentially
-     * \since QGIS 2.4
      */
     void setParallelRenderingEnabled( bool enabled );
 
     /**
      * Check whether the layers are rendered in parallel or sequentially
-     * \since QGIS 2.4
      */
     bool isParallelRenderingEnabled() const;
 
     /**
      * Set how often map preview should be updated while it is being rendered (in milliseconds)
-     * \since QGIS 2.4
      */
     void setMapUpdateInterval( int timeMilliseconds );
 
     /**
      * Find out how often map preview should be updated while it is being rendered (in milliseconds)
-     * \since QGIS 2.4
      */
     int mapUpdateInterval() const;
 
@@ -281,25 +329,21 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Gets the current map canvas rotation in clockwise degrees
-     * \since QGIS 2.8
      */
     double rotation() const;
 
     /**
      * Set the rotation of the map canvas in clockwise degrees
-     * \since QGIS 2.8
      */
     void setRotation( double degrees );
 
     /**
      * Set the center of the map canvas, in geographical coordinates
-     * \since QGIS 2.8
      */
     void setCenter( const QgsPointXY &center );
 
     /**
      * Gets map center, in geographical coordinates
-     * \since QGIS 2.8
      */
     QgsPointXY center() const;
 
@@ -345,8 +389,8 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      */
     void panToFeatureIds( QgsVectorLayer *layer, const QgsFeatureIds &ids, bool alwaysRecenter = true );
 
-    //! Pan to the selected features of current (vector) layer keeping same extent.
-    void panToSelected( QgsVectorLayer *layer = nullptr );
+    //! Pan to the selected features of current ayer keeping same extent.
+    void panToSelected( QgsMapLayer *layer = nullptr );
 
     /**
      * Pan to the combined extent of the selected features of all provided (vector) layers.
@@ -365,7 +409,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \note If the features or geometries are already available, flashGeometries() is much more efficient.
      *
      * \see flashGeometries()
-     * \since QGIS 3.0
      */
     void flashFeatureIds( QgsVectorLayer *layer, const QgsFeatureIds &ids,
                           const QColor &startColor = QColor( 255, 0, 0, 255 ), const QColor &endColor = QColor( 255, 0, 0, 0 ),
@@ -381,7 +424,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \a flashes and \a duration of each flash (in milliseconds).
      *
      * \see flashFeatureIds()
-     * \since QGIS 3.0
      */
     void flashGeometries( const QList< QgsGeometry > &geometries, const QgsCoordinateReferenceSystem &crs = QgsCoordinateReferenceSystem(),
                           const QColor &startColor = QColor( 255, 0, 0, 255 ), const QColor &endColor = QColor( 255, 0, 0, 0 ),
@@ -424,13 +466,11 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Set color of selected vector features
-     * \since QGIS 2.4
      */
     void setSelectionColor( const QColor &color );
 
     /**
      * Returns color for selected features
-     * \since QGIS 3.0
      */
     QColor selectionColor() const;
 
@@ -440,14 +480,32 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     //! Returns the map layer at position index in the layer stack
     QgsMapLayer *layer( int index );
 
-    //! Returns number of layers on the map
+    /**
+     * Returns the map layer with the matching ID, or NULLPTR if no layers could be found.
+     *
+     * This method searches both layers associated with the map canvas (see layers())
+     * and layers from the QgsProject associated with the canvas
+     * (which is current the QgsProject::instance()). It can be used to resolve layer IDs to
+     * layers which may be visible in the canvas, but not associated with a QgsProject.
+     *
+     * \since QGIS 3.22
+     */
+    QgsMapLayer *layer( const QString &id );
+
+    /**
+     * Returns number of layers on the map.
+     */
     int layerCount() const;
 
     /**
      * Returns the list of layers shown within the map canvas.
+     *
+     * Since QGIS 3.24, if the \a expandGroupLayers option is TRUE then group layers will be converted to
+     * all their child layers.
+     *
      * \see setLayers()
      */
-    QList<QgsMapLayer *> layers() const;
+    QList<QgsMapLayer *> layers( bool expandGroupLayers = false ) const;
 
     /**
      * Freeze/thaw the map canvas. This is used to prevent the canvas from
@@ -483,12 +541,11 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * Convenience function for returning the current canvas map units. The map units
      * are dictated by the canvas' destinationCrs() map units.
      */
-    QgsUnitTypes::DistanceUnit mapUnits() const;
+    Qgis::DistanceUnit mapUnits() const;
 
     /**
      * Returns the stored overrides of styles for layers.
      * \see setLayerStyleOverrides().
-     * \since QGIS 2.12
      */
     QMap<QString, QString> layerStyleOverrides() const;
 
@@ -501,7 +558,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * empty string before setLayerStyleOverrides() calls can be made.
      *
      * \see layerStyleOverrides()
-     * \since QGIS 2.12
      */
     void setLayerStyleOverrides( const QMap<QString, QString> &overrides );
 
@@ -521,14 +577,12 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * If an empty string is passed then the current theme association will be
      * cleared.
      * \see theme()
-     * \since QGIS 3.0
      */
     void setTheme( const QString &theme );
 
     /**
      * Returns the map's theme shown in the canvas, if set.
      * \see setTheme()
-     * \since QGIS 3.0
      */
     QString theme() const { return mTheme; }
 
@@ -574,7 +628,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     /**
      * Returns whether the scale is locked, so zooming can be performed using magnication.
      * \see setScaleLocked()
-     * \since QGIS 2.16
      */
     bool scaleLocked() const { return mScaleLocked;}
 
@@ -582,7 +635,7 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     void enableAntiAliasing( bool flag );
 
     //! TRUE if antialiasing is enabled
-    bool antiAliasingEnabled() const { return mSettings.testFlag( QgsMapSettings::Antialiasing ); }
+    bool antiAliasingEnabled() const;
 
     //! sets map tile rendering flag
     void enableMapTileRendering( bool flag );
@@ -612,7 +665,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * Enables a preview mode for the map canvas
      * \param previewEnabled set to TRUE to enable a preview mode
      * \see setPreviewMode
-     * \since QGIS 2.3
     */
     void setPreviewModeEnabled( bool previewEnabled );
 
@@ -621,7 +673,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \returns TRUE if a preview mode is currently enabled
      * \see setPreviewModeEnabled
      * \see previewMode
-     * \since QGIS 2.3
     */
     bool previewModeEnabled() const;
 
@@ -632,7 +683,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \see previewMode
      * \see setPreviewModeEnabled
      * \see previewModeEnabled
-     * \since QGIS 2.3
     */
     void setPreviewMode( QgsPreviewEffect::PreviewMode mode );
 
@@ -642,7 +692,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \returns preview mode for map canvas
      * \see setPreviewMode
      * \see previewModeEnabled
-     * \since QGIS 2.3
     */
     QgsPreviewEffect::PreviewMode previewMode() const;
 
@@ -652,7 +701,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      *  (so map tools do not need to test for existence of the instance).
      *
      * Main canvas in QGIS returns an instance which is always up-to-date with the project's snapping configuration.
-     *  \since QGIS 2.8
      */
     QgsSnappingUtils *snappingUtils() const;
 
@@ -662,7 +710,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      *
      * For main canvas in QGIS, do not associate a different instance from the existing one (it is updated from
      * the project's snapping configuration).
-     * \since QGIS 2.8
      */
     void setSnappingUtils( QgsSnappingUtils *utils );
 
@@ -674,7 +721,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \param scope new expression context scope
      * \see expressionContextScope()
      * \see defaultExpressionContextScope()
-     * \since QGIS 2.12
      */
     void setExpressionContextScope( const QgsExpressionContextScope &scope ) { mExpressionContextScope = scope; }
 
@@ -684,7 +730,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * overrides for expression evaluation for the map canvas render.
      * \see setExpressionContextScope()
      * \see defaultExpressionContextScope()
-     * \since QGIS 2.12
      */
     QgsExpressionContextScope &expressionContextScope() { return mExpressionContextScope; }
 
@@ -693,7 +738,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \see setExpressionContextScope()
      * \see defaultExpressionContextScope()
      * \note not available in Python bindings
-     * \since QGIS 2.12
      */
     const QgsExpressionContextScope &expressionContextScope() const { return mExpressionContextScope; } SIP_SKIP
 
@@ -721,33 +765,28 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Returns a list of all annotation items in the canvas.
-     * \since QGIS 3.0
      */
     QList< QgsMapCanvasAnnotationItem *> annotationItems() const;
 
     /**
      * Returns TRUE if annotations are visible within the map canvas.
      * \see setAnnotationsVisible()
-     * \since QGIS 3.0
      */
     bool annotationsVisible() const { return mAnnotationsVisible; }
 
     /**
      * Sets whether annotations are \a visible in the canvas.
      * \see annotationsVisible()
-     * \since QGIS 3.0
      */
     void setAnnotationsVisible( bool visible );
 
     /**
      * Sets global labeling engine settings in the internal map settings
-     * \since QGIS 3.0
      */
     void setLabelingEngineSettings( const QgsLabelingEngineSettings &settings );
 
     /**
      * Returns global labeling engine settings from the internal map settings
-     * \since QGIS 3.0
      */
     const QgsLabelingEngineSettings &labelingEngineSettings() const;
 
@@ -757,7 +796,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * out-of-canvas areas when panning or zooming out the map) are enabled
      * for the canvas.
      * \see setPreviewJobsEnabled()
-     * \since QGIS 3.0
      */
     bool previewJobsEnabled() const;
 
@@ -767,7 +805,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * out-of-canvas areas when panning or zooming out the map) are \a enabled
      * for the canvas.
      * \see previewJobsEnabled()
-     * \since QGIS 3.0
      */
     void setPreviewJobsEnabled( bool enabled );
 
@@ -827,6 +864,15 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      */
     bool allowInteraction( QgsMapCanvasInteractionBlocker::Interaction interaction ) const;
 
+    /**
+     * Sets the input controller device to use for controlling the canvas.
+     *
+     * Ownership of \a controller is transferred to the canvas.
+     *
+     * \since QGIS 3.34
+     */
+    void setMapController( QgsAbstract2DMapController *controller SIP_TRANSFER );
+
   public slots:
 
     //! Repaints the canvas map
@@ -839,7 +885,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * \note Consider using the less expensive redrawAllLayers() method if a layer reload
      * from the data provider is not required.
      *
-     * \since QGIS 2.9
      */
     void refreshAllLayers();
 
@@ -873,7 +918,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * stop rendering (if there is any right now)
-     * \since QGIS 2.4
      */
     void stopRendering();
 
@@ -889,14 +933,12 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      * in order to render marker point, labels, ... bigger.
      * \param factor The factor of magnification
      * \param center Optional point to re-center the map
-     * \since QGIS 2.16
      */
     void setMagnificationFactor( double factor, const QgsPointXY *center = nullptr );
 
     /**
      * Lock the scale, so zooming can be performed using magnication
      * \see scaleLocked()
-     * \since QGIS 2.16
      */
     void setScaleLocked( bool isLocked );
 
@@ -907,10 +949,10 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     void zoomOut();
 
     /**
-     * Zoom to the extent of the selected features of provided (vector) layer.
+     * Zoom to the extent of the selected features of provided map layer.
      * \param layer optionally specify different than current layer
      */
-    void zoomToSelected( QgsVectorLayer *layer = nullptr );
+    void zoomToSelected( QgsMapLayer *layer = nullptr );
 
     /**
      * Zoom to the combined extent of the selected features of all provided (vector) layers.
@@ -983,6 +1025,8 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     void updateDevicePixelFromScreen();
 
+    void onElevationShadingRendererChanged();
+
   signals:
 
     /**
@@ -1008,19 +1052,16 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Emitted when the rotation of the map changes
-     * \since QGIS 2.8
      */
     void rotationChanged( double );
 
     /**
      * Emitted when the scale of the map changes
-     * \since QGIS 2.16
      */
     void magnificationChanged( double );
 
     /**
      * Emitted when canvas background color changes
-     * \since QGIS 3.0
      */
     void canvasColorChanged();
 
@@ -1063,13 +1104,15 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Emit map tool changed with the old tool
-     * \since QGIS 2.3
      */
     void mapToolSet( QgsMapTool *newTool, QgsMapTool *oldTool );
 
-
-    //! Emitted when selection in any layer gets changed
-    void selectionChanged( QgsVectorLayer *layer );
+    /**
+     * Emitted when selection in any \a layer gets changed.
+     *
+     * \note Since QGIS 3.28 this signal is emitted for multiple layer types, including QgsVectorLayer and QgsVectorTileLayer
+     */
+    void selectionChanged( QgsMapLayer *layer );
 
     //! Emitted when zoom last status changed
     void zoomLastStatusChanged( bool );
@@ -1079,32 +1122,27 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Emitted when map CRS has changed
-     * \since QGIS 2.4
      */
     void destinationCrsChanged();
 
     /**
      * Emitted when the canvas transform context is changed.
-     * \since QGIS 3.0
      */
     void transformContextChanged();
 
     /**
      * Emitted when the current layer is changed
-     * \since QGIS 2.8
      */
     void currentLayerChanged( QgsMapLayer *layer );
 
     /**
      * Emitted when the configuration of overridden layer styles changes
-     * \since QGIS 2.12
      */
     void layerStyleOverridesChanged();
 
     /**
      * Emitted when the canvas has been assigned a different map theme.
      * \see setTheme()
-     * \since QGIS 3.0
      */
     void themeChanged( const QString &theme );
 
@@ -1130,7 +1168,7 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
      *
      * \since QGIS 3.12
      */
-    void panDistanceBearingChanged( double distance, QgsUnitTypes::DistanceUnit unit, double bearing );
+    void panDistanceBearingChanged( double distance, Qgis::DistanceUnit unit, double bearing );
 
     /**
      * Emitted whenever a tap and hold \a gesture occurs at the specified map point.
@@ -1185,6 +1223,13 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     void showEvent( QShowEvent *event ) override;
 
+    /**
+     * Emits the extentsChanged signal when appropriate.
+     *
+     * \since QGIS 3.30
+     */
+    void emitExtentsChanged();
+
     /// implementation struct
     class CanvasProperties;
 
@@ -1216,6 +1261,8 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     void startPreviewJob( int number );
 
+    void temporalControllerModeChanged();
+
   private:
 
     // Restore scale RAII
@@ -1240,11 +1287,15 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
         double mLockedScale;
     };
 
+    QgsOverlayWidgetLayout *mLayout = nullptr;
+
     //! encompases all map settings necessary for map rendering
     QgsMapSettings mSettings;
 
     //! owns pixmap with rendered map and controls rendering
     QgsMapCanvasMap *mMap = nullptr;
+
+    QgsScreenHelper *mScreenHelper = nullptr;
 
     /**
      * Temporal controller for tracking update of temporal objects
@@ -1273,9 +1324,6 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     //! pointer to current map tool
     QgsMapTool *mMapTool = nullptr;
 
-    //! previous tool if current is for zooming/panning
-    QgsMapTool *mLastNonZoomMapTool = nullptr;
-
     //! Pointer to project linked to this canvas
     QgsProject *mProject = nullptr;
 
@@ -1300,6 +1348,25 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     //! TRUE if the labeling results stored in mLabelingResults are outdated (e.g. as a result of an ongoing canvas render)
     bool mLabelingResultsOutdated = false;
+
+    /**
+     * Rendered results from the recently rendered map.
+     * \since QGIS 3.22
+     */
+    std::unique_ptr< QgsRenderedItemResults > mRenderedItemResults;
+
+    /**
+     * Rendered results stored from previously rendered maps
+     * \since QGIS 3.22
+     */
+    std::unique_ptr< QgsRenderedItemResults > mPreviousRenderedItemResults;
+
+    /**
+     * TRUE if the rendered item results stored in mRenderedItemResults are outdated (e.g. as a result of an ongoing canvas render)
+     *
+     * \since QGIS 3.22
+     */
+    bool mRenderedItemResultsOutdated = false;
 
     //! Whether layers are rendered sequentially or in parallel
     bool mUseParallelRendering = false;
@@ -1360,8 +1427,22 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     QList< QgsMapCanvasInteractionBlocker * > mInteractionBlockers;
 
     int mBlockItemPositionUpdates = 0;
+    int mBlockExtentChangedSignal = 0;
+    int mBlockScaleChangedSignal = 0;
 
-    QMetaObject::Connection mScreenDpiChangedConnection;
+    std::unique_ptr< QgsTemporaryCursorOverride > mTemporaryCursorOverride;
+
+    /**
+     * This attribute maps error strings occurred during rendering with time.
+     * The string contains the layerId with the error message ("layerId:error").
+     * This is used to avoid propagatation of repeated error message from renderer
+     * in a short time range (\see notifyRendererErrors())
+     *
+     */
+    QMap <QString, QDateTime> mRendererErrors;
+
+
+    QPointer< QgsAbstract2DMapController > mMapController;
 
     /**
      * Returns the last cursor position on the canvas in geographical coordinates
@@ -1371,23 +1452,29 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
 
     /**
      * Force a resize of the map canvas item
-     * \since QGIS 2.16
      */
     void updateMapSize();
 
     /**
      * Starts zooming via rectangle
      * \param pos start position for rectangle
-     * \since QGIS 2.16
      */
     void beginZoomRect( QPoint pos );
 
     /**
      * Ends zooming via rectangle
      * \param pos end position for rectangle
-     * \since QGIS 2.16
      */
     void endZoomRect( QPoint pos );
+
+    //! Stop/cancel zooming via rectangle
+    void stopZoomRect();
+
+    //! Start map pan
+    void startPan();
+
+    //! Stop map pan
+    void stopPan();
 
     /**
      * Returns bounding box of feature list (in canvas coordinates)
@@ -1432,6 +1519,12 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView, public QgsExpressionContex
     void clearElevationCache();
 
     void showContextMenu( QgsMapMouseEvent *event );
+
+    /**
+     * This private method is used to emit rendering error from map layer without throwing it for every render.
+     * It contains a mechanism that does not emit the error if the same error from the same layer was emitted less than 1 mn ago.
+     */
+    void notifyRendererErrors( const QgsMapRendererJob::Errors &errors );
 
     friend class TestQgsMapCanvas;
 

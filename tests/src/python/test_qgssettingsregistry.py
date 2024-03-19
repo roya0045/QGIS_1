@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Test the PyQgsSettingsRegistry classes
 
@@ -10,8 +9,13 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 """
 
-from qgis.core import QgsSettingsRegistry, QgsSettingsRegistryCore, QgsSettingsEntryBase, QgsSettingsEntryInteger, QgsApplication
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsApplication,
+    QgsSettingsEntryInteger,
+    QgsSettingsRegistry,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 __author__ = 'Damiano Lombardi'
 __date__ = '18/04/2021'
@@ -21,7 +25,7 @@ __copyright__ = 'Copyright 2021, The QGIS Project'
 start_app()
 
 
-class PyQgsSettingsRegistry(unittest.TestCase):
+class PyQgsSettingsRegistry(QgisTestCase):
 
     def setUp(self):
         self.pluginName = "UnitTestSettingsRegistry"

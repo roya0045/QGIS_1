@@ -39,28 +39,60 @@ void QgsDistanceWithinAlgorithm::process( const QgsProcessingContext &context, Q
     bool onlyRequireTargetIds,
     QgsProcessingFeedback *feedback, QgsExpressionContext &expressionContext )
 {
-  const bool isDynamicDistance = distanceProperty.isActive();
+  // By default we will iterate over the reference source and match back
+  // to the target source. We do this on the assumption that the most common
+  // use case is joining a points layer to a polygon layer (e.g. findings
+  // points near a polygon), so by iterating
+  // over the polygons we can take advantage of prepared geometries for
+  // the spatial relationship test.
+  bool iterateOverTarget = false;
 
-  if ( targetSource->sourceCrs() != referenceSource->sourceCrs()
-       || isDynamicDistance
-       || (
-         targetSource->featureCount() > 0 && referenceSource->featureCount() > 0
-         && targetSource->featureCount() < referenceSource->featureCount() ) )
+  //
+  // Possible reasons to iterate over target are considered here
+  //
+  do
   {
-    // joining FEWER features to a layer with MORE features. So we iterate over the FEW features and find matches from the MANY
-    // (note that we HAVE to do this if we have layers from two different CRSes, or if we are using dynamic distance!)
+    // If distance is dynamic, we MUST iterate over target
+    if ( distanceProperty.isActive() )
+    {
+      iterateOverTarget = true;
+      break;
+    }
+
+    // If reference needs reprojection, we MUST iterate over target
+    if ( targetSource->sourceCrs() != referenceSource->sourceCrs() )
+    {
+      iterateOverTarget = true;
+      break;
+    }
+
+    // if reference is POINTs and target is not, we prefer iterating
+    // over target, to benefit from preparation
+    if ( referenceSource->wkbType() == Qgis::WkbType::Point &&
+         targetSource->wkbType() != Qgis::WkbType::Point )
+    {
+      iterateOverTarget = true;
+      break;
+    }
+
+    // neither source nor target or both of them are POINTs, we will
+    // iterate over the source with FEWER features to prepare less
+    if ( targetSource->featureCount() < referenceSource->featureCount() )
+    {
+      iterateOverTarget = true;
+      break;
+    }
+  }
+  while ( 0 );
+
+  if ( iterateOverTarget )
+  {
     processByIteratingOverTargetSource( context, targetSource, referenceSource,
                                         distance, distanceProperty, handleFeatureFunction,
                                         onlyRequireTargetIds, feedback, expressionContext );
   }
   else
   {
-    // default -- iterate over the reference source and match back to the target source. We do this on the assumption that the most common
-    // use case is joining a points layer to a polygon layer (e.g. findings points near a polygon), so by iterating
-    // over the polygons we can take advantage of prepared geometries for the spatial relationship test.
-
-    // TODO - consider using more heuristics to determine whether it's always best to iterate over the reference
-    // source.
     processByIteratingOverReferenceSource( context, targetSource, referenceSource,
                                            distance, handleFeatureFunction,
                                            onlyRequireTargetIds, feedback );
@@ -74,7 +106,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverTargetSource( const QgsPr
     bool onlyRequireTargetIds,
     QgsProcessingFeedback *feedback, QgsExpressionContext &expressionContext )
 {
-  if ( referenceSource->hasSpatialIndex() == QgsFeatureSource::SpatialIndexNotPresent )
+  if ( referenceSource->hasSpatialIndex() == Qgis::SpatialIndexPresence::NotPresent )
     feedback->pushWarning( QObject::tr( "No spatial index exists for intersect layer, performance will be severely degraded" ) );
 
   QgsFeatureIds foundSet;
@@ -86,6 +118,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverTargetSource( const QgsPr
 
   QgsFeatureIterator fIt = targetSource->getFeatures( request );
   const double step = targetSource->featureCount() > 0 ? 100.0 / targetSource->featureCount() : 1;
+  const QgsCoordinateReferenceSystem targetSourceCrs = targetSource->sourceCrs();
   int current = 0;
   QgsFeature f;
   while ( fIt.nextFeature( f ) )
@@ -103,7 +136,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverTargetSource( const QgsPr
       currentDistance = distanceProperty.valueAsDouble( expressionContext, currentDistance );
     }
 
-    request = QgsFeatureRequest().setDistanceWithin( f.geometry(), currentDistance ).setNoAttributes().setDestinationCrs( targetSource->sourceCrs(), context.transformContext() );
+    request = QgsFeatureRequest().setDistanceWithin( f.geometry(), currentDistance ).setNoAttributes().setDestinationCrs( targetSourceCrs, context.transformContext() );
     // we only care IF there's ANY features within the target distance here, so fetch at most 1 feature
     request.setLimit( 1 );
 
@@ -127,7 +160,7 @@ void QgsDistanceWithinAlgorithm::processByIteratingOverReferenceSource( const Qg
     bool onlyRequireTargetIds,
     QgsProcessingFeedback *feedback )
 {
-  if ( targetSource->hasSpatialIndex() == QgsFeatureSource::SpatialIndexNotPresent )
+  if ( targetSource->hasSpatialIndex() == Qgis::SpatialIndexPresence::NotPresent )
     feedback->pushWarning( QObject::tr( "No spatial index exists for input layer, performance will be severely degraded" ) );
 
   QgsFeatureIds foundSet;
@@ -184,11 +217,11 @@ void QgsSelectWithinDistanceAlgorithm::initAlgorithm( const QVariantMap & )
                               << QObject::tr( "removing from current selection" );
 
   addParameter( new QgsProcessingParameterVectorLayer( QStringLiteral( "INPUT" ), QObject::tr( "Select features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
 
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "REFERENCE" ),
                 QObject::tr( "By comparing to the features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addDistanceParameter();
 
   addParameter( new QgsProcessingParameterEnum( QStringLiteral( "METHOD" ),
@@ -201,9 +234,9 @@ QString QgsSelectWithinDistanceAlgorithm::name() const
   return QStringLiteral( "selectwithindistance" );
 }
 
-QgsProcessingAlgorithm::Flags QgsSelectWithinDistanceAlgorithm::flags() const
+Qgis::ProcessingAlgorithmFlags QgsSelectWithinDistanceAlgorithm::flags() const
 {
-  return QgsProcessingAlgorithm::flags() | QgsProcessingAlgorithm::FlagNoThreading | QgsProcessingAlgorithm::FlagNotAvailableInStandaloneTool;
+  return QgsProcessingAlgorithm::flags() | Qgis::ProcessingAlgorithmFlag::NoThreading | Qgis::ProcessingAlgorithmFlag::NotAvailableInStandaloneTool;
 }
 
 QString QgsSelectWithinDistanceAlgorithm::displayName() const
@@ -213,7 +246,7 @@ QString QgsSelectWithinDistanceAlgorithm::displayName() const
 
 QStringList QgsSelectWithinDistanceAlgorithm::tags() const
 {
-  return QObject::tr( "select,maximum,buffer" ).split( ',' );
+  return QObject::tr( "select,by,maximum,buffer" ).split( ',' );
 }
 
 QString QgsSelectWithinDistanceAlgorithm::group() const
@@ -278,10 +311,10 @@ void QgsExtractWithinDistanceAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ),
                 QObject::tr( "Extract features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "REFERENCE" ),
                 QObject::tr( "By comparing to the features from" ),
-                QList< int >() << QgsProcessing::TypeVectorAnyGeometry ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorAnyGeometry ) ) );
   addDistanceParameter();
 
   addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Extracted (location)" ) ) );
@@ -299,7 +332,7 @@ QString QgsExtractWithinDistanceAlgorithm::displayName() const
 
 QStringList QgsExtractWithinDistanceAlgorithm::tags() const
 {
-  return QObject::tr( "extract,filter,select,maximum,buffer" ).split( ',' );
+  return QObject::tr( "extract,by,filter,select,maximum,buffer" ).split( ',' );
 }
 
 QString QgsExtractWithinDistanceAlgorithm::group() const

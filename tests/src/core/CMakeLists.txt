@@ -22,6 +22,7 @@ set(TESTS
  testqgsannotationitemregistry.cpp
  testqgsapplication.cpp
  testqgsarcgisrestutils.cpp
+ testqgsattributeeditorelement.cpp
  testqgsauthcertutils.cpp
  testqgsauthconfig.cpp
  testqgsauthcrypto.cpp
@@ -40,6 +41,7 @@ set(TESTS
  testqgsconnectionpool.cpp
  testqgscoordinatereferencesystemregistry.cpp
  testqgscoordinatetransform.cpp
+ testqgscoordinateutils.cpp
  testqgscopyfiletask.cpp
  testqgscredentials.cpp
  testqgscurve.cpp
@@ -49,10 +51,12 @@ set(TESTS
  testqgsdiagram.cpp
  testqgsdistancearea.cpp
  testqgsdxfexport.cpp
+ testqgselevationmap.cpp
  testqgsellipsemarker.cpp
  testqgsexpression.cpp
  testqgsexpressioncontext.cpp
  testqgsfeature.cpp
+ testqgsfeaturerequest.cpp
  testqgsfield.cpp
  testqgsfields.cpp
  testqgsfilledmarker.cpp
@@ -61,16 +65,15 @@ set(TESTS
  testqgsgdalprovider.cpp
  testqgsgdalutils.cpp
  testqgsgenericspatialindex.cpp
- testqgsgeometry.cpp
  testqgsgeometryimport.cpp
- testqgsgeometryutils.cpp
- testqgsgeonodeconnection.cpp
  testqgsgeopdfexport.cpp
+ testqgsgltfutils.cpp
  testqgsgml.cpp
  testqgsgradients.cpp
  testqgsgraduatedsymbolrenderer.cpp
  testqgshistogram.cpp
  testqgshstoreutils.cpp
+ testqgshttpheaders.cpp
  testqgsimagecache.cpp
  testqgsimageoperation.cpp
  testqgsinternalgeometryengine.cpp
@@ -78,13 +81,13 @@ set(TESTS
  testqgsjsonutils.cpp
  testqgslabelingengine.cpp
  testqgslayerdefinition.cpp
+ testqgslayeredsymbollevel.cpp
  testqgslayertree.cpp
  testqgslayout.cpp
  testqgslayoutatlas.cpp
  testqgslayoutcontext.cpp
  testqgslayoutexporter.cpp
  testqgslayoutgeopdfexport.cpp
- testqgslayouthtml.cpp
  testqgslayoutitem.cpp
  testqgslayoutitemgroup.cpp
  testqgslayoutlabel.cpp
@@ -117,6 +120,7 @@ set(TESTS
  testqgsmaptopixel.cpp
  testqgsmaptopixelgeometrysimplifier.cpp
  testqgsmarkerlinesymbol.cpp
+ testqgsmatrix4x4.cpp
  testqgsmesh3daveraging.cpp
  testqgsmesheditor.cpp
  testqgsmeshlayer.cpp
@@ -126,6 +130,7 @@ set(TESTS
  testqgsnetworkaccessmanager.cpp
  testqgsnetworkcontentfetcher.cpp
  testqgsnewsfeedparser.cpp
+ testqgsnmeaconnection.cpp
  testqgsofflineediting.cpp
  testqgsogcutils.cpp
  testqgsogrprovider.cpp
@@ -135,8 +140,9 @@ set(TESTS
  testqgspainteffect.cpp
  testqgspainteffectregistry.cpp
  testqgspallabeling.cpp
- testqgspoint.cpp
  testqgspointcloudattribute.cpp
+ testqgspointcloudexpression.cpp
+ testqgspointcloudlayerexporter.cpp
  testqgspointcloudrendererregistry.cpp
  testqgspointlocator.cpp
  testqgspointpatternfillsymbol.cpp
@@ -157,21 +163,23 @@ set(TESTS
  testqgsrasterlayertemporalproperties.cpp
  testqgsrastermarker.cpp
  testqgsrastersublayer.cpp
- testqgsrectangle.cpp
  testqgsrelationreferencefieldformatter.cpp
  testqgsrenderers.cpp
  testqgsrulebasedrenderer.cpp
  testqgsruntimeprofiler.cpp
+ testqgssensorthingsconnection.cpp
  testqgssettings.cpp
  testqgssettingsentry.cpp
  testqgssettingsregistry.cpp
  testqgsshapeburst.cpp
  testqgssimplemarker.cpp
+ testqgssimplifymethod.cpp
  testqgssnappingutils.cpp
  testqgsspatialindex.cpp
  testqgsspatialindexkdbush.cpp
  testqgssqliteexpressioncompiler.cpp
  testqgssqliteutils.cpp
+ testqgsrelation.cpp
  testqgsstatisticalsummary.cpp
  testqgsstoredexpressionmanager.cpp
  testqgsstringutils.cpp
@@ -183,6 +191,8 @@ set(TESTS
  testqgstemporalnavigationobject.cpp
  testqgstemporalproperty.cpp
  testqgstemporalrangeobject.cpp
+ testqgstiledsceneconnection.cpp
+ testqgstiledscenerendererregistry.cpp
  testqgstiledownloadmanager.cpp
  testqgstracer.cpp
  testqgstranslateproject.cpp
@@ -196,15 +206,21 @@ set(TESTS
  testqgsvectorlayerjoinbuffer.cpp
  testqgsvectorlayerutils.cpp
  testqgsvectortilelayer.cpp
+ testqgsvectortileconnection.cpp
+ testqgsvectortileutils.cpp
  testqgsvectortilewriter.cpp
+ testqgstiles.cpp
  testqgsweakrelation.cpp
  testqgsziputils.cpp
+ testqobjectparentuniqueptr.cpp
  testqobjectuniqueptr.cpp
  testziplayer.cpp
 )
 
 if(WITH_QTWEBKIT)
-  set(TESTS ${TESTS})
+  set(TESTS ${TESTS}
+    testqgslayouthtml.cpp
+  )
 endif()
 
 if(HAVE_OPENCL)
@@ -222,3 +238,6 @@ add_qgis_test(testqgscoordinatereferencesystem.cpp MODULE core LINKEDLIBRARIES q
 if (ENABLE_PGTEST)
   SET_TESTS_PROPERTIES(test_core_vectorlayerjoinbuffer PROPERTIES LABELS "POSTGRES")
 endif()
+
+add_subdirectory(geometry)
+add_subdirectory(vector)

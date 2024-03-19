@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsRange
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,13 +9,9 @@ __author__ = 'Nyall Dawson'
 __date__ = '11.04.2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.testing import unittest
-from qgis.core import (QgsIntRange,
-                       QgsDoubleRange,
-                       QgsDateRange)
 from qgis.PyQt.QtCore import QDate
+from qgis.core import QgsDateRange, QgsDoubleRange, QgsIntRange, Qgis
+from qgis.testing import unittest
 
 
 class TestQgsIntRange(unittest.TestCase):
@@ -27,12 +22,42 @@ class TestQgsIntRange(unittest.TestCase):
         self.assertEqual(range.upper(), 11)
         self.assertTrue(range.includeLower())
         self.assertTrue(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.IncludeBoth)
 
         range = QgsIntRange(-1, 3, False, False)
         self.assertEqual(range.lower(), -1)
         self.assertEqual(range.upper(), 3)
         self.assertFalse(range.includeLower())
         self.assertFalse(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.ExcludeBoth)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.IncludeBoth)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertTrue(range.includeLower())
+        self.assertTrue(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.IncludeBoth)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.IncludeLowerExcludeUpper)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertTrue(range.includeLower())
+        self.assertFalse(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.IncludeLowerExcludeUpper)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.ExcludeLowerIncludeUpper)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertFalse(range.includeLower())
+        self.assertTrue(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.ExcludeLowerIncludeUpper)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.ExcludeBoth)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertFalse(range.includeLower())
+        self.assertFalse(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.ExcludeBoth)
 
     def testIsInfinite(self):
         range = QgsIntRange()
@@ -212,12 +237,42 @@ class TestQgsDoubleRange(unittest.TestCase):
         self.assertEqual(range.upper(), 11)
         self.assertTrue(range.includeLower())
         self.assertTrue(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.IncludeBoth)
 
         range = QgsDoubleRange(-1.0, 3.0, False, False)
         self.assertEqual(range.lower(), -1)
         self.assertEqual(range.upper(), 3)
         self.assertFalse(range.includeLower())
         self.assertFalse(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.ExcludeBoth)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.IncludeBoth)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertTrue(range.includeLower())
+        self.assertTrue(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.IncludeBoth)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.IncludeLowerExcludeUpper)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertTrue(range.includeLower())
+        self.assertFalse(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.IncludeLowerExcludeUpper)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.ExcludeLowerIncludeUpper)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertFalse(range.includeLower())
+        self.assertTrue(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.ExcludeLowerIncludeUpper)
+
+        range = QgsIntRange(-1, 3, Qgis.RangeLimits.ExcludeBoth)
+        self.assertEqual(range.lower(), -1)
+        self.assertEqual(range.upper(), 3)
+        self.assertFalse(range.includeLower())
+        self.assertFalse(range.includeUpper())
+        self.assertEqual(range.rangeLimits(), Qgis.RangeLimits.ExcludeBoth)
 
     def testEquality(self):
         self.assertEqual(QgsDoubleRange(1, 10), QgsDoubleRange(1, 10))

@@ -34,7 +34,6 @@
  * associated with them.
  *
  * \see QgsReferencedRectangle
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsReferencedGeometryBase
 {
@@ -68,7 +67,6 @@ class CORE_EXPORT QgsReferencedGeometryBase
 /**
  * \ingroup core
  * \brief A QgsRectangle with associated coordinate reference system.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsReferencedRectangle : public QgsRectangle, public QgsReferencedGeometryBase
 {
@@ -109,7 +107,6 @@ Q_DECLARE_METATYPE( QgsReferencedRectangle )
 /**
  * \ingroup core
  * \brief A QgsPointXY with associated coordinate reference system.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsReferencedPointXY : public QgsPointXY, public QgsReferencedGeometryBase
 {
@@ -172,6 +169,9 @@ class CORE_EXPORT QgsReferencedGeometry : public QgsGeometry, public QgsReferenc
     {
       return QVariant::fromValue( *this );
     }
+
+    bool operator==( const QgsReferencedGeometry &other ) const;
+    bool operator!=( const QgsReferencedGeometry &other ) const;
 
     /**
      * Construct a new QgsReferencedGeometry from referenced \a point

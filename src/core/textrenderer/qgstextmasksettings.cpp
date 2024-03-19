@@ -18,6 +18,8 @@
 #include "qgspallabeling.h"
 #include "qgssymbollayerutils.h"
 #include "qgspainteffectregistry.h"
+#include "qgsapplication.h"
+#include "qgsunittypes.h"
 
 QgsTextMaskSettings::QgsTextMaskSettings()
 {
@@ -92,12 +94,12 @@ void QgsTextMaskSettings::setSize( double size )
   d->size = size;
 }
 
-QgsUnitTypes::RenderUnit QgsTextMaskSettings::sizeUnit() const
+Qgis::RenderUnit QgsTextMaskSettings::sizeUnit() const
 {
   return d->sizeUnit;
 }
 
-void QgsTextMaskSettings::setSizeUnit( QgsUnitTypes::RenderUnit unit )
+void QgsTextMaskSettings::setSizeUnit( Qgis::RenderUnit unit )
 {
   d->sizeUnit = unit;
 }
@@ -144,47 +146,47 @@ void QgsTextMaskSettings::setPaintEffect( QgsPaintEffect *effect )
 
 void QgsTextMaskSettings::updateDataDefinedProperties( QgsRenderContext &context, const QgsPropertyCollection &properties )
 {
-  if ( properties.isActive( QgsPalLayerSettings::MaskEnabled ) )
+  if ( properties.isActive( QgsPalLayerSettings::Property::MaskEnabled ) )
   {
     context.expressionContext().setOriginalValueVariable( d->enabled );
-    d->enabled = properties.valueAsBool( QgsPalLayerSettings::MaskEnabled, context.expressionContext(), d->enabled );
+    d->enabled = properties.valueAsBool( QgsPalLayerSettings::Property::MaskEnabled, context.expressionContext(), d->enabled );
   }
 
-  if ( properties.isActive( QgsPalLayerSettings::MaskBufferSize ) )
+  if ( properties.isActive( QgsPalLayerSettings::Property::MaskBufferSize ) )
   {
     context.expressionContext().setOriginalValueVariable( d->size );
-    d->size = properties.valueAsDouble( QgsPalLayerSettings::MaskBufferSize, context.expressionContext(), d->size );
+    d->size = properties.valueAsDouble( QgsPalLayerSettings::Property::MaskBufferSize, context.expressionContext(), d->size );
   }
 
-  if ( properties.isActive( QgsPalLayerSettings::MaskBufferUnit ) )
+  if ( properties.isActive( QgsPalLayerSettings::Property::MaskBufferUnit ) )
   {
-    const QVariant exprVal = properties.value( QgsPalLayerSettings::MaskBufferUnit, context.expressionContext() );
-    if ( !exprVal.isNull() )
+    const QVariant exprVal = properties.value( QgsPalLayerSettings::Property::MaskBufferUnit, context.expressionContext() );
+    if ( !QgsVariantUtils::isNull( exprVal ) )
     {
       const QString units = exprVal.toString();
       if ( !units.isEmpty() )
       {
         bool ok;
-        const QgsUnitTypes::RenderUnit res = QgsUnitTypes::decodeRenderUnit( units, &ok );
+        const Qgis::RenderUnit res = QgsUnitTypes::decodeRenderUnit( units, &ok );
         if ( ok )
           d->sizeUnit = res;
       }
     }
   }
 
-  if ( properties.isActive( QgsPalLayerSettings::MaskOpacity ) )
+  if ( properties.isActive( QgsPalLayerSettings::Property::MaskOpacity ) )
   {
     context.expressionContext().setOriginalValueVariable( d->opacity * 100 );
-    const QVariant val = properties.value( QgsPalLayerSettings::MaskOpacity, context.expressionContext(), d->opacity * 100 );
-    if ( !val.isNull() )
+    const QVariant val = properties.value( QgsPalLayerSettings::Property::MaskOpacity, context.expressionContext(), d->opacity * 100 );
+    if ( !QgsVariantUtils::isNull( val ) )
     {
       d->opacity = val.toDouble() / 100.0;
     }
   }
 
-  if ( properties.isActive( QgsPalLayerSettings::MaskJoinStyle ) )
+  if ( properties.isActive( QgsPalLayerSettings::Property::MaskJoinStyle ) )
   {
-    const QVariant exprVal = properties.value( QgsPalLayerSettings::MaskJoinStyle, context.expressionContext() );
+    const QVariant exprVal = properties.value( QgsPalLayerSettings::Property::MaskJoinStyle, context.expressionContext() );
     const QString joinstr = exprVal.toString().trimmed();
     if ( !joinstr.isEmpty() )
     {

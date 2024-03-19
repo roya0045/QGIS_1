@@ -18,7 +18,6 @@
 
 #include "qgis.h"
 #include "qgis_gui.h"
-#include "qgsfeaturerequest.h"
 #include "ui_qgsprocessingfeaturesourceoptionsbase.h"
 
 #define SIP_NO_FILE
@@ -43,12 +42,17 @@ class GUI_EXPORT QgsProcessingFeatureSourceOptionsWidget : public QgsPanelWidget
     QgsProcessingFeatureSourceOptionsWidget( QWidget *parent SIP_TRANSFERTHIS = nullptr );
 
     /**
+     * Sets a layer associated with the widget.
+     */
+    void setLayer( QgsVectorLayer *layer );
+
+    /**
      * Sets the geometry check method to use, and whether the default method is overridden.
      *
      * \see isOverridingInvalidGeometryCheck()
      * \see geometryCheckMethod()
      */
-    void setGeometryCheckMethod( bool isOverridden, QgsFeatureRequest::InvalidGeometryCheck check );
+    void setGeometryCheckMethod( bool isOverridden, Qgis::InvalidGeometryCheck check );
 
     /**
      * Sets the feature \a limit for the source.
@@ -58,13 +62,20 @@ class GUI_EXPORT QgsProcessingFeatureSourceOptionsWidget : public QgsPanelWidget
     void setFeatureLimit( int limit );
 
     /**
+     * Sets the filter \a expression for the source.
+     *
+     * \see filterExpression()
+     */
+    void setFilterExpression( const QString &expression );
+
+    /**
      * Returns the selected geometry check method. Also check isOverridingInvalidGeometryCheck() to verify
      * whether this method should be applied, or the default one used instead.
      *
      * \see isOverridingInvalidGeometryCheck()
      * \see setGeometryCheckMethod()
      */
-    QgsFeatureRequest::InvalidGeometryCheck geometryCheckMethod() const;
+    Qgis::InvalidGeometryCheck geometryCheckMethod() const;
 
     /**
      * Returns TRUE if the default geometry check method is being overridden.
@@ -79,6 +90,13 @@ class GUI_EXPORT QgsProcessingFeatureSourceOptionsWidget : public QgsPanelWidget
      * \see setFeatureLimit()
      */
     int featureLimit() const;
+
+    /**
+     * Returns the expression filter set in the widget, or an empty string if no filter is set.
+     *
+     * \see setFilterExpression()
+     */
+    QString filterExpression() const;
 
 };
 

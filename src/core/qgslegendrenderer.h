@@ -41,7 +41,6 @@ class QgsRenderContext;
  *
  * All spacing and sizes are in millimeters.
  *
- * \since QGIS 2.6
  */
 class CORE_EXPORT QgsLegendRenderer
 {
@@ -166,7 +165,7 @@ class CORE_EXPORT QgsLegendRenderer
     };
 
     /**
-     * An component group is an indivisible set of legend components (i.e. it is indivisible into more columns).
+     * A component group is an indivisible set of legend components (i.e. it is indivisible into more columns).
      *
      * A group may consist of one or more component(s), depending on the layer splitting mode:
      *
@@ -257,7 +256,7 @@ class CORE_EXPORT QgsLegendRenderer
      *
      * If \a context is NULLPTR, no painting will be attempted, but the required size will still be calculated and returned.
      */
-    QSizeF drawTitle( QgsRenderContext &context, double top, Qt::AlignmentFlag halignment = Qt::AlignLeft, double legendWidth = 0 );
+    QSizeF drawTitle( QgsRenderContext &context, double top, Qt::AlignmentFlag halignment = Qt::AlignLeft, double legendWidth = 0 ) const;
 
     /**
      * Draws an \a group and return its actual size, using the specified render \a context.
@@ -303,7 +302,7 @@ class CORE_EXPORT QgsLegendRenderer
 
 #endif
 
-    void widthAndOffsetForTitleText( const Qt::AlignmentFlag halignment, double legendWidth, double &width, double &offset );
+    void widthAndOffsetForTitleText( const Qt::AlignmentFlag halignment, double legendWidth, double &width, double &offset ) const;
 };
 
 #endif // QGSLEGENDRENDERER_H

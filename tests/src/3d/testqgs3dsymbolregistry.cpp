@@ -36,9 +36,13 @@ class Dummy3DSymbol : public QgsAbstract3DSymbol
 
 };
 
-class TestQgs3DSymbolRegistry : public QObject
+class TestQgs3DSymbolRegistry : public QgsTest
 {
     Q_OBJECT
+  public:
+    TestQgs3DSymbolRegistry()
+      : QgsTest( QStringLiteral( "3D Symbol Registry Tests" ), QStringLiteral( "3d" ) )
+    {}
 
   private slots:
     void initTestCase();
@@ -85,7 +89,6 @@ void TestQgs3DSymbolRegistry::metadata()
   QCOMPARE( metadata.visibleName(), QString( "display name" ) );
 
   //test creating symbol from metadata
-  const QVariantMap map;
   const std::unique_ptr< QgsAbstract3DSymbol > symbol( metadata.create() );
   QVERIFY( symbol );
   Dummy3DSymbol *dummySymbol = dynamic_cast<Dummy3DSymbol *>( symbol.get() );
@@ -160,13 +163,13 @@ void TestQgs3DSymbolRegistry::createSymbol()
 void TestQgs3DSymbolRegistry::defaultSymbolForGeometryType()
 {
   Qgs3DSymbolRegistry *registry = QgsApplication::symbol3DRegistry();
-  std::unique_ptr< QgsAbstract3DSymbol > symbol( registry->defaultSymbolForGeometryType( QgsWkbTypes::PointGeometry ) );
+  std::unique_ptr< QgsAbstract3DSymbol > symbol( registry->defaultSymbolForGeometryType( Qgis::GeometryType::Point ) );
   QCOMPARE( symbol->type(), QStringLiteral( "point" ) );
-  symbol.reset( registry->defaultSymbolForGeometryType( QgsWkbTypes::LineGeometry ) );
+  symbol.reset( registry->defaultSymbolForGeometryType( Qgis::GeometryType::Line ) );
   QCOMPARE( symbol->type(), QStringLiteral( "line" ) );
-  symbol.reset( registry->defaultSymbolForGeometryType( QgsWkbTypes::PolygonGeometry ) );
+  symbol.reset( registry->defaultSymbolForGeometryType( Qgis::GeometryType::Polygon ) );
   QCOMPARE( symbol->type(), QStringLiteral( "polygon" ) );
-  symbol.reset( registry->defaultSymbolForGeometryType( QgsWkbTypes::NullGeometry ) );
+  symbol.reset( registry->defaultSymbolForGeometryType( Qgis::GeometryType::Null ) );
   QVERIFY( !symbol );
 }
 

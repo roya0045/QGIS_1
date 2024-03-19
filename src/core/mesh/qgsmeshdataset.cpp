@@ -329,39 +329,39 @@ void QgsMeshDataBlock::setValid( bool valid )
   mIsValid = valid;
 }
 
-QgsMesh3dDataBlock::QgsMesh3dDataBlock() = default;
+QgsMesh3DDataBlock::QgsMesh3DDataBlock() = default;
 
-QgsMesh3dDataBlock::~QgsMesh3dDataBlock() {};
+QgsMesh3DDataBlock::~QgsMesh3DDataBlock() {};
 
-QgsMesh3dDataBlock::QgsMesh3dDataBlock( int count, bool isVector )
+QgsMesh3DDataBlock::QgsMesh3DDataBlock( int count, bool isVector )
   : mSize( count )
   , mIsVector( isVector )
 {
 }
 
-bool QgsMesh3dDataBlock::isValid() const
+bool QgsMesh3DDataBlock::isValid() const
 {
   return mIsValid;
 }
 
-bool QgsMesh3dDataBlock::isVector() const
+bool QgsMesh3DDataBlock::isVector() const
 {
   return mIsVector;
 }
 
-int QgsMesh3dDataBlock::count() const
+int QgsMesh3DDataBlock::count() const
 {
   return mSize;
 }
 
-int QgsMesh3dDataBlock::firstVolumeIndex() const
+int QgsMesh3DDataBlock::firstVolumeIndex() const
 {
   if ( mFaceToVolumeIndex.empty() )
     return -1;
   return mFaceToVolumeIndex[0];
 }
 
-int QgsMesh3dDataBlock::lastVolumeIndex() const
+int QgsMesh3DDataBlock::lastVolumeIndex() const
 {
   if ( mFaceToVolumeIndex.empty() || mVerticalLevelsCount.empty() )
     return -1;
@@ -370,54 +370,54 @@ int QgsMesh3dDataBlock::lastVolumeIndex() const
   return lastVolumeStartIndex + volumesCountInLastRow;
 }
 
-int QgsMesh3dDataBlock::volumesCount() const
+int QgsMesh3DDataBlock::volumesCount() const
 {
   return lastVolumeIndex() - firstVolumeIndex();
 }
 
-QVector<int> QgsMesh3dDataBlock::verticalLevelsCount() const
+QVector<int> QgsMesh3DDataBlock::verticalLevelsCount() const
 {
   Q_ASSERT( isValid() );
   return mVerticalLevelsCount;
 }
 
-void QgsMesh3dDataBlock::setFaceToVolumeIndex( const QVector<int> &faceToVolumeIndex )
+void QgsMesh3DDataBlock::setFaceToVolumeIndex( const QVector<int> &faceToVolumeIndex )
 {
   Q_ASSERT( faceToVolumeIndex.size() == count() );
   mFaceToVolumeIndex = faceToVolumeIndex;
 }
 
-void QgsMesh3dDataBlock::setVerticalLevelsCount( const QVector<int> &verticalLevelsCount )
+void QgsMesh3DDataBlock::setVerticalLevelsCount( const QVector<int> &verticalLevelsCount )
 {
   Q_ASSERT( verticalLevelsCount.size() == count() );
   mVerticalLevelsCount = verticalLevelsCount;
 }
 
-QVector<double> QgsMesh3dDataBlock::verticalLevels() const
+QVector<double> QgsMesh3DDataBlock::verticalLevels() const
 {
   Q_ASSERT( isValid() );
   return mVerticalLevels;
 }
 
-void QgsMesh3dDataBlock::setVerticalLevels( const QVector<double> &verticalLevels )
+void QgsMesh3DDataBlock::setVerticalLevels( const QVector<double> &verticalLevels )
 {
   Q_ASSERT( verticalLevels.size() == volumesCount() + count() );
   mVerticalLevels = verticalLevels;
 }
 
-QVector<int> QgsMesh3dDataBlock::faceToVolumeIndex() const
+QVector<int> QgsMesh3DDataBlock::faceToVolumeIndex() const
 {
   Q_ASSERT( isValid() );
   return mFaceToVolumeIndex;
 }
 
-QVector<double> QgsMesh3dDataBlock::values() const
+QVector<double> QgsMesh3DDataBlock::values() const
 {
   Q_ASSERT( isValid() );
   return mDoubleBuffer;
 }
 
-QgsMeshDatasetValue QgsMesh3dDataBlock::value( int volumeIndex ) const
+QgsMeshDatasetValue QgsMesh3DDataBlock::value( int volumeIndex ) const
 {
   if ( !isValid() )
     return QgsMeshDatasetValue();
@@ -431,13 +431,13 @@ QgsMeshDatasetValue QgsMesh3dDataBlock::value( int volumeIndex ) const
          );
 }
 
-void QgsMesh3dDataBlock::setValues( const QVector<double> &doubleBuffer )
+void QgsMesh3DDataBlock::setValues( const QVector<double> &doubleBuffer )
 {
   Q_ASSERT( doubleBuffer.size() == ( isVector() ? 2 * volumesCount() : volumesCount() ) );
   mDoubleBuffer = doubleBuffer;
 }
 
-void QgsMesh3dDataBlock::setValid( bool valid )
+void QgsMesh3DDataBlock::setValid( bool valid )
 {
   mIsValid = valid;
 }
@@ -489,12 +489,12 @@ QgsMeshDatasetGroupTreeItem::QgsMeshDatasetGroupTreeItem( const QDomElement &ite
     dependOnElement = dependOnElement.nextSiblingElement( QStringLiteral( "dependent-on-item" ) );
   }
 
-  QDomElement dependencieElement = itemElement.firstChildElement( QStringLiteral( "dependency-item" ) );
-  while ( !dependencieElement.isNull() )
+  QDomElement dependencyElement = itemElement.firstChildElement( QStringLiteral( "dependency-item" ) );
+  while ( !dependencyElement.isNull() )
   {
-    if ( dependencieElement.hasAttribute( QStringLiteral( "dataset-index" ) ) )
-      mDatasetGroupDependencies.append( dependencieElement.attribute( QStringLiteral( "dataset-index" ) ).toInt() );
-    dependencieElement = dependencieElement.nextSiblingElement( QStringLiteral( "dependency-item" ) );
+    if ( dependencyElement.hasAttribute( QStringLiteral( "dataset-index" ) ) )
+      mDatasetGroupDependencies.append( dependencyElement.attribute( QStringLiteral( "dataset-index" ) ).toInt() );
+    dependencyElement = dependencyElement.nextSiblingElement( QStringLiteral( "dependency-item" ) );
   }
 
   QDomElement childElement = itemElement.firstChildElement( QStringLiteral( "mesh-dataset-group-tree-item" ) );
@@ -710,9 +710,9 @@ QDomElement QgsMeshDatasetGroupTreeItem::writeXml( QDomDocument &doc, const QgsR
 
   for ( const int index : mDatasetGroupDependencies )
   {
-    QDomElement dependencieElement = doc.createElement( QStringLiteral( "dependency-item" ) );
-    dependencieElement.setAttribute( QStringLiteral( "dataset-index" ), index );
-    itemElement.appendChild( dependencieElement );
+    QDomElement dependencyElement = doc.createElement( QStringLiteral( "dependency-item" ) );
+    dependencyElement.setAttribute( QStringLiteral( "dataset-index" ), index );
+    itemElement.appendChild( dependencyElement );
   }
 
   for ( int i = 0; i < mChildren.count(); ++i )
@@ -856,7 +856,7 @@ QgsMeshDatasetMetadata QgsMeshMemoryDataset::metadata() const
 void QgsMeshMemoryDataset::calculateMinMax()
 {
   double min = std::numeric_limits<double>::max();
-  double max = std::numeric_limits<double>::min();
+  double max = std::numeric_limits<double>::lowest();
 
   if ( !valid )
     return;
@@ -973,20 +973,14 @@ QDomElement QgsMeshMemoryDatasetGroup::writeXml( QDomDocument &doc, const QgsRea
   return QDomElement();
 }
 
-void QgsMeshDatasetGroup::calculateStatistic()
+void QgsMeshDatasetGroup::calculateStatistic() const
 {
-  double min = std::numeric_limits<double>::max();
-  double max = std::numeric_limits<double>::min();
+  updateStatistic();
+}
 
-  const int count = datasetCount();
-  for ( int i = 0; i < count; ++i )
-  {
-    const QgsMeshDatasetMetadata &meta = datasetMetadata( i );
-    min = std::min( min,  meta.minimum() );
-    max = std::max( max, meta.maximum() );
-  }
-  mMinimum = min;
-  mMaximum = max;
+void QgsMeshDatasetGroup::setStatisticObsolete() const
+{
+  mIsStatisticObsolete = true;
 }
 
 QStringList QgsMeshDatasetGroup::datasetGroupNamesDependentOn() const
@@ -1002,6 +996,27 @@ QString QgsMeshDatasetGroup::description() const
 void QgsMeshDatasetGroup::setReferenceTime( const QDateTime &referenceTime )
 {
   mReferenceTime = referenceTime;
+}
+
+void QgsMeshDatasetGroup::updateStatistic() const
+{
+  if ( !mIsStatisticObsolete )
+    return;
+
+  double min = std::numeric_limits<double>::max();
+  double max = std::numeric_limits<double>::lowest();
+
+  const int count = datasetCount();
+  for ( int i = 0; i < count; ++i )
+  {
+    const QgsMeshDatasetMetadata &meta = datasetMetadata( i );
+    min = std::min( min,  meta.minimum() );
+    max = std::max( max, meta.maximum() );
+  }
+  mMinimum = min;
+  mMaximum = max;
+
+  mIsStatisticObsolete = false;
 }
 
 bool QgsMeshDatasetGroup::checkValueCountPerDataset( int count ) const
@@ -1021,15 +1036,17 @@ QgsMeshDatasetGroup::QgsMeshDatasetGroup( const QString &name ): mName( name ) {
 
 double QgsMeshDatasetGroup::minimum() const
 {
+  updateStatistic();
   return mMinimum;
 }
 
 double QgsMeshDatasetGroup::maximum() const
 {
+  updateStatistic();
   return mMaximum;
 }
 
-void QgsMeshDatasetGroup::setMinimumMaximum( double min, double max )
+void QgsMeshDatasetGroup::setMinimumMaximum( double min, double max ) const
 {
   mMinimum = min;
   mMaximum = max;
@@ -1094,9 +1111,10 @@ QgsMeshDataBlock QgsMeshVerticesElevationDataset::datasetValues( bool isScalar, 
     return QgsMeshDataBlock();
 
   QgsMeshDataBlock block( QgsMeshDataBlock::ScalarDouble, count );
-  QVector<double> values( std::min( count, ( mMesh->vertexCount() - valueIndex ) ) );
-  for ( int i = 0; i < values.count(); ++i )
-    values[i] = mMesh->vertex( i ).z();
+  int effectiveValueCount = std::min( count, ( mMesh->vertexCount() - valueIndex ) );
+  QVector<double> values( effectiveValueCount );
+  for ( int i = valueIndex; i < effectiveValueCount; ++i )
+    values[i] = mMesh->vertex( i - valueIndex ).z();
   block.setValues( values );
   block.setValid( true );
   return block;

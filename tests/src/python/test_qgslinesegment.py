@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsLineSegment2D.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,16 +9,15 @@ __author__ = 'Nyall Dawson'
 __date__ = '13/04/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.core import (QgsPointXY, QgsLineSegment2D)
-
-from qgis.testing import start_app, unittest
+from qgis.core import QgsLineSegment2D, QgsPointXY
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsLineSegment2D(unittest.TestCase):
+class TestQgsLineSegment2D(QgisTestCase):
 
     def testConstruct(self):
         segment = QgsLineSegment2D(QgsPointXY(1, 2), QgsPointXY(3, 4))

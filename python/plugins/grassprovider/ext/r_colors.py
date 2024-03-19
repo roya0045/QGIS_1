@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     r_colors.py
@@ -22,7 +20,7 @@ __date__ = 'February 2016'
 __copyright__ = '(C) 2016, Médéric Ribreux'
 
 import os
-from grassprovider.Grass7Utils import Grass7Utils
+from grassprovider.grass_utils import GrassUtils
 from processing.tools.system import getTempFilename
 
 
@@ -43,7 +41,7 @@ def processInputs(alg, parameters, context, feedback):
     for idx, layer in enumerate(rasters):
         layerName = 'map_{}'.format(idx)
         # Add a raster layer
-        alg.loadRasterLayer(layerName, layer, False, None)
+        alg.loadRasterLayer(layerName, layer, context, False, None)
 
     # Optional raster layer to copy from
     raster = alg.parameterAsString(parameters, 'raster', context)
@@ -58,7 +56,7 @@ def processCommand(alg, parameters, context, feedback):
     txtRules = alg.parameterAsString(parameters, 'txtrules', context)
     if txtRules:
         # Creates a temporary txt file
-        tempRulesName = getTempFilename()
+        tempRulesName = getTempFilename(context=context)
 
         # Inject rules into temporary txt file
         with open(tempRulesName, "w") as tempRules:
@@ -79,6 +77,6 @@ def processOutputs(alg, parameters, context, feedback):
     for idx, raster in enumerate(rasters):
         rasterName = 'map_{}'.format(idx)
         fileName = os.path.join(outputDir, rasterName)
-        outFormat = Grass7Utils.getRasterFormatFromFilename(fileName)
+        outFormat = GrassUtils.getRasterFormatFromFilename(fileName)
         alg.exportRasterLayer(alg.exportedLayers[rasterName], fileName, True,
                               outFormat, createOpt, metaOpt)

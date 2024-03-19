@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsMapLayerStore.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -11,20 +10,21 @@ __date__ = '2017-05'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
 import os
-from qgis.core import (
-    QgsMapLayerStore,
-    QgsVectorLayer,
-    QgsMapLayer,
-    QgsDataProvider,
-    QgsProject,
-    QgsReadWriteContext,
-)
-from qgis.testing import start_app, unittest
-from qgis.PyQt.QtCore import QT_VERSION_STR
+from time import sleep
+
 from qgis.PyQt import sip
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.PyQt.QtXml import QDomDocument, QDomNode
-from time import sleep
+from qgis.core import (
+    QgsMapLayer,
+    QgsMapLayerStore,
+    QgsProject,
+    QgsReadWriteContext,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 start_app()
@@ -35,7 +35,7 @@ def createLayer(name):
     return QgsVectorLayer("Point?field=x:string", name, "memory")
 
 
-class TestQgsMapLayerStore(unittest.TestCase):
+class TestQgsMapLayerStore(QgisTestCase):
 
     def setUp(self):
         pass
@@ -560,7 +560,7 @@ class TestQgsMapLayerStore(unittest.TestCase):
 
         doc = QDomDocument()
         doc.setContent(
-            '<maplayer><provider encoding="UTF-8">ogr</provider><layername>fixed</layername><id>%s</id></maplayer>' % vl2.id())
+            f'<maplayer><provider encoding="UTF-8">ogr</provider><layername>fixed</layername><id>{vl2.id()}</id></maplayer>')
         layer_node = QDomNode(doc.firstChild())
         self.assertTrue(vl2.writeXml(layer_node, doc, QgsReadWriteContext()))
         datasource_node = doc.createElement("datasource")

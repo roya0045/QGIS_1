@@ -23,6 +23,8 @@
 #include "qgswmtsparameters.h"
 #include "qgswmtsserviceexception.h"
 #include "qgsserversettings.h"
+#include "qgsunittypes.h"
+#include "qgsrectangle.h"
 
 #include <QDomDocument>
 
@@ -42,7 +44,7 @@ namespace QgsWmts
 
     QgsRectangle extent;
 
-    QgsUnitTypes::DistanceUnit unit = QgsUnitTypes::DistanceMeters;
+    Qgis::DistanceUnit unit = Qgis::DistanceUnit::Meters;
 
     bool hasAxisInverted = false;
 
@@ -74,7 +76,7 @@ namespace QgsWmts
 
     QgsRectangle extent;
 
-    QgsUnitTypes::DistanceUnit unit;
+    Qgis::DistanceUnit unit;
 
     bool hasAxisInverted = false;
 

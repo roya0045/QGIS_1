@@ -44,7 +44,6 @@ class QgsCharacterSelectorDialog;
  * subclassing QgsTextFormatWidget and calling the protected constructor with a mode
  * of Labeling.
  *
- * \since QGIS 3.0
  */
 
 class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionContextGenerator, protected Ui::QgsTextFormatWidgetBase
@@ -59,10 +58,10 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
      * \param format initial formatting settings to show in widget
      * \param mapCanvas associated map canvas
      * \param parent parent widget
-     * \param layer associated vector layer
+     * \param layer associated layer (vector or mesh)
      */
     QgsTextFormatWidget( const QgsTextFormat &format = QgsTextFormat(), QgsMapCanvas *mapCanvas = nullptr, QWidget *parent SIP_TRANSFERTHIS = nullptr,
-                         QgsVectorLayer *layer = nullptr );
+                         QgsMapLayer *layer = nullptr );
 
     ~QgsTextFormatWidget() override;
 
@@ -100,7 +99,6 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
      *
      * \param key The property key to deactivate
      *
-     * \since QGIS 3.0
      */
     void deactivateField( QgsPalLayerSettings::Property key );
 
@@ -139,7 +137,7 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
      * \param mode widget mode
      * \param layer associated vector layer
      */
-    QgsTextFormatWidget( QgsMapCanvas *mapCanvas, QWidget *parent SIP_TRANSFERTHIS, Mode mode, QgsVectorLayer *layer = nullptr );
+    QgsTextFormatWidget( QgsMapCanvas *mapCanvas, QWidget *parent SIP_TRANSFERTHIS, Mode mode, QgsMapLayer *layer = nullptr );
 
     /**
      * Updates the widget's state to reflect the settings in a QgsTextFormat.
@@ -154,10 +152,11 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
     void setPreviewBackground( const QColor &color );
 
     /**
-     * Controls whether data defined alignment buttons are enabled.
-     * \param enable set to TRUE to enable alignment controls
+     * Update the enabled state of the data defined alignment buttons.
+     *
+     * \deprecated QGIS 3.24
      */
-    void enableDataDefinedAlignment( bool enable );
+    Q_DECL_DEPRECATED void enableDataDefinedAlignment( bool enable ) SIP_DEPRECATED { Q_UNUSED( enable ) }
 
     QgsExpressionContext createExpressionContext() const override;
 
@@ -167,7 +166,7 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
      *
      * \since QGIS 3.16
      */
-    QgsWkbTypes::GeometryType labelGeometryType() const;
+    Qgis::GeometryType labelGeometryType() const;
 
     //! Text substitution list
     QgsStringReplacementCollection mSubstitutions;
@@ -190,12 +189,12 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
     QgsPropertyCollection mDataDefinedProperties;
 
     //! Associated vector layer
-    QgsVectorLayer *mLayer = nullptr;
+    QgsMapLayer *mLayer = nullptr;
 
     QList<QgsSymbolLayerReference> mMaskedSymbolLayers;
 
     //! Geometry type for layer, if known
-    QgsWkbTypes::GeometryType mGeomType = QgsWkbTypes::UnknownGeometry;
+    Qgis::GeometryType mGeomType = Qgis::GeometryType::Unknown;
 
   protected slots:
 
@@ -209,7 +208,7 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
      * Sets the current text settings from a style entry.
      * \since QGIS 3.10
      */
-    virtual void setFormatFromStyle( const QString &name, QgsStyle::StyleEntity type );
+    virtual void setFormatFromStyle( const QString &name, QgsStyle::StyleEntity type, const QString &stylePath );
 
     /**
      * Saves the current text settings to a style entry.
@@ -283,8 +282,12 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
     void mFontMaxPixelSpinBox_valueChanged( int px );
     void mBufferUnitWidget_changed();
     void mMaskBufferUnitWidget_changed();
-    void mCoordXDDBtn_changed( );
-    void mCoordYDDBtn_changed( );
+    void mCoordXDDBtn_changed();
+    void mCoordXDDBtn_activated( bool isActive );
+    void mCoordYDDBtn_changed();
+    void mCoordYDDBtn_activated( bool isActive );
+    void mCoordPointDDBtn_changed();
+    void mCoordPointDDBtn_activated( bool isActive );
     void mShapeTypeCmbBx_currentIndexChanged( int index );
     void mShapeRotationCmbBx_currentIndexChanged( int index );
     void mShapeSVGParamsBtn_clicked();
@@ -308,6 +311,8 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
     void updateBufferFrameStatus();
     void updateShadowFrameStatus();
     void updateCalloutFrameStatus();
+    void updateDataDefinedAlignment();
+    void overlapModeChanged();
 };
 
 
@@ -320,7 +325,6 @@ class GUI_EXPORT QgsTextFormatWidget : public QWidget, public QgsExpressionConte
  * using QgsTextRenderer. The dialog includes all settings contained within
  * a QgsTextFormat, including shadow, background and buffer.
  *
- * \since QGIS 3.0
  */
 
 class GUI_EXPORT QgsTextFormatDialog : public QDialog
@@ -337,7 +341,7 @@ class GUI_EXPORT QgsTextFormatDialog : public QDialog
      * \param fl window flags for dialog
      * \param layer associated vector layer
      */
-    QgsTextFormatDialog( const QgsTextFormat &format, QgsMapCanvas *mapCanvas = nullptr, QWidget *parent SIP_TRANSFERTHIS = nullptr, Qt::WindowFlags fl = QgsGuiUtils::ModalDialogFlags, QgsVectorLayer *layer = nullptr );
+    QgsTextFormatDialog( const QgsTextFormat &format, QgsMapCanvas *mapCanvas = nullptr, QWidget *parent SIP_TRANSFERTHIS = nullptr, Qt::WindowFlags fl = QgsGuiUtils::ModalDialogFlags, QgsMapLayer *layer = nullptr );
 
     /**
      * Returns the current formatting settings defined by the widget.
@@ -375,7 +379,6 @@ class GUI_EXPORT QgsTextFormatDialog : public QDialog
  * using QgsTextRenderer. The dialog includes all settings contained within
  * a QgsTextFormat, including shadow, background and buffer.
  *
- * \since QGIS 3.0
  */
 
 class GUI_EXPORT QgsTextFormatPanelWidget : public QgsPanelWidgetWrapper
@@ -391,7 +394,7 @@ class GUI_EXPORT QgsTextFormatPanelWidget : public QgsPanelWidgetWrapper
      * \param parent parent widget
      * \param layer associated layer
      */
-    QgsTextFormatPanelWidget( const QgsTextFormat &format, QgsMapCanvas *mapCanvas = nullptr, QWidget *parent SIP_TRANSFERTHIS = nullptr, QgsVectorLayer *layer = nullptr );
+    QgsTextFormatPanelWidget( const QgsTextFormat &format, QgsMapCanvas *mapCanvas = nullptr, QWidget *parent SIP_TRANSFERTHIS = nullptr, QgsMapLayer *layer = nullptr );
 
     /**
      * Returns the current formatting settings defined by the widget.
@@ -420,5 +423,3 @@ class GUI_EXPORT QgsTextFormatPanelWidget : public QgsPanelWidgetWrapper
 };
 
 #endif //QGSTEXTFORMATWIDGET_H
-
-

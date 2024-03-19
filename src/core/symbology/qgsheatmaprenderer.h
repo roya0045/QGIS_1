@@ -20,6 +20,8 @@
 #include "qgsrenderer.h"
 #include "qgsexpression.h"
 #include "qgsgeometry.h"
+#include "qgsmapunitscale.h"
+#include "qgis.h"
 
 class QgsColorRamp;
 
@@ -27,7 +29,6 @@ class QgsColorRamp;
  * \ingroup core
  * \class QgsHeatmapRenderer
  * \brief A renderer which draws points as a live heatmap
- * \since QGIS 2.7
  */
 class CORE_EXPORT QgsHeatmapRenderer : public QgsFeatureRenderer
 {
@@ -103,7 +104,7 @@ class CORE_EXPORT QgsHeatmapRenderer : public QgsFeatureRenderer
      * \see setRadiusUnit
      * \see radiusMapUnitScale
      */
-    QgsUnitTypes::RenderUnit radiusUnit() const { return mRadiusUnit; }
+    Qgis::RenderUnit radiusUnit() const { return mRadiusUnit; }
 
     /**
      * Sets the units used for the heatmap's radius
@@ -112,7 +113,7 @@ class CORE_EXPORT QgsHeatmapRenderer : public QgsFeatureRenderer
      * \see setRadius
      * \see radiusMapUnitScale
      */
-    void setRadiusUnit( const QgsUnitTypes::RenderUnit unit ) { mRadiusUnit = unit; }
+    void setRadiusUnit( const Qgis::RenderUnit unit ) { mRadiusUnit = unit; }
 
     /**
      * Returns the map unit scale used for the heatmap's radius
@@ -187,7 +188,7 @@ class CORE_EXPORT QgsHeatmapRenderer : public QgsFeatureRenderer
     double mRadius = 10;
     int mRadiusPixels = 0;
     double mRadiusSquared = 0;
-    QgsUnitTypes::RenderUnit mRadiusUnit = QgsUnitTypes::RenderMillimeters;
+    Qgis::RenderUnit mRadiusUnit = Qgis::RenderUnit::Millimeters;
     QgsMapUnitScale mRadiusMapUnitScale;
 
     QString mWeightExpressionString;

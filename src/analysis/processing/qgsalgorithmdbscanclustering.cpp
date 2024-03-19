@@ -54,27 +54,27 @@ QString QgsDbscanClusteringAlgorithm::groupId() const
 void QgsDbscanClusteringAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ),
-                QObject::tr( "Input layer" ), QList< int >() << QgsProcessing::TypeVectorPoint ) );
+                QObject::tr( "Input layer" ), QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorPoint ) ) );
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "MIN_SIZE" ), QObject::tr( "Minimum cluster size" ),
-                QgsProcessingParameterNumber::Integer, 5, false, 1 ) );
+                Qgis::ProcessingNumberParameterType::Integer, 5, false, 1 ) );
   addParameter( new QgsProcessingParameterDistance( QStringLiteral( "EPS" ),
                 QObject::tr( "Maximum distance between clustered points" ), 1, QStringLiteral( "INPUT" ), false, 0 ) );
 
   auto dbscanStarParam = std::make_unique<QgsProcessingParameterBoolean>( QStringLiteral( "DBSCAN*" ),
                          QObject::tr( "Treat border points as noise (DBSCAN*)" ), false, true );
-  dbscanStarParam->setFlags( dbscanStarParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  dbscanStarParam->setFlags( dbscanStarParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( dbscanStarParam.release() );
 
   auto fieldNameParam = std::make_unique<QgsProcessingParameterString>( QStringLiteral( "FIELD_NAME" ),
                         QObject::tr( "Cluster field name" ), QStringLiteral( "CLUSTER_ID" ) );
-  fieldNameParam->setFlags( fieldNameParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  fieldNameParam->setFlags( fieldNameParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( fieldNameParam.release() );
   auto sizeFieldNameParam = std::make_unique<QgsProcessingParameterString>( QStringLiteral( "SIZE_FIELD_NAME" ),
                             QObject::tr( "Cluster size field name" ), QStringLiteral( "CLUSTER_SIZE" ) );
-  sizeFieldNameParam->setFlags( sizeFieldNameParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  sizeFieldNameParam->setFlags( sizeFieldNameParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( sizeFieldNameParam.release() );
 
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Clusters" ), QgsProcessing::TypeVectorPoint ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Clusters" ), Qgis::ProcessingSourceType::VectorPoint ) );
 
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "NUM_CLUSTERS" ), QObject::tr( "Number of clusters" ) ) );
 }
@@ -114,7 +114,7 @@ QVariantMap QgsDbscanClusteringAlgorithm::processAlgorithm( const QVariantMap &p
 
   const std::size_t minSize = static_cast< std::size_t>( parameterAsInt( parameters, QStringLiteral( "MIN_SIZE" ), context ) );
   const double eps1 = parameterAsDouble( parameters, QStringLiteral( "EPS" ), context );
-  const double eps2 = parameterAsDouble( parameters, QStringLiteral( "EPS2" ), context ) * 24 * 60 * 60;
+  const double eps2 = parameterAsDouble( parameters, QStringLiteral( "EPS2" ), context );
   const bool borderPointsAreNoise = parameterAsBoolean( parameters, QStringLiteral( "DBSCAN*" ), context );
 
   QgsFields outputFields = source->fields();
@@ -248,7 +248,7 @@ void QgsDbscanClusteringAlgorithm::stdbscan( const std::size_t minSize,
     }
 
     QgsPointXY point;
-    if ( QgsWkbTypes::flatType( feat.geometry().wkbType() ) == QgsWkbTypes::Point )
+    if ( QgsWkbTypes::flatType( feat.geometry().wkbType() ) == Qgis::WkbType::Point )
       point = QgsPointXY( *qgsgeometry_cast< const QgsPoint * >( feat.geometry().constGet() ) );
     else
     {
@@ -272,7 +272,7 @@ void QgsDbscanClusteringAlgorithm::stdbscan( const std::size_t minSize,
     {
       index.within( point, eps1, [&within, pointId = feat.id(), &idToDateTime, &eps2]( const QgsSpatialIndexKDBushData & data )
       {
-        if ( idToDateTime.empty() || ( idToDateTime[ data.id ].isValid() && std::abs( idToDateTime[ pointId ].secsTo( idToDateTime[ data.id ] ) ) <= eps2 ) )
+        if ( idToDateTime.empty() || ( idToDateTime[ data.id ].isValid() && std::abs( idToDateTime[ pointId ].msecsTo( idToDateTime[ data.id ] ) ) <= eps2 ) )
           within.insert( data );
       } );
       if ( within.size() < minSize )
@@ -316,7 +316,7 @@ void QgsDbscanClusteringAlgorithm::stdbscan( const std::size_t minSize,
       std::unordered_set< QgsSpatialIndexKDBushData, KDBushDataHashById, KDBushDataEqualById > within2;
       index.within( point2, eps1, [&within2, point2Id = j.id, &idToDateTime, &eps2]( const QgsSpatialIndexKDBushData & data )
       {
-        if ( idToDateTime.empty() || ( idToDateTime[ data.id ].isValid() && std::abs( idToDateTime[ point2Id ].secsTo( idToDateTime[ data.id ] ) ) <= eps2 ) )
+        if ( idToDateTime.empty() || ( idToDateTime[ data.id ].isValid() && std::abs( idToDateTime[ point2Id ].msecsTo( idToDateTime[ data.id ] ) ) <= eps2 ) )
           within2.insert( data );
       } );
 

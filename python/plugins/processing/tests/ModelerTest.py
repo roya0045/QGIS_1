@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     ModelerTest
@@ -21,7 +19,8 @@ __author__ = 'Nyall Dawson'
 __date__ = 'November 2016'
 __copyright__ = '(C) 2016, Nyall Dawson'
 
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from qgis.core import (QgsProcessingModelAlgorithm,
                        QgsProcessingModelParameter,
@@ -35,7 +34,7 @@ from processing.modeler.ModelerParametersDialog import (ModelerParametersDialog)
 start_app()
 
 
-class ModelerTest(unittest.TestCase):
+class ModelerTest(QgisTestCase):
 
     def testModelerParametersDialogAvailableValuesOfType(self):
         # test getAvailableValuesOfType from ModelerParametersDialog
@@ -59,16 +58,16 @@ class ModelerTest(unittest.TestCase):
 
         dlg = ModelerParametersDialog(m, m)
         # test single types
-        self.assertEqual(set(p.parameterName() for p in dlg.getAvailableValuesOfType(QgsProcessingParameterNumber)),
-                         set(['number']))
-        self.assertEqual(set(p.parameterName() for p in dlg.getAvailableValuesOfType(QgsProcessingParameterField)),
-                         set(['field']))
-        self.assertEqual(set(p.parameterName() for p in dlg.getAvailableValuesOfType(QgsProcessingParameterFile)),
-                         set(['file']))
+        self.assertEqual({p.parameterName() for p in dlg.getAvailableValuesOfType(QgsProcessingParameterNumber)},
+                         {'number'})
+        self.assertEqual({p.parameterName() for p in dlg.getAvailableValuesOfType(QgsProcessingParameterField)},
+                         {'field'})
+        self.assertEqual({p.parameterName() for p in dlg.getAvailableValuesOfType(QgsProcessingParameterFile)},
+                         {'file'})
 
         # test multiple types
-        self.assertEqual(set(p.parameterName() for p in dlg.getAvailableValuesOfType([QgsProcessingParameterString, QgsProcessingParameterNumber, QgsProcessingParameterFile])),
-                         set(['string', 'string2', 'number', 'file']))
+        self.assertEqual({p.parameterName() for p in dlg.getAvailableValuesOfType([QgsProcessingParameterString, QgsProcessingParameterNumber, QgsProcessingParameterFile])},
+                         {'string', 'string2', 'number', 'file'})
 
 
 if __name__ == '__main__':

@@ -23,7 +23,6 @@
 #include "qgsexpressioncontext.h"
 #include "models/qgsprocessingmodelalgorithm.h"
 #include "qgsexpressioncontextutils.h"
-#include "qgsprocessingwidgetwrapperimpl.h"
 #include <QLabel>
 #include <QHBoxLayout>
 
@@ -185,7 +184,7 @@ const QgsProcessingParameterDefinition *QgsAbstractProcessingParameterWidgetWrap
 
 void QgsAbstractProcessingParameterWidgetWrapper::setParameterValue( const QVariant &value, QgsProcessingContext &context )
 {
-  if ( mPropertyButton && value.canConvert< QgsProperty >() )
+  if ( mPropertyButton && value.userType() == QMetaType::type( "QgsProperty" ) )
   {
     mPropertyButton->setToProperty( value.value< QgsProperty >() );
   }
@@ -232,10 +231,11 @@ QLabel *QgsAbstractProcessingParameterWidgetWrapper::createLabel()
     case QgsProcessingGui::Modeler:
     {
       QString description = mParameterDefinition->description();
-      if ( parameterDefinition()->flags() & QgsProcessingParameterDefinition::FlagOptional )
+      if ( parameterDefinition()->flags() & Qgis::ProcessingParameterFlag::Optional )
         description = QObject::tr( "%1 [optional]" ).arg( description );
       std::unique_ptr< QLabel > label = std::make_unique< QLabel >( description );
       label->setToolTip( mParameterDefinition->toolTip() );
+      label->setWordWrap( true );
       return label.release();
     }
   }
@@ -332,7 +332,7 @@ void QgsAbstractProcessingParameterWidgetWrapper::setDynamicParentLayerParameter
     }
 
     QVariant val = parentWrapper->parameterValue();
-    if ( val.canConvert<QgsProcessingFeatureSourceDefinition>() )
+    if ( val.userType() == QMetaType::type( "QgsProcessingFeatureSourceDefinition" ) )
     {
       // input is a QgsProcessingFeatureSourceDefinition - get extra properties from it
       const QgsProcessingFeatureSourceDefinition fromVar = qvariant_cast<QgsProcessingFeatureSourceDefinition>( val );
@@ -349,7 +349,7 @@ void QgsAbstractProcessingParameterWidgetWrapper::setDynamicParentLayerParameter
     // need to grab ownership of layer if required - otherwise layer may be deleted when context
     // goes out of scope
     std::unique_ptr< QgsMapLayer > ownedLayer( context->takeResultLayer( layer->id() ) );
-    if ( ownedLayer && ownedLayer->type() == QgsMapLayerType::VectorLayer )
+    if ( ownedLayer && ownedLayer->type() == Qgis::LayerType::Vector )
     {
       mDynamicLayer.reset( qobject_cast< QgsVectorLayer * >( ownedLayer.release() ) );
       layer = mDynamicLayer.get();
@@ -368,6 +368,12 @@ QgsProcessingModelerParameterWidget *QgsProcessingParameterWidgetFactoryInterfac
   std::unique_ptr< QgsProcessingModelerParameterWidget > widget = std::make_unique< QgsProcessingModelerParameterWidget >( model, childId, parameter, context );
   widget->populateSources( compatibleParameterTypes(), compatibleOutputTypes(), compatibleDataTypes( parameter ) );
   widget->setExpressionHelpText( modelerExpressionFormatString() );
+
+  if ( parameter->isDestination() )
+    widget->setSourceType( Qgis::ProcessingModelChildParameterSource::ModelOutput );
+  else
+    widget->setSourceType( defaultModelSource( parameter ) );
+
   return widget.release();
 }
 
@@ -386,6 +392,11 @@ QList<int> QgsProcessingParameterWidgetFactoryInterface::compatibleDataTypes( co
 QString QgsProcessingParameterWidgetFactoryInterface::modelerExpressionFormatString() const
 {
   return QString();
+}
+
+Qgis::ProcessingModelChildParameterSource QgsProcessingParameterWidgetFactoryInterface::defaultModelSource( const QgsProcessingParameterDefinition * ) const
+{
+  return Qgis::ProcessingModelChildParameterSource::StaticValue;
 }
 
 //

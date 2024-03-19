@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     retile.py
@@ -22,6 +20,7 @@ __date__ = 'January 2016'
 __copyright__ = '(C) 2016, Médéric Ribreux'
 
 from qgis.core import (QgsProcessing,
+                       QgsProcessingException,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterMultipleLayers,
                        QgsProcessingParameterCrs,
@@ -55,39 +54,39 @@ class retile(GdalAlgorithm):
     OUTPUT = 'OUTPUT'
     OUTPUT_CSV = 'OUTPUT_CSV'
 
-    TYPES = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64', 'CInt16', 'CInt32', 'CFloat32', 'CFloat64']
+    TYPES = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64', 'CInt16', 'CInt32', 'CFloat32', 'CFloat64', 'Int8']
 
     def __init__(self):
         super().__init__()
 
     def initAlgorithm(self, config=None):
         self.methods = ((self.tr('Nearest Neighbour'), 'near'),
-                        (self.tr('Bilinear'), 'bilinear'),
-                        (self.tr('Cubic'), 'cubic'),
-                        (self.tr('Cubic Spline'), 'cubicspline'),
-                        (self.tr('Lanczos Windowed Sinc'), 'lanczos'),)
+                        (self.tr('Bilinear (2x2 Kernel)'), 'bilinear'),
+                        (self.tr('Cubic (4x4 Kernel)'), 'cubic'),
+                        (self.tr('Cubic B-Spline (4x4 Kernel)'), 'cubicspline'),
+                        (self.tr('Lanczos (6x6 Kernel)'), 'lanczos'),)
 
         self.addParameter(QgsProcessingParameterMultipleLayers(self.INPUT,
                                                                self.tr('Input files'),
-                                                               QgsProcessing.TypeRaster))
+                                                               QgsProcessing.SourceType.TypeRaster))
         self.addParameter(QgsProcessingParameterNumber(self.TILE_SIZE_X,
                                                        self.tr('Tile width'),
-                                                       type=QgsProcessingParameterNumber.Integer,
+                                                       type=QgsProcessingParameterNumber.Type.Integer,
                                                        minValue=0,
                                                        defaultValue=256))
         self.addParameter(QgsProcessingParameterNumber(self.TILE_SIZE_Y,
                                                        self.tr('Tile height'),
-                                                       type=QgsProcessingParameterNumber.Integer,
+                                                       type=QgsProcessingParameterNumber.Type.Integer,
                                                        minValue=0,
                                                        defaultValue=256))
         self.addParameter(QgsProcessingParameterNumber(self.OVERLAP,
                                                        self.tr('Overlap in pixels between consecutive tiles'),
-                                                       type=QgsProcessingParameterNumber.Integer,
+                                                       type=QgsProcessingParameterNumber.Type.Integer,
                                                        minValue=0,
                                                        defaultValue=0))
         self.addParameter(QgsProcessingParameterNumber(self.LEVELS,
                                                        self.tr('Number of pyramids levels to build'),
-                                                       type=QgsProcessingParameterNumber.Integer,
+                                                       type=QgsProcessingParameterNumber.Type.Integer,
                                                        minValue=0,
                                                        defaultValue=1))
 
@@ -135,7 +134,7 @@ class retile(GdalAlgorithm):
                                                     defaultValue=False))
 
         for param in params:
-            param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            param.setFlags(param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             self.addParameter(param)
 
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT,
@@ -184,8 +183,11 @@ class retile(GdalAlgorithm):
         arguments.append('-r')
         arguments.append(self.methods[self.parameterAsEnum(parameters, self.RESAMPLING, context)][1])
 
-        arguments.append('-ot')
-        arguments.append(self.TYPES[self.parameterAsEnum(parameters, self.DATA_TYPE, context)])
+        data_type = self.parameterAsEnum(parameters, self.DATA_TYPE, context)
+        if self.TYPES[data_type] == 'Int8' and GdalUtils.version() < 3070000:
+            raise QgsProcessingException(self.tr('Int8 data type requires GDAL version 3.7 or later'))
+
+        arguments.append('-ot ' + self.TYPES[data_type])
 
         options = self.parameterAsString(parameters, self.OPTIONS, context)
         if options:
@@ -196,10 +198,10 @@ class retile(GdalAlgorithm):
             arguments.append(extra)
 
         if self.parameterAsBoolean(parameters, self.DIR_FOR_ROW, context):
-            arguments.append('-pyramidOnly')
+            arguments.append('-useDirForEachRow')
 
         if self.parameterAsBoolean(parameters, self.ONLY_PYRAMIDS, context):
-            arguments.append('-useDirForEachRow')
+            arguments.append('-pyramidOnly')
 
         csvFile = self.parameterAsFileOutput(parameters, self.OUTPUT_CSV, context)
         if csvFile:

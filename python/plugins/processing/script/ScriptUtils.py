@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     ScriptUtils.py
@@ -27,7 +25,7 @@ import os
 import inspect
 import importlib.util
 
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QDir
 
 from qgis.core import (Qgis,
                        QgsApplication,
@@ -79,7 +77,7 @@ def loadAlgorithm(moduleName, filePath):
     except (ImportError, AttributeError, TypeError) as e:
         QgsMessageLog.logMessage(QCoreApplication.translate("ScriptUtils", "Could not import script algorithm '{}' from '{}'\n{}").format(moduleName, filePath, str(e)),
                                  QCoreApplication.translate("ScriptUtils", "Processing"),
-                                 Qgis.Critical)
+                                 Qgis.MessageLevel.Critical)
 
 
 def findAlgorithmSource(name):
@@ -100,7 +98,7 @@ def resetScriptFolder(folder):
 
     QgsMessageLog.logMessage(QgsApplication .translate("loadAlgorithms", "Script folder {} does not exist").format(newFolder),
                              QgsApplication.translate("loadAlgorithms", "Processing"),
-                             Qgis.Warning)
+                             Qgis.MessageLevel.Warning)
 
     if not os.path.isabs(newFolder):
         return None
@@ -110,7 +108,7 @@ def resetScriptFolder(folder):
     # isolate "QGIS3/profiles/"
     appIndex = -4
     profileIndex = -3
-    currentSettingPath = QgsApplication.qgisSettingsDirPath()
+    currentSettingPath = QDir.toNativeSeparators(QgsApplication.qgisSettingsDirPath())
     paths = currentSettingPath.split(os.sep)
     commonSettingPath = os.path.join(paths[appIndex], paths[profileIndex])
 
@@ -128,6 +126,6 @@ def resetScriptFolder(folder):
 
         QgsMessageLog.logMessage(QgsApplication .translate("loadAlgorithms", "Script folder changed into {}").format(newFolder),
                                  QgsApplication.translate("loadAlgorithms", "Processing"),
-                                 Qgis.Warning)
+                                 Qgis.MessageLevel.Warning)
 
     return newFolder

@@ -155,7 +155,7 @@ class TcpServerWorker: public QObject
         mIsListening = true;
 
         // Incoming connection handler
-        mTcpServer.connect( &mTcpServer, &QTcpServer::newConnection, this, [ = ]
+        QTcpServer::connect( &mTcpServer, &QTcpServer::newConnection, this, [ = ]
         {
           QTcpSocket *clientConnection = mTcpServer.nextPendingConnection();
 
@@ -177,7 +177,7 @@ class TcpServerWorker: public QObject
           };
 
           // This will delete the connection
-          clientConnection->connect( clientConnection, &QAbstractSocket::disconnected, clientConnection, connectionDeleter, Qt::QueuedConnection );
+          QTcpSocket::connect( clientConnection, &QAbstractSocket::disconnected, clientConnection, connectionDeleter, Qt::QueuedConnection );
 
 #if 0     // Debugging output
           clientConnection->connect( clientConnection, &QAbstractSocket::errorOccurred, clientConnection, [ = ]( QAbstractSocket::SocketError socketError )
@@ -187,7 +187,7 @@ class TcpServerWorker: public QObject
 #endif
 
           // Incoming connection parser
-          clientConnection->connect( clientConnection, &QIODevice::readyRead, context, [ = ] {
+          QTcpSocket::connect( clientConnection, &QIODevice::readyRead, context, [ = ] {
 
             // Read all incoming data
             while ( clientConnection->bytesAvailable() > 0 )
@@ -198,7 +198,7 @@ class TcpServerWorker: public QObject
             try
             {
               // Parse protocol and URL GET /path HTTP/1.1
-              const int firstLinePos { incomingData->indexOf( "\r\n" ) };
+              const auto firstLinePos { incomingData->indexOf( "\r\n" ) };
               if ( firstLinePos == -1 )
               {
                 throw HttpException( QStringLiteral( "HTTP error finding protocol header" ) );
@@ -243,6 +243,7 @@ class TcpServerWorker: public QObject
                 throw HttpException( QStringLiteral( "HTTP error unsupported method: %1" ).arg( methodString ) );
               }
 
+              // cppcheck-suppress containerOutOfBounds
               const QString protocol { firstLinePieces.at( 2 )};
               if ( protocol != QLatin1String( "HTTP/1.0" ) && protocol != QLatin1String( "HTTP/1.1" ) )
               {
@@ -251,7 +252,7 @@ class TcpServerWorker: public QObject
 
               // Headers
               QgsBufferServerRequest::Headers headers;
-              const int endHeadersPos { incomingData->indexOf( "\r\n\r\n" ) };
+              const auto endHeadersPos { incomingData->indexOf( "\r\n\r\n" ) };
 
               if ( endHeadersPos == -1 )
               {
@@ -262,14 +263,14 @@ class TcpServerWorker: public QObject
 
               for ( const auto &headerLine : httpHeaders )
               {
-                const int headerColonPos { headerLine.indexOf( ':' ) };
+                const auto headerColonPos { headerLine.indexOf( ':' ) };
                 if ( headerColonPos > 0 )
                 {
                   headers.insert( headerLine.left( headerColonPos ), headerLine.mid( headerColonPos + 2 ) );
                 }
               }
 
-              const int headersSize { endHeadersPos + 4 };
+              const auto headersSize { endHeadersPos + 4 };
 
               // Check for content length and if we have got all data
               if ( headers.contains( QStringLiteral( "Content-Length" ) ) )
@@ -291,6 +292,7 @@ class TcpServerWorker: public QObject
               // ... or from server ip/port and request path
               if ( url.isEmpty() )
               {
+                // cppcheck-suppress containerOutOfBounds
                 const QString path { firstLinePieces.at( 1 )};
                 // Take Host header if defined
                 if ( headers.contains( QStringLiteral( "Host" ) ) )
@@ -590,6 +592,7 @@ int main( int argc, char *argv[] )
     if ( addressAndPort.size() == 2 )
     {
       ipAddress = addressAndPort.at( 0 );
+      // cppcheck-suppress containerOutOfBounds
       serverPort = addressAndPort.at( 1 );
     }
   }
@@ -605,7 +608,11 @@ int main( int argc, char *argv[] )
   {
     // Check it!
     const QString projectFilePath { parser.value( projectOption ) };
-    if ( ! QgsProject::instance()->read( projectFilePath, QgsProject::ReadFlag::FlagDontResolveLayers | QgsProject::ReadFlag::FlagDontLoadLayouts  | QgsProject::ReadFlag::FlagDontStoreOriginalStyles ) )
+    if ( ! QgsProject::instance()->read( projectFilePath,
+                                         Qgis::ProjectReadFlag::DontResolveLayers
+                                         | Qgis::ProjectReadFlag::DontLoadLayouts
+                                         | Qgis::ProjectReadFlag::DontStoreOriginalStyles
+                                         | Qgis::ProjectReadFlag::DontLoad3DViews ) )
     {
       std::cout << QObject::tr( "Project file not found, the option will be ignored." ).toStdString() << std::endl;
     }
@@ -627,7 +634,7 @@ int main( int argc, char *argv[] )
   TcpServerThread tcpServerThread{ ipAddress, serverPort.toInt() };
 
   bool isTcpError = false;
-  tcpServerThread.connect( &tcpServerThread, &TcpServerThread::serverError, qApp, [ & ]
+  TcpServerThread::connect( &tcpServerThread, &TcpServerThread::serverError, qApp, [ & ]
   {
     isTcpError = true;
     qApp->quit();
@@ -635,7 +642,7 @@ int main( int argc, char *argv[] )
 
   // Monitoring thread
   QueueMonitorThread queueMonitorThread;
-  queueMonitorThread.connect( &queueMonitorThread, &QueueMonitorThread::requestReady, qApp, [ & ]( RequestContext * requestContext )
+  QueueMonitorThread::connect( &queueMonitorThread, &QueueMonitorThread::requestReady, qApp, [ & ]( RequestContext * requestContext )
   {
     if ( requestContext->clientConnection && requestContext->clientConnection->isValid() )
     {
@@ -677,14 +684,14 @@ int main( int argc, char *argv[] )
   tcpServerThread.start();
   queueMonitorThread.start();
 
-  app.exec();
+  QgsApplication::exec();
   // Wait for threads
   tcpServerThread.exit();
   tcpServerThread.wait();
   queueMonitorThread.stop();
   REQUEST_WAIT_CONDITION.notify_all();
   queueMonitorThread.wait();
-  app.exitQgis();
+  QgsApplication::exitQgis();
 
   return isTcpError ? 1 : 0;
 }

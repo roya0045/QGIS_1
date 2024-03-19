@@ -59,13 +59,6 @@ class CORE_EXPORT QgsCoordinateTransform
 
   public:
 
-    //! Enum used to indicate the direction (forward or inverse) of the transform
-    enum TransformDirection
-    {
-      ForwardTransform,     //!< Transform from source to destination CRS.
-      ReverseTransform      //!< Transform from destination to source CRS.
-    };
-
     //! Default constructor, creates an invalid QgsCoordinateTransform.
     QgsCoordinateTransform();
 
@@ -80,6 +73,9 @@ class CORE_EXPORT QgsCoordinateTransform
      * Python scripts should generally use the constructor variant which accepts
      * a QgsProject instance instead of this constructor.
      *
+     * Since QGIS 3.26 the optional \a flags argument can be used to specify flags
+     * which dictate the behavior of the transformation.
+     *
      * \warning Since QGIS 3.20 The QgsCoordinateTransform class can perform time-dependent transformations
      * between a static and dynamic CRS based on either the source OR destination CRS coordinate epoch,
      * however dynamic CRS to dynamic CRS transformations are not currently supported.
@@ -91,11 +87,11 @@ class CORE_EXPORT QgsCoordinateTransform
      * based on the current code context, or use the constructor variant which
      * accepts a QgsProject argument instead.
      *
-     * \since QGIS 3.0
      */
     explicit QgsCoordinateTransform( const QgsCoordinateReferenceSystem &source,
                                      const QgsCoordinateReferenceSystem &destination,
-                                     const QgsCoordinateTransformContext &context );
+                                     const QgsCoordinateTransformContext &context,
+                                     Qgis::CoordinateTransformationFlags flags = Qgis::CoordinateTransformationFlags() );
 
     /**
      * Constructs a QgsCoordinateTransform to transform from the \a source
@@ -115,14 +111,17 @@ class CORE_EXPORT QgsCoordinateTransform
      *                                      QgsCoordinateReferenceSystem("EPSG:4326"), QgsProject.instance())
      * \endcode
      *
+     * Since QGIS 3.26 the optional \a flags argument can be used to specify flags
+     * which dictate the behavior of the transformation.
+     *
      * \warning Since QGIS 3.20 The QgsCoordinateTransform class can perform time-dependent transformations
      * between a static and dynamic CRS based on either the source OR destination CRS coordinate epoch,
      * however dynamic CRS to dynamic CRS transformations are not currently supported.
-     * \since QGIS 3.0
      */
     explicit QgsCoordinateTransform( const QgsCoordinateReferenceSystem &source,
                                      const QgsCoordinateReferenceSystem &destination,
-                                     const QgsProject *project );
+                                     const QgsProject *project,
+                                     Qgis::CoordinateTransformationFlags flags = Qgis::CoordinateTransformationFlags() );
 
     /**
      * Constructs a QgsCoordinateTransform to transform from the \a source
@@ -130,7 +129,6 @@ class CORE_EXPORT QgsCoordinateTransform
      * datum transforms (see QgsDatumTransform).
      *
      * \deprecated will be removed in QGIS 4.0. Use the constructor with a QgsCoordinateTransformContext argument instead.
-     * \since QGIS 3.0
      */
     Q_DECL_DEPRECATED explicit QgsCoordinateTransform( const QgsCoordinateReferenceSystem &source,
         const QgsCoordinateReferenceSystem &destination,
@@ -150,9 +148,22 @@ class CORE_EXPORT QgsCoordinateTransform
     ~QgsCoordinateTransform();
 
     /**
+     * Returns TRUE if it is theoretically possible to transform between \a source and \a destination CRSes.
+     *
+     * For example, will return FALSE if \a source and \a destination relate to different celestial bodies and
+     * a transformation between them will never be possible.
+     *
+     * \warning This method tests only if it is theoretically possible to transform between the CRSes, not whether a
+     * transform can actually be constructed on the system. It is possible that this method may return TRUE,
+     * yet construction of a matching QgsCoordinateTransform fails (e.g. due to missing grid shift files on the system).
+     *
+     * \since QGIS 3.26
+     */
+    static bool isTransformationPossible( const QgsCoordinateReferenceSystem &source, const QgsCoordinateReferenceSystem &destination );
+
+    /**
      * Returns TRUE if the coordinate transform is valid, ie both the source and destination
      * CRS have been set and are valid.
-     * \since QGIS 3.0
      */
     bool isValid() const;
 
@@ -176,7 +187,6 @@ class CORE_EXPORT QgsCoordinateTransform
      * Sets the \a context in which the coordinate transform should be
      * calculated.
      * \see context()
-     * \since QGIS 3.0
      */
     void setContext( const QgsCoordinateTransformContext &context );
 
@@ -211,8 +221,9 @@ class CORE_EXPORT QgsCoordinateTransform
      * \param point point to transform
      * \param direction transform direction (defaults to ForwardTransform)
      * \returns transformed point
+     * \throws QgsCsException if the transformation fails
      */
-    QgsPointXY transform( const QgsPointXY &point, TransformDirection direction = ForwardTransform ) const SIP_THROW( QgsCsException );
+    QgsPointXY transform( const QgsPointXY &point, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_THROW( QgsCsException );
 
     /**
      * Transform the point specified by x,y from the source CRS to the destination CRS.
@@ -222,8 +233,9 @@ class CORE_EXPORT QgsCoordinateTransform
      * \param y y coordinate of point to transform
      * \param direction transform direction (defaults to ForwardTransform)
      * \returns transformed point
+     * \throws QgsCsException if the transformation fails
      */
-    QgsPointXY transform( double x, double y, TransformDirection direction = ForwardTransform ) const;
+    QgsPointXY transform( double x, double y, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_THROW( QgsCsException );
 
     /**
      * Transform the point specified in 3D coordinates from the source CRS to the destination CRS.
@@ -232,9 +244,10 @@ class CORE_EXPORT QgsCoordinateTransform
      * \param point coordinates of point to transform
      * \param direction transform direction (defaults to ForwardTransform)
      * \returns transformed point
+     * \throws QgsCsException if the transformation fails
      * \since QGIS 3.18
      */
-    QgsVector3D transform( const QgsVector3D &point, TransformDirection direction = ForwardTransform ) const;
+    QgsVector3D transform( const QgsVector3D &point, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_THROW( QgsCsException );
 
     /**
      * Transforms a rectangle from the source CRS to the destination CRS.
@@ -248,8 +261,9 @@ class CORE_EXPORT QgsCoordinateTransform
      * \param handle180Crossover set to TRUE if destination CRS is geographic and handling of extents
      * crossing the 180 degree longitude line is required
      * \returns rectangle in destination CRS
+     * \throws QgsCsException if the transformation fails
      */
-    QgsRectangle transformBoundingBox( const QgsRectangle &rectangle, TransformDirection direction = ForwardTransform, bool handle180Crossover = false ) const SIP_THROW( QgsCsException );
+    QgsRectangle transformBoundingBox( const QgsRectangle &rectangle, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward, bool handle180Crossover = false ) const SIP_THROW( QgsCsException );
 
     /**
      * Transforms an array of x, y and z double coordinates in place, from the source CRS to the destination CRS.
@@ -261,8 +275,9 @@ class CORE_EXPORT QgsCoordinateTransform
      * must represent height relative to the vertical datum of the source CRS (generally ellipsoidal
      * heights) and must be expressed in its vertical units (generally meters)
      * \param direction transform direction (defaults to ForwardTransform)
+     * \throws QgsCsException if the transformation fails
      */
-    void transformInPlace( double &x, double &y, double &z, TransformDirection direction = ForwardTransform ) const SIP_THROW( QgsCsException );
+    void transformInPlace( double &x, double &y, double &z, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_THROW( QgsCsException );
 
     /**
      * Transforms an array of x, y and z float coordinates in place, from the source CRS to the destination CRS.
@@ -274,9 +289,10 @@ class CORE_EXPORT QgsCoordinateTransform
      * must represent height relative to the vertical datum of the source CRS (generally ellipsoidal
      * heights) and must be expressed in its vertical units (generally meters)
      * \param direction transform direction (defaults to ForwardTransform)
+     * \throws QgsCsException if the transformation fails
      * \note not available in Python bindings
      */
-    void transformInPlace( float &x, float &y, double &z, TransformDirection direction = ForwardTransform ) const SIP_SKIP;
+    void transformInPlace( float &x, float &y, double &z, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_SKIP;
 
     /**
      * Transforms an array of x, y and z float coordinates in place, from the source CRS to the destination CRS.
@@ -288,9 +304,10 @@ class CORE_EXPORT QgsCoordinateTransform
      * must represent height relative to the vertical datum of the source CRS (generally ellipsoidal
      * heights) and must be expressed in its vertical units (generally meters)
      * \param direction transform direction (defaults to ForwardTransform)
+     * \throws QgsCsException if the transformation fails
      * \note not available in Python bindings
      */
-    void transformInPlace( float &x, float &y, float &z, TransformDirection direction = ForwardTransform ) const SIP_SKIP;
+    void transformInPlace( float &x, float &y, float &z, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_SKIP;
 
     /**
      * Transforms a vector of x, y and z float coordinates in place, from the source CRS to the destination CRS.
@@ -302,10 +319,11 @@ class CORE_EXPORT QgsCoordinateTransform
      * must represent height relative to the vertical datum of the source CRS (generally ellipsoidal
      * heights) and must be expressed in its vertical units (generally meters)
      * \param direction transform direction (defaults to ForwardTransform)
+     * \throws QgsCsException if the transformation fails
      * \note not available in Python bindings
      */
     void transformInPlace( QVector<float> &x, QVector<float> &y, QVector<float> &z,
-                           TransformDirection direction = ForwardTransform ) const SIP_SKIP;
+                           Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_SKIP;
 
     /**
      * Transforms a vector of x, y and z double coordinates in place, from the source CRS to the destination CRS.
@@ -317,17 +335,19 @@ class CORE_EXPORT QgsCoordinateTransform
      * must represent height relative to the vertical datum of the source CRS (generally ellipsoidal
      * heights) and must be expressed in its vertical units (generally meters)
      * \param direction transform direction (defaults to ForwardTransform)
+     * \throws QgsCsException if the transformation fails
      * \note not available in Python bindings
      */
     void transformInPlace( QVector<double> &x, QVector<double> &y, QVector<double> &z,
-                           TransformDirection direction = ForwardTransform ) const SIP_SKIP;
+                           Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_SKIP;
 
     /**
      * Transforms a polygon to the destination coordinate system.
      * \param polygon polygon to transform (occurs in place)
      * \param direction transform direction (defaults to forward transformation)
+     * \throws QgsCsException if the transformation fails
      */
-    void transformPolygon( QPolygonF &polygon, TransformDirection direction = ForwardTransform ) const SIP_THROW( QgsCsException );
+    void transformPolygon( QPolygonF &polygon, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_THROW( QgsCsException );
 
     /**
      * Transforms a rectangle to the destination CRS.
@@ -336,8 +356,9 @@ class CORE_EXPORT QgsCoordinateTransform
      * \param rectangle rectangle to transform
      * \param direction transform direction (defaults to ForwardTransform)
      * \returns transformed rectangle
+     * \throws QgsCsException if the transformation fails
      */
-    QgsRectangle transform( const QgsRectangle &rectangle, TransformDirection direction = ForwardTransform ) const SIP_THROW( QgsCsException );
+    QgsRectangle transform( const QgsRectangle &rectangle, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_THROW( QgsCsException );
 
     /**
      * Transform an array of coordinates to the destination CRS.
@@ -348,8 +369,9 @@ class CORE_EXPORT QgsCoordinateTransform
      * \param y array of y coordinates to transform
      * \param z array of z coordinates to transform
      * \param direction transform direction (defaults to ForwardTransform)
+     * \throws QgsCsException if the transformation fails
      */
-    void transformCoords( int numPoint, double *x, double *y, double *z, TransformDirection direction = ForwardTransform ) const SIP_THROW( QgsCsException );
+    void transformCoords( int numPoint, double *x, double *y, double *z, Qgis::TransformDirection direction = Qgis::TransformDirection::Forward ) const SIP_THROW( QgsCsException );
 
     /**
      * Returns TRUE if the transform short circuits because the source and destination are equivalent.
@@ -562,7 +584,6 @@ class CORE_EXPORT QgsCoordinateTransform
      * If \a disableCache is TRUE then the inbuilt cache will be completely disabled. This
      * argument is for internal use only.
      *
-     * \since QGIS 3.0
      */
     static void invalidateCache( bool disableCache = false );
 #else
@@ -572,7 +593,6 @@ class CORE_EXPORT QgsCoordinateTransform
      * This should be called whenever the srs database has
      * been modified in order to ensure that outdated CRS transforms are not created.
      *
-     * \since QGIS 3.0
      */
     static void invalidateCache( bool disableCache SIP_PYARGREMOVE = false );
 #endif
@@ -709,6 +729,7 @@ class CORE_EXPORT QgsCoordinateTransform
 #endif
 
     mutable QString mLastError;
+    bool mIgnoreImpossible = false;
     bool mBallparkTransformsAreAppropriate = false;
     bool mDisableFallbackHandler = false;
     mutable bool mFallbackOperationOccurred = false;
@@ -736,6 +757,8 @@ class CORE_EXPORT QgsCoordinateTransform
     static std::function< void( const QgsCoordinateReferenceSystem &sourceCrs,
                                 const QgsCoordinateReferenceSystem &destinationCrs,
                                 const QString &desiredOperation )> sFallbackOperationOccurredHandler;
+
+    friend class TestQgsCoordinateTransform;
 
 };
 

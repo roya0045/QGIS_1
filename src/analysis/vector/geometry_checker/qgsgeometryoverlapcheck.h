@@ -53,7 +53,7 @@ class ANALYSIS_EXPORT QgsGeometryOverlapCheckError : public QgsGeometryCheckErro
 
     /**
      * Creates a new overlap check error for \a check and the \a layerFeature combination.
-     * The \a geometry and \a errorLocation ned to be in map coordinates.
+     * The \a geometry and \a errorLocation need to be in map coordinates.
      * The \a value is the area of the overlapping area in map units.
      * The \a overlappedFeature provides more details about the overlap.
      */
@@ -113,7 +113,7 @@ class ANALYSIS_EXPORT QgsGeometryOverlapCheck : public QgsGeometryCheck
      * Overlapping areas smaller than the reducedTolerance parameter of the \a context are ignored.
      */
     QgsGeometryOverlapCheck( const QgsGeometryCheckContext *context, const QVariantMap &configuration );
-    QList<QgsWkbTypes::GeometryType> compatibleGeometryTypes() const override { return factoryCompatibleGeometryTypes(); }
+    QList<Qgis::GeometryType> compatibleGeometryTypes() const override { return factoryCompatibleGeometryTypes(); }
     void collectErrors( const QMap<QString, QgsFeaturePool *> &featurePools, QList<QgsGeometryCheckError *> &errors, QStringList &messages, QgsFeedback *feedback, const LayerFeatureIds &ids = LayerFeatureIds() ) const override;
     void fixError( const QMap<QString, QgsFeaturePool *> &featurePools, QgsGeometryCheckError *error, int method, const QMap<QString, int> &mergeAttributeIndices, Changes &changes ) const override;
     Q_DECL_DEPRECATED QStringList resolutionMethods() const override;
@@ -127,7 +127,7 @@ class ANALYSIS_EXPORT QgsGeometryOverlapCheck : public QgsGeometryCheck
     static QString factoryDescription() SIP_SKIP;
     static QString factoryId() SIP_SKIP;
     static QgsGeometryCheck::Flags factoryFlags() SIP_SKIP;
-    static QList<QgsWkbTypes::GeometryType> factoryCompatibleGeometryTypes() SIP_SKIP;
+    static QList<Qgis::GeometryType> factoryCompatibleGeometryTypes() SIP_SKIP;
     static bool factoryIsCompatible( QgsVectorLayer *layer ) SIP_SKIP;
     static QgsGeometryCheck::CheckType factoryCheckType() SIP_SKIP;
 ///@endcond private

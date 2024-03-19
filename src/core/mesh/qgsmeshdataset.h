@@ -233,7 +233,7 @@ class CORE_EXPORT QgsMeshDataBlock
 /**
  * \ingroup core
  *
- * \brief QgsMesh3dDataBlock is a block of 3d stacked mesh data related N
+ * \brief QgsMesh3DDataBlock is a block of 3d stacked mesh data related N
  * faces defined on base mesh frame.
  *
  * Data are implicitly shared, so the class can be quickly copied
@@ -241,19 +241,22 @@ class CORE_EXPORT QgsMeshDataBlock
  *
  * \note The API is considered EXPERIMENTAL and can be changed without a notice
  *
+ * \note In QGIS 3.34 this class was renamed from QgsMesh3dDataBlock to QgsMesh3DDataBlock. The old QgsMesh3dDataBlock name
+ * remains available in PyQGIS for compatibility.
+ *
  * \since QGIS 3.12
  */
-class CORE_EXPORT QgsMesh3dDataBlock
+class CORE_EXPORT QgsMesh3DDataBlock
 {
   public:
     //! Constructs an invalid block
-    QgsMesh3dDataBlock();
+    QgsMesh3DDataBlock();
 
     //! Dtor
-    ~QgsMesh3dDataBlock();
+    ~QgsMesh3DDataBlock();
 
     //! Constructs a new block for count faces
-    QgsMesh3dDataBlock( int count, bool isVector );
+    QgsMesh3DDataBlock( int count, bool isVector );
 
     //! Sets block validity
     void setValid( bool valid );
@@ -627,7 +630,7 @@ class CORE_EXPORT QgsMeshDatasetGroup
     double maximum() const;
 
     //! Overrides the minimum and the maximum value of the whole dataset group
-    void setMinimumMaximum( double min, double max );
+    void setMinimumMaximum( double min, double max ) const;
 
     //! Returns the name of the dataset group
     QString name() const;
@@ -656,7 +659,10 @@ class CORE_EXPORT QgsMeshDatasetGroup
     bool checkValueCountPerDataset( int count ) const;
 
     //! Calculates the statistics (minimum and maximum)
-    void calculateStatistic();
+    void calculateStatistic() const;
+
+    //! Sets statistic obsolete, that means statistic will be recalculated when requested
+    void setStatisticObsolete() const;
 
     //! Returns the dataset group variable name which this dataset group depends on
     virtual QStringList datasetGroupNamesDependentOn() const;
@@ -678,8 +684,11 @@ class CORE_EXPORT QgsMeshDatasetGroup
     bool mIsScalar = true;
 
   private:
-    double mMinimum = std::numeric_limits<double>::quiet_NaN();
-    double mMaximum = std::numeric_limits<double>::quiet_NaN();
+    mutable double mMinimum = std::numeric_limits<double>::quiet_NaN();
+    mutable double mMaximum = std::numeric_limits<double>::quiet_NaN();
+    mutable bool mIsStatisticObsolete = true;
+
+    void updateStatistic() const;
 
     QDateTime mReferenceTime;
 };
@@ -791,7 +800,7 @@ class QgsMeshVerticesElevationDataset: public QgsMeshDataset
  *
  * \since QGIS 3.22
  */
-class QgsMeshVerticesElevationDatasetGroup : public QgsMeshDatasetGroup
+class CORE_EXPORT QgsMeshVerticesElevationDatasetGroup : public QgsMeshDatasetGroup
 {
   public:
     //! Constructor with a \a name and linked to \a mesh
@@ -885,10 +894,8 @@ class CORE_EXPORT QgsMeshDatasetGroupTreeItem
     void appendChild( QgsMeshDatasetGroupTreeItem *item SIP_TRANSFER );
 
     /**
-     * Removes a item child if exists
+     * Removes and destroy a item child if exists
      * \param item the item to append
-     *
-     * \note takes ownership of item
      *
      * \since QGIS 3.16
      */

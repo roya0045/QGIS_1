@@ -41,6 +41,8 @@ class QgsRectanglesOvalsDiamondsAlgorithm : public QgsProcessingFeatureBasedAlgo
     QString group() const override;
     QString groupId() const override;
     QString shortHelpString() const override;
+    QIcon icon() const override;
+    QString svgIconPath() const override;
     QList<int> inputLayerTypes() const override;
     void initParameters( const QVariantMap &configuration = QVariantMap() ) override;
     QgsRectanglesOvalsDiamondsAlgorithm *createInstance() const override SIP_FACTORY;
@@ -48,8 +50,8 @@ class QgsRectanglesOvalsDiamondsAlgorithm : public QgsProcessingFeatureBasedAlgo
   protected:
 
     QString outputName() const override;
-    QgsProcessing::SourceType outputLayerType() const override;
-    QgsWkbTypes::Type outputWkbType( QgsWkbTypes::Type inputWkbType ) const override;
+    Qgis::ProcessingSourceType outputLayerType() const override;
+    Qgis::WkbType outputWkbType( Qgis::WkbType inputWkbType ) const override;
 
     bool prepareAlgorithm( const QVariantMap &parameters, QgsProcessingContext &context, QgsProcessingFeedback *feedback ) override;
     QgsFeatureList processFeature( const QgsFeature &feature,  QgsProcessingContext &context, QgsProcessingFeedback *feedback ) override;

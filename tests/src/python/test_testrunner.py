@@ -1,5 +1,3 @@
-
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for the docker python test runner
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -11,12 +9,9 @@ __author__ = 'Alessandro Pasotti'
 __date__ = '19.11.2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
-import sys
 
-from qgis.testing import unittest
-from console import console
 from qgis.core import Qgis
+from qgis.testing import unittest
 
 
 class TestTestRunner(unittest.TestCase):
@@ -25,7 +20,7 @@ class TestTestRunner(unittest.TestCase):
         self.assertTrue(False)
 
     def test_passes(self):
-        self.assertTrue(Qgis.QGIS_VERSION_INT > 0)
+        self.assertGreater(Qgis.QGIS_VERSION_INT, 0)
 
     @unittest.skip('Skipped!')
     def test_skipped(self):

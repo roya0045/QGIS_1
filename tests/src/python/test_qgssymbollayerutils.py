@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsSymbolLayerUtils.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,51 +9,43 @@ __author__ = 'Nyall Dawson'
 __date__ = '2016-09'
 __copyright__ = 'Copyright 2016, The QGIS Project'
 
-import qgis  # NOQA
-from qgis.PyQt.QtCore import (
-    QSizeF,
-    QPointF,
-    QMimeData,
-    QDir,
-    QSize,
-    Qt
-)
-from qgis.PyQt.QtGui import (
-    QColor,
-    QPolygonF,
-    QImage
-)
+import math
+
+from qgis.PyQt.QtCore import QDir, QMimeData, QPointF, QSize, QSizeF, Qt
+from qgis.PyQt.QtXml import QDomDocument, QDomElement
+from qgis.PyQt.QtGui import QColor, QImage, QPolygonF
 from qgis.core import (
-    QgsSymbolLayerUtils,
-    QgsMarkerSymbol,
+    Qgis,
+    QgsAnimatedMarkerSymbolLayer,
     QgsArrowSymbolLayer,
-    QgsUnitTypes,
-    QgsRenderChecker,
+    QgsFillSymbol,
     QgsGradientColorRamp,
-    QgsShapeburstFillSymbolLayer,
+    QgsLinePatternFillSymbolLayer,
+    QgsMapUnitScale,
     QgsMarkerLineSymbolLayer,
-    QgsSimpleLineSymbolLayer,
-    QgsSimpleFillSymbolLayer,
-    QgsSymbolLayer,
+    QgsMarkerSymbol,
     QgsProperty,
-    QgsMapUnitScale
+    QgsReadWriteContext,
+    QgsShapeburstFillSymbolLayer,
+    QgsSimpleFillSymbolLayer,
+    QgsSimpleLineSymbolLayer,
+    QgsSingleSymbolRenderer,
+    QgsSymbolLayer,
+    QgsSymbolLayerUtils,
+    QgsUnitTypes,
+    QgsVectorLayer
 )
-from qgis.testing import unittest, start_app
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class PyQgsSymbolLayerUtils(unittest.TestCase):
+class PyQgsSymbolLayerUtils(QgisTestCase):
 
     @classmethod
-    def setUpClass(cls):
-        cls.report = "<h1>Python QgsPointCloudRgbRenderer Tests</h1>\n"
-
-    @classmethod
-    def tearDownClass(cls):
-        report_file_path = "%s/qgistest.html" % QDir.tempPath()
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(cls.report)
+    def control_path_prefix(cls):
+        return "symbol_layer_utils"
 
     def testEncodeDecodeSize(self):
         s = QSizeF()
@@ -129,6 +120,14 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
         s2 = QgsSymbolLayerUtils.decodePoint('')
         self.assertEqual(s2, QPointF())
 
+    def testEncodeDecodeCoordinateReference(self):
+        items = {'feature': Qgis.SymbolCoordinateReference.Feature, 'viewport': Qgis.SymbolCoordinateReference.Viewport}
+        for item in items.keys():
+            encoded = QgsSymbolLayerUtils.encodeCoordinateReference(items[item])
+            self.assertEqual(item, encoded)
+            decoded, ok = QgsSymbolLayerUtils.decodeCoordinateReference(encoded)
+            self.assertEqual(items[item], decoded)
+
     def testToPoint(self):
         s2, ok = QgsSymbolLayerUtils.toPoint(None)
         self.assertFalse(ok)
@@ -177,25 +176,25 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
     def testDecodeArrowHeadType(self):
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType(0)
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.HeadSingle)
+        self.assertEqual(type, QgsArrowSymbolLayer.HeadType.HeadSingle)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType('single')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.HeadSingle)
+        self.assertEqual(type, QgsArrowSymbolLayer.HeadType.HeadSingle)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType('   SINGLE   ')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.HeadSingle)
+        self.assertEqual(type, QgsArrowSymbolLayer.HeadType.HeadSingle)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType(1)
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.HeadReversed)
+        self.assertEqual(type, QgsArrowSymbolLayer.HeadType.HeadReversed)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType('reversed')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.HeadReversed)
+        self.assertEqual(type, QgsArrowSymbolLayer.HeadType.HeadReversed)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType(2)
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.HeadDouble)
+        self.assertEqual(type, QgsArrowSymbolLayer.HeadType.HeadDouble)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType('double')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.HeadDouble)
+        self.assertEqual(type, QgsArrowSymbolLayer.HeadType.HeadDouble)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType('xxxxx')
         self.assertFalse(ok)
         type, ok = QgsSymbolLayerUtils.decodeArrowHeadType(34)
@@ -204,29 +203,78 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
     def testDecodeArrowType(self):
         type, ok = QgsSymbolLayerUtils.decodeArrowType(0)
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.ArrowPlain)
+        self.assertEqual(type, QgsArrowSymbolLayer.ArrowType.ArrowPlain)
         type, ok = QgsSymbolLayerUtils.decodeArrowType('plain')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.ArrowPlain)
+        self.assertEqual(type, QgsArrowSymbolLayer.ArrowType.ArrowPlain)
         type, ok = QgsSymbolLayerUtils.decodeArrowType('   PLAIN   ')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.ArrowPlain)
+        self.assertEqual(type, QgsArrowSymbolLayer.ArrowType.ArrowPlain)
         type, ok = QgsSymbolLayerUtils.decodeArrowType(1)
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.ArrowLeftHalf)
+        self.assertEqual(type, QgsArrowSymbolLayer.ArrowType.ArrowLeftHalf)
         type, ok = QgsSymbolLayerUtils.decodeArrowType('lefthalf')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.ArrowLeftHalf)
+        self.assertEqual(type, QgsArrowSymbolLayer.ArrowType.ArrowLeftHalf)
         type, ok = QgsSymbolLayerUtils.decodeArrowType(2)
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.ArrowRightHalf)
+        self.assertEqual(type, QgsArrowSymbolLayer.ArrowType.ArrowRightHalf)
         type, ok = QgsSymbolLayerUtils.decodeArrowType('righthalf')
         self.assertTrue(ok)
-        self.assertEqual(type, QgsArrowSymbolLayer.ArrowRightHalf)
+        self.assertEqual(type, QgsArrowSymbolLayer.ArrowType.ArrowRightHalf)
         type, ok = QgsSymbolLayerUtils.decodeArrowType('xxxxx')
         self.assertFalse(ok)
         type, ok = QgsSymbolLayerUtils.decodeArrowType(34)
         self.assertFalse(ok)
+
+    def test_decode_marker_clip(self):
+        """
+        Test decode marker clip
+        """
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(''), (Qgis.MarkerClipMode.Shape, False))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode('xxx'), (Qgis.MarkerClipMode.Shape, False))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' no   '), (Qgis.MarkerClipMode.NoClipping, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' NO   '), (Qgis.MarkerClipMode.NoClipping, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' shape   '), (Qgis.MarkerClipMode.Shape, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' Shape   '), (Qgis.MarkerClipMode.Shape, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' centroid_within   '), (Qgis.MarkerClipMode.CentroidWithin, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' Centroid_Within   '),
+                         (Qgis.MarkerClipMode.CentroidWithin, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' completely_within   '),
+                         (Qgis.MarkerClipMode.CompletelyWithin, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeMarkerClipMode(' Completely_Within   '),
+                         (Qgis.MarkerClipMode.CompletelyWithin, True))
+
+    def test_encode_marker_clip(self):
+        """
+        Test encode marker clip
+        """
+        self.assertEqual(QgsSymbolLayerUtils.encodeMarkerClipMode(Qgis.MarkerClipMode.Shape), 'shape')
+        self.assertEqual(QgsSymbolLayerUtils.encodeMarkerClipMode(Qgis.MarkerClipMode.NoClipping), 'no')
+        self.assertEqual(QgsSymbolLayerUtils.encodeMarkerClipMode(Qgis.MarkerClipMode.CentroidWithin), 'centroid_within')
+        self.assertEqual(QgsSymbolLayerUtils.encodeMarkerClipMode(Qgis.MarkerClipMode.CompletelyWithin), 'completely_within')
+
+    def test_decode_line_clip(self):
+        """
+        Test decode line clip
+        """
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode(''), (Qgis.LineClipMode.ClipPainterOnly, False))
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode('xxx'), (Qgis.LineClipMode.ClipPainterOnly, False))
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode(' no   '), (Qgis.LineClipMode.NoClipping, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode(' NO   '), (Qgis.LineClipMode.NoClipping, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode(' during_render   '), (Qgis.LineClipMode.ClipPainterOnly, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode(' DURING_Render   '), (Qgis.LineClipMode.ClipPainterOnly, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode(' before_render   '), (Qgis.LineClipMode.ClipToIntersection, True))
+        self.assertEqual(QgsSymbolLayerUtils.decodeLineClipMode(' BEFORE_REnder   '),
+                         (Qgis.LineClipMode.ClipToIntersection, True))
+
+    def test_encode_line_clip(self):
+        """
+        Test encode line clip
+        """
+        self.assertEqual(QgsSymbolLayerUtils.encodeLineClipMode(Qgis.LineClipMode.ClipPainterOnly), 'during_render')
+        self.assertEqual(QgsSymbolLayerUtils.encodeLineClipMode(Qgis.LineClipMode.NoClipping), 'no')
+        self.assertEqual(QgsSymbolLayerUtils.encodeLineClipMode(Qgis.LineClipMode.ClipToIntersection), 'before_render')
 
     def testSymbolToFromMimeData(self):
         """
@@ -249,13 +297,18 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
 
         # millimeter
         encode = None
-        encode = QgsSymbolLayerUtils.encodeSldUom(QgsUnitTypes.RenderMillimeters)
+        encode = QgsSymbolLayerUtils.encodeSldUom(QgsUnitTypes.RenderUnit.RenderMillimeters)
         self.assertTupleEqual(encode, ('', 3.571428571428571))
 
         # mapunits
         encode = None
-        encode = QgsSymbolLayerUtils.encodeSldUom(QgsUnitTypes.RenderMapUnits)
+        encode = QgsSymbolLayerUtils.encodeSldUom(QgsUnitTypes.RenderUnit.RenderMapUnits)
         self.assertTupleEqual(encode, ('http://www.opengeospatial.org/se/units/metre', 0.001))
+
+        # meters at scale
+        encode = None
+        encode = QgsSymbolLayerUtils.encodeSldUom(QgsUnitTypes.RenderUnit.RenderMetersInMapUnits)
+        self.assertTupleEqual(encode, ('http://www.opengeospatial.org/se/units/metre', 1.0))
 
     def testDecodeSldUom(self):
         """
@@ -265,17 +318,17 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
         # meter
         decode = None
         decode = QgsSymbolLayerUtils.decodeSldUom("http://www.opengeospatial.org/se/units/metre")
-        self.assertEqual(decode, (QgsUnitTypes.RenderMapUnits, 1000.0))
+        self.assertEqual(decode, (QgsUnitTypes.RenderUnit.RenderMetersInMapUnits, 1.0))
 
         # foot
         decode = None
         decode = QgsSymbolLayerUtils.decodeSldUom("http://www.opengeospatial.org/se/units/foot")
-        self.assertEqual(decode, (QgsUnitTypes.RenderMapUnits, 304.8))
+        self.assertEqual(decode, (QgsUnitTypes.RenderUnit.RenderMetersInMapUnits, 0.3048))
 
         # pixel
         decode = None
         decode = QgsSymbolLayerUtils.decodeSldUom("http://www.opengeospatial.org/se/units/pixel")
-        self.assertEqual(decode, (QgsUnitTypes.RenderPixels, 1.0))
+        self.assertEqual(decode, (QgsUnitTypes.RenderUnit.RenderPixels, 1.0))
 
     def testPolylineLength(self):
         """
@@ -447,35 +500,35 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
 
         pix = QgsSymbolLayerUtils.colorRampPreviewPixmap(r, QSize(200, 100))
         img = QImage(pix)
-        self.assertTrue(self.imageCheck('color_ramp_horizontal', 'color_ramp_horizontal', img))
+        self.assertTrue(self.image_check('color_ramp_horizontal', 'color_ramp_horizontal', img))
 
     def testPreviewColorRampHorizontalNoCheckboard(self):
         r = QgsGradientColorRamp(QColor(200, 0, 0, 200), QColor(0, 200, 0, 255))
 
         pix = QgsSymbolLayerUtils.colorRampPreviewPixmap(r, QSize(200, 100), drawTransparentBackground=False)
         img = QImage(pix)
-        self.assertTrue(self.imageCheck('color_ramp_no_check', 'color_ramp_no_check', img))
+        self.assertTrue(self.image_check('color_ramp_no_check', 'color_ramp_no_check', img))
 
     def testPreviewColorRampHorizontalFlipped(self):
         r = QgsGradientColorRamp(QColor(200, 0, 0, 200), QColor(0, 200, 0, 255))
 
         pix = QgsSymbolLayerUtils.colorRampPreviewPixmap(r, QSize(200, 100), flipDirection=True)
         img = QImage(pix)
-        self.assertTrue(self.imageCheck('color_ramp_horizontal_flipped', 'color_ramp_horizontal_flipped', img))
+        self.assertTrue(self.image_check('color_ramp_horizontal_flipped', 'color_ramp_horizontal_flipped', img))
 
     def testPreviewColorRampVertical(self):
         r = QgsGradientColorRamp(QColor(200, 0, 0, 200), QColor(0, 200, 0, 255))
 
-        pix = QgsSymbolLayerUtils.colorRampPreviewPixmap(r, QSize(100, 200), direction=Qt.Vertical)
+        pix = QgsSymbolLayerUtils.colorRampPreviewPixmap(r, QSize(100, 200), direction=Qt.Orientation.Vertical)
         img = QImage(pix)
-        self.assertTrue(self.imageCheck('color_ramp_vertical', 'color_ramp_vertical', img))
+        self.assertTrue(self.image_check('color_ramp_vertical', 'color_ramp_vertical', img))
 
     def testPreviewColorRampVerticalFlipped(self):
         r = QgsGradientColorRamp(QColor(200, 0, 0, 200), QColor(0, 200, 0, 255))
 
-        pix = QgsSymbolLayerUtils.colorRampPreviewPixmap(r, QSize(100, 200), direction=Qt.Vertical, flipDirection=True)
+        pix = QgsSymbolLayerUtils.colorRampPreviewPixmap(r, QSize(100, 200), direction=Qt.Orientation.Vertical, flipDirection=True)
         img = QImage(pix)
-        self.assertTrue(self.imageCheck('color_ramp_vertical_flipped', 'color_ramp_vertical_flipped', img))
+        self.assertTrue(self.image_check('color_ramp_vertical_flipped', 'color_ramp_vertical_flipped', img))
 
     def testCondenseFillAndOutline(self):
         """
@@ -520,7 +573,7 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
         self.assertFalse(QgsSymbolLayerUtils.condenseFillAndOutline(fill, line))
 
         line = QgsSimpleLineSymbolLayer()
-        line.setRingFilter(QgsSimpleLineSymbolLayer.ExteriorRingOnly)
+        line.setRingFilter(QgsSimpleLineSymbolLayer.RenderRingFilter.ExteriorRingOnly)
         self.assertFalse(QgsSymbolLayerUtils.condenseFillAndOutline(fill, line))
 
         line = QgsSimpleLineSymbolLayer()
@@ -528,39 +581,245 @@ class PyQgsSymbolLayerUtils(unittest.TestCase):
         self.assertFalse(QgsSymbolLayerUtils.condenseFillAndOutline(fill, line))
 
         line = QgsSimpleLineSymbolLayer()
-        line.setDataDefinedProperty(QgsSymbolLayer.PropertyTrimEnd, QgsProperty.fromValue(4))
+        line.setDataDefinedProperty(QgsSymbolLayer.Property.PropertyTrimEnd, QgsProperty.fromValue(4))
         self.assertFalse(QgsSymbolLayerUtils.condenseFillAndOutline(fill, line))
 
         # compatible!
         line = QgsSimpleLineSymbolLayer()
         line.setColor(QColor(255, 0, 0))
         line.setWidth(1.2)
-        line.setWidthUnit(QgsUnitTypes.RenderPoints)
+        line.setWidthUnit(QgsUnitTypes.RenderUnit.RenderPoints)
         line.setWidthMapUnitScale(QgsMapUnitScale(1, 2))
-        line.setPenJoinStyle(Qt.MiterJoin)
-        line.setPenStyle(Qt.DashDotDotLine)
+        line.setPenJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        line.setPenStyle(Qt.PenStyle.DashDotDotLine)
         self.assertTrue(QgsSymbolLayerUtils.condenseFillAndOutline(fill, line))
 
         self.assertEqual(fill.strokeColor(), QColor(255, 0, 0))
         self.assertEqual(fill.strokeWidth(), 1.2)
-        self.assertEqual(fill.strokeWidthUnit(), QgsUnitTypes.RenderPoints)
+        self.assertEqual(fill.strokeWidthUnit(), QgsUnitTypes.RenderUnit.RenderPoints)
         self.assertEqual(fill.strokeWidthMapUnitScale(), QgsMapUnitScale(1, 2))
-        self.assertEqual(fill.penJoinStyle(), Qt.MiterJoin)
-        self.assertEqual(fill.strokeStyle(), Qt.DashDotDotLine)
+        self.assertEqual(fill.penJoinStyle(), Qt.PenJoinStyle.MiterJoin)
+        self.assertEqual(fill.strokeStyle(), Qt.PenStyle.DashDotDotLine)
 
-    def imageCheck(self, name, reference_image, image):
-        self.report += "<h2>Render {}</h2>\n".format(name)
-        temp_dir = QDir.tempPath() + '/'
-        file_name = temp_dir + name + ".png"
-        image.save(file_name, "PNG")
-        checker = QgsRenderChecker()
-        checker.setControlPathPrefix("symbol_layer_utils")
-        checker.setControlName("expected_" + reference_image)
-        checker.setRenderedImage(file_name)
-        checker.setColorTolerance(2)
-        result = checker.compareImages(name, 20)
-        PyQgsSymbolLayerUtils.report += checker.report()
-        return result
+    def test_renderer_frame_rate(self):
+        # renderer without an animated symbol
+        marker_symbol = QgsMarkerSymbol.createSimple({})
+        renderer = QgsSingleSymbolRenderer(marker_symbol)
+        self.assertEqual(QgsSymbolLayerUtils.rendererFrameRate(renderer), -1)
+
+        # renderer with an animated symbol
+        marker_symbol = QgsMarkerSymbol()
+        animated_marker = QgsAnimatedMarkerSymbolLayer()
+        animated_marker.setFrameRate(30)
+        marker_symbol.appendSymbolLayer(animated_marker)
+        renderer = QgsSingleSymbolRenderer(marker_symbol)
+        self.assertEqual(QgsSymbolLayerUtils.rendererFrameRate(renderer), 30)
+
+        # renderer with two animated symbol layers
+        marker_symbol = QgsMarkerSymbol()
+        animated_marker = QgsAnimatedMarkerSymbolLayer()
+        animated_marker.setFrameRate(30)
+        marker_symbol.appendSymbolLayer(animated_marker)
+        animated_marker = QgsAnimatedMarkerSymbolLayer()
+        animated_marker.setFrameRate(60)
+        marker_symbol.appendSymbolLayer(animated_marker)
+        renderer = QgsSingleSymbolRenderer(marker_symbol)
+        self.assertEqual(QgsSymbolLayerUtils.rendererFrameRate(renderer), 60)
+
+        s = QgsMarkerSymbol()
+        renderer = QgsSingleSymbolRenderer(s.clone())
+        self.assertEqual(QgsSymbolLayerUtils.rendererFrameRate(renderer), -1)
+        s.animationSettings().setIsAnimated(True)
+        s.animationSettings().setFrameRate(30)
+        renderer = QgsSingleSymbolRenderer(s.clone())
+        self.assertEqual(QgsSymbolLayerUtils.rendererFrameRate(renderer), 30)
+
+    def testTileSize(self):
+
+        test_data = [
+            # First quadrant
+            [10, 20, 0, 10, 20, 0],
+            [10, 20, math.pi, 10, 20, math.pi],
+            [10, 10, math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi / 4],
+            [10, 20, math.pi / 2, 20, 10, math.pi / 2],
+            [10, 20, math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi / 4],
+            [10, 20, math.pi / 6, 36, 72, 0.5880031703261417],  # Angle approx
+
+            # Second quadrant
+            [10, 20, math.pi / 2 + math.pi / 6, 72, 36, math.pi / 2 + 0.5880031703261417],  # Angle approx
+            [10, 10, math.pi / 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi / 2 + math.pi / 4],
+            [10, 20, math.pi / 2 + math.pi / 2, 10, 20, math.pi / 2 + math.pi / 2],
+            [10, 20, math.pi / 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi / 2 + math.pi / 4],
+
+            # Third quadrant
+            [10, 20, math.pi + math.pi / 6, 36, 72, math.pi + 0.5880031703261417],  # Angle approx
+            [10, 10, math.pi + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi + math.pi / 4],
+            [10, 20, math.pi + math.pi / 2, 20, 10, math.pi + math.pi / 2],
+            [10, 20, math.pi + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi + math.pi / 4],
+
+            # Fourth quadrant
+            [10, 20, math.pi + math.pi / 2 + math.pi / 6, 72, 36, math.pi + math.pi / 2 + 0.5880031703261417],  # Angle approx
+            [10, 10, math.pi + math.pi / 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi + math.pi / 2 + math.pi / 4],
+            [10, 20, math.pi + math.pi / 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi + math.pi / 2 + math.pi / 4],
+
+            # Test out of range angles > 2 PI
+
+            # First quadrant
+            [10, 10, math.pi * 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi / 4],
+            [10, 20, math.pi * 2 + math.pi / 2, 20, 10, math.pi / 2],
+            [10, 20, math.pi * 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi / 4],
+            [10, 20, math.pi * 2 + math.pi / 6, 36, 72, 0.5880031703261417],  # Angle approx
+
+            # Second quadrant
+            [10, 20, math.pi * 2 + math.pi / 2 + math.pi / 6, 72, 36, math.pi / 2 + 0.5880031703261417],  # Angle approx
+            [10, 10, math.pi * 2 + math.pi / 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi / 2 + math.pi / 4],
+            [10, 20, math.pi * 2 + math.pi / 2 + math.pi / 2, 10, 20, math.pi / 2 + math.pi / 2],
+            [10, 20, math.pi * 2 + math.pi / 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi / 2 + math.pi / 4],
+
+            # Third quadrant
+            [10, 20, math.pi * 2 + math.pi + math.pi / 6, 36, 72, math.pi + 0.5880031703261417],  # Angle approx
+            [10, 10, math.pi * 2 + math.pi + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi + math.pi / 4],
+            [10, 20, math.pi * 2 + math.pi + math.pi / 2, 20, 10, math.pi + math.pi / 2],
+            [10, 20, math.pi * 2 + math.pi + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi + math.pi / 4],
+
+            # Fourth quadrant
+            [10, 20, math.pi * 2 + math.pi + math.pi / 2 + math.pi / 6, 72, 36, math.pi + math.pi / 2 + 0.5880031703261417],  # Angle approx
+            [10, 10, math.pi * 2 + math.pi + math.pi / 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi + math.pi / 2 + math.pi / 4],
+            [10, 20, math.pi * 2 + math.pi + math.pi / 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi + math.pi / 2 + math.pi / 4],
+
+            # Test out of range angles < 0
+
+            # First quadrant
+            [10, 10, - math.pi * 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi / 4],
+            [10, 20, - math.pi * 2 + math.pi / 2, 20, 10, math.pi / 2],
+            [10, 20, - math.pi * 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi / 4],
+            [10, 20, - math.pi * 2 + math.pi / 6, 36, 72, 0.5880031703261417],  # Angle approx
+
+            # Second quadrant
+            [10, 20, - math.pi * 2 + math.pi / 2 + math.pi / 6, 72, 36, math.pi / 2 + 0.5880031703261417],  # Angle approx
+            [10, 10, - math.pi * 2 + math.pi / 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi / 2 + math.pi / 4],
+            [10, 20, - math.pi * 2 + math.pi / 2 + math.pi / 2, 10, 20, math.pi / 2 + math.pi / 2],
+            [10, 20, - math.pi * 2 + math.pi / 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi / 2 + math.pi / 4],
+
+            # Third quadrant
+            [10, 20, - math.pi * 2 + math.pi + math.pi / 6, 36, 72, math.pi + 0.5880031703261417],  # Angle approx
+            [10, 10, - math.pi * 2 + math.pi + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi + math.pi / 4],
+            [10, 20, - math.pi * 2 + math.pi + math.pi / 2, 20, 10, math.pi + math.pi / 2],
+            [10, 20, - math.pi * 2 + math.pi + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi + math.pi / 4],
+
+            # Fourth quadrant
+            [10, 20, - math.pi * 2 + math.pi + math.pi / 2 + math.pi / 6, 72, 36, math.pi + math.pi / 2 + 0.5880031703261417],  # Angle approx
+            [10, 10, - math.pi * 2 + math.pi + math.pi / 2 + math.pi / 4, 10 * math.sqrt(2), 10 * math.sqrt(2), math.pi + math.pi / 2 + math.pi / 4],
+            [10, 20, - math.pi * 2 + math.pi + math.pi / 2 + math.pi / 4, 20 * math.sqrt(2), 20 * math.sqrt(2), math.pi + math.pi / 2 + math.pi / 4],
+
+        ]
+
+        for width, height, angle, exp_width, exp_height, exp_angle in test_data:
+            (res_size, res_angle) = QgsSymbolLayerUtils.tileSize(width, height, angle)
+            self.assertEqual(res_size.height(), int(exp_height), angle)
+            self.assertEqual(res_size.width(), int(exp_width))
+            self.assertAlmostEqual(res_angle, exp_angle)
+
+    def test_clear_symbollayer_ids(self):
+        """
+        Test we manage to clear all symbol layer ids on a symbol
+        """
+
+        source = QgsVectorLayer("Polygon?crs=EPSG:4326", 'layer', "memory")
+        self.assertTrue(source.isValid())
+
+        layer = QgsLinePatternFillSymbolLayer()
+        fill_symbol = QgsFillSymbol([layer])
+
+        sub_renderer = QgsSingleSymbolRenderer(fill_symbol)
+        source.setRenderer(sub_renderer)
+
+        self.assertEqual(len(fill_symbol.symbolLayers()), 1)
+
+        subsymbol = fill_symbol.symbolLayers()[0].subSymbol()
+        self.assertTrue(subsymbol)
+        self.assertEqual(len(subsymbol.symbolLayers()), 1)
+
+        child_sl = subsymbol.symbolLayers()[0]
+        self.assertTrue(child_sl)
+
+        old_id = child_sl.id()
+        self.assertTrue(child_sl.id())
+
+        QgsSymbolLayerUtils.resetSymbolLayerIds(fill_symbol)
+
+        self.assertTrue(child_sl.id())
+        self.assertTrue(child_sl.id() != old_id)
+
+        QgsSymbolLayerUtils.clearSymbolLayerIds(fill_symbol)
+        self.assertFalse(child_sl.id())
+
+    def test_font_marker_load(self):
+        """
+        Test the loading of font marker from XML
+        """
+
+        font_marker_xml_string = """<symbol clip_to_extent="1" type="marker" is_animated="0" alpha="1" name="symbol" frame_rate="10" force_rhr="0">
+ <layer pass="0" id="{2aefc556-4eb1-4f56-b96b-e1dea6b58f69}" locked="0" class="FontMarker" enabled="1">
+  <Option type="Map">
+   <Option value="0" type="QString" name="angle"/>
+   <Option value="~!_#!#_!~14~!_#!#_!~" type="QString" name="chr"/>
+   <Option value="0,0,255,255" type="QString" name="color"/>
+   <Option value="Arial" type="QString" name="font"/>
+   <Option value="Italic" type="QString" name="font_style"/>
+   <Option value="1" type="QString" name="horizontal_anchor_point"/>
+   <Option value="miter" type="QString" name="joinstyle"/>
+   <Option value="0,0" type="QString" name="offset"/>
+   <Option value="3x:0,0,0,0,0,0" type="QString" name="offset_map_unit_scale"/>
+   <Option value="Point" type="QString" name="offset_unit"/>
+   <Option value="255,255,255,255" type="QString" name="outline_color"/>
+   <Option value="0" type="QString" name="outline_width"/>
+   <Option value="3x:0,0,0,0,0,0" type="QString" name="outline_width_map_unit_scale"/>
+   <Option value="MM" type="QString" name="outline_width_unit"/>
+   <Option value="42.4" type="QString" name="size"/>
+   <Option value="3x:0,0,0,0,0,0" type="QString" name="size_map_unit_scale"/>
+   <Option value="Point" type="QString" name="size_unit"/>
+   <Option value="1" type="QString" name="vertical_anchor_point"/>
+  </Option>
+ </layer>
+</symbol>"""
+
+        doc = QDomDocument()
+        elem = QDomElement()
+        doc.setContent(font_marker_xml_string)
+        elem = doc.documentElement()
+        font_marker = QgsSymbolLayerUtils.loadSymbol(elem, QgsReadWriteContext())
+        self.assertEqual(font_marker.symbolLayers()[0].character(), chr(14))
+
+        font_marker_xml_string = """<symbol clip_to_extent="1" type="marker" is_animated="0" alpha="1" name="symbol" frame_rate="10" force_rhr="0">
+ <layer pass="0" id="{2aefc556-4eb1-4f56-b96b-e1dea6b58f69}" locked="0" class="FontMarker" enabled="1">
+  <Option type="Map">
+   <Option value="0" type="QString" name="angle"/>
+   <Option value="~!_#!#_!~40~!_#!#_!~~!_#!#_!~41~!_#!#_!~" type="QString" name="chr"/>
+   <Option value="0,0,255,255" type="QString" name="color"/>
+   <Option value="Arial" type="QString" name="font"/>
+   <Option value="Italic" type="QString" name="font_style"/>
+   <Option value="1" type="QString" name="horizontal_anchor_point"/>
+   <Option value="miter" type="QString" name="joinstyle"/>
+   <Option value="0,0" type="QString" name="offset"/>
+   <Option value="3x:0,0,0,0,0,0" type="QString" name="offset_map_unit_scale"/>
+   <Option value="Point" type="QString" name="offset_unit"/>
+   <Option value="255,255,255,255" type="QString" name="outline_color"/>
+   <Option value="0" type="QString" name="outline_width"/>
+   <Option value="3x:0,0,0,0,0,0" type="QString" name="outline_width_map_unit_scale"/>
+   <Option value="MM" type="QString" name="outline_width_unit"/>
+   <Option value="42.4" type="QString" name="size"/>
+   <Option value="3x:0,0,0,0,0,0" type="QString" name="size_map_unit_scale"/>
+   <Option value="Point" type="QString" name="size_unit"/>
+   <Option value="1" type="QString" name="vertical_anchor_point"/>
+  </Option>
+ </layer>
+</symbol>"""
+
+        doc.setContent(font_marker_xml_string)
+        elem = doc.documentElement()
+        font_marker = QgsSymbolLayerUtils.loadSymbol(elem, QgsReadWriteContext())
+        self.assertEqual(font_marker.symbolLayers()[0].character(), "()")
 
 
 if __name__ == '__main__':

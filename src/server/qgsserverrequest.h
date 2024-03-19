@@ -29,7 +29,6 @@
  * \brief QgsServerRequest
  * Class defining request interface passed to services QgsService::executeRequest() method
  *
- * \since QGIS 3.0
  */
 
 // Note about design: this interface must be passed along to Python and thus signatures methods must be
@@ -84,6 +83,12 @@ class SERVER_EXPORT QgsServerRequest
       X_QGIS_WCS_SERVICE_URL,
       // The QGIS WMTS service URL
       X_QGIS_WMTS_SERVICE_URL,
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept
+      ACCEPT,
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/User-Agent
+      USER_AGENT,
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization
+      AUTHORIZATION,
     };
     Q_ENUM( RequestHeader )
 
@@ -270,7 +275,6 @@ class SERVER_EXPORT QgsServerRequest
     // to support lazy initialization
     mutable Headers mHeaders;
     QgsServerParameters mParams;
-    QMap<RequestHeader, QString> mRequestHeaderConv;
 };
 
 #endif

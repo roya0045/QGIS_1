@@ -27,12 +27,15 @@ SIP_NO_FILE
 
 class QgsMeshLayer;
 
-/*!
- * A widget for setup of the scalar dataset renderer settings of
+/**
+ * \ingroup gui
+ * \class QgsMeshRendererScalarSettingsWidget
+ *
+ * \brief A widget for setup of the scalar dataset renderer settings of
  * a mesh layer. The layer must be connected and an active dataset
  * must be selected.
  */
-class QgsMeshRendererScalarSettingsWidget : public QWidget, private Ui::QgsMeshRendererScalarSettingsWidgetBase
+class GUI_EXPORT QgsMeshRendererScalarSettingsWidget : public QWidget, private Ui::QgsMeshRendererScalarSettingsWidgetBase
 {
     Q_OBJECT
 

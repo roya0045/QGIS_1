@@ -65,6 +65,15 @@ class GUI_EXPORT QgsMapToolAdvancedDigitizing : public QgsMapToolEdit
     QgsAdvancedDigitizingDockWidget *cadDockWidget() const { return mCadDockWidget; }
 
     /**
+     * Returns the layer associated with the map tool.
+     *
+     * By default this returns the map canvas' QgsMapCanvas::currentLayer().
+     *
+     * \since QGIS 3.22
+     */
+    virtual QgsMapLayer *layer() const;
+
+    /**
      * Returns whether functionality of advanced digitizing dock widget is currently allowed.
      *
      * Tools may decide to switch this support on/off based on the current state of the map tool.
@@ -75,7 +84,6 @@ class GUI_EXPORT QgsMapToolAdvancedDigitizing : public QgsMapToolEdit
      * If TRUE is returned, that does not mean that advanced digitizing is actually active,
      * because it is up to the user to enable/disable it when it is allowed.
      * \sa setAdvancedDigitizingAllowed()
-     * \since QGIS 3.0
      */
     bool isAdvancedDigitizingAllowed() const { return mAdvancedDigitizingAllowed; }
 
@@ -85,7 +93,6 @@ class GUI_EXPORT QgsMapToolAdvancedDigitizing : public QgsMapToolEdit
      * to the tool. This may be desirable default behavior for some map tools, but not for other map tools.
      * It is therefore possible to configure the behavior by the map tool.
      * \sa isAutoSnapEnabled()
-     * \since QGIS 3.0
      */
     bool isAutoSnapEnabled() const { return mAutoSnapEnabled; }
 
@@ -95,7 +102,6 @@ class GUI_EXPORT QgsMapToolAdvancedDigitizing : public QgsMapToolEdit
      * Sets whether functionality of advanced digitizing dock widget is currently allowed.
      * This method is protected because it should be a decision of the map tool and not from elsewhere.
      * \sa isAdvancedDigitizingAllowed()
-     * \since QGIS 3.0
      */
     void setAdvancedDigitizingAllowed( bool allowed ) { mAdvancedDigitizingAllowed = allowed; }
 
@@ -103,7 +109,6 @@ class GUI_EXPORT QgsMapToolAdvancedDigitizing : public QgsMapToolEdit
      * Sets whether mouse events (press/move/release) should automatically try to snap mouse position
      * This method is protected because it should be a decision of the map tool and not from elsewhere.
      * \sa isAutoSnapEnabled()
-     * \since QGIS 3.0
      */
     void setAutoSnapEnabled( bool enabled ) { mAutoSnapEnabled = enabled; }
 

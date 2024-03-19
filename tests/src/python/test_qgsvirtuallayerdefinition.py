@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsVirtualLayerDefinition
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,17 +9,16 @@ __author__ = 'Hugo Mercier'
 __date__ = '10/12/2015'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (QgsField,
-                       QgsWkbTypes,
-                       QgsFields,
-                       QgsVirtualLayerDefinition
-                       )
-
-from qgis.testing import unittest
-from qgis.PyQt.QtCore import QVariant, QUrl
 import os
+
+from qgis.PyQt.QtCore import QUrl, QVariant
+from qgis.core import (
+    QgsField,
+    QgsFields,
+    QgsVirtualLayerDefinition,
+    QgsWkbTypes,
+)
+from qgis.testing import unittest
 
 
 def strToUrl(s):
@@ -71,9 +69,9 @@ class TestQgsVirtualLayerDefinition(unittest.TestCase):
         self.assertEqual(QgsVirtualLayerDefinition.fromUrl(d.toUrl()).geometryField(), "geom")
         self.assertEqual(QgsVirtualLayerDefinition.fromUrl(strToUrl(d.toString())).geometryField(), "geom")
 
-        d.setGeometryWkbType(QgsWkbTypes.Point)
-        self.assertEqual(QgsVirtualLayerDefinition.fromUrl(d.toUrl()).geometryWkbType(), QgsWkbTypes.Point)
-        self.assertEqual(QgsVirtualLayerDefinition.fromUrl(strToUrl(d.toString())).geometryWkbType(), QgsWkbTypes.Point)
+        d.setGeometryWkbType(QgsWkbTypes.Type.Point)
+        self.assertEqual(QgsVirtualLayerDefinition.fromUrl(d.toUrl()).geometryWkbType(), QgsWkbTypes.Type.Point)
+        self.assertEqual(QgsVirtualLayerDefinition.fromUrl(strToUrl(d.toString())).geometryWkbType(), QgsWkbTypes.Type.Point)
 
         f = QgsFields()
         f.append(QgsField("a", QVariant.Int))

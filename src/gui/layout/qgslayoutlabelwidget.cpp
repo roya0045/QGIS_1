@@ -19,10 +19,11 @@
 #include "qgslayoutitemlabel.h"
 #include "qgslayout.h"
 #include "qgsexpressionbuilderdialog.h"
-#include "qgsguiutils.h"
 #include "qgslayoutitemmap.h"
 #include "qgsvectorlayer.h"
 #include "qgsprojoperation.h"
+#include "qgslayoutreportcontext.h"
+#include "qgsexpressionfinder.h"
 
 #include <QColorDialog>
 #include <QFontDialog>
@@ -42,7 +43,6 @@ QgsLayoutLabelWidget::QgsLayoutLabelWidget( QgsLayoutItemLabel *label )
   connect( mInsertExpressionButton, &QPushButton::clicked, this, &QgsLayoutLabelWidget::mInsertExpressionButton_clicked );
   connect( mMarginXDoubleSpinBox, static_cast < void ( QDoubleSpinBox::* )( double ) > ( &QDoubleSpinBox::valueChanged ), this, &QgsLayoutLabelWidget::mMarginXDoubleSpinBox_valueChanged );
   connect( mMarginYDoubleSpinBox, static_cast < void ( QDoubleSpinBox::* )( double ) > ( &QDoubleSpinBox::valueChanged ), this, &QgsLayoutLabelWidget::mMarginYDoubleSpinBox_valueChanged );
-  connect( mFontColorButton, &QgsColorButton::colorChanged, this, &QgsLayoutLabelWidget::mFontColorButton_colorChanged );
   connect( mCenterRadioButton, &QRadioButton::clicked, this, &QgsLayoutLabelWidget::mCenterRadioButton_clicked );
   connect( mLeftRadioButton, &QRadioButton::clicked, this, &QgsLayoutLabelWidget::mLeftRadioButton_clicked );
   connect( mRightRadioButton, &QRadioButton::clicked, this, &QgsLayoutLabelWidget::mRightRadioButton_clicked );
@@ -51,15 +51,13 @@ QgsLayoutLabelWidget::QgsLayoutLabelWidget( QgsLayoutItemLabel *label )
   connect( mMiddleRadioButton, &QRadioButton::clicked, this, &QgsLayoutLabelWidget::mMiddleRadioButton_clicked );
   setPanelTitle( tr( "Label Properties" ) );
 
-  mFontButton->setMode( QgsFontButton::ModeQFont );
+  mFontButton->setMode( QgsFontButton::ModeTextRenderer );
+  mFontButton->setDialogTitle( tr( "Label Font" ) );
+  mFontButton->registerExpressionContextGenerator( this );
 
   //add widget for general composer item properties
   mItemPropertiesWidget = new QgsLayoutItemPropertiesWidget( this, label );
   mainLayout->addWidget( mItemPropertiesWidget );
-
-  mFontColorButton->setColorDialogTitle( tr( "Select Font Color" ) );
-  mFontColorButton->setContext( QStringLiteral( "composer" ) );
-  mFontColorButton->setAllowOpacity( true );
 
   mMarginXDoubleSpinBox->setClearValue( 0.0 );
   mMarginYDoubleSpinBox->setClearValue( 0.0 );
@@ -82,7 +80,7 @@ QgsLayoutLabelWidget::QgsLayoutLabelWidget( QgsLayoutItemLabel *label )
       buildInsertDynamicTextMenu( mLabel->layout(), mDynamicTextMenu, [ = ]( const QString & expression )
       {
         mLabel->beginCommand( tr( "Insert dynamic text" ) );
-        mTextEdit->insertPlainText( "[%" + expression + "%]" );
+        mTextEdit->insertPlainText( "[%" + expression.trimmed() + "%]" );
         mLabel->endCommand();
       } );
     }
@@ -93,12 +91,23 @@ QgsLayoutLabelWidget::QgsLayoutLabelWidget( QgsLayoutItemLabel *label )
   expressionMenu->addAction( convertToStaticAction );
   connect( convertToStaticAction, &QAction::triggered, mLabel, &QgsLayoutItemLabel::convertToStaticText );
   mInsertExpressionButton->setMenu( expressionMenu );
+
+  mFontButton->setLayer( coverageLayer() );
+  if ( mLabel->layout() )
+  {
+    connect( &mLabel->layout()->reportContext(), &QgsLayoutReportContext::layerChanged, mFontButton, &QgsFontButton::setLayer );
+  }
 }
 
 void QgsLayoutLabelWidget::setMasterLayout( QgsMasterLayoutInterface *masterLayout )
 {
   if ( mItemPropertiesWidget )
     mItemPropertiesWidget->setMasterLayout( masterLayout );
+}
+
+QgsExpressionContext QgsLayoutLabelWidget::createExpressionContext() const
+{
+  return mLabel->createExpressionContext();
 }
 
 void QgsLayoutLabelWidget::buildInsertDynamicTextMenu( QgsLayout *layout, QMenu *menu, const std::function<void ( const QString & )> &callback )
@@ -138,7 +147,7 @@ void QgsLayoutLabelWidget::buildInsertDynamicTextMenu( QgsLayout *layout, QMenu 
     QMenu *mapMenu = new QMenu( map->displayName(), mapsMenu );
     for ( const std::pair< QString, QString > &expression :
           {
-            std::make_pair( tr( "Scale (%1)" ).arg( map->scale() ), QStringLiteral( "item_variables('%1')['map_scale']" ).arg( map->id() ) ),
+            std::make_pair( tr( "Scale (%1)" ).arg( map->scale() ), QStringLiteral( "format_number(item_variables('%1')['map_scale'], places:=6, omit_group_separators:=true, trim_trailing_zeroes:=true)" ).arg( map->id() ) ),
             std::make_pair( tr( "Rotation (%1)" ).arg( map->rotation() ), QStringLiteral( "item_variables('%1')['map_rotation']" ).arg( map->id() ) ),
           } )
     {
@@ -203,7 +212,8 @@ void QgsLayoutLabelWidget::buildInsertDynamicTextMenu( QgsLayout *layout, QMenu 
         {
           std::make_pair( tr( "Layout Name" ), QStringLiteral( "@layout_name" ) ),
           std::make_pair( tr( "Layout Page Number" ), QStringLiteral( "@layout_page" ) ),
-          std::make_pair( tr( "Layout Page Count" ), QStringLiteral( "@layout_numpages" ) )
+          std::make_pair( tr( "Layout Page Count" ), QStringLiteral( "@layout_numpages" ) ),
+          std::make_pair( tr( "Layer Credits" ), QStringLiteral( "array_to_string(map_credits())" ) )
         } )
   {
     addExpression( menu, expression.first, expression.second );
@@ -288,9 +298,8 @@ void QgsLayoutLabelWidget::fontChanged()
 {
   if ( mLabel )
   {
-    QFont newFont = mFontButton->currentFont();
     mLabel->beginCommand( tr( "Change Label Font" ), QgsLayoutItem::UndoLabelFont );
-    mLabel->setFont( newFont );
+    mLabel->setTextFormat( mFontButton->textFormat() );
     mLabel->update();
     mLabel->endCommand();
   }
@@ -329,19 +338,6 @@ void QgsLayoutLabelWidget::mMarginYDoubleSpinBox_valueChanged( double d )
   }
 }
 
-void QgsLayoutLabelWidget::mFontColorButton_colorChanged( const QColor &newLabelColor )
-{
-  if ( !mLabel )
-  {
-    return;
-  }
-
-  mLabel->beginCommand( tr( "Change Label Color" ), QgsLayoutItem::UndoLabelFontColor );
-  mLabel->setFontColor( newLabelColor );
-  mLabel->update();
-  mLabel->endCommand();
-}
-
 void QgsLayoutLabelWidget::mInsertExpressionButton_clicked()
 {
   if ( !mLabel )
@@ -349,29 +345,22 @@ void QgsLayoutLabelWidget::mInsertExpressionButton_clicked()
     return;
   }
 
-  QString selText = mTextEdit->textCursor().selectedText();
-
-  // html editor replaces newlines with Paragraph Separator characters - see https://github.com/qgis/QGIS/issues/27568
-  selText = selText.replace( QChar( 0x2029 ), QChar( '\n' ) );
-
-  // edit the selected expression if there's one
-  if ( selText.startsWith( QLatin1String( "[%" ) ) && selText.endsWith( QLatin1String( "%]" ) ) )
-    selText = selText.mid( 2, selText.size() - 4 );
+  QString expression = QgsExpressionFinder::findAndSelectActiveExpression( mTextEdit );
 
   // use the atlas coverage layer, if any
   QgsVectorLayer *layer = coverageLayer();
 
   QgsExpressionContext context = mLabel->createExpressionContext();
-  QgsExpressionBuilderDialog exprDlg( layer, selText, this, QStringLiteral( "generic" ), context );
+  QgsExpressionBuilderDialog exprDlg( layer, expression, this, QStringLiteral( "generic" ), context );
 
   exprDlg.setWindowTitle( tr( "Insert Expression" ) );
   if ( exprDlg.exec() == QDialog::Accepted )
   {
-    QString expression = exprDlg.expressionText();
+    expression = exprDlg.expressionText();
     if ( !expression.isEmpty() )
     {
       mLabel->beginCommand( tr( "Insert expression" ) );
-      mTextEdit->insertPlainText( "[%" + expression + "%]" );
+      mTextEdit->insertPlainText( "[%" + expression.trimmed() + "%]" );
       mLabel->endCommand();
     }
   }
@@ -458,8 +447,7 @@ void QgsLayoutLabelWidget::setGuiElementValues()
   mJustifyRadioButton->setChecked( mLabel->hAlign() == Qt::AlignJustify );
   mCenterRadioButton->setChecked( mLabel->hAlign() == Qt::AlignHCenter );
   mRightRadioButton->setChecked( mLabel->hAlign() == Qt::AlignRight );
-  mFontColorButton->setColor( mLabel->fontColor() );
-  mFontButton->setCurrentFont( mLabel->font() );
+  mFontButton->setTextFormat( mLabel->textFormat() );
   mVerticalAlignementLabel->setDisabled( mLabel->mode() == QgsLayoutItemLabel::ModeHtml );
   mTopRadioButton->setDisabled( mLabel->mode() == QgsLayoutItemLabel::ModeHtml );
   mMiddleRadioButton->setDisabled( mLabel->mode() == QgsLayoutItemLabel::ModeHtml );
@@ -481,6 +469,5 @@ void QgsLayoutLabelWidget::blockAllSignals( bool block )
   mCenterRadioButton->blockSignals( block );
   mRightRadioButton->blockSignals( block );
   mJustifyRadioButton->blockSignals( block );
-  mFontColorButton->blockSignals( block );
   mFontButton->blockSignals( block );
 }

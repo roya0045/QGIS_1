@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsEncodingSelectionDialog
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,20 +9,20 @@ __author__ = 'Nyall Dawson'
 __date__ = '21/11/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
+
+import unittest
 
 from qgis.gui import QgsEncodingSelectionDialog
-
-from qgis.testing import start_app, unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsEncodingSelectionDialog(unittest.TestCase):
+class TestQgsEncodingSelectionDialog(QgisTestCase):
 
     def testGettersSetters(self):
         """ test dialog getters/setters """
-        dlg = qgis.gui.QgsEncodingSelectionDialog(encoding='UTF-16')
+        dlg = QgsEncodingSelectionDialog(encoding='UTF-16')
         self.assertEqual(dlg.encoding(), 'UTF-16')
         dlg.setEncoding('UTF-8')
         self.assertEqual(dlg.encoding(), 'UTF-8')

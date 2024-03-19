@@ -294,11 +294,9 @@ for %%i in (%packages%) do (
   "apps/%PACKAGENAME%/plugins/authmethod_basic.dll" ^
   "apps/%PACKAGENAME%/plugins/provider_delimitedtext.dll" ^
   "apps/%PACKAGENAME%/plugins/authmethod_esritoken.dll" ^
-  "apps/%PACKAGENAME%/plugins/provider_geonode.dll" ^
   "apps/%PACKAGENAME%/plugins/provider_gpx.dll" ^
   "apps/%PACKAGENAME%/plugins/authmethod_identcert.dll" ^
   "apps/%PACKAGENAME%/plugins/provider_mssql.dll" ^
-  "apps/%PACKAGENAME%/plugins/provider_db2.dll" ^
   "apps/%PACKAGENAME%/plugins/authmethod_pkcs12.dll" ^
   "apps/%PACKAGENAME%/plugins/authmethod_pkipaths.dll" ^
   "apps/%PACKAGENAME%/plugins/provider_postgres.dll" ^
@@ -313,6 +311,7 @@ for %%i in (%packages%) do (
   "apps/%PACKAGENAME%/plugins/provider_mdal.dll" ^
   "apps/%PACKAGENAME%/plugins/provider_hana.dll" ^
   "apps/%PACKAGENAME%/plugins/authmethod_oauth2.dll" ^
+  "apps/%PACKAGENAME%/plugins/authmethod_maptilerhmacsha256.dll" ^
 	"apps/%PACKAGENAME%/resources/qgis.db" ^
 	"apps/%PACKAGENAME%/resources/spatialite.db" ^
 	"apps/%PACKAGENAME%/resources/srs.db" ^
@@ -382,9 +381,9 @@ if not exist %ARCH%\release\qgis\%PACKAGENAME% mkdir %ARCH%\release\qgis\%PACKAG
 	"apps/%PACKAGENAME%/i18n/" ^
 	"apps/%PACKAGENAME%/icons/" ^
 	"apps/%PACKAGENAME%/images/" ^
-	"apps/%PACKAGENAME%/plugins/offlineeditingplugin.dll" ^
-	"apps/%PACKAGENAME%/plugins/topolplugin.dll" ^
-	"apps/%PACKAGENAME%/plugins/geometrycheckerplugin.dll" ^
+	"apps/%PACKAGENAME%/plugins/plugin_offlineediting.dll" ^
+	"apps/%PACKAGENAME%/plugins/plugin_topology.dll" ^
+	"apps/%PACKAGENAME%/plugins/plugin_geometrychecker.dll" ^
 	"apps/%PACKAGENAME%/qtplugins/sqldrivers/qsqlspatialite.dll" ^
 	"apps/%PACKAGENAME%/qtplugins/designer/" ^
 	"apps/%PACKAGENAME%/python/" ^
@@ -441,7 +440,7 @@ for %%g IN (%GRASS_VERSIONS%) do (
 		"apps/%PACKAGENAME%/grass/modules/qgis.g.info!v!.exe" ^
 		"apps/%PACKAGENAME%/grass/modules/qgis.r.in!v!.exe" ^
 		"apps/%PACKAGENAME%/grass/modules/qgis.v.in!v!.exe" ^
-		"apps/%PACKAGENAME%/plugins/grassplugin!v!.dll" ^
+		"apps/%PACKAGENAME%/plugins/plugin_grass!v!.dll" ^
 		"apps/%PACKAGENAME%/plugins/provider_grass!v!.dll" ^
 		"apps/%PACKAGENAME%/plugins/provider_grassraster!v!.dll" ^
 		"bin/%PACKAGENAME%-grass!v!.bat.tmpl" ^

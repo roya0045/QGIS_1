@@ -26,12 +26,15 @@
 #include "ui_qgspluginmanagerbase.h"
 #include "qgsoptionsdialogbase.h"
 #include "qgsguiutils.h"
-#include "qgshelp.h"
 #include "qgis.h"
+#include "qgssettingstree.h"
 
 class QgsPluginSortFilterProxyModel;
 class QgsPythonUtils;
 class QgsMessageBar;
+class QgsSettingsEntryBool;
+class QgsSettingsEntryVariant;
+class QgsSettingsEntryStringList;
 
 const int PLUGMAN_TAB_ALL = 0;
 const int PLUGMAN_TAB_INSTALLED = 1;
@@ -49,6 +52,19 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
 {
     Q_OBJECT
   public:
+
+    static inline QgsSettingsTreeNode *sTreePluginManager = QgsSettingsTree::treeRoot()->createChildNode( QStringLiteral( "plugin-manager" ) );
+
+    static const QgsSettingsEntryBool *settingsAutomaticallyCheckForPluginUpdates;
+    static const QgsSettingsEntryBool *settingsAllowExperimental;
+    static const QgsSettingsEntryBool *settingsAllowDeprecated;
+    static const QgsSettingsEntryVariant *settingsCheckOnStartLastDate;
+    static const QgsSettingsEntryStringList *settingsSeenPlugins;
+
+    static inline QgsSettingsTreeNode *sTreeUi = sTreePluginManager->createChildNode( QStringLiteral( "UI" ) );
+    static const QgsSettingsEntryString *settingsLastZipDirectory;
+    static const QgsSettingsEntryBool *settingsShowInstallFromZipWarning;
+
     //! Constructor; set pluginsAreEnabled to false in --noplugins mode
     QgsPluginManager( QWidget *parent = nullptr, bool pluginsAreEnabled = true, Qt::WindowFlags fl = QgsGuiUtils::ModalDialogFlags );
 
@@ -135,13 +151,11 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
 
     /**
      * Enable the Install button if selected path is valid
-     * \since QGIS 3.0
      */
     void mZipFileWidget_fileChanged( const QString &filePath );
 
     /**
      * Install plugin from ZIP file
-     * \since QGIS 3.0
      */
     void buttonInstallFromZip_clicked();
 
@@ -235,8 +249,6 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
     QMap< QString, QMap< QString, QString > > mPlugins;
 
     QString mCurrentlyDisplayedPlugin;
-
-    QList<int> mCheckingOnStartIntervals;
 
     QgsMessageBar *msgBar = nullptr;
 

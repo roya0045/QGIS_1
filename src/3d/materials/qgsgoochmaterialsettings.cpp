@@ -14,13 +14,26 @@
  ***************************************************************************/
 
 #include "qgsgoochmaterialsettings.h"
+#include "qgscolorutils.h"
 
-#include "qgssymbollayerutils.h"
-#include "qgslinematerial_p.h"
 #include <Qt3DExtras/QGoochMaterial>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <Qt3DRender/QAttribute>
 #include <Qt3DRender/QBuffer>
 #include <Qt3DRender/QGeometry>
+
+typedef Qt3DRender::QAttribute Qt3DQAttribute;
+typedef Qt3DRender::QBuffer Qt3DQBuffer;
+typedef Qt3DRender::QGeometry Qt3DQGeometry;
+#else
+#include <Qt3DCore/QAttribute>
+#include <Qt3DCore/QBuffer>
+#include <Qt3DCore/QGeometry>
+
+typedef Qt3DCore::QAttribute Qt3DQAttribute;
+typedef Qt3DCore::QBuffer Qt3DQBuffer;
+typedef Qt3DCore::QGeometry Qt3DQGeometry;
+#endif
 #include <Qt3DRender/QParameter>
 #include <Qt3DRender/QEffect>
 #include <Qt3DRender/QTechnique>
@@ -62,10 +75,10 @@ QgsGoochMaterialSettings *QgsGoochMaterialSettings::clone() const
 
 void QgsGoochMaterialSettings::readXml( const QDomElement &elem, const QgsReadWriteContext &context )
 {
-  mWarm = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "warm" ), QStringLiteral( "107,0,107" ) ) );
-  mCool = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "cool" ), QStringLiteral( "255,130,0" ) ) );
-  mDiffuse = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "diffuse" ), QStringLiteral( "178,178,178" ) ) );
-  mSpecular = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "specular" ) ) );
+  mWarm = QgsColorUtils::colorFromString( elem.attribute( QStringLiteral( "warm" ), QStringLiteral( "107,0,107" ) ) );
+  mCool = QgsColorUtils::colorFromString( elem.attribute( QStringLiteral( "cool" ), QStringLiteral( "255,130,0" ) ) );
+  mDiffuse = QgsColorUtils::colorFromString( elem.attribute( QStringLiteral( "diffuse" ), QStringLiteral( "178,178,178" ) ) );
+  mSpecular = QgsColorUtils::colorFromString( elem.attribute( QStringLiteral( "specular" ) ) );
   mShininess = elem.attribute( QStringLiteral( "shininess2" ), QStringLiteral( "100" ) ).toFloat();
   mAlpha = elem.attribute( QStringLiteral( "alpha" ), QStringLiteral( "0.25" ) ).toFloat();
   mBeta = elem.attribute( QStringLiteral( "beta" ), QStringLiteral( "0.5" ) ).toFloat();
@@ -75,10 +88,10 @@ void QgsGoochMaterialSettings::readXml( const QDomElement &elem, const QgsReadWr
 
 void QgsGoochMaterialSettings::writeXml( QDomElement &elem, const QgsReadWriteContext &context ) const
 {
-  elem.setAttribute( QStringLiteral( "warm" ), QgsSymbolLayerUtils::encodeColor( mWarm ) );
-  elem.setAttribute( QStringLiteral( "cool" ), QgsSymbolLayerUtils::encodeColor( mCool ) );
-  elem.setAttribute( QStringLiteral( "diffuse" ), QgsSymbolLayerUtils::encodeColor( mDiffuse ) );
-  elem.setAttribute( QStringLiteral( "specular" ), QgsSymbolLayerUtils::encodeColor( mSpecular ) );
+  elem.setAttribute( QStringLiteral( "warm" ), QgsColorUtils::colorToString( mWarm ) );
+  elem.setAttribute( QStringLiteral( "cool" ), QgsColorUtils::colorToString( mCool ) );
+  elem.setAttribute( QStringLiteral( "diffuse" ), QgsColorUtils::colorToString( mDiffuse ) );
+  elem.setAttribute( QStringLiteral( "specular" ), QgsColorUtils::colorToString( mSpecular ) );
   elem.setAttribute( QStringLiteral( "shininess2" ), mShininess );
   elem.setAttribute( QStringLiteral( "alpha" ), mAlpha );
   elem.setAttribute( QStringLiteral( "beta" ), mBeta );
@@ -135,10 +148,10 @@ void QgsGoochMaterialSettings::addParametersToEffect( Qt3DRender::QEffect * ) co
 QByteArray QgsGoochMaterialSettings::dataDefinedVertexColorsAsByte( const QgsExpressionContext &expressionContext ) const
 {
 
-  const QColor diffuse = dataDefinedProperties().valueAsColor( Diffuse, expressionContext, mDiffuse );
-  const QColor warm = dataDefinedProperties().valueAsColor( Warm, expressionContext, mWarm );
-  const QColor cool = dataDefinedProperties().valueAsColor( Cool, expressionContext, mCool );
-  const QColor specular = dataDefinedProperties().valueAsColor( Specular, expressionContext, mSpecular );
+  const QColor diffuse = dataDefinedProperties().valueAsColor( QgsAbstractMaterialSettings::Property::Diffuse, expressionContext, mDiffuse );
+  const QColor warm = dataDefinedProperties().valueAsColor( QgsAbstractMaterialSettings::Property::Warm, expressionContext, mWarm );
+  const QColor cool = dataDefinedProperties().valueAsColor( QgsAbstractMaterialSettings::Property::Cool, expressionContext, mCool );
+  const QColor specular = dataDefinedProperties().valueAsColor( QgsAbstractMaterialSettings::Property::Specular, expressionContext, mSpecular );
 
 
   QByteArray array;
@@ -169,38 +182,37 @@ int QgsGoochMaterialSettings::dataDefinedByteStride() const
   return 12 * sizeof( unsigned char );
 }
 
-void QgsGoochMaterialSettings::applyDataDefinedToGeometry( Qt3DRender::QGeometry *geometry, int vertexCount, const QByteArray &data ) const
+void QgsGoochMaterialSettings::applyDataDefinedToGeometry( Qt3DQGeometry *geometry, int vertexCount, const QByteArray &data ) const
 {
-  Qt3DRender::QBuffer *dataBuffer = new Qt3DRender::QBuffer( geometry );
+  Qt3DQBuffer *dataBuffer = new Qt3DQBuffer( geometry );
 
-  Qt3DRender::QAttribute *diffuseAttribute = new Qt3DRender::QAttribute( geometry );
+  Qt3DQAttribute *diffuseAttribute = new Qt3DQAttribute( geometry );
   diffuseAttribute->setName( QStringLiteral( "dataDefinedDiffuseColor" ) );
-  diffuseAttribute->setVertexBaseType( Qt3DRender::QAttribute::UnsignedByte );
+  diffuseAttribute->setVertexBaseType( Qt3DQAttribute::UnsignedByte );
   diffuseAttribute->setVertexSize( 3 );
-  diffuseAttribute->setAttributeType( Qt3DRender::QAttribute::VertexAttribute );
+  diffuseAttribute->setAttributeType( Qt3DQAttribute::VertexAttribute );
   diffuseAttribute->setBuffer( dataBuffer );
   diffuseAttribute->setByteStride( 12 * sizeof( unsigned char ) );
   diffuseAttribute->setByteOffset( 0 );
   diffuseAttribute->setCount( vertexCount );
   geometry->addAttribute( diffuseAttribute );
 
-  Qt3DRender::QAttribute *warmAttribute = new Qt3DRender::QAttribute( geometry );
+  Qt3DQAttribute *warmAttribute = new Qt3DQAttribute( geometry );
   warmAttribute->setName( QStringLiteral( "dataDefinedWarmColor" ) );
-  warmAttribute->setVertexBaseType( Qt3DRender::QAttribute::UnsignedByte );
+  warmAttribute->setVertexBaseType( Qt3DQAttribute::UnsignedByte );
   warmAttribute->setVertexSize( 3 );
-  warmAttribute->setAttributeType( Qt3DRender::QAttribute::VertexAttribute );
+  warmAttribute->setAttributeType( Qt3DQAttribute::VertexAttribute );
   warmAttribute->setBuffer( dataBuffer );
   warmAttribute->setByteStride( 12 * sizeof( unsigned char ) );
   warmAttribute->setByteOffset( 3 * sizeof( unsigned char ) );
   warmAttribute->setCount( vertexCount );
-  geometry->addAttribute( warmAttribute
-                        );
+  geometry->addAttribute( warmAttribute );
 
-  Qt3DRender::QAttribute *coolAttribute = new Qt3DRender::QAttribute( geometry );
+  Qt3DQAttribute *coolAttribute = new Qt3DQAttribute( geometry );
   coolAttribute->setName( QStringLiteral( "dataDefinedCoolColor" ) );
-  coolAttribute->setVertexBaseType( Qt3DRender::QAttribute::UnsignedByte );
+  coolAttribute->setVertexBaseType( Qt3DQAttribute::UnsignedByte );
   coolAttribute->setVertexSize( 3 );
-  coolAttribute->setAttributeType( Qt3DRender::QAttribute::VertexAttribute );
+  coolAttribute->setAttributeType( Qt3DQAttribute::VertexAttribute );
   coolAttribute->setBuffer( dataBuffer );
   coolAttribute->setByteStride( 12 * sizeof( unsigned char ) );
   coolAttribute->setByteOffset( 6 * sizeof( unsigned char ) );
@@ -208,11 +220,11 @@ void QgsGoochMaterialSettings::applyDataDefinedToGeometry( Qt3DRender::QGeometry
   geometry->addAttribute( coolAttribute );
 
 
-  Qt3DRender::QAttribute *specularAttribute = new Qt3DRender::QAttribute( geometry );
+  Qt3DQAttribute *specularAttribute = new Qt3DQAttribute( geometry );
   specularAttribute->setName( QStringLiteral( "dataDefinedSpecularColor" ) );
-  specularAttribute->setVertexBaseType( Qt3DRender::QAttribute::UnsignedByte );
+  specularAttribute->setVertexBaseType( Qt3DQAttribute::UnsignedByte );
   specularAttribute->setVertexSize( 3 );
-  specularAttribute->setAttributeType( Qt3DRender::QAttribute::VertexAttribute );
+  specularAttribute->setAttributeType( Qt3DQAttribute::VertexAttribute );
   specularAttribute->setBuffer( dataBuffer );
   specularAttribute->setByteStride( 12 * sizeof( unsigned char ) );
   specularAttribute->setByteOffset( 9 * sizeof( unsigned char ) );
@@ -243,9 +255,9 @@ Qt3DRender::QMaterial *QgsGoochMaterialSettings::dataDefinedMaterial() const
 
   //Load shader programs
   const QUrl urlVert( QStringLiteral( "qrc:/shaders/goochDataDefined.vert" ) );
-  shaderProgram->setShaderCode( Qt3DRender::QShaderProgram::Vertex, shaderProgram->loadSource( urlVert ) );
+  shaderProgram->setShaderCode( Qt3DRender::QShaderProgram::Vertex, Qt3DRender::QShaderProgram::loadSource( urlVert ) );
   const QUrl urlFrag( QStringLiteral( "qrc:/shaders/goochDataDefined.frag" ) );
-  shaderProgram->setShaderCode( Qt3DRender::QShaderProgram::Fragment, shaderProgram->loadSource( urlFrag ) );
+  shaderProgram->setShaderCode( Qt3DRender::QShaderProgram::Fragment, Qt3DRender::QShaderProgram::loadSource( urlFrag ) );
 
   renderPass->setShaderProgram( shaderProgram );
   technique->addRenderPass( renderPass );

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : DB Manager
@@ -19,15 +17,13 @@ email                : brush.tyler@gmail.com
  *                                                                         *
  ***************************************************************************/
 """
-from builtins import str
-from builtins import object
 
 from qgis.core import QgsDataSourceUri
 
 from .plugin import DbError, ConnectionError
 
 
-class DBConnector(object):
+class DBConnector:
 
     def __init__(self, uri):
         """Creates a new DB connector
@@ -188,28 +184,28 @@ class DBConnector(object):
     @classmethod
     def quoteId(self, identifier):
         if hasattr(identifier, '__iter__') and not isinstance(identifier, str):
-            return u'.'.join(
+            return '.'.join(
                 self.quoteId(i)
                 for i in identifier
                 if i is not None and i != ""
             )
 
         identifier = str(
-            identifier) if identifier is not None else str()  # make sure it's python unicode string
-        return u'"%s"' % identifier.replace('"', '""')
+            identifier) if identifier is not None else ''  # make sure it's python unicode string
+        return '"%s"' % identifier.replace('"', '""')
 
     @classmethod
     def quoteString(self, txt):
         """ make the string safe - replace ' with '' """
         if hasattr(txt, '__iter__') and not isinstance(txt, str):
-            return u'.'.join(
+            return '.'.join(
                 self.quoteString(i)
                 for i in txt
                 if i is not None
             )
 
-        txt = str(txt) if txt is not None else str()  # make sure it's python unicode string
-        return u"'%s'" % txt.replace("'", "''")
+        txt = str(txt) if txt is not None else ''  # make sure it's python unicode string
+        return "'%s'" % txt.replace("'", "''")
 
     @classmethod
     def getSchemaTableName(self, table):

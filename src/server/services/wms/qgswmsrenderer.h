@@ -20,6 +20,7 @@
 #ifndef QGSWMSRENDERER_H
 #define QGSWMSRENDERER_H
 
+#include "qgslayoutatlas.h"
 #include "qgsserversettings.h"
 #include "qgswmsparameters.h"
 #include "qgswmsrendercontext.h"
@@ -35,6 +36,7 @@ class QgsPrintLayout;
 class QgsFeature;
 class QgsLayout;
 class QgsMapLayer;
+class QgsMapRendererTask;
 class QgsMapSettings;
 class QgsPointXY;
 class QgsRasterLayer;
@@ -61,7 +63,6 @@ namespace QgsWms
    * \ingroup server
    * \class QgsWms::QgsRenderer
    * \brief Map renderer for WMS requests
-   * \since QGIS 3.0
    */
   class QgsRenderer
   {
@@ -101,10 +102,22 @@ namespace QgsWms
        * Returns the map legend as a JSON object. The caller takes the ownership
        * of the JSON object.
        * \param model The layer tree model to use for building the legend
+       * \param jsonRenderFlags The JSON export flags
        * \returns the legend as a JSON object
-       * \since QGIS 3.12
+       * \since QGIS 3.36
        */
-      QJsonObject getLegendGraphicsAsJson( QgsLayerTreeModel &model );
+      QJsonObject getLegendGraphicsAsJson( QgsLayerTreeModel &model, const Qgis::LegendJsonRenderFlags &jsonRenderFlags = Qgis::LegendJsonRenderFlags() );
+
+      /**
+       * Returns the map legend as a JSON object (or NULLPTR in case of error). The
+       * caller takes ownership of the image object.
+       * \param legendNode The legend node to use for building the legend
+       * \param jsonRenderFlags The JSON export flags
+       * \returns the legend as a JSON object
+       * \since QGIS 3.36
+       */
+      QJsonObject getLegendGraphicsAsJson( QgsLayerTreeModelLegendNode &legendNode, const Qgis::LegendJsonRenderFlags &jsonRenderFlags = Qgis::LegendJsonRenderFlags() );
+
 
       typedef QSet<QString> SymbolSet;
       typedef QHash<QgsVectorLayer *, SymbolSet> HitTest;
@@ -125,9 +138,16 @@ namespace QgsWms
       /**
        * Returns the map as DXF data
        * \returns the map as DXF data
-       * \since QGIS 3.0
       */
       std::unique_ptr<QgsDxfExport> getDxf();
+
+      /**
+       * Returns a configured pdf export task
+       * \param tmpFileName the name of the temporary file to store the pdf
+       * \returns pdf export object
+       * \since QGIS 3.36
+       */
+      std::unique_ptr<QgsMapRendererTask> getPdf( const QString &tmpFileName );
 
       /**
        * Returns printed page as binary
@@ -147,7 +167,7 @@ namespace QgsWms
       void configureLayers( QList<QgsMapLayer *> &layers, QgsMapSettings *settings = nullptr );
 
     private:
-      QgsLegendSettings legendSettings() const;
+      QgsLegendSettings legendSettings();
 
       // Build and returns highlight layers
       QList<QgsMapLayer *> highlightLayers( QList<QgsWmsParametersHighlightLayer> params );
@@ -193,7 +213,15 @@ namespace QgsWms
        * \param mandatoryCrsParam does the CRS parameter has to be considered mandatory
        * may throw an exception
        */
-      void configureMapSettings( const QPaintDevice *paintDevice, QgsMapSettings &mapSettings, bool mandatoryCrsParam = true ) const;
+      void configureMapSettings( const QPaintDevice *paintDevice, QgsMapSettings &mapSettings, bool mandatoryCrsParam = true );
+
+      /**
+       * Configures QgsRenderContext according to the WMS parameters and default settings as well as the passed painter.
+       * Used, for example, when no mapSettings are available.
+       * \param painter to create the context from
+       * \returns the renderer context with default parameters and settings of the passed painter
+       */
+      QgsRenderContext configureDefaultRenderContext( QPainter *painter = nullptr );
 
       QDomDocument featureInfoDocument( QList<QgsMapLayer *> &layers, const QgsMapSettings &mapSettings,
                                         const QImage *outputImage, const QString &version ) const;
@@ -267,6 +295,7 @@ namespace QgsWms
       bool featureInfoFromRasterLayer( QgsRasterLayer *layer,
                                        const QgsMapSettings &mapSettings,
                                        const QgsPointXY *infoPoint,
+                                       const QgsRenderContext &renderContext,
                                        QDomDocument &infoDocument,
                                        QDomElement &layerElement,
                                        const QString &version ) const;
@@ -316,10 +345,10 @@ namespace QgsWms
        * Configures the print layout for the GetPrint request
        *\param c the print layout
        *\param mapSettings the map settings
-       *\param atlasPrint true if atlas is used for printing
+       *\param atlas atlas used for printing, maybe NULL
        *\returns true in case of success
        */
-      bool configurePrintLayout( QgsPrintLayout *c, const QgsMapSettings &mapSettings, bool atlasPrint = false );
+      bool configurePrintLayout( QgsPrintLayout *c, const QgsMapSettings &mapSettings, QgsLayoutAtlas *atlas );
 
       void removeTemporaryLayers();
 
@@ -336,6 +365,9 @@ namespace QgsWms
       const QgsProject *mProject = nullptr;
       QList<QgsMapLayer *> mTemporaryLayers;
       const QgsWmsRenderContext &mContext;
+
+      //! True when temporal capabilities are activated and TIME was parsed successfully
+      bool mIsTemporal = false;
   };
 
 } // namespace QgsWms

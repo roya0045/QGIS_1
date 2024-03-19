@@ -27,10 +27,10 @@ QString QgsClipAlgorithm::name() const
   return QStringLiteral( "clip" );
 }
 
-QgsProcessingAlgorithm::Flags QgsClipAlgorithm::flags() const
+Qgis::ProcessingAlgorithmFlags QgsClipAlgorithm::flags() const
 {
-  Flags f = QgsProcessingAlgorithm::flags();
-  f |= QgsProcessingAlgorithm::FlagSupportsInPlaceEdits;
+  Qgis::ProcessingAlgorithmFlags f = QgsProcessingAlgorithm::flags();
+  f |= Qgis::ProcessingAlgorithmFlag::SupportsInPlaceEdits;
   return f;
 }
 
@@ -57,7 +57,7 @@ QString QgsClipAlgorithm::groupId() const
 void QgsClipAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ), QObject::tr( "Input layer" ) ) );
-  addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "OVERLAY" ), QObject::tr( "Overlay layer" ), QList< int >() << QgsProcessing::TypeVectorPolygon ) );
+  addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "OVERLAY" ), QObject::tr( "Overlay layer" ), QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorPolygon ) ) );
 
   addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Clipped" ) ) );
 }
@@ -96,12 +96,12 @@ QVariantMap QgsClipAlgorithm::processAlgorithm( const QVariantMap &parameters, Q
   if ( !maskSource )
     throw QgsProcessingException( invalidSourceError( parameters, QStringLiteral( "OVERLAY" ) ) );
 
-  if ( featureSource->hasSpatialIndex() == QgsFeatureSource::SpatialIndexNotPresent )
+  if ( featureSource->hasSpatialIndex() == Qgis::SpatialIndexPresence::NotPresent )
     feedback->pushWarning( QObject::tr( "No spatial index exists for input layer, performance will be severely degraded" ) );
 
   QString dest;
-  const QgsWkbTypes::GeometryType sinkType = QgsWkbTypes::geometryType( featureSource->wkbType() );
-  std::unique_ptr< QgsFeatureSink > sink( parameterAsSink( parameters, QStringLiteral( "OUTPUT" ), context, dest, featureSource->fields(), QgsWkbTypes::multiType( featureSource->wkbType() ), featureSource->sourceCrs() ) );
+  const Qgis::GeometryType sinkType = QgsWkbTypes::geometryType( featureSource->wkbType() );
+  std::unique_ptr< QgsFeatureSink > sink( parameterAsSink( parameters, QStringLiteral( "OUTPUT" ), context, dest, featureSource->fields(), QgsWkbTypes::promoteNonPointTypesToMulti( featureSource->wkbType() ), featureSource->sourceCrs() ) );
 
   if ( !sink )
     throw QgsProcessingException( invalidSinkError( parameters, QStringLiteral( "OUTPUT" ) ) );
@@ -195,7 +195,7 @@ QVariantMap QgsClipAlgorithm::processAlgorithm( const QVariantMap &parameters, Q
       {
         const QgsGeometry currentGeometry = inputFeature.geometry();
         newGeometry = combinedClipGeom.intersection( currentGeometry );
-        if ( newGeometry.wkbType() == QgsWkbTypes::Unknown || QgsWkbTypes::flatType( newGeometry.wkbType() ) == QgsWkbTypes::GeometryCollection )
+        if ( newGeometry.wkbType() == Qgis::WkbType::Unknown || QgsWkbTypes::flatType( newGeometry.wkbType() ) == Qgis::WkbType::GeometryCollection )
         {
           const QgsGeometry intCom = inputFeature.geometry().combine( newGeometry );
           const QgsGeometry intSym = inputFeature.geometry().symDifference( newGeometry );
@@ -208,7 +208,7 @@ QVariantMap QgsClipAlgorithm::processAlgorithm( const QVariantMap &parameters, Q
         newGeometry = inputFeature.geometry();
       }
 
-      if ( !QgsOverlayUtils::sanitizeIntersectionResult( newGeometry, sinkType ) )
+      if ( !QgsOverlayUtils::sanitizeIntersectionResult( newGeometry, sinkType, QgsOverlayUtils::SanitizeFlag::DontPromotePointGeometryToMultiPoint ) )
         continue;
 
       QgsFeature outputFeature;

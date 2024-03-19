@@ -68,7 +68,7 @@ QgsArrayTranslatedFeaturesAlgorithm *QgsArrayTranslatedFeaturesAlgorithm::create
 void QgsArrayTranslatedFeaturesAlgorithm::initParameters( const QVariantMap & )
 {
   std::unique_ptr< QgsProcessingParameterNumber > count = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "COUNT" ),
-      QObject::tr( "Number of features to create" ), QgsProcessingParameterNumber::Integer,
+      QObject::tr( "Number of features to create" ), Qgis::ProcessingNumberParameterType::Integer,
       10, false, 1 );
   count->setIsDynamic( true );
   count->setDynamicPropertyDefinition( QgsPropertyDefinition( QStringLiteral( "COUNT" ), QObject::tr( "Number of features to create" ), QgsPropertyDefinition::IntegerPositiveGreaterZero ) );
@@ -92,7 +92,7 @@ void QgsArrayTranslatedFeaturesAlgorithm::initParameters( const QVariantMap & )
   addParameter( yOffset.release() );
 
   std::unique_ptr< QgsProcessingParameterNumber > zOffset = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "DELTA_Z" ),
-      QObject::tr( "Step distance (z-axis)" ), QgsProcessingParameterNumber::Double,
+      QObject::tr( "Step distance (z-axis)" ), Qgis::ProcessingNumberParameterType::Double,
       0.0 );
   zOffset->setIsDynamic( true );
   zOffset->setDynamicPropertyDefinition( QgsPropertyDefinition( QStringLiteral( "DELTA_Z" ), QObject::tr( "Offset distance (z-axis)" ), QgsPropertyDefinition::Double ) );
@@ -100,7 +100,7 @@ void QgsArrayTranslatedFeaturesAlgorithm::initParameters( const QVariantMap & )
   addParameter( zOffset.release() );
 
   std::unique_ptr< QgsProcessingParameterNumber > mOffset = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "DELTA_M" ),
-      QObject::tr( "Step distance (m values)" ), QgsProcessingParameterNumber::Double,
+      QObject::tr( "Step distance (m values)" ), Qgis::ProcessingNumberParameterType::Double,
       0.0 );
   mOffset->setIsDynamic( true );
   mOffset->setDynamicPropertyDefinition( QgsPropertyDefinition( QStringLiteral( "DELTA_M" ), QObject::tr( "Offset distance (m values)" ), QgsPropertyDefinition::Double ) );
@@ -199,9 +199,9 @@ QgsFeatureList QgsArrayTranslatedFeaturesAlgorithm::processFeature( const QgsFea
   return result;
 }
 
-QgsWkbTypes::Type QgsArrayTranslatedFeaturesAlgorithm::outputWkbType( QgsWkbTypes::Type inputWkbType ) const
+Qgis::WkbType QgsArrayTranslatedFeaturesAlgorithm::outputWkbType( Qgis::WkbType inputWkbType ) const
 {
-  QgsWkbTypes::Type wkb = inputWkbType;
+  Qgis::WkbType wkb = inputWkbType;
   if ( mDeltaZ != 0 )
     wkb = QgsWkbTypes::addZ( wkb );
   if ( mDeltaM != 0 )
@@ -211,9 +211,9 @@ QgsWkbTypes::Type QgsArrayTranslatedFeaturesAlgorithm::outputWkbType( QgsWkbType
 
 QgsFields QgsArrayTranslatedFeaturesAlgorithm::outputFields( const QgsFields &inputFields ) const
 {
-  QgsFields output = inputFields;
+  QgsFields output;
   output.append( QgsField( QStringLiteral( "instance" ), QVariant::Int ) );
-  return output;
+  return QgsProcessingUtils::combineFields( inputFields, output );
 }
 
 QgsFeatureSink::SinkFlags QgsArrayTranslatedFeaturesAlgorithm::sinkFlags() const

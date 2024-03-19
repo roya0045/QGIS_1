@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsRelation.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,20 +9,21 @@ __author__ = 'Matthias Kuhn'
 __date__ = '07/10/2013'
 __copyright__ = 'Copyright 2013, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (QgsVectorLayer,
-                       QgsFeature,
-                       QgsRelation,
-                       QgsGeometry,
-                       QgsPointXY,
-                       QgsAttributeEditorElement,
-                       QgsAttributeEditorRelation,
-                       QgsProject
-                       )
-from utilities import unitTestDataPath
-from qgis.testing import start_app, unittest
 import os
+
+from qgis.core import (
+    QgsAttributeEditorElement,
+    QgsFeature,
+    QgsGeometry,
+    QgsPointXY,
+    QgsProject,
+    QgsRelation,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
+from utilities import unitTestDataPath
 
 start_app()
 
@@ -73,7 +73,7 @@ def formatAttributes(attrs):
     return repr([str(a) for a in attrs])
 
 
-class TestQgsRelation(unittest.TestCase):
+class TestQgsRelation(QgisTestCase):
 
     def setUp(self):
         self.referencedLayer = createReferencedLayer()
@@ -86,21 +86,35 @@ class TestQgsRelation(unittest.TestCase):
     def test_isValid(self):
         rel = QgsRelation()
         self.assertFalse(rel.isValid())
+        self.assertEqual(rel.validationError(), 'Referencing layer not set')
 
         rel.setId('rel1')
         self.assertFalse(rel.isValid())
+        self.assertEqual(rel.validationError(), 'Referencing layer not set')
 
         rel.setName('Relation Number One')
         self.assertFalse(rel.isValid())
+        self.assertEqual(rel.validationError(), 'Referencing layer not set')
+
+        rel.setReferencingLayer('xxx')
+        self.assertFalse(rel.isValid())
+        self.assertEqual(rel.validationError(), 'Referencing layer xxx does not exist')
 
         rel.setReferencingLayer(self.referencingLayer.id())
         self.assertFalse(rel.isValid())
+        self.assertEqual(rel.validationError(), 'Referenced layer not set')
+
+        rel.setReferencedLayer('yyy')
+        self.assertFalse(rel.isValid())
+        self.assertEqual(rel.validationError(), 'Referenced layer yyy does not exist')
 
         rel.setReferencedLayer(self.referencedLayer.id())
         self.assertFalse(rel.isValid())
+        self.assertEqual(rel.validationError(), 'No fields specified for relationship')
 
         rel.addFieldPair('foreignkey', 'y')
         self.assertTrue(rel.isValid())
+        self.assertEqual(rel.validationError(), '')
 
     def test_getRelatedFeatures(self):
         rel = QgsRelation()
@@ -191,11 +205,21 @@ class TestQgsRelation(unittest.TestCase):
         self.assertEqual(len(referencedLayer.editFormConfig().tabs()[0].children()), 7)
         for tab in referencedLayer.editFormConfig().tabs():
             for t in tab.children():
-                if (t.type() == QgsAttributeEditorElement.AeTypeRelation):
+                if (t.type() == QgsAttributeEditorElement.AttributeEditorType.AeTypeRelation):
                     valid = t.relation().isValid()
         self.assertTrue(valid)
 
         # update style
+        # Note: the project is re-read because of a subtle bug with bindings involving
+        # QgsOptionalExpression mCollapsedExpressionv that makes the tab loose the information
+        # about the children. The issue couldn't be reproduced when the test is run from QGIS
+        # console and the new test testqgsrelation.cpp now covers this behavior without reloading
+        # the project.
+        self.assertTrue(p.read(myPath))
+        relations = QgsProject.instance().relationManager().relations()
+        relation = relations[list(relations.keys())[0]]
+        referencedLayer = relation.referencedLayer()
+
         referencedLayer.styleManager().setCurrentStyle("custom")
 
         for l in p.mapLayers().values():
@@ -208,7 +232,7 @@ class TestQgsRelation(unittest.TestCase):
         valid = False
         for tab in referencedLayer.editFormConfig().tabs():
             for t in tab.children():
-                if (t.type() == QgsAttributeEditorElement.AeTypeRelation):
+                if (t.type() == QgsAttributeEditorElement.AttributeEditorType.AeTypeRelation):
                     valid = t.relation().isValid()
         self.assertTrue(valid)
 

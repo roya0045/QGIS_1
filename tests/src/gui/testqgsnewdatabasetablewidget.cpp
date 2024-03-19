@@ -76,7 +76,7 @@ void TestQgsNewDatabaseTableNameWidget::initTestCase()
   const QMap<QString, QVariant> options { { QStringLiteral( "layerName" ), QString( "test_layer" ) } };
   QVERIFY( md->createEmptyLayer( mGpkgPath,
                                  QgsFields(),
-                                 QgsWkbTypes::Type::Point,
+                                 Qgis::WkbType::Point,
                                  QgsCoordinateReferenceSystem::fromEpsgId( 4326 ),
                                  true,
                                  m,
@@ -132,7 +132,7 @@ void TestQgsNewDatabaseTableNameWidget::testWidgetSignalsPostgres()
 
   index = w->mBrowserProxyModel.mapToSource( w->mBrowserProxyModel.index( 0, 0 ) );
   QVERIFY( index.isValid() );
-  QCOMPARE( w->mBrowserModel->data( index, Qt::DisplayRole ).toString(), QString( "PostGIS" ) );
+  QCOMPARE( w->mBrowserModel->data( index, Qt::DisplayRole ).toString(), QString( "PostgreSQL" ) );
   QRect rect = w->mBrowserTreeView->visualRect( w->mBrowserProxyModel.mapFromSource( index ) );
   QVERIFY( rect.isValid() );
   QTest::mouseClick( w->mBrowserTreeView->viewport(), Qt::LeftButton, Qt::KeyboardModifiers(), rect.topLeft() );

@@ -21,6 +21,7 @@
 #include <limits>
 
 #include <expat.h>
+#include <QDateTime>
 #include <QString>
 #include <QTextStream>
 #include <QStack>
@@ -92,6 +93,7 @@ class QgsWaypoint : public QgsGpsPoint
   public:
     void writeXml( QTextStream &stream ) override;
     QgsFeatureId id;
+    QDateTime time;
 };
 
 
@@ -284,11 +286,7 @@ class QgsGpsData
     static DataMap sDataObjects;
 
     //! Mutex for sDataObjects
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    static QMutex sDataObjectsMutex;
-#else
     static QRecursiveMutex sDataObjectsMutex;
-#endif
 
 };
 
@@ -348,6 +346,7 @@ class QgsGPXHandler
       ParsingDouble,
       ParsingInt,
       ParsingString,
+      ParsingDateTime,
       ParsingUnknown
     };
 
@@ -365,6 +364,7 @@ class QgsGPXHandler
     QString *mString = nullptr;
     double *mDouble = nullptr;
     int *mInt = nullptr;
+    QDateTime *mDateTime = nullptr;
     QString mCharBuffer;
 };
 

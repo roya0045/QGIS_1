@@ -40,9 +40,12 @@ QgsOgrSourceSelect::QgsOgrSourceSelect( QWidget *parent, Qt::WindowFlags fl, Qgs
   : QgsAbstractDataSourceWidget( parent, fl, widgetMode )
 {
   setupUi( this );
-  QgsGui::instance()->enableAutoGeometryRestore( this );
+  QgsGui::enableAutoGeometryRestore( this );
+
+  mOpenOptionsGroupBox->setCollapsed( false );
 
   connect( radioSrcFile, &QRadioButton::toggled, this, &QgsOgrSourceSelect::radioSrcFile_toggled );
+  connect( radioSrcOgcApi, &QRadioButton::toggled, this, &QgsOgrSourceSelect::radioSrcOgcApi_toggled );
   connect( radioSrcDirectory, &QRadioButton::toggled, this, &QgsOgrSourceSelect::radioSrcDirectory_toggled );
   connect( radioSrcDatabase, &QRadioButton::toggled, this, &QgsOgrSourceSelect::radioSrcDatabase_toggled );
   connect( radioSrcProtocol, &QRadioButton::toggled, this, &QgsOgrSourceSelect::radioSrcProtocol_toggled );
@@ -72,14 +75,13 @@ QgsOgrSourceSelect::QgsOgrSourceSelect( QWidget *parent, Qt::WindowFlags fl, Qgs
   cmbEncodings->setCurrentIndex( 0 );
 
   //add database drivers
-  mVectorFileFilter = QgsProviderRegistry::instance()->fileVectorFilters();
   QgsDebugMsgLevel( "Database drivers :" + QgsProviderRegistry::instance()->databaseDrivers(), 2 );
   QStringList dbDrivers = QgsProviderRegistry::instance()->databaseDrivers().split( ';' );
 
   for ( int i = 0; i < dbDrivers.count(); i++ )
   {
     QString dbDriver = dbDrivers.at( i );
-    if ( ( !dbDriver.isEmpty() ) && ( !dbDriver.isNull() ) )
+    if ( !dbDriver.isEmpty() )
       cmbDatabaseTypes->addItem( dbDriver.split( ',' ).at( 0 ) );
   }
 
@@ -88,18 +90,18 @@ QgsOgrSourceSelect::QgsOgrSourceSelect( QWidget *parent, Qt::WindowFlags fl, Qgs
   for ( int i = 0; i < dirDrivers.count(); i++ )
   {
     QString dirDriver = dirDrivers.at( i );
-    if ( ( !dirDriver.isEmpty() ) && ( !dirDriver.isNull() ) )
+    if ( !dirDriver.isEmpty() )
       cmbDirectoryTypes->addItem( dirDriver.split( ',' ).at( 0 ) );
   }
 
   //add protocol drivers
   QStringList protocolTypes = QStringLiteral( "HTTP/HTTPS/FTP,vsicurl;AWS S3,vsis3;Google Cloud Storage,vsigs;" ).split( ';' );
-  protocolTypes += QStringLiteral( "Microsoft Azure Blob,vsiaz;Alibaba Cloud OSS,vsioss;OpenStack Swift Object Storage,vsiswift;WFS3 (experimental),WFS3" ).split( ';' );
+  protocolTypes += QStringLiteral( "Microsoft Azure Blob,vsiaz;Microsoft Azure Data Lake Storage,vsiadls;Alibaba Cloud OSS,vsioss;OpenStack Swift Object Storage,vsiswift;WFS3 (experimental),WFS3" ).split( ';' );
   protocolTypes += QgsProviderRegistry::instance()->protocolDrivers().split( ';' );
   for ( int i = 0; i < protocolTypes.count(); i++ )
   {
     QString protocolType = protocolTypes.at( i );
-    if ( ( !protocolType.isEmpty() ) && ( !protocolType.isNull() ) )
+    if ( !protocolType.isEmpty() )
       cmbProtocolTypes->addItem( protocolType.split( ',' ).at( 0 ) );
   }
   cmbDatabaseTypes->blockSignals( false );
@@ -108,6 +110,7 @@ QgsOgrSourceSelect::QgsOgrSourceSelect( QWidget *parent, Qt::WindowFlags fl, Qgs
   mAuthWarning->setText( tr( " Additional credential options are required as documented <a href=\"%1\">here</a>." ).arg( QLatin1String( "http://gdal.org/gdal_virtual_file_systems.html#gdal_virtual_file_systems_network" ) ) );
 
   mFileWidget->setDialogTitle( tr( "Open OGR Supported Vector Dataset(s)" ) );
+  mVectorFileFilter = QgsProviderRegistry::instance()->fileVectorFilters();
   mFileWidget->setFilter( mVectorFileFilter );
   mFileWidget->setStorageMode( QgsFileWidget::GetMultipleFiles );
   mFileWidget->setOptions( QFileDialog::HideNameFilterDetails );
@@ -115,7 +118,7 @@ QgsOgrSourceSelect::QgsOgrSourceSelect( QWidget *parent, Qt::WindowFlags fl, Qgs
   connect( mFileWidget, &QgsFileWidget::fileChanged, this, [ = ]( const QString & path )
   {
     mVectorPath = path;
-    if ( radioSrcFile->isChecked() || radioSrcDirectory->isChecked() )
+    if ( radioSrcFile->isChecked() || radioSrcDirectory->isChecked() || radioSrcOgcApi->isChecked() )
       emit enableButtons( ! mVectorPath.isEmpty() );
     fillOpenOptions();
   } );
@@ -164,13 +167,14 @@ bool QgsOgrSourceSelect::isProtocolCloudType()
   return ( cmbProtocolTypes->currentText() == QLatin1String( "AWS S3" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "Google Cloud Storage" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "Microsoft Azure Blob" ) ||
+           cmbProtocolTypes->currentText() == QLatin1String( "Microsoft Azure Data Lake Storage" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "Alibaba Cloud OSS" ) ||
            cmbProtocolTypes->currentText() == QLatin1String( "OpenStack Swift Object Storage" ) );
 }
 
 void QgsOgrSourceSelect::addNewConnection()
 {
-  QgsNewOgrConnection *nc = new QgsNewOgrConnection( this );
+  QgsNewOgrConnection *nc = new QgsNewOgrConnection( this, cmbDatabaseTypes->currentText() );
   nc->exec();
   delete nc;
 
@@ -440,10 +444,16 @@ void QgsOgrSourceSelect::computeDataSources( bool interactive )
                                      mAuthSettingsProtocol->password() ) );
     mDataSources << QgsProviderRegistry::instance()->encodeUri( QStringLiteral( "ogr" ), parts );
   }
-  else if ( radioSrcFile->isChecked() )
+  else if ( radioSrcFile->isChecked() || radioSrcOgcApi->isChecked() )
   {
     if ( mVectorPath.isEmpty() )
     {
+      if ( mIsOgcApi )
+      {
+        mDataSources.push_back( QStringLiteral( "OGCAPI:" ) );
+        return;
+      }
+
       if ( interactive )
       {
         QMessageBox::information( this,
@@ -458,7 +468,7 @@ void QgsOgrSourceSelect::computeDataSources( bool interactive )
       QVariantMap parts;
       if ( !openOptions.isEmpty() )
         parts.insert( QStringLiteral( "openOptions" ), openOptions );
-      parts.insert( QStringLiteral( "path" ), filePath );
+      parts.insert( QStringLiteral( "path" ), mIsOgcApi ? QStringLiteral( "OGCAPI:%1" ).arg( filePath ) : filePath );
       mDataSources << QgsProviderRegistry::instance()->encodeUri( QStringLiteral( "ogr" ), parts );
     }
   }
@@ -523,6 +533,23 @@ void QgsOgrSourceSelect::radioSrcFile_toggled( bool checked )
     mDataSourceType = QStringLiteral( "file" );
 
     emit enableButtons( ! mFileWidget->filePath().isEmpty() );
+  }
+}
+
+void QgsOgrSourceSelect::radioSrcOgcApi_toggled( bool checked )
+{
+  mIsOgcApi = checked;
+  radioSrcFile_toggled( checked );
+  if ( checked )
+  {
+    labelSrcDataset->setText( tr( "OGC API Endpoint" ) );
+    mVectorPath = mFileWidget->filePath();
+    emit enableButtons( ! mVectorPath.isEmpty() );
+    fillOpenOptions();
+  }
+  else
+  {
+    labelSrcDataset->setText( tr( "Vector Dataset(s)" ) );
   }
 }
 
@@ -627,6 +654,43 @@ void QgsOgrSourceSelect::showHelp()
   QgsHelp::openHelp( QStringLiteral( "managing_data_source/opening_data.html#loading-a-layer-from-a-file" ) );
 }
 
+bool QgsOgrSourceSelect::configureFromUri( const QString &uri )
+{
+  mDataSources.clear();
+  mDataSources.append( uri );
+  const QVariantMap decodedUri = QgsProviderRegistry::instance()->decodeUri( QStringLiteral( "ogr" ), uri );
+  mFileWidget->setFilePath( decodedUri.value( QStringLiteral( "path" ), QString() ).toString() );
+  const QVariantMap openOptions = decodedUri.value( QStringLiteral( "openOptions" ) ).toMap();
+  if ( ! openOptions.isEmpty() )
+  {
+    for ( auto opt = openOptions.constBegin(); opt != openOptions.constEnd(); ++opt )
+    {
+      const auto widget { std::find_if( mOpenOptionsWidgets.cbegin(), mOpenOptionsWidgets.cend(), [ = ]( QWidget * widget )
+      {
+        return widget->objectName() == opt.key();
+      } ) };
+
+      if ( widget != mOpenOptionsWidgets.cend() )
+      {
+        if ( auto cb = qobject_cast<QComboBox *>( *widget ) )
+        {
+          const auto idx { cb->findText( opt.value().toString() ) };
+          if ( idx >= 0 )
+          {
+            cb->setCurrentIndex( idx );
+          }
+        }
+        else if ( auto le = qobject_cast<QLineEdit *>( *widget ) )
+        {
+          le->setText( opt.value().toString() );
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 void QgsOgrSourceSelect::clearOpenOptions()
 {
   mOpenOptionsWidgets.clear();
@@ -691,6 +755,11 @@ void QgsOgrSourceSelect::fillOpenOptions()
          !EQUAL( pszOptionName, "PRELUDE_STATEMENTS" ) )
       continue;
 
+    // The NOLOCK option is automatically set by the OGR provider. Do not
+    // expose it
+    if ( bIsGPKG && EQUAL( pszOptionName, "NOLOCK" ) )
+      continue;
+
     // Do not list database options already asked in the database dialog
     if ( radioSrcDatabase->isChecked() &&
          ( EQUAL( pszOptionName, "USER" ) ||
@@ -703,6 +772,12 @@ void QgsOgrSourceSelect::fillOpenOptions()
     {
       continue;
     }
+
+    // QGIS data model doesn't support the OGRFeature native data concept
+    // (typically used for GeoJSON "foreign" members). Hide it to avoid setting
+    // wrong expectations to users (https://github.com/qgis/QGIS/issues/48004)
+    if ( EQUAL( pszOptionName, "NATIVE_DATA" ) )
+      continue;
 
     const char *pszType = CPLGetXMLValue( psItem, "type", nullptr );
     QStringList options;

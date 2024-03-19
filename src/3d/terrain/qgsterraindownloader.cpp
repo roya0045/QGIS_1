@@ -15,9 +15,10 @@
 
 #include "qgsterraindownloader.h"
 
+#include "qgs3dutils.h"
 #include "qgslogger.h"
 #include "qgsrasterlayer.h"
-
+#include "qgscoordinatetransform.h"
 #include "qgsgdalutils.h"
 
 
@@ -28,7 +29,8 @@ QgsTerrainDownloader::QgsTerrainDownloader( const QgsCoordinateTransformContext 
   // the whole world is projected to a square:
   // X going from 180 W to 180 E
   // Y going from ~85 N to ~85 S  (=atan(sinh(pi)) ... to get a square)
-  const QgsCoordinateTransform ct( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:4326" ) ), QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3857" ) ), transformContext );
+  QgsCoordinateTransform ct( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:4326" ) ), QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3857" ) ), transformContext );
+  ct.setBallparkTransformsAreAppropriate( true );
   const QgsPointXY topLeftLonLat( -180, 180.0 / M_PI * std::atan( std::sinh( M_PI ) ) );
   const QgsPointXY bottomRightLonLat( 180, 180.0 / M_PI * std::atan( std::sinh( -M_PI ) ) );
   const QgsPointXY topLeft = ct.transform( topLeftLonLat );
@@ -74,7 +76,7 @@ void QgsTerrainDownloader::adjustExtentAndResolution( double mupp, const QgsRect
 }
 
 
-double QgsTerrainDownloader::findBestTileResolution( double requestedMupp )
+double QgsTerrainDownloader::findBestTileResolution( double requestedMupp ) const
 {
   int zoom = 0;
   for ( ; zoom <= 15; ++zoom )
@@ -120,18 +122,11 @@ QByteArray QgsTerrainDownloader::getHeightMap( const QgsRectangle &extentOrig, i
 {
   if ( !mOnlineDtm || !mOnlineDtm->isValid() )
   {
-    QgsDebugMsg( "missing a valid data source" );
+    QgsDebugError( "missing a valid data source" );
     return QByteArray();
   }
 
-  QgsRectangle extentTr = extentOrig;
-  if ( destCrs != mOnlineDtm->crs() )
-  {
-    // if in different CRS - need to reproject extent and resolution
-    const QgsCoordinateTransform ct( destCrs, mOnlineDtm->crs(), context );
-    extentTr = ct.transformBoundingBox( extentOrig );
-  }
-
+  QgsRectangle extentTr = Qgs3DUtils::tryReprojectExtent2D( extentOrig, destCrs, mOnlineDtm->crs(), context );
   const double requestedMupp = extentTr.width() / res;
   const double finalMupp = findBestTileResolution( requestedMupp );
 
@@ -165,14 +160,14 @@ QByteArray QgsTerrainDownloader::getHeightMap( const QgsRectangle &extentOrig, i
 
   if ( !hSrcDS || !hDstDS )
   {
-    QgsDebugMsg( "failed to create GDAL dataset for heightmap" );
+    QgsDebugError( "failed to create GDAL dataset for heightmap" );
     return QByteArray();
   }
 
   const CPLErr err = GDALRasterIO( GDALGetRasterBand( hSrcDS.get(), 1 ), GF_Write, 0, 0, res, res, heightMap.data(), res, res, GDT_Float32, 0, 0 );
   if ( err != CE_None )
   {
-    QgsDebugMsg( "failed to write heightmap data to GDAL dataset" );
+    QgsDebugError( "failed to write heightmap data to GDAL dataset" );
     return QByteArray();
   }
 
@@ -189,7 +184,7 @@ QByteArray QgsTerrainDownloader::getHeightMap( const QgsRectangle &extentOrig, i
   const CPLErr err2 = GDALRasterIO( GDALGetRasterBand( hDstDS.get(), 1 ), GF_Read, 0, 0, resOrig, resOrig, data, resOrig, resOrig, GDT_Float32, 0, 0 );
   if ( err2 != CE_None )
   {
-    QgsDebugMsg( "failed to read heightmap data from GDAL dataset" );
+    QgsDebugError( "failed to read heightmap data from GDAL dataset" );
     return QByteArray();
   }
 

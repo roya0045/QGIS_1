@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for the DBManager GPKG plugin
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,19 +9,17 @@ __author__ = 'Even Rouault'
 __date__ = '2016-10-17'
 __copyright__ = 'Copyright 2016, Even Rouault'
 
-import qgis  # NOQA
-
 import os
-import tempfile
 import shutil
+import tempfile
+
 from osgeo import gdal, ogr, osr
-
-from qgis.core import QgsDataSourceUri, QgsSettings
-from qgis.PyQt.QtCore import QCoreApplication
-from qgis.testing import start_app, unittest
-
-from plugins.db_manager.db_plugins import supportedDbTypes, createDbPlugin
+from plugins.db_manager.db_plugins import createDbPlugin, supportedDbTypes
 from plugins.db_manager.db_plugins.plugin import TableField
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import QgsDataSourceUri, QgsSettings
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -31,11 +28,12 @@ def GDAL_COMPUTE_VERSION(maj, min, rev):
     return ((maj) * 1000000 + (min) * 10000 + (rev) * 100)
 
 
-class TestPyQgsDBManagerGpkg(unittest.TestCase):
+class TestPyQgsDBManagerGpkg(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestPyQgsDBManagerGpkg.com")
@@ -60,6 +58,7 @@ class TestPyQgsDBManagerGpkg(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Run after all tests"""
+        super().tearDownClass()
 
         QgsSettings().clear()
         shutil.rmtree(cls.basetestpath, True)
@@ -220,7 +219,11 @@ class TestPyQgsDBManagerGpkg(unittest.TestCase):
         uri = QgsDataSourceUri()
 
         test_gpkg_new = os.path.join(self.basetestpath, 'testCreateRenameDeleteFields.gpkg')
-        shutil.copy(self.test_gpkg, test_gpkg_new)
+
+        ds = ogr.GetDriverByName('GPKG').CreateDataSource(test_gpkg_new)
+        lyr = ds.CreateLayer('testLayer', geom_type=ogr.wkbLineString, options=['SPATIAL_INDEX=NO'])
+        lyr.CreateField(ogr.FieldDefn('text_field', ogr.OFTString))
+        del ds
 
         uri.setDatabase(test_gpkg_new)
         self.assertTrue(plugin.addConnection(connection_name, uri))
@@ -453,7 +456,7 @@ class TestPyQgsDBManagerGpkg(unittest.TestCase):
         connection = createDbPlugin('gpkg', connectionName)
         connection.connect()
         db = connection.database()
-        res = db.connector._execute(None, "SELECT St_area({}) from foo".format(db.tables()[0].fields()[1].name))
+        res = db.connector._execute(None, f"SELECT St_area({db.tables()[0].fields()[1].name}) from foo")
         results = [row for row in res]
         self.assertEqual(results,
                          [(215229.265625,), (247328.171875,), (261752.78125,), (547597.2109375,), (15775.7578125,),

@@ -93,7 +93,7 @@ QgsProcessingDxfLayersPanelWidget::QgsProcessingDxfLayersPanelWidget(
     seenVectorLayers.insert( layer.layer() );
   }
 
-  const QList<QgsVectorLayer *> options = QgsProcessingUtils::compatibleVectorLayers( project, QList< int >() );
+  const QList<QgsVectorLayer *> options = QgsProcessingUtils::compatibleVectorLayers( project, QList< int >() << static_cast<int>( Qgis::ProcessingSourceType::VectorAnyGeometry ) );
   for ( const QgsVectorLayer *layer : options )
   {
     if ( seenVectorLayers.contains( layer ) )
@@ -246,7 +246,7 @@ void QgsProcessingDxfLayersWidget::showDialog()
 
 void QgsProcessingDxfLayersWidget::updateSummaryText()
 {
-  mLineEdit->setText( tr( "%1 vector layers selected" ).arg( mValue.count() ) );
+  mLineEdit->setText( tr( "%n vector layer(s) selected", nullptr, mValue.count() ) );
 }
 
 

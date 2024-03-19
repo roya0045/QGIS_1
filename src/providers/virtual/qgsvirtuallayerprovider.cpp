@@ -20,8 +20,6 @@ extern "C"
 #include <spatialite.h>
 }
 
-#include <QUrl>
-
 #include <stdexcept>
 
 #include "qgsvirtuallayerprovider.h"
@@ -30,28 +28,20 @@ extern "C"
 #include "qgsvectorlayer.h"
 #include "qgsproject.h"
 #include "qgslogger.h"
-#include "qgsapplication.h"
 
 #include "qgsvirtuallayerprovider.h"
 #include "qgsvirtuallayersqlitemodule.h"
 #include "qgsvirtuallayerqueryparser.h"
+#include "qgsapplication.h"
 
-#ifdef HAVE_GUI
-#include "qgssourceselectprovider.h"
-#include "qgsvirtuallayersourceselect.h"
-#endif
+#include <QUrl>
+#include <QUrlQuery>
 
-const QString VIRTUAL_LAYER_KEY = QStringLiteral( "virtual" );
-const QString VIRTUAL_LAYER_DESCRIPTION = QStringLiteral( "Virtual layer data provider" );
+const QString QgsVirtualLayerProvider::VIRTUAL_LAYER_KEY = QStringLiteral( "virtual" );
+const QString QgsVirtualLayerProvider::VIRTUAL_LAYER_DESCRIPTION = QStringLiteral( "Virtual layer data provider" );
+const QString QgsVirtualLayerProvider::VIRTUAL_LAYER_QUERY_VIEW = QStringLiteral( "_query" );
 
-const QString VIRTUAL_LAYER_QUERY_VIEW = QStringLiteral( "_query" );
-
-static QString quotedColumn( QString name )
-{
-  return "\"" + name.replace( QLatin1String( "\"" ), QLatin1String( "\"\"" ) ) + "\"";
-}
-
-#define PROVIDER_ERROR( msg ) do { mError = QgsError( msg, VIRTUAL_LAYER_KEY ); QgsDebugMsg( msg ); } while(0)
+#define PROVIDER_ERROR( msg ) do { mError = QgsError( msg, QgsVirtualLayerProvider::VIRTUAL_LAYER_KEY ); QgsDebugError( msg ); } while(0)
 
 
 QgsVirtualLayerProvider::QgsVirtualLayerProvider( QString const &uri,
@@ -60,6 +50,7 @@ QgsVirtualLayerProvider::QgsVirtualLayerProvider( QString const &uri,
   : QgsVectorDataProvider( uri, options, flags )
 {
   mError.clear();
+  mExtent.setNull(); // ideally not needed
 
   const QUrl url = QUrl::fromEncoded( uri.toUtf8() );
   if ( !url.isValid() )
@@ -127,7 +118,7 @@ bool QgsVirtualLayerProvider::loadSourceLayers()
         PROVIDER_ERROR( QString( "Cannot find layer %1" ).arg( layer.reference() ) );
         return false;
       }
-      if ( l->type() != QgsMapLayerType::VectorLayer )
+      if ( l->type() != Qgis::LayerType::Vector )
       {
         PROVIDER_ERROR( QString( "Layer %1 is not a vector layer" ).arg( layer.reference() ) );
         return false;
@@ -256,7 +247,7 @@ bool QgsVirtualLayerProvider::createIt()
       const auto constMapLayers = QgsProject::instance()->mapLayers();
       for ( const QgsMapLayer *l : constMapLayers )
       {
-        if ( l->type() != QgsMapLayerType::VectorLayer )
+        if ( l->type() != Qgis::LayerType::Vector )
           continue;
 
         const QgsVectorLayer *vl = static_cast<const QgsVectorLayer *>( l );
@@ -299,7 +290,7 @@ bool QgsVirtualLayerProvider::createIt()
   resetSqlite();
   initVirtualLayerMetadata( mSqlite.get() );
 
-  const bool noGeometry = mDefinition.geometryWkbType() == QgsWkbTypes::NoGeometry;
+  const bool noGeometry = mDefinition.geometryWkbType() == Qgis::WkbType::NoGeometry;
 
   // load source layers (and populate mLayers)
   if ( !loadSourceLayers() )
@@ -469,7 +460,7 @@ bool QgsVirtualLayerProvider::createIt()
 
 void QgsVirtualLayerProvider::createVirtualTable( QgsVectorLayer *vlayer, const QString &vname )
 {
-  const QString createStr = QStringLiteral( "DROP TABLE IF EXISTS \"%1\"; CREATE VIRTUAL TABLE \"%1\" USING QgsVLayer(%2);" ).arg( vname, vlayer->id() );
+  const QString createStr = QStringLiteral( "DROP TABLE IF EXISTS \"%1\"; CREATE VIRTUAL TABLE \"%1\" USING QgsVLayer('%2');" ).arg( vname, vlayer->id() );
   Sqlite::Query::exec( mSqlite.get(), createStr );
 }
 
@@ -539,9 +530,9 @@ bool QgsVirtualLayerProvider::setSubsetString( const QString &subset, bool updat
 }
 
 
-QgsWkbTypes::Type QgsVirtualLayerProvider::wkbType() const
+Qgis::WkbType QgsVirtualLayerProvider::wkbType() const
 {
-  return static_cast<QgsWkbTypes::Type>( mDefinition.geometryWkbType() );
+  return static_cast<Qgis::WkbType>( mDefinition.geometryWkbType() );
 }
 
 long long QgsVirtualLayerProvider::featureCount() const
@@ -564,12 +555,25 @@ QgsRectangle QgsVirtualLayerProvider::extent() const
 
 void QgsVirtualLayerProvider::updateStatistics() const
 {
-  const bool hasGeometry = mDefinition.geometryWkbType() != QgsWkbTypes::NoGeometry;
-  const QString subset = mSubset.isEmpty() ? QString() : " WHERE " + mSubset;
-  const QString sql = QStringLiteral( "SELECT Count(*)%1 FROM %2%3" )
-                      .arg( hasGeometry ? QStringLiteral( ",Min(MbrMinX(%1)),Min(MbrMinY(%1)),Max(MbrMaxX(%1)),Max(MbrMaxY(%1))" ).arg( quotedColumn( mDefinition.geometryField() ) ) : QString(),
-                            mTableName,
-                            subset );
+  const bool hasGeometry = mDefinition.geometryWkbType() != Qgis::WkbType::NoGeometry;
+
+  QString sql = QStringLiteral( "SELECT Count(1)" );
+
+  if ( hasGeometry )
+  {
+    sql += QStringLiteral(
+             ", Min(MbrMinX(%1)), Min(MbrMinY(%1)), Max(MbrMaxX(%1)), Max(MbrMaxY(%1))"
+           ).arg( QgsSqliteUtils::quotedIdentifier( mDefinition.geometryField() ) );
+  }
+
+  sql += QStringLiteral( " FROM %1" ) .arg( mTableName );
+
+  if ( !mSubset.isEmpty() )
+  {
+    sql += " WHERE ( " + mSubset + ')';
+  }
+
+  mExtent.setNull();
 
   try
   {
@@ -577,7 +581,7 @@ void QgsVirtualLayerProvider::updateStatistics() const
     if ( q.step() == SQLITE_ROW )
     {
       mFeatureCount = q.columnInt64( 0 );
-      if ( hasGeometry )
+      if ( mFeatureCount && hasGeometry )
       {
         double x1, y1, x2, y2;
         x1 = q.columnDouble( 1 );
@@ -600,6 +604,7 @@ void QgsVirtualLayerProvider::updateStatistics() const
 void QgsVirtualLayerProvider::invalidateStatistics()
 {
   mCachedStatistics = false;
+  emit dataChanged();
 }
 
 QgsFields QgsVirtualLayerProvider::fields() const
@@ -625,6 +630,11 @@ QgsVectorDataProvider::Capabilities QgsVirtualLayerProvider::capabilities() cons
 }
 
 QString QgsVirtualLayerProvider::name() const
+{
+  return VIRTUAL_LAYER_KEY;
+}
+
+QString QgsVirtualLayerProvider::providerKey()
 {
   return VIRTUAL_LAYER_KEY;
 }
@@ -672,53 +682,118 @@ QgsVirtualLayerProvider *QgsVirtualLayerProviderMetadata::createProvider(
   return new QgsVirtualLayerProvider( uri, options, flags );
 }
 
-
-#ifdef HAVE_GUI
-
-//! Provider for virtual layers source select
-class QgsVirtualSourceSelectProvider : public QgsSourceSelectProvider
+QString QgsVirtualLayerProviderMetadata::absoluteToRelativeUri( const QString &uri, const QgsReadWriteContext &context ) const
 {
-  public:
+  QUrl urlSource = QUrl::fromEncoded( uri.toLatin1() );
+  QStringList theURIParts;
 
-    QString providerKey() const override { return QStringLiteral( "virtual" ); }
-    QString text() const override { return QObject::tr( "Virtual Layer" ); }
-    int ordering() const override { return QgsSourceSelectProvider::OrderDatabaseProvider + 60; }
-    QString toolTip() const override { return QObject::tr( "Add Virtual Layer" ); }
-    QIcon icon() const override { return QgsApplication::getThemeIcon( QStringLiteral( "/mActionAddVirtualLayer.svg" ) ); }
-    QgsAbstractDataSourceWidget *createDataSourceWidget( QWidget *parent = nullptr, Qt::WindowFlags fl = Qt::Widget, QgsProviderRegistry::WidgetMode widgetMode = QgsProviderRegistry::WidgetMode::Embedded ) const override
+  QUrlQuery query = QUrlQuery( urlSource.query() );
+  QList<QPair<QString, QString> > queryItems = query.queryItems();
+
+  for ( int i = 0; i < queryItems.size(); i++ )
+  {
+    QString key = queryItems.at( i ).first;
+    QString value = queryItems.at( i ).second;
+    if ( key == QLatin1String( "layer" ) )
     {
-      return new QgsVirtualLayerSourceSelect( parent, fl, widgetMode );
+      // syntax: provider:url_encoded_source_URI(:name(:encoding)?)?
+      theURIParts = value.split( ':' );
+      theURIParts[1] = QUrl::fromPercentEncoding( theURIParts[1].toUtf8() );
+
+      if ( theURIParts[0] == QLatin1String( "delimitedtext" ) )
+      {
+        QUrl urlSource = QUrl( theURIParts[1] );
+        QUrl urlDest = QUrl::fromLocalFile( context.pathResolver().writePath( urlSource.toLocalFile() ) );
+        urlDest.setQuery( urlSource.query() );
+        theURIParts[1] = QUrl::toPercentEncoding( urlDest.toString(), QByteArray( "" ), QByteArray( ":" ) );
+      }
+      else
+      {
+        theURIParts[1] = context.pathResolver().writePath( theURIParts[1] );
+        theURIParts[1] = QUrl::toPercentEncoding( theURIParts[1] );
+      }
+
+      queryItems[i].second =  theURIParts.join( QLatin1Char( ':' ) ) ;
     }
-};
+  }
 
+  query.setQueryItems( queryItems );
 
-QgsVirtualLayerProviderGuiMetadata::QgsVirtualLayerProviderGuiMetadata()
-  : QgsProviderGuiMetadata( VIRTUAL_LAYER_KEY )
-{
+  QUrl urlDest = QUrl( urlSource );
+  urlDest.setQuery( query.query() );
+  return QString::fromLatin1( urlDest.toEncoded() );
 }
 
-QList<QgsSourceSelectProvider *> QgsVirtualLayerProviderGuiMetadata::sourceSelectProviders()
+QString QgsVirtualLayerProviderMetadata::relativeToAbsoluteUri( const QString &uri, const QgsReadWriteContext &context ) const
 {
-  QList<QgsSourceSelectProvider *> providers;
-  providers << new QgsVirtualSourceSelectProvider;
-  return providers;
+  QUrl urlSource = QUrl::fromEncoded( uri.toLatin1() );
+  QStringList theURIParts;
+
+  QUrlQuery query = QUrlQuery( urlSource.query() );
+  QList<QPair<QString, QString> > queryItems = query.queryItems();
+
+  for ( int i = 0; i < queryItems.size(); i++ )
+  {
+    QString key = queryItems.at( i ).first;
+    QString value = queryItems.at( i ).second;
+    if ( key == QLatin1String( "layer" ) )
+    {
+      // syntax: provider:url_encoded_source_URI(:name(:encoding)?)?
+      theURIParts = value.split( ':' );
+      theURIParts[1] = QUrl::fromPercentEncoding( theURIParts[1].toUtf8() );
+
+      if ( theURIParts[0] == QLatin1String( "delimitedtext" ) )
+      {
+        QUrl urlSource = QUrl( theURIParts[1] );
+
+        if ( !theURIParts[1].startsWith( QLatin1String( "file:" ) ) )
+        {
+          QUrl file = QUrl::fromLocalFile( theURIParts[1].left( theURIParts[1].indexOf( '?' ) ) );
+          urlSource.setScheme( QStringLiteral( "file" ) );
+          urlSource.setPath( file.path() );
+        }
+
+        QUrl urlDest = QUrl::fromLocalFile( context.pathResolver().readPath( urlSource.toLocalFile() ) );
+        urlDest.setQuery( urlSource.query() );
+
+        theURIParts[1] = urlDest.toString();
+      }
+      else
+      {
+        theURIParts[1] = context.pathResolver().readPath( theURIParts[1] );
+      }
+
+      theURIParts[1] = QUrl::toPercentEncoding( theURIParts[1] );
+      queryItems[i].second =  theURIParts.join( QLatin1Char( ':' ) ) ;
+    }
+  }
+
+  query.setQueryItems( queryItems );
+
+  QUrl urlDest = QUrl( urlSource );
+  urlDest.setQuery( query.query() );
+  return QString::fromLatin1( urlDest.toEncoded() );
 }
-#endif
+
+QList<Qgis::LayerType> QgsVirtualLayerProviderMetadata::supportedLayerTypes() const
+{
+  return { Qgis::LayerType::Vector };
+}
 
 QgsVirtualLayerProviderMetadata::QgsVirtualLayerProviderMetadata():
-  QgsProviderMetadata( VIRTUAL_LAYER_KEY, VIRTUAL_LAYER_DESCRIPTION )
+  QgsProviderMetadata( QgsVirtualLayerProvider::VIRTUAL_LAYER_KEY, QgsVirtualLayerProvider::VIRTUAL_LAYER_DESCRIPTION )
 {
 }
 
+QIcon QgsVirtualLayerProviderMetadata::icon() const
+{
+  return QgsApplication::getThemeIcon( QStringLiteral( "mIconVirtualLayer.svg" ) );
+}
 
+
+#ifndef HAVE_STATIC_PROVIDERS
 QGISEXTERN QgsProviderMetadata *providerMetadataFactory()
 {
   return new QgsVirtualLayerProviderMetadata();
-}
-
-#ifdef HAVE_GUI
-QGISEXTERN QgsProviderGuiMetadata *providerGuiMetadataFactory()
-{
-  return new QgsVirtualLayerProviderGuiMetadata();
 }
 #endif

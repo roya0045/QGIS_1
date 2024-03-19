@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsLayoutItemLabel.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,29 +9,30 @@ __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '23/10/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.testing import start_app, unittest
-from qgis.PyQt.QtCore import QFileInfo, QDate, QDateTime
-from qgis.core import (QgsVectorLayer,
-                       QgsPrintLayout,
-                       QgsLayout,
-                       QgsLayoutItemLabel,
-                       QgsProject,
-                       QgsLayoutItemPage,
-                       QgsLayoutPoint)
-from utilities import unitTestDataPath
+from qgis.PyQt.QtCore import QDate, QDateTime, QFileInfo
 from qgis.PyQt.QtTest import QSignalSpy
+from qgis.core import (
+    QgsLayoutItemLabel,
+    QgsLayoutItemPage,
+    QgsLayoutPoint,
+    QgsPrintLayout,
+    QgsProject,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from test_qgslayoutitem import LayoutItemTestCase
+from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsLayoutItemLabel(unittest.TestCase, LayoutItemTestCase):
+class TestQgsLayoutItemLabel(QgisTestCase, LayoutItemTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(TestQgsLayoutItemLabel, cls).setUpClass()
         cls.item_class = QgsLayoutItemLabel
 
     def testCase(self):

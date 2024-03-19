@@ -33,7 +33,6 @@ class QgsLayoutTableColumn;
  * \ingroup core
  * \brief List of QVariants, representing a the contents of a single row in
  * a QgsLayoutTable
- * \since QGIS 3.0
 */
 typedef QVector< QVariant > QgsLayoutTableRow;
 
@@ -41,7 +40,6 @@ typedef QVector< QVariant > QgsLayoutTableRow;
  * \ingroup core
  * \brief List of QgsLayoutTableRows, representing rows and column cell contents
  * for a QgsLayoutTable
- * \since QGIS 3.0
 */
 #ifndef SIP_RUN
 typedef QVector< QgsLayoutTableRow > QgsLayoutTableContents;
@@ -53,7 +51,6 @@ typedef QVector< QVector< QVariant > > QgsLayoutTableContents;
 /**
  * \ingroup core
  * \brief List of column definitions for a QgsLayoutTable
- * \since QGIS 3.0
 */
 typedef QVector<QgsLayoutTableColumn> QgsLayoutTableColumns;
 
@@ -70,7 +67,6 @@ typedef QVector<QgsLayoutTableColumn> QgsLayoutTableSortColumns;
  * \ingroup core
  *  \class QgsLayoutTableStyle
  *  \brief Styling option for a layout table cell
- *  \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsLayoutTableStyle
@@ -107,7 +103,6 @@ class CORE_EXPORT QgsLayoutTableStyle
  * \brief A class to display a table in the print layout, and allow
  * the table to span over multiple frames
  * \ingroup core
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutTable: public QgsLayoutMultiFrame
 {
@@ -489,7 +484,12 @@ class CORE_EXPORT QgsLayoutTable: public QgsLayoutMultiFrame
     void setColumns( const QgsLayoutTableColumns &columns );
 
     /**
-     * Returns a reference to the list of QgsLayoutTableSortColumns shown in the table
+     * Returns a reference to the list of QgsLayoutTableSortColumns shown in the table.
+     *
+     *
+     * \warning It is expected that the QgsLayoutTableColumn::attribute() values in the columns
+     * are valid QGIS expression values, and that column references are correctly escaped accordingly.
+     *
      * \see setSortColumns()
      * \since QGIS 3.14
      */
@@ -498,6 +498,10 @@ class CORE_EXPORT QgsLayoutTable: public QgsLayoutMultiFrame
     /**
      * Replaces the sorting columns in the table with a specified list of QgsLayoutTableSortColumns.
      * \param sortColumns list of QgsLayoutTableColumns used to sort the table.
+     *
+     * \warning It is expected that the QgsLayoutTableColumn::attribute() values in \a sortColumns
+     * are valid QGIS expression values, and that column references are correctly escaped accordingly.
+     *
      * \see sortColumns()
      * \since QGIS 3.14
      */
@@ -770,10 +774,6 @@ class CORE_EXPORT QgsLayoutTable: public QgsLayoutMultiFrame
 
     //! Initializes cell style map
     void initStyles();
-
-    bool textRequiresWrapping( QgsRenderContext &context, const QString &text, double columnWidth, const QgsTextFormat &format ) const;
-
-    QStringList wrappedText( QgsRenderContext &context, const QString &value, double columnWidth, const QgsTextFormat &format ) const;
 
     /**
      * Returns the calculated background color for a row and column combination.

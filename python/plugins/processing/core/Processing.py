@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     Processing.py
@@ -38,6 +36,7 @@ from qgis.core import (QgsMessageLog,
                        QgsProcessingParameterDefinition,
                        QgsProcessingOutputVectorLayer,
                        QgsProcessingOutputRasterLayer,
+                       QgsProcessingOutputPointCloudLayer,
                        QgsProcessingOutputMapLayer,
                        QgsProcessingOutputMultipleLayers,
                        QgsProcessingFeedback,
@@ -48,7 +47,6 @@ import processing
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.gui.MessageBarProgress import MessageBarProgress
 from processing.gui.RenderingStyles import RenderingStyles
-from processing.gui.Postprocessing import handleAlgorithmResults
 from processing.gui.AlgorithmExecutor import execute
 from processing.script import ScriptUtils
 from processing.tools import dataobjects
@@ -62,15 +60,12 @@ with QgsRuntimeProfiler.profile('Import GDAL Provider'):
 with QgsRuntimeProfiler.profile('Import Script Provider'):
     from processing.script.ScriptAlgorithmProvider import ScriptAlgorithmProvider  # NOQA
 
-
-# from processing.preconfigured.PreconfiguredAlgorithmProvider import PreconfiguredAlgorithmProvider  # NOQA
-
 # should be loaded last - ensures that all dependent algorithms are available when loading models
 from processing.modeler.ModelerAlgorithmProvider import ModelerAlgorithmProvider  # NOQA
 from processing.modeler.ProjectProvider import ProjectProvider  # NOQA
 
 
-class Processing(object):
+class Processing:
     BASIC_PROVIDERS = []
 
     @staticmethod
@@ -87,7 +82,7 @@ class Processing(object):
 
     @staticmethod
     def initialize():
-        if "model" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
+        if "script" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
             return
 
         with QgsRuntimeProfiler.profile('Initialize'):
@@ -106,20 +101,55 @@ class Processing(object):
                     pass
 
             # Add the basic providers
-            for c in [
+            basic_providers = [
                 QgisAlgorithmProvider,
                 GdalAlgorithmProvider,
-                ScriptAlgorithmProvider,
-                ModelerAlgorithmProvider,
-                ProjectProvider
-            ]:
+                ScriptAlgorithmProvider
+            ]
+
+            # model providers are deferred for qgis_process startup
+            if QgsApplication.platform() != 'qgis_process':
+                basic_providers.extend([
+                    ModelerAlgorithmProvider,
+                    ProjectProvider
+                ])
+
+            for c in basic_providers:
                 p = c()
                 if QgsApplication.processingRegistry().addProvider(p):
                     Processing.BASIC_PROVIDERS.append(p)
+
+            if QgsApplication.platform() == 'external':
+                # for external applications we must also load the builtin providers stored in separate plugins
+                try:
+                    from grassprovider.grass_provider import GrassProvider
+                    p = GrassProvider()
+                    if QgsApplication.processingRegistry().addProvider(p):
+                        Processing.BASIC_PROVIDERS.append(p)
+                except ImportError:
+                    pass
+
             # And initialize
             ProcessingConfig.initialize()
             ProcessingConfig.readSettings()
             RenderingStyles.loadStyles()
+
+    @staticmethod
+    def perform_deferred_model_initialization():
+        if "model" in [p.id() for p in QgsApplication.processingRegistry().providers()]:
+            return
+
+        # Add the model providers
+        # note that we don't add the Project Provider, as this cannot be called
+        # from qgis_process
+        model_providers = [
+            ModelerAlgorithmProvider
+        ]
+
+        for c in model_providers:
+            p = c()
+            if QgsApplication.processingRegistry().addProvider(p):
+                Processing.BASIC_PROVIDERS.append(p)
 
     @staticmethod
     def deinitialize():
@@ -172,7 +202,7 @@ class Processing(object):
                     if out.name() not in results:
                         continue
 
-                    if isinstance(out, (QgsProcessingOutputVectorLayer, QgsProcessingOutputRasterLayer, QgsProcessingOutputMapLayer)):
+                    if isinstance(out, (QgsProcessingOutputVectorLayer, QgsProcessingOutputRasterLayer, QgsProcessingOutputPointCloudLayer, QgsProcessingOutputMapLayer)):
                         result = results[out.name()]
                         if not isinstance(result, QgsMapLayer):
                             layer = context.takeResultLayer(result)  # transfer layer ownership out of context
@@ -183,7 +213,7 @@ class Processing(object):
                         if result:
                             layers_result = []
                             for l in result:
-                                if not isinstance(result, QgsMapLayer):
+                                if not isinstance(l, QgsMapLayer):
                                     layer = context.takeResultLayer(l)  # transfer layer ownership out of context
                                     if layer:
                                         layers_result.append(layer)

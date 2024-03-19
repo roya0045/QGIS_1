@@ -27,7 +27,6 @@
  * \ingroup core
  * \class QgsFileUtils
  * \brief Class for file utilities.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsFileUtils
 {
@@ -179,6 +178,63 @@ class CORE_EXPORT QgsFileUtils
      * \since QGIS 3.22
      */
     static bool renameDataset( const QString &oldPath, const QString &newPath, QString &error SIP_OUT, Qgis::FileOperationFlags flags = Qgis::FileOperationFlag::IncludeMetadataFile | Qgis::FileOperationFlag::IncludeStyleFile );
+
+    /**
+     * Returns the limit of simultaneously opened files by the process.
+     *
+     * Currently only implemented on Unix.
+     *
+     * \returns Limit, or -1 if unknown.
+     * \note not available in Python bindings
+     * \since QGIS 3.22
+     */
+    static int openedFileLimit() SIP_SKIP;
+
+    /**
+     * Returns the number of currently opened files by the process.
+     *
+     * Currently only implemented on Linux.
+     *
+     * \returns Number of files, or -1 if unknown
+     * \note not available in Python bindings
+     * \since QGIS 3.22
+     */
+    static int openedFileCount() SIP_SKIP;
+
+    /**
+     * Returns whether when opening new file(s) will reach, or nearly reach,
+     * the limit of simultaneously opened files by the process.
+     *
+     * Currently only implemented on Linux.
+     *
+     * \param filesToBeOpened Number of files that will be opened.
+     * \returns true if close to the limit, or false if not, or unknown.
+     * \note not available in Python bindings
+     * \since QGIS 3.22
+     */
+    static bool isCloseToLimitOfOpenedFiles( int filesToBeOpened = 1 ) SIP_SKIP;
+
+    /**
+     * Given a file \a path, returns a list of all the components leading to that path.
+     *
+     * E.g. if \a path is "/home/user/Pictures/test.png", the returned list will contain
+     * "/" , "home", "user", "Pictures", "test.png".
+     *
+     * \since QGIS 3.28
+     */
+    static QStringList splitPathToComponents( const QString &path );
+
+    /**
+     * Creates a unique file path name from a desired path by appending "_<n>" (where "<n>" is an integer number) before the file suffix.
+     *
+     * E.g. if "/path/my_image.png" already exists "/path/my_image_2.png" (and "_3", "_4" etc.) will be checked until a file path that does not already exist is found.
+     *
+     * \param path the desired path.
+     * \return the unmodified path if path is already unique or the new path with "_<n>" (where "<n>" is an integer number) appended to the file name before the suffix.
+     * \note This function does not make any check on path validity and write permissions.
+     * \since QGIS 3.30
+     */
+    static QString uniquePath( const QString &path );
 
 };
 

@@ -32,7 +32,7 @@
 #include <QWidget>
 #include <QThread>
 #include <QElapsedTimer>
-#include <QStyledItemDelegate>
+#include <QItemDelegate>
 
 
 class QCheckBox;
@@ -124,13 +124,13 @@ class GUI_EXPORT QgsSvgParametersModel : public QAbstractTableModel
  * \brief A delegate which will show a field expression widget to set the value of the SVG parameter
  * \since QGIS 3.18
  */
-class GUI_EXPORT QgsSvgParameterValueDelegate : public QStyledItemDelegate
+class GUI_EXPORT QgsSvgParameterValueDelegate : public QItemDelegate
 {
     Q_OBJECT
 
   public:
     QgsSvgParameterValueDelegate( QObject *parent = nullptr )
-      : QStyledItemDelegate( parent )
+      : QItemDelegate( parent )
     {}
 
     QWidget *createEditor( QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index ) const override;
@@ -145,7 +145,6 @@ class GUI_EXPORT QgsSvgParameterValueDelegate : public QStyledItemDelegate
  * \ingroup gui
  * \class QgsSvgSelectorLoader
  * \brief Recursively loads SVG images from a path in a background thread.
- * \since QGIS 2.18
  */
 class GUI_EXPORT QgsSvgSelectorLoader : public QThread
 {
@@ -211,7 +210,6 @@ class GUI_EXPORT QgsSvgSelectorLoader : public QThread
  * \ingroup gui
  * \class QgsSvgGroupLoader
  * \brief Recursively loads SVG paths in a background thread.
- * \since QGIS 2.18
  */
 class GUI_EXPORT QgsSvgGroupLoader : public QThread
 {
@@ -408,8 +406,15 @@ class GUI_EXPORT QgsSvgSelectorWidget : public QWidget, private Ui::WidgetSvgSel
     /**
      * Returns if the group box to fill parameters is visible
      * \since QGIS 3.18
+     * \deprecated Use allowParameters()
      */
-    bool allowParamerters() const {return mAllowParameters;}
+    Q_DECL_DEPRECATED bool allowParamerters() const SIP_DEPRECATED {return mAllowParameters;} // spellok
+
+    /**
+     * Returns if the group box to fill parameters is visible
+     * \since QGIS 3.38
+     */
+    bool allowParameters() const {return mAllowParameters;}
 
     /**
      * Defines if the SVG browser should be visible

@@ -145,7 +145,8 @@ class SERVER_EXPORT QgsServerOgcApi : public QgsServerApi
     void registerHandler( QgsServerOgcApiHandler *handler SIP_TRANSFER );
 
     /**
-     * Returns a sanitized \a url with extra slashes removed
+     * Returns a sanitized \a url with extra slashes removed and the path URL component that
+     * always starts with a slash.
      */
     static QUrl sanitizeUrl( const QUrl &url );
 
@@ -171,8 +172,15 @@ class SERVER_EXPORT QgsServerOgcApi : public QgsServerApi
 
     /**
      * Returns the Content-Type value corresponding to \a extension.
+     * \deprecated Use contentTypeFromExtension()
      */
-    static QgsServerOgcApi::ContentType contenTypeFromExtension( const std::string &extension );
+    Q_DECL_DEPRECATED static QgsServerOgcApi::ContentType contenTypeFromExtension( const std::string &extension ) SIP_DEPRECATED { return contentTypeFromExtension( extension ); } // spellok
+
+    /**
+     * Returns the Content-Type value corresponding to \a extension.
+     * \since QGIS 3.38
+     */
+    static QgsServerOgcApi::ContentType contentTypeFromExtension( const std::string &extension );
 
     /**
      * Returns the mime-type for the \a contentType or an empty string if not found

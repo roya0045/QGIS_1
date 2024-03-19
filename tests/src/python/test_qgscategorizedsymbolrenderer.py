@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsCategorizedSymbolRenderer
 
 From build dir, run: ctest -R PyQgsCategorizedSymbolRenderer -V
@@ -12,38 +11,37 @@ __author__ = 'Nyall Dawson'
 __date__ = '2/12/2015'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
-
 import os
 
-from qgis.testing import unittest, start_app
-from qgis.core import (QgsCategorizedSymbolRenderer,
-                       QgsRendererCategory,
-                       QgsMarkerSymbol,
-                       QgsLineSymbol,
-                       QgsFillSymbol,
-                       QgsField,
-                       QgsFields,
-                       QgsFeature,
-                       QgsRenderContext,
-                       QgsSymbol,
-                       QgsStyle,
-                       QgsVectorLayer,
-                       QgsEditorWidgetSetup,
-                       QgsReadWriteContext,
-                       QgsProject,
-                       QgsSimpleMarkerSymbolLayer,
-                       QgsSymbolLayer,
-                       QgsProperty,
-                       QgsMapSettings,
-                       QgsRectangle,
-                       QgsRenderContext,
-                       QgsEmbeddedSymbolRenderer,
-                       QgsGeometry
-                       )
-from qgis.PyQt.QtCore import Qt, QVariant, QSize
+from qgis.PyQt.QtCore import QLocale, QSize, Qt, QTemporaryDir, QVariant
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import (
+    QgsCategorizedSymbolRenderer,
+    QgsEditorWidgetSetup,
+    QgsEmbeddedSymbolRenderer,
+    QgsFeature,
+    QgsField,
+    QgsFields,
+    QgsFillSymbol,
+    QgsGeometry,
+    QgsLineSymbol,
+    QgsMapSettings,
+    QgsMarkerSymbol,
+    QgsProject,
+    QgsProperty,
+    QgsReadWriteContext,
+    QgsRectangle,
+    QgsRenderContext,
+    QgsRendererCategory,
+    QgsSimpleMarkerSymbolLayer,
+    QgsStyle,
+    QgsSymbol,
+    QgsSymbolLayer,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -75,7 +73,7 @@ def createFillSymbol():
     return symbol
 
 
-class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
+class TestQgsCategorizedSymbolRenderer(QgisTestCase):
 
     def testFilter(self):
         """Test filter creation"""
@@ -399,20 +397,22 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
 
         symbol_a = createMarkerSymbol()
         symbol_a.setColor(QColor(255, 0, 0))
-        renderer.addCategory(QgsRendererCategory('a', symbol_a, 'a'))
+        renderer.addCategory(QgsRendererCategory('a', symbol_a, 'a', True, '0'))
         symbol_b = createMarkerSymbol()
         symbol_b.setColor(QColor(0, 255, 0))
-        renderer.addCategory(QgsRendererCategory('b', symbol_b, 'b'))
+        renderer.addCategory(QgsRendererCategory('b', symbol_b, 'b', True, '1'))
         symbol_c = createMarkerSymbol()
         symbol_c.setColor(QColor(0, 0, 255))
-        renderer.addCategory(QgsRendererCategory('c', symbol_c, 'c', False))
+        renderer.addCategory(QgsRendererCategory('c', symbol_c, 'c', False, '2'))
         symbol_d = createMarkerSymbol()
         symbol_d.setColor(QColor(255, 0, 255))
-        renderer.addCategory(QgsRendererCategory(['d', 'e'], symbol_d, 'de'))
+        renderer.addCategory(QgsRendererCategory(['d', 'e'], symbol_d, 'de', True, '3'))
         # add default category
         default_symbol = createMarkerSymbol()
         default_symbol.setColor(QColor(255, 255, 255))
-        renderer.addCategory(QgsRendererCategory('', default_symbol, 'default'))
+        renderer.addCategory(QgsRendererCategory('', default_symbol, 'default', True, '4'))
+
+        self.assertEqual(renderer.legendKeys(), {'0', '1', '2', '3', '4'})
 
         context = QgsRenderContext()
         context.setRendererScale(0)  # simulate counting
@@ -465,7 +465,7 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
         symbol_c.setColor(QColor(0, 0, 255))
         renderer.addCategory(QgsRendererCategory('c ', symbol_c, 'c'))
 
-        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(None, QgsSymbol.Marker)
+        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(None, QgsSymbol.SymbolType.Marker)
         self.assertEqual(matched, 0)
 
         style = QgsStyle()
@@ -486,13 +486,13 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
         self.assertTrue(style.addSymbol(' ----c/- ', symbol_C))
 
         # non-matching symbol type
-        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.Line)
+        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.SymbolType.Line)
         self.assertEqual(matched, 0)
         self.assertEqual(unmatched_cats, ['a', 'b', 'c '])
         self.assertEqual(unmatched_symbols, [' ----c/- ', 'B ', 'C', 'a', 'b'])
 
         # exact match
-        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.Marker)
+        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.SymbolType.Marker)
         self.assertEqual(matched, 1)
         self.assertEqual(unmatched_cats, ['b', 'c '])
         self.assertEqual(unmatched_symbols, [' ----c/- ', 'B ', 'C', 'b'])
@@ -506,7 +506,7 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
         renderer.stopRender(context)
 
         # case insensitive match
-        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.Marker, False)
+        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.SymbolType.Marker, False)
         self.assertEqual(matched, 2)
         self.assertEqual(unmatched_cats, ['c '])
         self.assertEqual(unmatched_symbols, [' ----c/- ', 'C', 'b'])
@@ -523,7 +523,7 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
         renderer.stopRender(context)
 
         # case insensitive match
-        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.Marker, False)
+        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.SymbolType.Marker, False)
         self.assertEqual(matched, 2)
         self.assertEqual(unmatched_cats, ['c '])
         self.assertEqual(unmatched_symbols, [' ----c/- ', 'C', 'b'])
@@ -540,7 +540,7 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
         renderer.stopRender(context)
 
         # tolerant match
-        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.Marker, True, True)
+        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.SymbolType.Marker, True, True)
         self.assertEqual(matched, 2)
         self.assertEqual(unmatched_cats, ['b'])
         self.assertEqual(unmatched_symbols, ['B ', 'C', 'b'])
@@ -557,7 +557,7 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
         renderer.stopRender(context)
 
         # tolerant match, case insensitive
-        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.Marker, False, True)
+        matched, unmatched_cats, unmatched_symbols = renderer.matchToSymbols(style, QgsSymbol.SymbolType.Marker, False, True)
         self.assertEqual(matched, 3)
         self.assertFalse(unmatched_cats)
         self.assertEqual(unmatched_symbols, ['C', 'b'])
@@ -598,24 +598,24 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
 
         cats = []
         sym1 = QgsMarkerSymbol()
-        l1 = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Triangle, 5)
+        l1 = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Shape.Triangle, 5)
         l1.setColor(QColor(255, 0, 0))
-        l1.setStrokeStyle(Qt.NoPen)
-        l1.setDataDefinedProperty(QgsSymbolLayer.PropertyAngle, QgsProperty.fromField("Heading"))
+        l1.setStrokeStyle(Qt.PenStyle.NoPen)
+        l1.setDataDefinedProperty(QgsSymbolLayer.Property.PropertyAngle, QgsProperty.fromField("Heading"))
         sym1.changeSymbolLayer(0, l1)
         cats.append(QgsRendererCategory("B52", sym1, "B52"))
         sym2 = QgsMarkerSymbol()
-        l2 = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Triangle, 5)
+        l2 = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Shape.Triangle, 5)
         l2.setColor(QColor(0, 255, 0))
-        l2.setStrokeStyle(Qt.NoPen)
-        l2.setDataDefinedProperty(QgsSymbolLayer.PropertyAngle, QgsProperty.fromField("Heading"))
+        l2.setStrokeStyle(Qt.PenStyle.NoPen)
+        l2.setDataDefinedProperty(QgsSymbolLayer.Property.PropertyAngle, QgsProperty.fromField("Heading"))
         sym2.changeSymbolLayer(0, l2)
         cats.append(QgsRendererCategory("Biplane", sym2, "Biplane"))
         sym3 = QgsMarkerSymbol()
-        l3 = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Triangle, 5)
+        l3 = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Shape.Triangle, 5)
         l3.setColor(QColor(0, 0, 255))
-        l3.setStrokeStyle(Qt.NoPen)
-        l3.setDataDefinedProperty(QgsSymbolLayer.PropertyAngle, QgsProperty.fromField("Heading"))
+        l3.setStrokeStyle(Qt.PenStyle.NoPen)
+        l3.setDataDefinedProperty(QgsSymbolLayer.Property.PropertyAngle, QgsProperty.fromField("Heading"))
         sym3.changeSymbolLayer(0, l3)
         cats.append(QgsRendererCategory("Jet", sym3, "Jet"))
 
@@ -730,6 +730,526 @@ class TestQgsCategorizedSymbolRenderer(unittest.TestCase):
         self.assertEqual(cc.value(), None)
         self.assertEqual(cc.label(), '')
         self.assertEqual(cc.symbol().color().name(), '#ff00ff')
+
+    def test_displayString(self):
+        """Test the displayString method"""
+
+        # Default locale for tests is EN
+        original_locale = QLocale()
+        locale = QLocale(QLocale.Language.English)
+        locale.setNumberOptions(QLocale.NumberOption.DefaultNumberOptions)
+        QLocale().setDefault(locale)
+
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234.56), "1,234.56")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234.56, 4), "1,234.5600")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234567), "1,234,567")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234567.0, 4), "1,234,567.0000")
+        # Precision is ignored for integers
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234567, 4), "1,234,567")
+
+        # Test list
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567, 891234], 4), "1,234,567;891,234")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567.123, 891234.123], 4), "1,234,567.1230;891,234.1230")
+
+        locale.setNumberOptions(QLocale.NumberOption.OmitGroupSeparator)
+        QLocale().setDefault(locale)
+        self.assertTrue(QLocale().numberOptions() & QLocale.NumberOption.OmitGroupSeparator)
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567, 891234], 4), "1234567;891234")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567.123, 891234.123], 4), "1234567.1230;891234.1230")
+
+        # Test a non-dot locale
+        locale = QLocale(QLocale.Language.Italian)
+        locale.setNumberOptions(QLocale.NumberOption.DefaultNumberOptions)
+        QLocale().setDefault(locale)
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234.56), "1.234,56")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234.56, 4), "1.234,5600")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234567), "1.234.567")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234567.0, 4), "1.234.567,0000")
+        # Precision is ignored for integers
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString(1234567, 4), "1.234.567")
+
+        # Test list
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567, 891234], 4), "1.234.567;891.234")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567.123, 891234.123], 4), "1.234.567,1230;891.234,1230")
+
+        locale.setNumberOptions(QLocale.NumberOption.OmitGroupSeparator)
+        QLocale().setDefault(locale)
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567, 891234], 4), "1234567;891234")
+        self.assertEqual(QgsCategorizedSymbolRenderer.displayString([1234567.123, 891234.123], 4), "1234567,1230;891234,1230")
+
+        QLocale().setDefault(original_locale)
+
+    def test_localizedCategories(self):
+
+        # Default locale for tests is EN
+        original_locale = QLocale()
+        locale = QLocale(QLocale.Language.English)
+        locale.setNumberOptions(QLocale.NumberOption.DefaultNumberOptions)
+        QLocale().setDefault(locale)
+
+        layer = QgsVectorLayer("Point?field=flddbl:double&field=fldint:integer", "addfeat", "memory")
+        result = QgsCategorizedSymbolRenderer.createCategories([1234.5, 2345.6, 3456.7], QgsMarkerSymbol(), layer, 'flddouble')
+
+        self.assertEqual(result[0].label(), '1,234.5')
+        self.assertEqual(result[1].label(), '2,345.6')
+        self.assertEqual(result[2].label(), '3,456.7')
+
+        # Test a non-dot locale
+        QLocale().setDefault(QLocale(QLocale.Language.Italian))
+
+        result = QgsCategorizedSymbolRenderer.createCategories([[1234.5, 6789.1], 2345.6, 3456.7], QgsMarkerSymbol(), layer, 'flddouble')
+
+        self.assertEqual(result[0].label(), '1.234,5;6.789,1')
+        self.assertEqual(result[1].label(), '2.345,6')
+        self.assertEqual(result[2].label(), '3.456,7')
+
+        # Test round trip
+        temp_dir = QTemporaryDir()
+        temp_file = os.path.join(temp_dir.path(), 'project.qgs')
+
+        project = QgsProject()
+        layer.setRenderer(QgsCategorizedSymbolRenderer('Class', result))
+        project.addMapLayers([layer])
+        project.write(temp_file)
+
+        QLocale().setDefault(original_locale)
+
+        project = QgsProject()
+        project.read(temp_file)
+        results = project.mapLayersByName('addfeat')[0].renderer().categories()
+
+        self.assertEqual(result[0].label(), '1.234,5;6.789,1')
+        self.assertEqual(result[1].label(), '2.345,6')
+        self.assertEqual(result[2].label(), '3.456,7')
+        self.assertEqual(result[0].value(), [1234.5, 6789.1])
+        self.assertEqual(result[1].value(), 2345.6)
+        self.assertEqual(result[2].value(), 3456.7)
+
+    def test_legend_key_to_expression(self):
+        renderer = QgsCategorizedSymbolRenderer()
+        renderer.setClassAttribute('field_name')
+
+        exp, ok = renderer.legendKeyToExpression('xxxx', None)
+        self.assertFalse(ok)
+
+        # no categories
+        exp, ok = renderer.legendKeyToExpression('0', None)
+        self.assertFalse(ok)
+
+        symbol_a = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory('a', symbol_a, 'a', True, '0'))
+        symbol_b = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory(5, symbol_b, 'b', True, '1'))
+        symbol_c = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory(5.5, symbol_c, 'c', False, '2'))
+        symbol_d = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory(['d', 'e'], symbol_d, 'de', True, '3'))
+
+        exp, ok = renderer.legendKeyToExpression('0', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, "field_name = 'a'")
+
+        exp, ok = renderer.legendKeyToExpression('1', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, "field_name = 5")
+
+        exp, ok = renderer.legendKeyToExpression('2', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, "field_name = 5.5")
+
+        exp, ok = renderer.legendKeyToExpression('3', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, "field_name IN ('d', 'e')")
+
+        layer = QgsVectorLayer("Point?field=field_name:double&field=fldint:integer", "addfeat", "memory")
+        # with layer
+        exp, ok = renderer.legendKeyToExpression('3', layer)
+        self.assertTrue(ok)
+        self.assertEqual(exp, "\"field_name\" IN ('d', 'e')")
+
+        # with expression as attribute
+        renderer.setClassAttribute('upper("field_name")')
+
+        exp, ok = renderer.legendKeyToExpression('0', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, """upper("field_name") = 'a'""")
+
+        exp, ok = renderer.legendKeyToExpression('1', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, """upper("field_name") = 5""")
+
+        exp, ok = renderer.legendKeyToExpression('2', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, """upper("field_name") = 5.5""")
+
+        exp, ok = renderer.legendKeyToExpression('3', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, """upper("field_name") IN ('d', 'e')""")
+
+        exp, ok = renderer.legendKeyToExpression('3', layer)
+        self.assertTrue(ok)
+        self.assertEqual(exp, """upper("field_name") IN ('d', 'e')""")
+
+    def testSldRuleExport(self):
+        """Test issue GH #4234 fields containing spaces"""
+
+        vl = QgsVectorLayer("Point", "test_layer", "memory")
+        self.assertTrue(vl.isValid())
+
+        self.assertTrue(
+            vl.dataProvider().addAttributes([
+                QgsField('Text Field With Spaces', QVariant.String)
+            ])
+        )
+        vl.updateFields()
+
+        # Create style
+
+        foo_sym = QgsFillSymbol.createSimple({'color': '#ff0000', 'outline_color': 'foo'})
+        bar_sym = QgsFillSymbol.createSimple({'color': '#00ff00', 'outline_color': 'bar'})
+
+        renderer = QgsCategorizedSymbolRenderer()
+        renderer.setClassAttribute('Text Field With Spaces')
+
+        renderer.addCategory(QgsRendererCategory('foo', foo_sym, 'foo'))
+        renderer.addCategory(QgsRendererCategory('bar', bar_sym, 'bar'))
+
+        vl.setRenderer(renderer)
+
+        doc = QDomDocument()
+        vl.exportSldStyle(doc, None)
+        self.assertNotIn('Parser Error', doc.toString())
+
+    def test_to_sld(self):
+        renderer = QgsCategorizedSymbolRenderer()
+        renderer.setClassAttribute('field_name')
+
+        symbol_a = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory('a', symbol_a, 'a', True, '0'))
+        symbol_b = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory(5, symbol_b, 'b', True, '1'))
+        symbol_c = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory(5.5, symbol_c, 'c', False, '2'))
+        symbol_d = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory(['d', 'e'], symbol_d, 'de', True, '3'))
+        symbol_f = createMarkerSymbol()
+        renderer.addCategory(QgsRendererCategory(None, symbol_f, 'f', True, '4'))
+
+        dom = QDomDocument()
+        root = dom.createElement("FakeRoot")
+        dom.appendChild(root)
+        renderer.toSld(dom, root, {})
+
+        expected = """<FakeRoot>
+ <se:Rule>
+  <se:Name>a</se:Name>
+  <se:Description>
+   <se:Title>a</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:PropertyIsEqualTo>
+    <ogc:PropertyName>field_name</ogc:PropertyName>
+    <ogc:Literal>a</ogc:Literal>
+   </ogc:PropertyIsEqualTo>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>b</se:Name>
+  <se:Description>
+   <se:Title>b</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:PropertyIsEqualTo>
+    <ogc:PropertyName>field_name</ogc:PropertyName>
+    <ogc:Literal>5</ogc:Literal>
+   </ogc:PropertyIsEqualTo>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>c</se:Name>
+  <se:Description>
+   <se:Title>c</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:PropertyIsEqualTo>
+    <ogc:PropertyName>field_name</ogc:PropertyName>
+    <ogc:Literal>5.5</ogc:Literal>
+   </ogc:PropertyIsEqualTo>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>de</se:Name>
+  <se:Description>
+   <se:Title>de</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:Or>
+    <ogc:PropertyIsEqualTo>
+     <ogc:PropertyName>field_name</ogc:PropertyName>
+     <ogc:Literal>d</ogc:Literal>
+    </ogc:PropertyIsEqualTo>
+    <ogc:PropertyIsEqualTo>
+     <ogc:PropertyName>field_name</ogc:PropertyName>
+     <ogc:Literal>e</ogc:Literal>
+    </ogc:PropertyIsEqualTo>
+   </ogc:Or>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>f</se:Name>
+  <se:Description>
+   <se:Title>f</se:Title>
+  </se:Description>
+  <se:ElseFilter xmlns:se="http://www.opengis.net/se"/>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+</FakeRoot>
+"""
+
+        self.assertEqual(dom.toString(), expected)
+
+        # with class attribute quoted
+        renderer.setClassAttribute('"field_name"')
+        dom = QDomDocument()
+        root = dom.createElement("FakeRoot")
+        dom.appendChild(root)
+        renderer.toSld(dom, root, {})
+        self.assertEqual(dom.toString(), expected)
+
+        # with an expression for attribute
+        renderer.setClassAttribute('field_name + 2')
+        dom = QDomDocument()
+        root = dom.createElement("FakeRoot")
+        dom.appendChild(root)
+        renderer.toSld(dom, root, {})
+        self.assertEqual(dom.toString(), """<FakeRoot>
+ <se:Rule>
+  <se:Name>a</se:Name>
+  <se:Description>
+   <se:Title>a</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:PropertyIsEqualTo>
+    <ogc:Add>
+     <ogc:PropertyName>field_name</ogc:PropertyName>
+     <ogc:Literal>2</ogc:Literal>
+    </ogc:Add>
+    <ogc:Literal>a</ogc:Literal>
+   </ogc:PropertyIsEqualTo>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>b</se:Name>
+  <se:Description>
+   <se:Title>b</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:PropertyIsEqualTo>
+    <ogc:Add>
+     <ogc:PropertyName>field_name</ogc:PropertyName>
+     <ogc:Literal>2</ogc:Literal>
+    </ogc:Add>
+    <ogc:Literal>5</ogc:Literal>
+   </ogc:PropertyIsEqualTo>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>c</se:Name>
+  <se:Description>
+   <se:Title>c</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:PropertyIsEqualTo>
+    <ogc:Add>
+     <ogc:PropertyName>field_name</ogc:PropertyName>
+     <ogc:Literal>2</ogc:Literal>
+    </ogc:Add>
+    <ogc:Literal>5.5</ogc:Literal>
+   </ogc:PropertyIsEqualTo>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>de</se:Name>
+  <se:Description>
+   <se:Title>de</se:Title>
+  </se:Description>
+  <ogc:Filter xmlns:ogc="http://www.opengis.net/ogc">
+   <ogc:Or>
+    <ogc:PropertyIsEqualTo>
+     <ogc:Add>
+      <ogc:PropertyName>field_name</ogc:PropertyName>
+      <ogc:Literal>2</ogc:Literal>
+     </ogc:Add>
+     <ogc:Literal>d</ogc:Literal>
+    </ogc:PropertyIsEqualTo>
+    <ogc:PropertyIsEqualTo>
+     <ogc:Add>
+      <ogc:PropertyName>field_name</ogc:PropertyName>
+      <ogc:Literal>2</ogc:Literal>
+     </ogc:Add>
+     <ogc:Literal>e</ogc:Literal>
+    </ogc:PropertyIsEqualTo>
+   </ogc:Or>
+  </ogc:Filter>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+ <se:Rule>
+  <se:Name>f</se:Name>
+  <se:Description>
+   <se:Title>f</se:Title>
+  </se:Description>
+  <se:ElseFilter xmlns:se="http://www.opengis.net/se"/>
+  <se:PointSymbolizer>
+   <se:Graphic>
+    <se:Mark>
+     <se:WellKnownName>square</se:WellKnownName>
+     <se:Fill>
+      <se:SvgParameter name="fill">#649632</se:SvgParameter>
+     </se:Fill>
+     <se:Stroke>
+      <se:SvgParameter name="stroke">#232323</se:SvgParameter>
+      <se:SvgParameter name="stroke-width">0.5</se:SvgParameter>
+     </se:Stroke>
+    </se:Mark>
+    <se:Size>11</se:Size>
+   </se:Graphic>
+  </se:PointSymbolizer>
+ </se:Rule>
+</FakeRoot>
+""")
 
 
 if __name__ == "__main__":

@@ -18,8 +18,10 @@
 #include "qgsstringutils.h"
 #include "qgstextblock.h"
 #include "qgstextfragment.h"
+
 #include <QTextDocument>
 #include <QTextBlock>
+
 
 QgsTextDocument::~QgsTextDocument() = default;
 
@@ -46,18 +48,23 @@ QgsTextDocument QgsTextDocument::fromPlainText( const QStringList &lines )
 
 QgsTextDocument QgsTextDocument::fromHtml( const QStringList &lines )
 {
+
   QgsTextDocument document;
 
   document.reserve( lines.size() );
-  for ( const QString &line : lines )
+
+  for ( const QString &line : std::as_const( lines ) )
   {
     // QTextDocument is a very heavy way of parsing HTML + css (it's heavily geared toward an editable text document,
     // and includes a LOT of calculations we don't need, when all we're after is a HTML + CSS style parser).
     // TODO - try to find an alternative library we can use here
+
     QTextDocument sourceDoc;
+
     sourceDoc.setHtml( line );
 
     QTextBlock sourceBlock = sourceDoc.firstBlock();
+
     while ( true )
     {
       auto it = sourceBlock.begin();
@@ -67,10 +74,56 @@ QgsTextDocument QgsTextDocument::fromHtml( const QStringList &lines )
         const QTextFragment fragment = it.fragment();
         if ( fragment.isValid() )
         {
-          block.append( QgsTextFragment( fragment ) );
+          // Search for line breaks in the fragment
+          if ( fragment.text().contains( QStringLiteral( "\u2028" ) ) )
+          {
+
+            // Flush last block
+            if ( !block.empty() )
+            {
+              document.append( block );
+              block.clear();
+            }
+
+            // Split fragment text into lines
+            const QStringList splitLines = fragment.text().split( QStringLiteral( "\u2028" ), Qt::SplitBehaviorFlags::SkipEmptyParts );
+
+            for ( const QString &splitLine : std::as_const( splitLines ) )
+            {
+              QgsTextBlock splitLineBlock;
+
+              QgsTextFragment splitFragment( fragment );
+              splitFragment.setText( splitLine );
+
+              const QgsTextCharacterFormat *previousFormat = nullptr;
+
+              // If the splitLine is not the first, inherit style from previous fragment
+              if ( splitLine != splitLines.first() && document.size() > 0 )
+              {
+                previousFormat = &document.at( document.size() - 1 ).at( 0 ).characterFormat();
+              }
+
+              if ( previousFormat )
+              {
+                // Apply overrides from previous fragment
+                QgsTextCharacterFormat newFormat { splitFragment.characterFormat() };
+                newFormat.overrideWith( *previousFormat );
+                splitFragment.setCharacterFormat( newFormat );
+              }
+
+              splitLineBlock.append( splitFragment );
+              document.append( splitLineBlock );
+
+            }
+          }
+          else
+          {
+            block.append( QgsTextFragment( fragment ) );
+          }
         }
         it++;
       }
+
       if ( !block.empty() )
         document.append( block );
 
@@ -79,6 +132,7 @@ QgsTextDocument QgsTextDocument::fromHtml( const QStringList &lines )
         break;
     }
   }
+
   return document;
 }
 
@@ -187,7 +241,7 @@ void QgsTextDocument::splitLines( const QString &wrapCharacter, int autoWrapLeng
   }
 }
 
-void QgsTextDocument::applyCapitalization( QgsStringUtils::Capitalization capitalization )
+void QgsTextDocument::applyCapitalization( Qgis::Capitalization capitalization )
 {
   for ( QgsTextBlock &block : mBlocks )
   {

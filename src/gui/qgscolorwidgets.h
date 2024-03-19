@@ -33,7 +33,6 @@ class QToolButton;
  * a color (e.g., the red or green components), or an entire color. The QgsColorWidget also keeps track of
  * any explicitly set hue for the color, so that this information is not lost when the widget is
  * set to a color with an ambiguous hue (e.g., black or white shades).
- * \since QGIS 2.5
  */
 
 class GUI_EXPORT QgsColorWidget : public QWidget
@@ -131,7 +130,6 @@ class GUI_EXPORT QgsColorWidget : public QWidget
 
     /**
      * Emitted when mouse hovers over widget.
-     * \since QGIS 2.14
      */
     void hovered();
 
@@ -207,7 +205,6 @@ class GUI_EXPORT QgsColorWidget : public QWidget
  * \class QgsColorWidgetAction
  * \brief An action containing a color widget, which can be embedded into a menu.
  * \see QgsColorWidget
- * \since QGIS 2.14
  */
 
 class GUI_EXPORT QgsColorWidgetAction: public QWidgetAction
@@ -283,7 +280,6 @@ class GUI_EXPORT QgsColorWidgetAction: public QWidgetAction
  * \class QgsColorWheel
  * \brief A color wheel widget. This widget consists of an outer ring which allows for hue selection, and an
  * inner rotating triangle which allows for saturation and value selection.
- * \since QGIS 2.5
  */
 
 class GUI_EXPORT QgsColorWheel : public QgsColorWidget
@@ -323,6 +319,8 @@ class GUI_EXPORT QgsColorWheel : public QgsColorWidget
       Triangle
     };
 
+    bool mIsDragging = false;
+
     /*Margin between outer ring and edge of widget*/
     int mMargin = 4;
 
@@ -333,13 +331,13 @@ class GUI_EXPORT QgsColorWheel : public QgsColorWidget
     ControlPart mClickedPart = QgsColorWheel::None;
 
     /*Cached image of hue wheel*/
-    QImage *mWheelImage = nullptr;
+    QImage mWheelImage;
 
     /*Cached image of inner triangle*/
-    QImage *mTriangleImage = nullptr;
+    QImage mTriangleImage;
 
     /*Resuable, temporary image for drawing widget*/
-    QImage *mWidgetImage = nullptr;
+    QImage mWidgetImage;
 
     /*Whether the color wheel image requires redrawing*/
     bool mWheelDirty = true;
@@ -377,7 +375,6 @@ class GUI_EXPORT QgsColorWheel : public QgsColorWidget
  * \brief A color box widget. This widget consists of a two dimensional rectangle filled with color
  * variations, where a different color component varies along both the horizontal and vertical
  * axis.
- * \since QGIS 2.5
  */
 
 class GUI_EXPORT QgsColorBox : public QgsColorWidget
@@ -410,8 +407,11 @@ class GUI_EXPORT QgsColorBox : public QgsColorWidget
     void resizeEvent( QResizeEvent *event ) override;
     void mouseMoveEvent( QMouseEvent *event ) override;
     void mousePressEvent( QMouseEvent *event ) override;
+    void mouseReleaseEvent( QMouseEvent *event ) override;
 
   private:
+
+    bool mIsDragging = false;
 
     /*Margin between outer ring and edge of widget*/
     int mMargin = 2;
@@ -473,7 +473,6 @@ class GUI_EXPORT QgsColorBox : public QgsColorWidget
  * \class QgsColorRampWidget
  * \brief A color ramp widget. This widget consists of an interactive box filled with a color which varies along
  * its length by a single color component (e.g., varying saturation from 0 to 100%).
- * \since QGIS 2.5
  */
 
 class GUI_EXPORT QgsColorRampWidget : public QgsColorWidget
@@ -565,9 +564,12 @@ class GUI_EXPORT QgsColorRampWidget : public QgsColorWidget
     void mouseMoveEvent( QMouseEvent *event ) override;
     void wheelEvent( QWheelEvent *event ) override;
     void mousePressEvent( QMouseEvent *event ) override;
+    void mouseReleaseEvent( QMouseEvent *event ) override;
     void keyPressEvent( QKeyEvent *event ) override;
 
   private:
+
+    bool mIsDragging = false;
 
     /*Orientation for ramp*/
     Orientation mOrientation;
@@ -597,7 +599,6 @@ class GUI_EXPORT QgsColorRampWidget : public QgsColorWidget
  * \ingroup gui
  * \class QgsColorSliderWidget
  * \brief A composite horizontal color ramp widget and associated spinbox for manual value entry.
- * \since QGIS 2.5
  */
 
 class GUI_EXPORT QgsColorSliderWidget : public QgsColorWidget
@@ -667,7 +668,6 @@ class GUI_EXPORT QgsColorSliderWidget : public QgsColorWidget
  * \class QgsColorTextWidget
  * \brief A line edit widget which displays colors as text and accepts string representations
  * of colors.
- * \since QGIS 2.5
  */
 
 class GUI_EXPORT QgsColorTextWidget : public QgsColorWidget
@@ -696,6 +696,13 @@ class GUI_EXPORT QgsColorTextWidget : public QgsColorWidget
 
     void setColor( const QColor &color, bool emitSignals = false ) override;
 
+    /**
+     * Sets whether opacity modification (transparency) is permitted.
+     * Defaults to TRUE.
+     * \param allowOpacity set to FALSE to disable opacity modification
+     */
+    void setAllowOpacity( bool allowOpacity );
+
   protected:
     void resizeEvent( QResizeEvent *event ) override;
 
@@ -708,6 +715,8 @@ class GUI_EXPORT QgsColorTextWidget : public QgsColorWidget
 
     /*Display format for colors*/
     ColorTextFormat mFormat = QgsColorTextWidget::HexRgb;
+
+    bool mAllowAlpha = true;
 
     /**
      * Updates the text based on the current color
@@ -732,7 +741,6 @@ class GUI_EXPORT QgsColorTextWidget : public QgsColorWidget
  * \ingroup gui
  * \class QgsColorPreviewWidget
  * \brief A preview box which displays one or two colors as swatches.
- * \since QGIS 2.5
  */
 
 class GUI_EXPORT QgsColorPreviewWidget : public QgsColorWidget

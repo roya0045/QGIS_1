@@ -14,8 +14,8 @@
  ***************************************************************************/
 #include "qgsdiagramrenderer.h"
 
+#include "qgscolorutils.h"
 #include "qgsdatadefinedsizelegend.h"
-#include "qgsvectorlayer.h"
 #include "diagram/qgstextdiagram.h"
 #include "diagram/qgspiediagram.h"
 #include "diagram/qgshistogramdiagram.h"
@@ -29,6 +29,7 @@
 #include "qgsapplication.h"
 #include "qgslinesymbol.h"
 #include "qgsmarkersymbol.h"
+#include "qgsunittypes.h"
 
 #include <QDomElement>
 #include <QPainter>
@@ -44,18 +45,18 @@ void QgsDiagramLayerSettings::initPropertyDefinitions()
 
   sPropertyDefinitions = QgsPropertiesDefinition
   {
-    { QgsDiagramLayerSettings::BackgroundColor, QgsPropertyDefinition( "backgroundColor", QObject::tr( "Background color" ), QgsPropertyDefinition::ColorWithAlpha, origin ) },
-    { QgsDiagramLayerSettings::StrokeColor, QgsPropertyDefinition( "strokeColor", QObject::tr( "Stroke color" ), QgsPropertyDefinition::ColorWithAlpha, origin ) },
-    { QgsDiagramLayerSettings::StrokeWidth, QgsPropertyDefinition( "strokeWidth", QObject::tr( "Stroke width" ), QgsPropertyDefinition::StrokeWidth, origin ) },
-    { QgsDiagramLayerSettings::PositionX, QgsPropertyDefinition( "positionX", QObject::tr( "Position (X)" ), QgsPropertyDefinition::Double, origin ) },
-    { QgsDiagramLayerSettings::PositionY, QgsPropertyDefinition( "positionY", QObject::tr( "Position (Y)" ), QgsPropertyDefinition::Double, origin ) },
-    { QgsDiagramLayerSettings::Distance, QgsPropertyDefinition( "distance", QObject::tr( "Placement distance" ), QgsPropertyDefinition::DoublePositive, origin ) },
-    { QgsDiagramLayerSettings::Priority, QgsPropertyDefinition( "priority", QObject::tr( "Placement priority" ), QgsPropertyDefinition::DoublePositive, origin ) },
-    { QgsDiagramLayerSettings::ZIndex, QgsPropertyDefinition( "zIndex", QObject::tr( "Placement z-index" ), QgsPropertyDefinition::Double, origin ) },
-    { QgsDiagramLayerSettings::IsObstacle, QgsPropertyDefinition( "isObstacle", QObject::tr( "Diagram is an obstacle" ), QgsPropertyDefinition::Boolean, origin ) },
-    { QgsDiagramLayerSettings::Show, QgsPropertyDefinition( "show", QObject::tr( "Show diagram" ), QgsPropertyDefinition::Boolean, origin ) },
-    { QgsDiagramLayerSettings::AlwaysShow, QgsPropertyDefinition( "alwaysShow", QObject::tr( "Always show diagram" ), QgsPropertyDefinition::Boolean, origin ) },
-    { QgsDiagramLayerSettings::StartAngle, QgsPropertyDefinition( "startAngle", QObject::tr( "Pie chart start angle" ), QgsPropertyDefinition::Rotation, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::BackgroundColor ), QgsPropertyDefinition( "backgroundColor", QObject::tr( "Background color" ), QgsPropertyDefinition::ColorWithAlpha, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::StrokeColor ), QgsPropertyDefinition( "strokeColor", QObject::tr( "Stroke color" ), QgsPropertyDefinition::ColorWithAlpha, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::StrokeWidth ), QgsPropertyDefinition( "strokeWidth", QObject::tr( "Stroke width" ), QgsPropertyDefinition::StrokeWidth, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::PositionX ), QgsPropertyDefinition( "positionX", QObject::tr( "Position (X)" ), QgsPropertyDefinition::Double, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::PositionY ), QgsPropertyDefinition( "positionY", QObject::tr( "Position (Y)" ), QgsPropertyDefinition::Double, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::Distance ), QgsPropertyDefinition( "distance", QObject::tr( "Placement distance" ), QgsPropertyDefinition::DoublePositive, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::Priority ), QgsPropertyDefinition( "priority", QObject::tr( "Placement priority" ), QgsPropertyDefinition::DoublePositive, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::ZIndex ), QgsPropertyDefinition( "zIndex", QObject::tr( "Placement z-index" ), QgsPropertyDefinition::Double, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::IsObstacle ), QgsPropertyDefinition( "isObstacle", QObject::tr( "Diagram is an obstacle" ), QgsPropertyDefinition::Boolean, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::Show ), QgsPropertyDefinition( "show", QObject::tr( "Show diagram" ), QgsPropertyDefinition::Boolean, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::AlwaysShow ), QgsPropertyDefinition( "alwaysShow", QObject::tr( "Always show diagram" ), QgsPropertyDefinition::Boolean, origin ) },
+    { static_cast< int >( QgsDiagramLayerSettings::Property::StartAngle ), QgsPropertyDefinition( "startAngle", QObject::tr( "Pie chart start angle" ), QgsPropertyDefinition::Rotation, origin ) },
   };
 }
 
@@ -215,7 +216,7 @@ void QgsDiagramSettings::readXml( const QDomElement &elem, const QgsReadWriteCon
   if ( elem.attribute( QStringLiteral( "sizeType" ) ) == QLatin1String( "MapUnits" ) )
   {
     //compatibility with pre-2.16 project files
-    sizeType = QgsUnitTypes::RenderMapUnits;
+    sizeType = Qgis::RenderUnit::MapUnits;
   }
   else
   {
@@ -302,7 +303,7 @@ void QgsDiagramSettings::readXml( const QDomElement &elem, const QgsReadWriteCon
     {
       const QDomElement attrElem = attributes.at( i ).toElement();
       QColor newColor( attrElem.attribute( QStringLiteral( "color" ) ) );
-      newColor.setAlphaF( opacity );
+      newColor.setAlphaF( attrElem.attribute( QStringLiteral( "colorOpacity" ), QStringLiteral( "1.0" ) ).toDouble() );
       categoryColors.append( newColor );
       categoryAttributes.append( attrElem.attribute( QStringLiteral( "field" ) ) );
       categoryLabels.append( attrElem.attribute( QStringLiteral( "label" ) ) );
@@ -321,7 +322,6 @@ void QgsDiagramSettings::readXml( const QDomElement &elem, const QgsReadWriteCon
     for ( ; colorIt != colorList.constEnd(); ++colorIt )
     {
       QColor newColor( *colorIt );
-      newColor.setAlphaF( opacity );
       categoryColors.append( QColor( newColor ) );
     }
 
@@ -340,7 +340,7 @@ void QgsDiagramSettings::readXml( const QDomElement &elem, const QgsReadWriteCon
   if ( !effectElem.isNull() )
     setPaintEffect( QgsApplication::paintEffectRegistry()->createEffect( effectElem ) );
   else
-    setPaintEffect( QgsApplication::paintEffectRegistry()->defaultStack() );
+    setPaintEffect( QgsPaintEffectRegistry::defaultStack() );
 }
 
 void QgsDiagramSettings::writeXml( QDomElement &rendererElem, QDomDocument &doc, const QgsReadWriteContext &context ) const
@@ -422,6 +422,7 @@ void QgsDiagramSettings::writeXml( QDomElement &rendererElem, QDomDocument &doc,
 
     attributeElem.setAttribute( QStringLiteral( "field" ), categoryAttributes.at( i ) );
     attributeElem.setAttribute( QStringLiteral( "color" ), categoryColors.at( i ).name() );
+    attributeElem.setAttribute( QStringLiteral( "colorOpacity" ), QString::number( categoryColors.at( i ).alphaF() ) );
     attributeElem.setAttribute( QStringLiteral( "label" ), categoryLabels.at( i ) );
     categoryElem.appendChild( attributeElem );
   }
@@ -474,14 +475,14 @@ void QgsDiagramRenderer::renderDiagram( const QgsFeature &feature, QgsRenderCont
 
   if ( properties.hasActiveProperties() )
   {
-    c.expressionContext().setOriginalValueVariable( QgsSymbolLayerUtils::encodeColor( s.backgroundColor ) );
-    s.backgroundColor = properties.valueAsColor( QgsDiagramLayerSettings::BackgroundColor, c.expressionContext(), s.backgroundColor );
-    c.expressionContext().setOriginalValueVariable( QgsSymbolLayerUtils::encodeColor( s.penColor ) );
-    s.penColor = properties.valueAsColor( QgsDiagramLayerSettings::StrokeColor, c.expressionContext(), s.penColor );
+    c.expressionContext().setOriginalValueVariable( QgsColorUtils::colorToString( s.backgroundColor ) );
+    s.backgroundColor = properties.valueAsColor( QgsDiagramLayerSettings::Property::BackgroundColor, c.expressionContext(), s.backgroundColor );
+    c.expressionContext().setOriginalValueVariable( QgsColorUtils::colorToString( s.penColor ) );
+    s.penColor = properties.valueAsColor( QgsDiagramLayerSettings::Property::StrokeColor, c.expressionContext(), s.penColor );
     c.expressionContext().setOriginalValueVariable( s.penWidth );
-    s.penWidth = properties.valueAsDouble( QgsDiagramLayerSettings::StrokeWidth, c.expressionContext(), s.penWidth );
+    s.penWidth = properties.valueAsDouble( QgsDiagramLayerSettings::Property::StrokeWidth, c.expressionContext(), s.penWidth );
     c.expressionContext().setOriginalValueVariable( s.rotationOffset );
-    s.rotationOffset = properties.valueAsDouble( QgsDiagramLayerSettings::StartAngle, c.expressionContext(), s.rotationOffset );
+    s.rotationOffset = properties.valueAsDouble( QgsDiagramLayerSettings::Property::StartAngle, c.expressionContext(), s.rotationOffset );
   }
 
   QgsPaintEffect *effect = s.paintEffect();
@@ -659,6 +660,19 @@ QgsLinearlyInterpolatedDiagramRenderer::QgsLinearlyInterpolatedDiagramRenderer( 
 QgsLinearlyInterpolatedDiagramRenderer::~QgsLinearlyInterpolatedDiagramRenderer()
 {
   delete mDataDefinedSizeLegend;
+}
+
+QgsLinearlyInterpolatedDiagramRenderer &QgsLinearlyInterpolatedDiagramRenderer::operator=( const QgsLinearlyInterpolatedDiagramRenderer &other )
+{
+  if ( &other == this )
+  {
+    return *this;
+  }
+  mSettings = other.mSettings;
+  mInterpolationSettings = other.mInterpolationSettings;
+  delete mDataDefinedSizeLegend;
+  mDataDefinedSizeLegend = new QgsDataDefinedSizeLegend( *other.mDataDefinedSizeLegend );
+  return *this;
 }
 
 QgsLinearlyInterpolatedDiagramRenderer *QgsLinearlyInterpolatedDiagramRenderer::clone() const

@@ -18,6 +18,8 @@
 #include "qgsalgorithmcalculateoverlaps.h"
 #include "qgsvectorlayer.h"
 #include "qgsgeometryengine.h"
+#include "qgsdistancearea.h"
+#include "qgsspatialindex.h"
 
 ///@cond PRIVATE
 
@@ -48,9 +50,14 @@ QString QgsCalculateVectorOverlapsAlgorithm::groupId() const
 
 void QgsCalculateVectorOverlapsAlgorithm::initAlgorithm( const QVariantMap & )
 {
-  addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ), QObject::tr( "Input layer" ), QList< int >() << QgsProcessing::TypeVectorPolygon ) );
-  addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "LAYERS" ), QObject::tr( "Overlay layers" ), QgsProcessing::TypeVectorPolygon ) );
+  addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ), QObject::tr( "Input layer" ), QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorPolygon ) ) );
+  addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "LAYERS" ), QObject::tr( "Overlay layers" ), Qgis::ProcessingSourceType::VectorPolygon ) );
   addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Overlap" ) ) );
+
+  std::unique_ptr< QgsProcessingParameterNumber > gridSize = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "GRID_SIZE" ),
+      QObject::tr( "Grid size" ), Qgis::ProcessingNumberParameterType::Double, QVariant(), true, 0 );
+  gridSize->setFlags( gridSize->flags() | Qgis::ProcessingParameterFlag::Advanced );
+  addParameter( gridSize.release() );
 }
 
 QIcon QgsCalculateVectorOverlapsAlgorithm::icon() const
@@ -129,6 +136,12 @@ QVariantMap QgsCalculateVectorOverlapsAlgorithm::processAlgorithm( const QVarian
   da.setSourceCrs( mCrs, context.transformContext() );
   da.setEllipsoid( context.ellipsoid() );
 
+  QgsGeometryParameters geometryParameters;
+  if ( parameters.value( QStringLiteral( "GRID_SIZE" ) ).isValid() )
+  {
+    geometryParameters.setGridSize( parameterAsDouble( parameters, QStringLiteral( "GRID_SIZE" ), context ) );
+  }
+
   // loop through input
   const double step = mInputCount > 0 ? 100.0 / mInputCount : 0;
   long i = 0;
@@ -175,12 +188,12 @@ QVariantMap QgsCalculateVectorOverlapsAlgorithm::processAlgorithm( const QVarian
           break;
 
         // dissolve intersecting features, calculate total area of them within our buffer
-        const QgsGeometry overlayDissolved = QgsGeometry::unaryUnion( intersectingGeoms );
+        const QgsGeometry overlayDissolved = QgsGeometry::unaryUnion( intersectingGeoms, geometryParameters );
 
         if ( feedback->isCanceled() )
           break;
 
-        const QgsGeometry overlayIntersection = inputGeom.intersection( overlayDissolved );
+        const QgsGeometry overlayIntersection = inputGeom.intersection( overlayDissolved, geometryParameters );
 
         const double overlayArea = da.measureArea( overlayIntersection );
         outAttributes.append( overlayArea );

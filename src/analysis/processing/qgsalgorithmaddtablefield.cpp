@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsalgorithmaddtablefield.h"
+#include "qgsvariantutils.h"
 
 ///@cond PRIVATE
 
@@ -58,12 +59,12 @@ QString QgsAddTableFieldAlgorithm::outputName() const
 
 QList<int> QgsAddTableFieldAlgorithm::inputLayerTypes() const
 {
-  return QList<int>() << QgsProcessing::TypeVector;
+  return QList<int>() << static_cast< int >( Qgis::ProcessingSourceType::Vector );
 }
 
-QgsProcessingFeatureSource::Flag QgsAddTableFieldAlgorithm::sourceFlags() const
+Qgis::ProcessingFeatureSourceFlags QgsAddTableFieldAlgorithm::sourceFlags() const
 {
-  return QgsProcessingFeatureSource::FlagSkipGeometryValidityChecks;
+  return Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks;
 }
 
 QgsAddTableFieldAlgorithm *QgsAddTableFieldAlgorithm::createInstance() const
@@ -74,12 +75,52 @@ QgsAddTableFieldAlgorithm *QgsAddTableFieldAlgorithm::createInstance() const
 void QgsAddTableFieldAlgorithm::initParameters( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterString( QStringLiteral( "FIELD_NAME" ), QObject::tr( "Field name" ) ) );
-  addParameter( new QgsProcessingParameterEnum( QStringLiteral( "FIELD_TYPE" ), QObject::tr( "Field type" ),
-                QStringList() << QObject::tr( "Integer" ) << QObject::tr( "Float" ) << QObject::tr( "String" ), false, 0 ) );
+
+  QStringList typeStrings;
+  QVariantList icons;
+  typeStrings.reserve( 11 );
+  icons.reserve( 11 );
+  for ( const auto &type :
+        std::vector < std::pair< QVariant::Type, QVariant::Type > >
+{
+  {QVariant::Int, QVariant::Invalid },
+  {QVariant::Double, QVariant::Invalid },
+  {QVariant::String, QVariant::Invalid },
+  {QVariant::Bool, QVariant::Invalid },
+  {QVariant::Date, QVariant::Invalid },
+  {QVariant::Time, QVariant::Invalid },
+  {QVariant::DateTime, QVariant::Invalid },
+  {QVariant::ByteArray, QVariant::Invalid },
+  {QVariant::StringList, QVariant::Invalid },
+  {QVariant::List, QVariant::Int },
+  {QVariant::List, QVariant::Double }
+} )
+  {
+    typeStrings << QgsVariantUtils::typeToDisplayString( type.first, type.second );
+    icons << QgsFields::iconForFieldType( type.first, type.second );
+  }
+
+  std::unique_ptr< QgsProcessingParameterEnum> fieldTypes = std::make_unique< QgsProcessingParameterEnum> ( QStringLiteral( "FIELD_TYPE" ), QObject::tr( "Field type" ),
+      typeStrings, false, 0 );
+  fieldTypes->setMetadata(
+  {
+    QVariantMap( {{
+        QStringLiteral( "widget_wrapper" ),
+        QVariantMap(
+        { {
+            QStringLiteral( "icons" ), icons
+          }}
+        )
+      }} )
+  } );
+  addParameter( fieldTypes.release() );
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "FIELD_LENGTH" ), QObject::tr( "Field length" ),
-                QgsProcessingParameterNumber::Integer, 10, false, 1, 255 ) );
+                Qgis::ProcessingNumberParameterType::Integer, 10, false, 1, 255 ) );
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "FIELD_PRECISION" ), QObject::tr( "Field precision" ),
-                QgsProcessingParameterNumber::Integer, 0, false, 0, 10 ) );
+                Qgis::ProcessingNumberParameterType::Integer, 0, false, 0, 10 ) );
+
+  addParameter( new QgsProcessingParameterString( QStringLiteral( "FIELD_ALIAS" ), QObject::tr( "Field alias" ), QVariant(), false, true ) );
+  addParameter( new QgsProcessingParameterString( QStringLiteral( "FIELD_COMMENT" ), QObject::tr( "Field comment" ), QVariant(), false, true ) );
 }
 
 QgsFields QgsAddTableFieldAlgorithm::outputFields( const QgsFields &inputFields ) const
@@ -95,21 +136,52 @@ bool QgsAddTableFieldAlgorithm::prepareAlgorithm( const QVariantMap &parameters,
   const int type = parameterAsInt( parameters, QStringLiteral( "FIELD_TYPE" ), context );
   const int length = parameterAsInt( parameters, QStringLiteral( "FIELD_LENGTH" ), context );
   const int precision = parameterAsInt( parameters, QStringLiteral( "FIELD_PRECISION" ), context );
+  const QString alias = parameterAsString( parameters, QStringLiteral( "FIELD_ALIAS" ), context );
+  const QString comment = parameterAsString( parameters, QStringLiteral( "FIELD_COMMENT" ), context );
 
   mField.setName( name );
   mField.setLength( length );
   mField.setPrecision( precision );
+  mField.setAlias( alias );
+  mField.setComment( comment );
 
   switch ( type )
   {
-    case 0:
+    case 0: // Integer
       mField.setType( QVariant::Int );
       break;
-    case 1:
+    case 1: // Float
       mField.setType( QVariant::Double );
       break;
-    case 2:
+    case 2: // String
       mField.setType( QVariant::String );
+      break;
+    case 3: // Boolean
+      mField.setType( QVariant::Bool );
+      break;
+    case 4: // Date
+      mField.setType( QVariant::Date );
+      break;
+    case 5: // Time
+      mField.setType( QVariant::Time );
+      break;
+    case 6: // DateTime
+      mField.setType( QVariant::DateTime );
+      break;
+    case 7: // Binary
+      mField.setType( QVariant::ByteArray );
+      break;
+    case 8: // StringList
+      mField.setType( QVariant::StringList );
+      mField.setSubType( QVariant::String );
+      break;
+    case 9: // IntegerList
+      mField.setType( QVariant::List );
+      mField.setSubType( QVariant::Int );
+      break;
+    case 10: // DoubleList
+      mField.setType( QVariant::List );
+      mField.setSubType( QVariant::Double );
       break;
   }
 

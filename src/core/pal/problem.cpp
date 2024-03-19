@@ -61,6 +61,11 @@ Problem::Problem( const QgsRectangle &extent )
 
 }
 
+void Problem::addCandidatePosition( std::unique_ptr<LabelPosition> position )
+{
+  mLabelPositions.emplace_back( std::move( position ) );
+}
+
 Problem::~Problem() = default;
 
 void Problem::reduce()
@@ -86,9 +91,15 @@ void Problem::reduce()
 
   while ( run )
   {
+    if ( pal->isCanceled() )
+      break;
+
     run = false;
     for ( i = 0; i < static_cast< int >( mFeatureCount ); i++ )
     {
+      if ( pal->isCanceled() )
+        break;
+
       // ok[i] = true;
       for ( j = 0; j < mFeatNbLp[i]; j++ )  // for each candidate
       {
@@ -564,7 +575,7 @@ inline Chain *Problem::chain( int seed )
 }
 
 
-void Problem::chain_search()
+void Problem::chainSearch( QgsRenderContext & )
 {
   if ( mFeatureCount == 0 )
     return;
@@ -574,17 +585,12 @@ void Problem::chain_search()
   bool *ok = new bool[mFeatureCount];
   int fid;
   int lid;
-  int popit = 0;
 
   Chain *retainedChain = nullptr;
 
   std::fill( ok, ok + mFeatureCount, false );
 
-  //initialization();
   init_sol_falp();
-
-  //check_solution();
-  solution_cost();
 
   int iter = 0;
 
@@ -593,9 +599,6 @@ void Problem::chain_search()
 
   while ( true )
   {
-
-    //check_solution();
-
     for ( seed = ( iter + 1 ) % mFeatureCount;
           ok[seed] && seed != iter;
           seed = ( seed + 1 ) % mFeatureCount )
@@ -643,25 +646,23 @@ void Problem::chain_search()
 
         ok[fid] = false;
       }
-      mSol.totalCost += retainedChain->delta;
     }
     else
     {
-      // no chain or the one is not god enough
+      // no chain or the one is not good enough
       ok[seed] = true;
     }
 
     delete_chain( retainedChain );
-    popit++;
   }
 
-  solution_cost();
   delete[] ok;
 }
 
 QList<LabelPosition *> Problem::getSolution( bool returnInactive, QList<LabelPosition *> *unlabeled )
 {
   QList<LabelPosition *> finalLabelPlacements;
+  finalLabelPlacements.reserve( mFeatureCount );
 
   // loop through all features to be labeled
   for ( std::size_t i = 0; i < mFeatureCount; i++ )
@@ -677,7 +678,7 @@ QList<LabelPosition *> Problem::getSolution( bool returnInactive, QList<LabelPos
     }
     else if ( foundCandidatesForFeature &&
               ( returnInactive // allowing any overlapping labels regardless of where they are from
-                || mLabelPositions.at( startIndexForLabelPlacements )->getFeaturePart()->layer()->displayAll() // allowing overlapping labels for the layer
+                || mLabelPositions.at( startIndexForLabelPlacements )->getFeaturePart()->feature()->overlapHandling() == Qgis::LabelOverlapHandling::AllowOverlapIfRequired // allowing overlapping labels for the layer
                 || mLabelPositions.at( startIndexForLabelPlacements )->getFeaturePart()->alwaysShow() ) ) // allowing overlapping labels for the feature
     {
       finalLabelPlacements.push_back( mLabelPositions[ startIndexForLabelPlacements ].get() ); // unplaced label
@@ -693,44 +694,10 @@ QList<LabelPosition *> Problem::getSolution( bool returnInactive, QList<LabelPos
   // unlabeled features also include those with no candidates
   if ( unlabeled )
   {
+    unlabeled->reserve( mPositionsWithNoCandidates.size() );
     for ( const std::unique_ptr< LabelPosition > &position : mPositionsWithNoCandidates )
       unlabeled->append( position.get() );
   }
 
   return finalLabelPlacements;
-}
-
-void Problem::solution_cost()
-{
-  mSol.totalCost = 0.0;
-
-  LabelPosition *lp = nullptr;
-
-  double amin[2];
-  double amax[2];
-
-  for ( std::size_t i = 0; i < mFeatureCount; i++ )
-  {
-    if ( mSol.activeLabelIds[i] == -1 )
-    {
-      mSol.totalCost += mInactiveCost[i];
-    }
-    else
-    {
-      lp = mLabelPositions[ mSol.activeLabelIds[i] ].get();
-
-      lp->getBoundingBox( amin, amax );
-      mActiveCandidatesIndex.intersects( QgsRectangle( amin[0], amin[1], amax[0], amax[1] ), [&lp, this]( const LabelPosition * lp2 )->bool
-      {
-        if ( candidatesAreConflicting( lp, lp2 ) )
-        {
-          mSol.totalCost += mInactiveCost[lp2->getProblemFeatureId()] + lp2->cost();
-        }
-
-        return true;
-      } );
-
-      mSol.totalCost += lp->cost();
-    }
-  }
 }

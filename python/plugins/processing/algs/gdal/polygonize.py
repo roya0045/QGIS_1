@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     polygonize.py
@@ -68,12 +66,12 @@ class polygonize(GdalAlgorithm):
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         self.addParameter(QgsProcessingParameterVectorDestination(self.OUTPUT,
                                                                   self.tr('Vectorized'),
-                                                                  QgsProcessing.TypeVectorPolygon))
+                                                                  QgsProcessing.SourceType.TypeVectorPolygon))
 
     def name(self):
         return 'polygonize'
@@ -95,29 +93,31 @@ class polygonize(GdalAlgorithm):
 
     def getConsoleCommands(self, parameters, context, feedback, executing=True):
         arguments = []
+
+        if self.parameterAsBoolean(parameters, self.EIGHT_CONNECTEDNESS, context):
+            arguments.append('-8')
+
+        if self.EXTRA in parameters and parameters[self.EXTRA] not in (None, ''):
+            extra = self.parameterAsString(parameters, self.EXTRA, context)
+            arguments.append(extra)
+
         inLayer = self.parameterAsRasterLayer(parameters, self.INPUT, context)
         if inLayer is None:
             raise QgsProcessingException(self.invalidRasterError(parameters, self.INPUT))
 
         arguments.append(inLayer.source())
 
-        outFile = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        self.setOutputValue(self.OUTPUT, outFile)
-        output, outFormat = GdalUtils.ogrConnectionStringAndFormat(outFile, context)
-        arguments.append(output)
-
-        if self.parameterAsBoolean(parameters, self.EIGHT_CONNECTEDNESS, context):
-            arguments.append('-8')
-
         arguments.append('-b')
         arguments.append(str(self.parameterAsInt(parameters, self.BAND, context)))
 
-        if outFormat:
-            arguments.append('-f {}'.format(outFormat))
+        outFile = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
+        self.setOutputValue(self.OUTPUT, outFile)
+        output, outFormat = GdalUtils.ogrConnectionStringAndFormat(outFile, context)
 
-        if self.EXTRA in parameters and parameters[self.EXTRA] not in (None, ''):
-            extra = self.parameterAsString(parameters, self.EXTRA, context)
-            arguments.append(extra)
+        if outFormat:
+            arguments.append(f'-f {outFormat}')
+
+        arguments.append(output)
 
         layerName = GdalUtils.ogrOutputLayerName(output)
         if layerName:

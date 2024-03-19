@@ -30,7 +30,6 @@ class QgsLayoutNorthArrowHandler;
 /**
  * \ingroup core
  * \brief A layout item subclass that displays SVG files or raster format images (jpg, png, ...).
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsLayoutItemPicture: public QgsLayoutItem
 {
@@ -229,10 +228,19 @@ class CORE_EXPORT QgsLayoutItemPicture: public QgsLayoutItem
     void setSvgStrokeWidth( double width );
 
     /**
-     * Returns the current picture mode (image format).
-     * \see setMode()
+     * Returns the current picture mode (image format), FormatUnknown if given
+     * picture format is unknown
+     * \see setMode() originalMode()
      */
     Format mode() const { return mMode; }
+
+    /**
+     * Returns the original set picture mode (image format).
+     * It could differ from mode() if given picture format is unknown
+     * \see setMode() mode()
+     * \since QGIS 3.22
+     */
+    Format originalMode() const { return mOriginalMode; }
 
     /**
      * Sets the current picture \a mode (image format).
@@ -300,7 +308,7 @@ class CORE_EXPORT QgsLayoutItemPicture: public QgsLayoutItem
      */
     void recalculateSize();
 
-    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::AllProperties ) override;
+    void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::DataDefinedProperty::AllProperties ) override;
 
   signals:
     //! Emitted on picture rotation change
@@ -330,6 +338,7 @@ class CORE_EXPORT QgsLayoutItemPicture: public QgsLayoutItem
     //! Absolute path to the image (may be also HTTP URL)
     QString mSourcePath;
     Format mMode = FormatUnknown;
+    Format mOriginalMode = FormatUnknown;
 
     QSize mDefaultSvgSize;
 

@@ -18,7 +18,7 @@
 
 #include <QDialog>
 #include "qgspanelwidget.h"
-#include "qgscolorramp.h"
+#include "qgscolorrampimpl.h"
 #include "ui_qgscolorbrewercolorrampwidgetbase.h"
 #include "qgis_gui.h"
 #include "qgis_sip.h"
@@ -30,7 +30,6 @@ class QDialogButtonBox;
  * \ingroup gui
  * \class QgsColorBrewerColorRampWidget
  * \brief A widget which allows users to modify the properties of a QgsColorBrewerColorRamp.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsColorBrewerColorRampWidget : public QgsPanelWidget, private Ui::QgsColorBrewerColorRampWidgetBase
 {
@@ -81,7 +80,6 @@ class GUI_EXPORT QgsColorBrewerColorRampWidget : public QgsPanelWidget, private 
  * \ingroup gui
  * \class QgsColorBrewerColorRampDialog
  * \brief A dialog which allows users to modify the properties of a QgsColorBrewerColorRamp.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsColorBrewerColorRampDialog : public QDialog
 {

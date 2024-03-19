@@ -46,7 +46,7 @@ class CORE_EXPORT QgsSingleBandPseudoColorRenderer: public QgsRasterRenderer
     const QgsSingleBandPseudoColorRenderer &operator=( const QgsSingleBandPseudoColorRenderer & ) = delete;
 
     QgsSingleBandPseudoColorRenderer *clone() const override SIP_FACTORY;
-
+    Qgis::RasterRendererFlags flags() const override;
     static QgsRasterRenderer *create( const QDomElement &elem, QgsRasterInterface *input ) SIP_FACTORY;
 
     QgsRasterBlock *block( int bandNo, const QgsRectangle &extent, int width, int height, QgsRasterBlockFeedback *feedback = nullptr ) override SIP_FACTORY;
@@ -59,6 +59,8 @@ class CORE_EXPORT QgsSingleBandPseudoColorRenderer: public QgsRasterRenderer
 
     //! \note available in Python as constShader
     const QgsRasterShader *shader() const SIP_PYNAME( constShader ) { return mShader.get(); }
+
+    bool canCreateRasterAttributeTable( ) const override;
 
     /**
      * Creates a color ramp shader
@@ -85,16 +87,21 @@ class CORE_EXPORT QgsSingleBandPseudoColorRenderer: public QgsRasterRenderer
 
     /**
      * Returns the band used by the renderer
-     * \since QGIS 2.7
+     *
+     * \deprecated since QGIS 3.38 use inputBand() instead
      */
-    int band() const { return mBand; }
+    Q_DECL_DEPRECATED int band() const SIP_DEPRECATED { return mBand; }
 
     /**
      * Sets the band used by the renderer.
      * \see band
-     * \since QGIS 2.10
+     *
+     * \deprecated since QGIS 3.38 use setInputBand() instead
      */
-    void setBand( int bandNo );
+    Q_DECL_DEPRECATED void setBand( int bandNo ) SIP_DEPRECATED;
+
+    int inputBand() const override;
+    bool setInputBand( int band ) override;
 
     double classificationMin() const { return mClassificationMin; }
     double classificationMax() const { return mClassificationMax; }

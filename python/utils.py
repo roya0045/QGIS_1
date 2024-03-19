@@ -25,8 +25,9 @@ __copyright__ = '(C) 2009, Martin Dobias'
 QGIS utilities module
 
 """
+from typing import List, Dict, Optional
 
-from qgis.PyQt.QtCore import QCoreApplication, QLocale, QThread, qDebug, QUrl
+from qgis.PyQt.QtCore import QT_VERSION_STR, QCoreApplication, QLocale, QThread, qDebug, QUrl
 from qgis.PyQt.QtGui import QDesktopServices
 from qgis.PyQt.QtWidgets import QPushButton, QApplication
 from qgis.core import Qgis, QgsMessageLog, qgsfunction, QgsMessageOutput
@@ -68,12 +69,12 @@ def showWarning(message, category, filename, lineno, file=None, line=None):
     else:
         decoded_filename = filename
     QgsMessageLog.logMessage(
-        u"warning:{}\ntraceback:{}".format(warnings.formatwarning(message, category, decoded_filename, lineno), stk),
+        "warning:{}\ntraceback:{}".format(warnings.formatwarning(message, category, decoded_filename, lineno), stk),
         QCoreApplication.translate("Python", "Python warning")
     )
 
 
-def showException(type, value, tb, msg, messagebar=False, level=Qgis.Warning):
+def showException(type, value, tb, msg, messagebar=False, level=Qgis.MessageLevel.Warning):
     if msg is None:
         msg = QCoreApplication.translate('Python', 'An error has occurred while executing Python code:')
 
@@ -116,7 +117,7 @@ def showException(type, value, tb, msg, messagebar=False, level=Qgis.Warning):
     button = QPushButton(QCoreApplication.translate("Python", "View message log"), pressed=show_message_log)
     widget.layout().addWidget(stackbutton)
     widget.layout().addWidget(button)
-    bar.pushWidget(widget, Qgis.Warning)
+    bar.pushWidget(widget, Qgis.MessageLevel.Warning)
 
 
 def show_message_log(pop_error=True):
@@ -134,7 +135,7 @@ def open_stack_dialog(type, value, tb, msg, pop_error=True):
         msg = QCoreApplication.translate('Python', 'An error has occurred while executing Python code:')
 
     # TODO Move this to a template HTML file
-    txt = u'''<font color="red"><b>{msg}</b></font>
+    txt = '''<font color="red"><b>{msg}</b></font>
 <br>
 <h3>{main_error}</h3>
 <pre>
@@ -171,13 +172,13 @@ def open_stack_dialog(type, value, tb, msg, pop_error=True):
                      qgisrelease=Qgis.QGIS_RELEASE_NAME,
                      devversion=Qgis.QGIS_DEV_VERSION,
                      pypath_label=pypath_label,
-                     pypath=u"".join(u"<li>{}</li>".format(path) for path in sys.path))
+                     pypath="".join("<li>{}</li>".format(path) for path in sys.path))
 
     txt = txt.replace('  ', '&nbsp; ')  # preserve whitespaces for nicer output
 
     dlg = QgsMessageOutput.createMessageOutput()
     dlg.setTitle(msg)
-    dlg.setMessage(txt, QgsMessageOutput.MessageHtml)
+    dlg.setMessage(txt, QgsMessageOutput.MessageType.MessageHtml)
     dlg.showMessage()
 
 
@@ -212,7 +213,7 @@ iface = None
 
 def initInterface(pointer):
     from qgis.gui import QgisInterface
-    from sip import wrapinstance
+    from qgis.PyQt.sip import wrapinstance
 
     global iface
     iface = wrapinstance(pointer, QgisInterface)
@@ -220,6 +221,9 @@ def initInterface(pointer):
 
 #######################
 # PLUGINS
+
+# The current path for home directory Python plugins.
+HOME_PLUGIN_PATH: Optional[str] = None
 
 # list of plugin paths. it gets filled in by the QGIS python library
 plugin_paths = []
@@ -269,23 +273,110 @@ def metadataParser() -> dict:
     return plugins_metadata_parser
 
 
-def updateAvailablePlugins():
+def updateAvailablePlugins(sort_by_dependencies=False):
     """ Go through the plugin_paths list and find out what plugins are available. """
     # merge the lists
     plugins = []
     metadata_parser = {}
+    plugin_name_map = {}
     for pluginpath in plugin_paths:
-        for pluginName, parser in findPlugins(pluginpath):
+        for plugin_id, parser in findPlugins(pluginpath):
             if parser is None:
                 continue
-            if pluginName not in plugins:
-                plugins.append(pluginName)
-                metadata_parser[pluginName] = parser
+            if plugin_id not in plugins:
+                plugins.append(plugin_id)
+                metadata_parser[plugin_id] = parser
+                plugin_name_map[parser.get('general', 'name')] = plugin_id
 
-    global available_plugins
-    available_plugins = plugins
     global plugins_metadata_parser
     plugins_metadata_parser = metadata_parser
+
+    global available_plugins
+    available_plugins = _sortAvailablePlugins(plugins, plugin_name_map) if sort_by_dependencies else plugins
+
+
+def _sortAvailablePlugins(plugins: List[str], plugin_name_map: Dict[str, str]) -> List[str]:
+    """Place dependent plugins after their dependencies
+
+    1. Make a copy of plugins list to modify it.
+    2. Get a plugin dependencies dict.
+    3. Iterate plugins and leave the real work to _move_plugin()
+
+    :param list plugins: List of available plugin ids
+    :param dict plugin_name_map: Map of plugin_names and plugin_ids, because
+                                 get_plugin_deps() only returns plugin names
+    :return: List of plugins sorted by dependencies.
+    """
+    sorted_plugins = plugins.copy()
+    visited_plugins = []
+
+    deps = {}
+    for plugin in plugins:
+        deps[plugin] = [plugin_name_map.get(dep, '') for dep in get_plugin_deps(plugin)]
+
+    for plugin in plugins:
+        _move_plugin(plugin, deps, visited_plugins, sorted_plugins)
+
+    return sorted_plugins
+
+
+def _move_plugin(plugin: str, deps: Dict[str, List[str]], visited: List[str], sorted_plugins: List[str]):
+    """Use recursion to move a plugin after its dependencies in a list of
+    sorted plugins.
+
+    Notes:
+    This function modifies both visited and sorted_plugins lists.
+    This function will not get trapped in circular dependencies. We avoid a
+    maximum recursion error by calling return when revisiting a plugin.
+    Therefore, if a plugin A depends on B and B depends on A, the order will
+    work in one direction (e.g., A depends on B), but the other direction won't
+    be satisfied. After all, a circular plugin dependency should not exist.
+
+    :param str plugin: Id of the plugin that should be moved in sorted_plugins.
+    :param dict deps: Dictionary of plugin dependencies.
+    :param list visited: List of plugins already visited.
+    :param list sorted_plugins: List of plugins to be modified and sorted.
+    """
+    if plugin in visited:
+        return
+    elif plugin not in deps or not deps[plugin]:
+        visited.append(plugin)  # Plugin with no dependencies
+    else:
+        visited.append(plugin)
+
+        # First move dependencies
+        for dep in deps[plugin]:
+            _move_plugin(dep, deps, visited, sorted_plugins)
+
+        # Remove current plugin from sorted
+        # list to get dependency indices
+        max_index = sorted_plugins.index(plugin)
+        sorted_plugins.pop(max_index)
+
+        for dep in deps[plugin]:
+            idx = sorted_plugins.index(dep) + 1 if dep in sorted_plugins else -1
+            max_index = max(idx, max_index)
+
+        # Finally, insert after dependencies
+        sorted_plugins.insert(max_index, plugin)
+
+
+def get_plugin_deps(plugin_id: str) -> Dict[str, Optional[str]]:
+    result = {}
+    try:
+        parser = plugins_metadata_parser[plugin_id]
+        plugin_deps = parser.get('general', 'plugin_dependencies')
+    except (configparser.NoOptionError, configparser.NoSectionError, KeyError):
+        return result
+
+    for dep in plugin_deps.split(','):
+        if dep.find('==') > 0:
+            name, version_required = dep.split('==')
+        else:
+            name = dep
+            version_required = None
+        result[name] = version_required
+    return result
 
 
 def pluginMetadata(packageName: str, fct: str) -> str:
@@ -314,7 +405,7 @@ def loadPlugin(packageName: str) -> bool:
         return True
     except:
         msg = QCoreApplication.translate("Python", "Couldn't load plugin '{0}'").format(packageName)
-        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.Critical)
+        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.MessageLevel.Critical)
         return False
 
 
@@ -337,7 +428,7 @@ def _startPlugin(packageName: str) -> bool:
         _unloadPluginModules(packageName)
         errMsg = QCoreApplication.translate("Python", "Couldn't load plugin '{0}'").format(packageName)
         msg = QCoreApplication.translate("Python", "{0} due to an error when calling its classFactory() method").format(errMsg)
-        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.Critical)
+        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.MessageLevel.Critical)
         return False
     return True
 
@@ -363,7 +454,7 @@ def startPlugin(packageName: str) -> bool:
         _unloadPluginModules(packageName)
         errMsg = QCoreApplication.translate("Python", "Couldn't load plugin '{0}'").format(packageName)
         msg = QCoreApplication.translate("Python", "{0} due to an error when calling its initGui() method").format(errMsg)
-        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.Critical)
+        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.MessageLevel.Critical)
         return False
 
     end = time.process_time()
@@ -383,7 +474,7 @@ def startProcessingPlugin(packageName: str) -> bool:
         del plugins[packageName]
         _unloadPluginModules(packageName)
         msg = QCoreApplication.translate("Python", "{0} - plugin has no initProcessing() method").format(errMsg)
-        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.Critical)
+        showException(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], msg, messagebar=True, level=Qgis.MessageLevel.Critical)
         return False
 
     # initProcessing
@@ -398,6 +489,25 @@ def startProcessingPlugin(packageName: str) -> bool:
 
     end = time.process_time()
     _addToActivePlugins(packageName, end - start)
+
+    return True
+
+
+def finalizeProcessingStartup() -> bool:
+    """
+    Finalizes the startup of the Processing plugin
+
+    This should only be called after the startProcessingPlugin() method has been called
+    for every installed and enabled plugin.
+    """
+    global plugins, active_plugins, iface, plugin_times
+    if 'processing' not in plugins:
+        return False
+
+    try:
+        plugins['processing'].finalizeStartup()
+    except:
+        return False
 
     return True
 
@@ -446,6 +556,10 @@ def unloadPlugin(packageName: str) -> bool:
 def _unloadPluginModules(packageName: str):
     """ unload plugin package with all its modules (files) """
     global _plugin_modules
+
+    if packageName not in _plugin_modules:
+        return
+
     mods = _plugin_modules[packageName]
 
     for mod in mods:
@@ -489,15 +603,16 @@ def isPluginLoaded(packageName: str) -> bool:
     return (packageName in active_plugins)
 
 
-def reloadPlugin(packageName: str):
+def reloadPlugin(packageName: str) -> bool:
     """ unload and start again a plugin """
     global active_plugins
     if packageName not in active_plugins:
-        return  # it's not active
+        return False  # it's not active
 
     unloadPlugin(packageName)
     loadPlugin(packageName)
-    startPlugin(packageName)
+    started = startPlugin(packageName)
+    return started
 
 
 def showPluginHelp(packageName: str = None, filename: str = "index", section: str = ""):
@@ -532,7 +647,7 @@ def showPluginHelp(packageName: str = None, filename: str = "index", section: st
         url = "file://" + helpfile
         if section != "":
             url = url + "#" + section
-        QDesktopServices.openUrl(QUrl(url))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(url))
 
 
 def pluginDirectory(packageName: str) -> str:
@@ -686,7 +801,7 @@ using the "mod_spatialite" extension (python3)"""
         try:
             cur.execute("SELECT EnableGpkgAmphibiousMode()")
         except (sqlite3.Error, sqlite3.DatabaseError, sqlite3.NotSupportedError):
-            QgsMessageLog.logMessage(u"warning:{}".format("Could not enable geopackage amphibious mode"),
+            QgsMessageLog.logMessage("warning:{}".format("Could not enable geopackage amphibious mode"),
                                      QCoreApplication.translate("Python", "Python warning"))
 
     cur.close()
@@ -771,7 +886,16 @@ def _import(name, globals={}, locals={}, fromlist=[], level=None):
 
     if 'PyQt4' in name:
         msg = 'PyQt4 classes cannot be imported in QGIS 3.x.\n' \
-              'Use {} or the version independent {} import instead.'.format(name.replace('PyQt4', 'PyQt5'), name.replace('PyQt4', 'qgis.PyQt'))
+              'Use {} or preferably the version independent {} import instead.'.format(name.replace('PyQt4', 'PyQt5'), name.replace('PyQt4', 'qgis.PyQt'))
+        raise ImportError(msg)
+    qt_version = int(QT_VERSION_STR.split('.')[0])
+    if qt_version == 5 and 'PyQt6' in name:
+        msg = 'PyQt6 classes cannot be imported in a QGIS build based on Qt5.\n' \
+              'Use {} or preferably the version independent {} import instead (where available).'.format(name.replace('PyQt6', 'PyQt5'), name.replace('PyQt6', 'qgis.PyQt'))
+        raise ImportError(msg)
+    elif qt_version == 6 and 'PyQt5' in name:
+        msg = 'PyQt5 classes cannot be imported in a QGIS build based on Qt6.\n' \
+              'Use {} or preferably the version independent {} import instead (where available).'.format(name.replace('PyQt5', 'PyQt6'), name.replace('PyQt5', 'qgis.PyQt'))
         raise ImportError(msg)
 
     if os.name == 'nt' and sys.version_info < (3, 8):
@@ -823,30 +947,63 @@ if not os.environ.get('QGIS_NO_OVERRIDE_IMPORT'):
         __builtin__.__import__ = _import
 
 
-def run_script_from_file(filepath: str):
+def processing_algorithm_from_script(filepath: str):
     """
-    Runs a Python script from a given file. Supports loading processing scripts.
-    :param filepath: The .py file to load.
+    Tries to import a Python processing algorithm from given file, and returns an instance
+    of the algorithm
     """
     import sys
     import inspect
     from qgis.processing import alg
     try:
         from qgis.core import QgsApplication, QgsProcessingAlgorithm, QgsProcessingFeatureBasedAlgorithm
-        from qgis.processing import execAlgorithmDialog
         _locals = {}
-        exec(open(filepath.replace("\\\\", "/").encode(sys.getfilesystemencoding())).read(), _locals)
-        alginstance = None
+        with open(filepath.replace("\\\\", "/").encode(sys.getfilesystemencoding())) as input_file:
+            exec(input_file.read(), _locals)
+        alg_instance = None
         try:
-            alginstance = alg.instances.pop().createInstance()
+            alg_instance = alg.instances.pop().createInstance()
         except IndexError:
             for name, attr in _locals.items():
                 if inspect.isclass(attr) and issubclass(attr, (QgsProcessingAlgorithm, QgsProcessingFeatureBasedAlgorithm)) and attr.__name__ not in ("QgsProcessingAlgorithm", "QgsProcessingFeatureBasedAlgorithm"):
-                    alginstance = attr()
+                    alg_instance = attr()
                     break
-        if alginstance:
-            alginstance.setProvider(QgsApplication.processingRegistry().providerById("script"))
-            alginstance.initAlgorithm()
-            execAlgorithmDialog(alginstance)
+        if alg_instance:
+            script_provider = QgsApplication.processingRegistry().providerById("script")
+            alg_instance.setProvider(script_provider)
+            alg_instance.initAlgorithm()
+            return alg_instance
     except ImportError:
         pass
+
+    return None
+
+
+def import_script_algorithm(filepath: str) -> Optional[str]:
+    """
+    Imports a script algorithm from given file to the processing script provider, and returns the
+    ID of the imported algorithm
+    """
+    alg_instance = processing_algorithm_from_script(filepath)
+    if alg_instance:
+        from qgis.core import QgsApplication
+        script_provider = QgsApplication.processingRegistry().providerById("script")
+        script_provider.add_algorithm_class(type(alg_instance))
+        return alg_instance.id()
+
+    return None
+
+
+def run_script_from_file(filepath: str):
+    """
+    Runs a Python script from a given file. Supports loading processing scripts.
+    :param filepath: The .py file to load.
+    """
+    try:
+        from qgis.processing import execAlgorithmDialog
+    except ImportError:
+        return
+
+    alg_instance = processing_algorithm_from_script(filepath)
+    if alg_instance:
+        execAlgorithmDialog(alg_instance)

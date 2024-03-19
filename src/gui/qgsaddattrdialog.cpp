@@ -19,6 +19,7 @@
 #include "qgsvectorlayer.h"
 #include "qgsvectordataprovider.h"
 #include "qgslogger.h"
+#include "qgsfields.h"
 
 #include <QMessageBox>
 
@@ -30,21 +31,24 @@ QgsAddAttrDialog::QgsAddAttrDialog( QgsVectorLayer *vlayer, QWidget *parent, Qt:
   connect( mTypeBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsAddAttrDialog::mTypeBox_currentIndexChanged );
   connect( mLength, &QSpinBox::editingFinished, this, &QgsAddAttrDialog::mLength_editingFinished );
 
-  if ( !vlayer )
+  if ( !vlayer || !vlayer->dataProvider() )
     return;
+
+  const Qgis::VectorDataProviderAttributeEditCapabilities attributeEditCapabilities = vlayer->dataProvider()->attributeEditCapabilities();
 
   //fill data types into the combo box
   const QList< QgsVectorDataProvider::NativeType > &typelist = vlayer->dataProvider()->nativeTypes();
   for ( int i = 0; i < typelist.size(); i++ )
   {
-    QgsDebugMsg( QStringLiteral( "name:%1 type:%2 typeName:%3 length:%4-%5 prec:%6-%7" )
-                 .arg( typelist[i].mTypeDesc )
-                 .arg( typelist[i].mType )
-                 .arg( typelist[i].mTypeName )
-                 .arg( typelist[i].mMinLen ).arg( typelist[i].mMaxLen )
-                 .arg( typelist[i].mMinPrec ).arg( typelist[i].mMaxPrec ) );
+    QgsDebugMsgLevel( QStringLiteral( "name:%1 type:%2 typeName:%3 length:%4-%5 prec:%6-%7" )
+                      .arg( typelist[i].mTypeDesc )
+                      .arg( typelist[i].mType )
+                      .arg( typelist[i].mTypeName )
+                      .arg( typelist[i].mMinLen ).arg( typelist[i].mMaxLen )
+                      .arg( typelist[i].mMinPrec ).arg( typelist[i].mMaxPrec ), 2 );
 
-    whileBlocking( mTypeBox )->addItem( typelist[i].mTypeDesc );
+    whileBlocking( mTypeBox )->addItem( QgsFields::iconForFieldType( typelist[i].mType, typelist[i].mSubType, typelist[i].mTypeName ),
+                                        typelist[i].mTypeDesc );
     mTypeBox->setItemData( i, static_cast<int>( typelist[i].mType ), Qt::UserRole );
     mTypeBox->setItemData( i, typelist[i].mTypeName, Qt::UserRole + 1 );
     mTypeBox->setItemData( i, typelist[i].mMinLen, Qt::UserRole + 2 );
@@ -64,6 +68,22 @@ QgsAddAttrDialog::QgsAddAttrDialog( QgsVectorLayer *vlayer, QWidget *parent, Qt:
     mNameEdit->setMaxLength( 10 );
 
   mNameEdit->setFocus();
+
+  if ( !( attributeEditCapabilities & Qgis::VectorDataProviderAttributeEditCapability::EditAlias ) )
+  {
+    mLabelAlias->hide();
+    mAliasEdit->hide();
+  }
+  if ( !( attributeEditCapabilities & Qgis::VectorDataProviderAttributeEditCapability::EditComment ) )
+  {
+    mLabelComment->hide();
+    mCommentEdit->hide();
+  }
+}
+
+void QgsAddAttrDialog::setIllegalFieldNames( const QSet<QString> &names )
+{
+  mIllegalFieldNames = names;
 }
 
 void QgsAddAttrDialog::mTypeBox_currentIndexChanged( int idx )
@@ -108,12 +128,25 @@ void QgsAddAttrDialog::setPrecisionMinMax()
 
 void QgsAddAttrDialog::accept()
 {
-  if ( mIsShapeFile && mNameEdit->text().compare( QLatin1String( "shape" ), Qt::CaseInsensitive ) == 0 )
+  const QString newName = mNameEdit->text().trimmed();
+  if ( mIsShapeFile && newName.compare( QLatin1String( "shape" ), Qt::CaseInsensitive ) == 0 )
   {
     QMessageBox::warning( this, tr( "Add Field" ),
                           tr( "Invalid field name. This field name is reserved and cannot be used." ) );
     return;
   }
+
+
+  for ( const QString &illegalName : std::as_const( mIllegalFieldNames ) )
+  {
+    if ( newName.compare( illegalName, Qt::CaseInsensitive ) == 0 )
+    {
+      QMessageBox::warning( this, tr( "Add Field" ),
+                            tr( "%1 is an illegal field name for this format and cannot be used." ).arg( newName ) );
+      return;
+    }
+  }
+
   if ( mNameEdit->text().isEmpty() )
   {
     QMessageBox::warning( this, tr( "Add Field" ),
@@ -127,22 +160,27 @@ void QgsAddAttrDialog::accept()
 QgsField QgsAddAttrDialog::field() const
 {
 
-  QgsDebugMsg( QStringLiteral( "idx:%1 name:%2 type:%3 typeName:%4 length:%5 prec:%6 comment:%7" )
-               .arg( mTypeBox->currentIndex() )
-               .arg( mNameEdit->text() )
-               .arg( mTypeBox->currentData( Qt::UserRole ).toInt() )
-               .arg( mTypeBox->currentData( Qt::UserRole + 1 ).toString() )
-               .arg( mLength->value() )
-               .arg( mPrec->value() )
-               .arg( mCommentEdit->text() ) );
+  QgsDebugMsgLevel( QStringLiteral( "idx:%1 name:%2 type:%3 typeName:%4 length:%5 prec:%6 comment:%7" )
+                    .arg( mTypeBox->currentIndex() )
+                    .arg( mNameEdit->text() )
+                    .arg( mTypeBox->currentData( Qt::UserRole ).toInt() )
+                    .arg( mTypeBox->currentData( Qt::UserRole + 1 ).toString() )
+                    .arg( mLength->value() )
+                    .arg( mPrec->value() )
+                    .arg( mCommentEdit->text() ), 2 );
 
-  return QgsField(
-           mNameEdit->text(),
-           ( QVariant::Type ) mTypeBox->currentData( Qt::UserRole ).toInt(),
-           mTypeBox->currentData( Qt::UserRole + 1 ).toString(),
-           mLength->value(),
-           mPrec->isEnabled() ? mPrec->value() : 0,
-           mCommentEdit->text(),
-           static_cast<QVariant::Type>( mTypeBox->currentData( Qt::UserRole ).toInt() ) == QVariant::Map ? QVariant::String : QVariant::Invalid
-         );
+  QgsField res = QgsField(
+                   mNameEdit->text(),
+                   ( QVariant::Type ) mTypeBox->currentData( Qt::UserRole ).toInt(),
+                   mTypeBox->currentData( Qt::UserRole + 1 ).toString(),
+                   mLength->value(),
+                   mPrec->isEnabled() ? mPrec->value() : 0,
+                   mCommentEdit->text(),
+                   static_cast<QVariant::Type>( mTypeBox->currentData( Qt::UserRole ).toInt() ) == QVariant::Map ? QVariant::String : QVariant::Invalid
+                 );
+
+  if ( !mAliasEdit->text().isEmpty() )
+    res.setAlias( mAliasEdit->text() );
+
+  return res;
 }

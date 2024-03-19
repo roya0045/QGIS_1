@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 '''
 test_qgstabwidget.py
                      --------------------------------------
@@ -15,16 +14,15 @@ test_qgstabwidget.py
  ***************************************************************************/
 '''
 
-import qgis  # NOQA
-
-from qgis.testing import unittest, start_app
-from qgis.gui import QgsTabWidget
 from qgis.PyQt.QtWidgets import QWidget
+from qgis.gui import QgsTabWidget
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsTabWidget(unittest.TestCase):
+class TestQgsTabWidget(QgisTestCase):
 
     def setUp(self):
         """Run before each test."""

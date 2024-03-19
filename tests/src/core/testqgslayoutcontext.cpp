@@ -28,15 +28,16 @@
 #include "qgstest.h"
 #include <QtTest/QSignalSpy>
 
-class TestQgsLayoutContext: public QObject
+class TestQgsLayoutContext: public QgsTest
 {
     Q_OBJECT
 
+  public:
+    TestQgsLayoutContext() : QgsTest( QStringLiteral( "Layout Context Tests" ) ) {}
+
   private slots:
-    void initTestCase();// will be called before the first testfunction is executed.
-    void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init();// will be called before each testfunction is executed.
-    void cleanup();// will be called after every testfunction.
+
+    void cleanupTestCase();
     void creation(); //test creation of QgsLayout
     void flags(); //test QgsLayout flags
     void feature();
@@ -49,36 +50,11 @@ class TestQgsLayoutContext: public QObject
     void scales();
     void simplifyMethod();
 
-  private:
-    QString mReport;
-
 };
-
-void TestQgsLayoutContext::initTestCase()
-{
-  mReport = QStringLiteral( "<h1>Layout Context Tests</h1>\n" );
-}
 
 void TestQgsLayoutContext::cleanupTestCase()
 {
-  const QString myReportFile = QDir::tempPath() + QDir::separator() + "qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-  }
-}
-
-void TestQgsLayoutContext::init()
-{
-
-}
-
-void TestQgsLayoutContext::cleanup()
-{
-
+  QgsApplication::exitQgis();
 }
 
 void TestQgsLayoutContext::creation()
@@ -151,7 +127,9 @@ void TestQgsLayoutContext::layer()
   l.reportContext().setLayer( layer );
   //test that expression context created for layout contains report context layer scope
   const QgsExpressionContext expContext  = l.createExpressionContext();
-  QCOMPARE( QgsExpressionUtils::getVectorLayer( expContext.variable( "layer" ), nullptr ), layer );
+  Q_NOWARN_DEPRECATED_PUSH
+  QCOMPARE( QgsExpressionUtils::getVectorLayer( expContext.variable( "layer" ), &expContext, nullptr ), layer );
+  Q_NOWARN_DEPRECATED_POP
 
   delete layer;
 }
@@ -176,31 +154,31 @@ void TestQgsLayoutContext::renderContextFlags()
 {
   QgsLayoutRenderContext context( nullptr );
   context.setFlags( QgsLayoutRenderContext::Flags() );
-  QgsRenderContext::Flags flags = context.renderContextFlags();
-  QVERIFY( !( flags & QgsRenderContext::Antialiasing ) );
-  QVERIFY( !( flags & QgsRenderContext::UseAdvancedEffects ) );
-  QVERIFY( ( flags & QgsRenderContext::ForceVectorOutput ) );
+  Qgis::RenderContextFlags flags = context.renderContextFlags();
+  QVERIFY( !( flags & Qgis::RenderContextFlag::Antialiasing ) );
+  QVERIFY( !( flags & Qgis::RenderContextFlag::UseAdvancedEffects ) );
+  QVERIFY( ( flags & Qgis::RenderContextFlag::ForceVectorOutput ) );
 
   context.setFlag( QgsLayoutRenderContext::FlagAntialiasing );
   flags = context.renderContextFlags();
-  QVERIFY( ( flags & QgsRenderContext::Antialiasing ) );
-  QVERIFY( !( flags & QgsRenderContext::UseAdvancedEffects ) );
-  QVERIFY( ( flags & QgsRenderContext::ForceVectorOutput ) );
+  QVERIFY( ( flags & Qgis::RenderContextFlag::Antialiasing ) );
+  QVERIFY( !( flags & Qgis::RenderContextFlag::UseAdvancedEffects ) );
+  QVERIFY( ( flags & Qgis::RenderContextFlag::ForceVectorOutput ) );
 
   context.setFlag( QgsLayoutRenderContext::FlagUseAdvancedEffects );
   flags = context.renderContextFlags();
-  QVERIFY( ( flags & QgsRenderContext::Antialiasing ) );
-  QVERIFY( ( flags & QgsRenderContext::UseAdvancedEffects ) );
-  QVERIFY( ( flags & QgsRenderContext::ForceVectorOutput ) );
+  QVERIFY( ( flags & Qgis::RenderContextFlag::Antialiasing ) );
+  QVERIFY( ( flags & Qgis::RenderContextFlag::UseAdvancedEffects ) );
+  QVERIFY( ( flags & Qgis::RenderContextFlag::ForceVectorOutput ) );
 }
 
 void TestQgsLayoutContext::textFormat()
 {
   QgsLayoutRenderContext context( nullptr );
-  context.setTextRenderFormat( QgsRenderContext::TextFormatAlwaysOutlines );
-  QCOMPARE( context.textRenderFormat(), QgsRenderContext::TextFormatAlwaysOutlines );
-  context.setTextRenderFormat( QgsRenderContext::TextFormatAlwaysText );
-  QCOMPARE( context.textRenderFormat(), QgsRenderContext::TextFormatAlwaysText );
+  context.setTextRenderFormat( Qgis::TextRenderFormat::AlwaysOutlines );
+  QCOMPARE( context.textRenderFormat(), Qgis::TextRenderFormat::AlwaysOutlines );
+  context.setTextRenderFormat( Qgis::TextRenderFormat::AlwaysText );
+  QCOMPARE( context.textRenderFormat(), Qgis::TextRenderFormat::AlwaysText );
 }
 
 void TestQgsLayoutContext::boundingBoxes()
@@ -235,10 +213,10 @@ void TestQgsLayoutContext::geometry()
 
   QCOMPARE( context.currentGeometry().asWkt(), f.geometry().asWkt() );
   QVERIFY( !context.currentGeometry( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3111" ) ) ).isNull() );
-  QCOMPARE( context.currentGeometry( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3111" ) ) ).asWkt( 0 ), QStringLiteral( "LineString (2412169 2388563, 2500000 2277996)" ) );
+  QCOMPARE( context.currentGeometry( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3111" ) ) ).asWkt( -2 ), QStringLiteral( "LineString (2412200 2388600, 2500000 2278000)" ) );
 
   // should be cached
-  QCOMPARE( context.currentGeometry( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3111" ) ) ).asWkt( 0 ), QStringLiteral( "LineString (2412169 2388563, 2500000 2277996)" ) );
+  QCOMPARE( context.currentGeometry( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3111" ) ) ).asWkt( -2 ), QStringLiteral( "LineString (2412200 2388600, 2500000 2278000)" ) );
 
   // layer crs
   QCOMPARE( context.currentGeometry( layer->crs() ).asWkt(), f.geometry().asWkt() );

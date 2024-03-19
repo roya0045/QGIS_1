@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsProviderRegistry.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,19 +9,19 @@ __author__ = 'Nyall Dawson'
 __date__ = '16/03/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
 import os
 
 from qgis.core import (
-    QgsProviderRegistry,
-    QgsMapLayerType,
-    QgsWkbTypes,
-    QgsProviderSublayerDetails,
     Qgis,
     QgsCoordinateTransformContext,
-    QgsVectorLayer
+    QgsMapLayerType,
+    QgsProviderSublayerDetails,
+    QgsVectorLayer,
+    QgsWkbTypes,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 # Convenience instances in case you may need them
@@ -30,7 +29,7 @@ from utilities import unitTestDataPath
 start_app()
 
 
-class TestQgsProviderSublayerDetails(unittest.TestCase):
+class TestQgsProviderSublayerDetails(QgisTestCase):
 
     def testGettersSetters(self):
         """
@@ -59,9 +58,9 @@ class TestQgsProviderSublayerDetails(unittest.TestCase):
         d.setFeatureCount(1000)
         self.assertEqual(d.featureCount(), 1000)
 
-        self.assertEqual(d.wkbType(), QgsWkbTypes.Unknown)
-        d.setWkbType(QgsWkbTypes.Point)
-        self.assertEqual(d.wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(d.wkbType(), QgsWkbTypes.Type.Unknown)
+        d.setWkbType(QgsWkbTypes.Type.Point)
+        self.assertEqual(d.wkbType(), QgsWkbTypes.Type.Point)
 
         d.setGeometryColumnName('geom_col')
         self.assertEqual(d.geometryColumnName(), 'geom_col')
@@ -76,6 +75,11 @@ class TestQgsProviderSublayerDetails(unittest.TestCase):
         self.assertTrue(d.skippedContainerScan())
         d.setSkippedContainerScan(False)
         self.assertFalse(d.skippedContainerScan())
+
+        d.setFlags(Qgis.SublayerFlag.SystemTable)
+        self.assertEqual(d.flags(), Qgis.SublayerFlags(Qgis.SublayerFlag.SystemTable))
+        d.setFlags(Qgis.SublayerFlags())
+        self.assertEqual(d.flags(), Qgis.SublayerFlags())
 
     def test_equality(self):
         """
@@ -118,9 +122,9 @@ class TestQgsProviderSublayerDetails(unittest.TestCase):
         d2.setFeatureCount(1000)
         self.assertEqual(d, d2)
 
-        d.setWkbType(QgsWkbTypes.Point)
+        d.setWkbType(QgsWkbTypes.Type.Point)
         self.assertNotEqual(d, d2)
-        d2.setWkbType(QgsWkbTypes.Point)
+        d2.setWkbType(QgsWkbTypes.Type.Point)
         self.assertEqual(d, d2)
 
         d.setGeometryColumnName('geom_col')
@@ -143,6 +147,11 @@ class TestQgsProviderSublayerDetails(unittest.TestCase):
         d2.setSkippedContainerScan(True)
         self.assertEqual(d, d2)
 
+        d.setFlags(Qgis.SublayerFlag.SystemTable)
+        self.assertNotEqual(d, d2)
+        d2.setFlags(Qgis.SublayerFlag.SystemTable)
+        self.assertEqual(d, d2)
+
     def test_to_layer(self):
         """
         Test converting sub layer details to a layer
@@ -158,6 +167,50 @@ class TestQgsProviderSublayerDetails(unittest.TestCase):
         self.assertTrue(ml.isValid())
         self.assertIsInstance(ml, QgsVectorLayer)
         self.assertEqual(ml.name(), 'my sub layer')
+
+    def test_to_mime(self):
+        """
+        Test converting sub layer details to mime URIs
+        """
+        details = QgsProviderSublayerDetails()
+        details.setUri(os.path.join(unitTestDataPath(), 'lines.shp'))
+        details.setName('my sub layer')
+        details.setType(QgsMapLayerType.VectorLayer)
+        details.setProviderKey('ogr')
+
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'vector')
+        self.assertEqual(uri.providerKey, 'ogr')
+        self.assertEqual(uri.name, 'my sub layer')
+        self.assertEqual(uri.uri, os.path.join(unitTestDataPath(), 'lines.shp'))
+
+        details.setType(QgsMapLayerType.RasterLayer)
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'raster')
+
+        details.setType(QgsMapLayerType.MeshLayer)
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'mesh')
+
+        details.setType(QgsMapLayerType.VectorTileLayer)
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'vector-tile')
+
+        details.setType(QgsMapLayerType.PointCloudLayer)
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'pointcloud')
+
+        details.setType(QgsMapLayerType.PluginLayer)
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'plugin')
+
+        details.setType(QgsMapLayerType.GroupLayer)
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'group')
+
+        details.setType(QgsMapLayerType.AnnotationLayer)
+        uri = details.toMimeUri()
+        self.assertEqual(uri.layerType, 'annotation')
 
 
 if __name__ == '__main__':

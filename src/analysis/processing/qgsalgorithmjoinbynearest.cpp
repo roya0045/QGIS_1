@@ -18,7 +18,7 @@
 #include "qgsalgorithmjoinbynearest.h"
 #include "qgsprocessingoutputs.h"
 #include "qgslinestring.h"
-
+#include "qgsspatialindex.h"
 #include <algorithm>
 
 ///@cond PRIVATE
@@ -57,7 +57,7 @@ void QgsJoinByNearestAlgorithm::initAlgorithm( const QVariantMap & )
 
   addParameter( new QgsProcessingParameterField( QStringLiteral( "FIELDS_TO_COPY" ),
                 QObject::tr( "Layer 2 fields to copy (leave empty to copy all fields)" ),
-                QVariant(), QStringLiteral( "INPUT_2" ), QgsProcessingParameterField::Any,
+                QVariant(), QStringLiteral( "INPUT_2" ), Qgis::ProcessingFieldParameterDataType::Any,
                 true, true ) );
 
   addParameter( new QgsProcessingParameterBoolean( QStringLiteral( "DISCARD_NONMATCHING" ),
@@ -68,17 +68,17 @@ void QgsJoinByNearestAlgorithm::initAlgorithm( const QVariantMap & )
                 QObject::tr( "Joined field prefix" ), QVariant(), false, true ) );
 
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "NEIGHBORS" ),
-                QObject::tr( "Maximum nearest neighbors" ), QgsProcessingParameterNumber::Integer, 1, false, 1 ) );
+                QObject::tr( "Maximum nearest neighbors" ), Qgis::ProcessingNumberParameterType::Integer, 1, false, 1 ) );
 
   addParameter( new QgsProcessingParameterDistance( QStringLiteral( "MAX_DISTANCE" ),
                 QObject::tr( "Maximum distance" ), QVariant(), QStringLiteral( "INPUT" ), true, 0 ) );
 
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Joined layer" ), QgsProcessing::TypeVectorAnyGeometry, QVariant(), true, true ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Joined layer" ), Qgis::ProcessingSourceType::VectorAnyGeometry, QVariant(), true, true ) );
 
   std::unique_ptr< QgsProcessingParameterFeatureSink > nonMatchingSink = std::make_unique< QgsProcessingParameterFeatureSink >(
-        QStringLiteral( "NON_MATCHING" ), QObject::tr( "Unjoinable features from first layer" ), QgsProcessing::TypeVectorAnyGeometry, QVariant(), true, false );
+        QStringLiteral( "NON_MATCHING" ), QObject::tr( "Unjoinable features from first layer" ), Qgis::ProcessingSourceType::VectorAnyGeometry, QVariant(), true, false );
   // TODO GUI doesn't support advanced outputs yet
-  //nonMatchingSink->setFlags(nonMatchingSink->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  //nonMatchingSink->setFlags(nonMatchingSink->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( nonMatchingSink.release() );
 
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "JOINED_COUNT" ), QObject::tr( "Number of joined features from input table" ) ) );
@@ -131,7 +131,7 @@ QVariantMap QgsJoinByNearestAlgorithm::processAlgorithm( const QVariantMap &para
   const bool sameSourceAndTarget = parameters.value( QStringLiteral( "INPUT" ) ) == parameters.value( QStringLiteral( "INPUT_2" ) );
 
   const QString prefix = parameterAsString( parameters, QStringLiteral( "PREFIX" ), context );
-  const QStringList fieldsToCopy = parameterAsFields( parameters, QStringLiteral( "FIELDS_TO_COPY" ), context );
+  const QStringList fieldsToCopy = parameterAsStrings( parameters, QStringLiteral( "FIELDS_TO_COPY" ), context );
 
   QgsFields outFields2;
   QgsAttributeList fields2Indices;
@@ -169,12 +169,15 @@ QVariantMap QgsJoinByNearestAlgorithm::processAlgorithm( const QVariantMap &para
   const QgsAttributeList fields2Fetch = fields2Indices;
 
   QgsFields outFields = QgsProcessingUtils::combineFields( input->fields(), outFields2 );
-  outFields.append( QgsField( QStringLiteral( "n" ), QVariant::Int ) );
-  outFields.append( QgsField( QStringLiteral( "distance" ), QVariant::Double ) );
-  outFields.append( QgsField( QStringLiteral( "feature_x" ), QVariant::Double ) );
-  outFields.append( QgsField( QStringLiteral( "feature_y" ), QVariant::Double ) );
-  outFields.append( QgsField( QStringLiteral( "nearest_x" ), QVariant::Double ) );
-  outFields.append( QgsField( QStringLiteral( "nearest_y" ), QVariant::Double ) );
+
+  QgsFields resultFields;
+  resultFields.append( QgsField( QStringLiteral( "n" ), QVariant::Int ) );
+  resultFields.append( QgsField( QStringLiteral( "distance" ), QVariant::Double ) );
+  resultFields.append( QgsField( QStringLiteral( "feature_x" ), QVariant::Double ) );
+  resultFields.append( QgsField( QStringLiteral( "feature_y" ), QVariant::Double ) );
+  resultFields.append( QgsField( QStringLiteral( "nearest_x" ), QVariant::Double ) );
+  resultFields.append( QgsField( QStringLiteral( "nearest_y" ), QVariant::Double ) );
+  outFields = QgsProcessingUtils::combineFields( outFields, resultFields );
 
   QString dest;
   std::unique_ptr< QgsFeatureSink > sink( parameterAsSink( parameters, QStringLiteral( "OUTPUT" ), context, dest, outFields,
@@ -270,7 +273,7 @@ QVariantMap QgsJoinByNearestAlgorithm::processAlgorithm( const QVariantMap &para
 
       if ( nearest.count() > neighbors + ( sameSourceAndTarget ? 1 : 0 ) )
       {
-        feedback->pushInfo( QObject::tr( "Multiple matching features found at same distance from search feature, found %1 features instead of %2" ).arg( nearest.count() - ( sameSourceAndTarget ? 1 : 0 ) ).arg( neighbors ) );
+        feedback->pushInfo( QObject::tr( "Multiple matching features found at same distance from search feature, found %n feature(s) instead of %1", nullptr, nearest.count() - ( sameSourceAndTarget ? 1 : 0 ) ).arg( neighbors ) );
       }
       QgsFeature out;
       out.setGeometry( f.geometry() );

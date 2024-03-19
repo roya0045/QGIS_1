@@ -22,8 +22,6 @@
 
 #include "qgis_sip.h"
 #include "qgsprocessingalgorithm.h"
-#include "qgsvectorlayer.h"
-#include "vector/qgszonalstatistics.h"
 
 ///@cond PRIVATE
 
@@ -58,16 +56,16 @@ class QgsZonalStatisticsFeatureBasedAlgorithm : public QgsProcessingFeatureBased
 
   private:
     std::unique_ptr< QgsRasterInterface > mRaster;
-    int mBand;
+    int mBand = 1;
     QString mPrefix;
-    QgsZonalStatistics::Statistics mStats = QgsZonalStatistics::All;
+    Qgis::ZonalStatistics mStats = Qgis::ZonalStatistic::All;
     QgsCoordinateReferenceSystem mCrs;
     bool mCreatedTransform = false;
     QgsCoordinateTransform mFeatureToRasterTransform;
-    double mPixelSizeX;
-    double mPixelSizeY;
+    double mPixelSizeX = 0;
+    double mPixelSizeY = 0;
     QgsFields mOutputFields;
-    QMap<QgsZonalStatistics::Statistic, int> mStatFieldsMapping;
+    QMap<Qgis::ZonalStatistic, int> mStatFieldsMapping;
 };
 
 ///@endcond PRIVATE

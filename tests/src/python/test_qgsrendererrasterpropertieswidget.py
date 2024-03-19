@@ -1,8 +1,16 @@
 import pathlib
-from qgis.testing import start_app, unittest, TestCase
+
+from qgis.core import (
+    QgsMultiBandColorRenderer,
+    QgsRasterLayer,
+    QgsSingleBandGrayRenderer,
+)
+from qgis.gui import (
+    QgsMapCanvas,
+    QgsRendererRasterPropertiesWidget,
+)
+from qgis.testing import TestCase, unittest
 from qgis.testing.mocked import get_iface
-from qgis.core import QgsRasterLayer, QgsProject, QgsMultiBandColorRenderer, QgsRasterRenderer, QgsSingleBandGrayRenderer
-from qgis.gui import QgsRendererRasterPropertiesWidget, QgsMapCanvas, QgsMultiBandColorRendererWidget, QgsRasterRendererWidget
 
 
 class QgsRendererRasterPropertiesTestCases(TestCase):
@@ -23,21 +31,21 @@ class QgsRendererRasterPropertiesTestCases(TestCase):
         lyr.setName(path.name)
         self.assertIsInstance(lyr, QgsRasterLayer)
         self.assertTrue(lyr.isValid())
-        self.assertTrue(lyr.bandCount() > 1)
+        self.assertGreater(lyr.bandCount(), 1)
 
         return lyr
 
     def test_syncToLayer_SingleBandGray(self):
 
         lyr = self.multibandRasterLayer()
-        lyr.setRenderer(QgsSingleBandGrayRenderer(lyr.dataProvider(), 1))
+        lyr.setRenderer(QgsSingleBandGrayRenderer(lyr.dataProvider(), 2))
         c = QgsMapCanvas()
         w = QgsRendererRasterPropertiesWidget(lyr, c)
         assert isinstance(w.currentRenderWidget().renderer(), QgsSingleBandGrayRenderer)
-        assert w.currentRenderWidget().renderer().grayBand() == 1
-        lyr.renderer().setGrayBand(2)
-        w.syncToLayer(lyr)
         assert w.currentRenderWidget().renderer().grayBand() == 2
+        lyr.renderer().setGrayBand(1)
+        w.syncToLayer(lyr)
+        assert w.currentRenderWidget().renderer().grayBand() == 1
 
     def test_syncToLayer_MultiBand(self):
 

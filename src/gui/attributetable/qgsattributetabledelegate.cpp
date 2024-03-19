@@ -32,6 +32,7 @@
 #include "qgsgui.h"
 #include "qgsvectorlayerjoininfo.h"
 #include "qgsvectorlayerjoinbuffer.h"
+#include "qgsrendercontext.h"
 
 QgsVectorLayer *QgsAttributeTableDelegate::layer( const QAbstractItemModel *model )
 {
@@ -66,11 +67,11 @@ QWidget *QgsAttributeTableDelegate::createEditor( QWidget *parent, const QStyleO
   if ( !vl )
     return nullptr;
 
-  const int fieldIdx = index.model()->data( index, QgsAttributeTableModel::FieldIndexRole ).toInt();
+  const int fieldIdx = index.model()->data( index, static_cast< int >( QgsAttributeTableModel::CustomRole::FieldIndex ) ).toInt();
   QgsAttributeEditorContext context( masterModel( index.model() )->editorContext(), QgsAttributeEditorContext::Popup );
 
   // Update the editor form context with the feature being edited
-  const QgsFeatureId fid( index.model()->data( index, QgsAttributeTableModel::FeatureIdRole ).toLongLong() );
+  const QgsFeatureId fid( index.model()->data( index, static_cast< int >( QgsAttributeTableModel::CustomRole::FeatureId ) ).toLongLong() );
   context.setFormFeature( vl->getFeature( fid ) );
 
   QgsEditorWidgetWrapper *eww = QgsGui::editorWidgetRegistry()->create( vl, fieldIdx, nullptr, parent, context );
@@ -103,8 +104,8 @@ void QgsAttributeTableDelegate::setModelData( QWidget *editor, QAbstractItemMode
   if ( !vl )
     return;
 
-  const int fieldIdx = model->data( index, QgsAttributeTableModel::FieldIndexRole ).toInt();
-  const QgsFeatureId fid = model->data( index, QgsAttributeTableModel::FeatureIdRole ).toLongLong();
+  const int fieldIdx = model->data( index, static_cast< int >( QgsAttributeTableModel::CustomRole::FieldIndex ) ).toInt();
+  const QgsFeatureId fid = model->data( index, static_cast< int >( QgsAttributeTableModel::CustomRole::FeatureId ) ).toLongLong();
   const QVariant oldValue = model->data( index, Qt::EditRole );
 
   QgsEditorWidgetWrapper *eww = QgsEditorWidgetWrapper::fromWidget( editor );
@@ -121,12 +122,12 @@ void QgsAttributeTableDelegate::setModelData( QWidget *editor, QAbstractItemMode
   newValues.append( eww->additionalFieldValues() );
 
   if ( ( oldValue != newValues.at( 0 ) && newValues.at( 0 ).isValid() )
-       || oldValue.isNull() != newValues.at( 0 ).isNull()
+       || QgsVariantUtils::isNull( oldValue ) != QgsVariantUtils::isNull( newValues.at( 0 ) )
        || newValues.count() > 1 )
   {
     // This fixes https://github.com/qgis/QGIS/issues/24398
     QgsFeatureRequest request( fid );
-    request.setFlags( QgsFeatureRequest::NoGeometry );
+    request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
     QgsFeature feature;
     vl->getFeatures( request ).nextFeature( feature );
     if ( feature.isValid() )
@@ -175,7 +176,7 @@ void QgsAttributeTableDelegate::setFeatureSelectionModel( QgsFeatureSelectionMod
 
 void QgsAttributeTableDelegate::paint( QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index ) const
 {
-  const QgsAttributeTableFilterModel::ColumnType columnType = static_cast<QgsAttributeTableFilterModel::ColumnType>( index.model()->data( index, QgsAttributeTableFilterModel::TypeRole ).toInt() );
+  const QgsAttributeTableFilterModel::ColumnType columnType = static_cast<QgsAttributeTableFilterModel::ColumnType>( index.model()->data( index, static_cast< int >( QgsAttributeTableFilterModel::CustomRole::Type ) ).toInt() );
 
   if ( columnType == QgsAttributeTableFilterModel::ColumnTypeActionButton )
   {
@@ -183,11 +184,11 @@ void QgsAttributeTableDelegate::paint( QPainter *painter, const QStyleOptionView
   }
   else
   {
-    const QgsFeatureId fid = index.model()->data( index, QgsAttributeTableModel::FeatureIdRole ).toLongLong();
+    const QgsFeatureId fid = index.model()->data( index, static_cast< int >( QgsAttributeTableModel::CustomRole::FeatureId ) ).toLongLong();
 
     QStyleOptionViewItem myOpt = option;
 
-    if ( index.model()->data( index, Qt::EditRole ).isNull() )
+    if ( QgsVariantUtils::isNull( index.model()->data( index, Qt::EditRole ) ) )
     {
       myOpt.font.setItalic( true );
       myOpt.palette.setColor( QPalette::Text, QColor( "gray" ) );

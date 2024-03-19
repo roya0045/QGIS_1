@@ -131,6 +131,11 @@
 #define SIP_FORCE
 
 /*
+ * change the method access to private
+ */
+#define SIP_MAKE_PRIVATE
+
+/*
   * specify an alternative type for SIP argument or return value
   */
 #define SIP_PYALTERNATIVETYPE(type)
@@ -145,6 +150,15 @@
   */
 #define SIP_PYARGREMOVE
 
+/*
+ * remove argument in SIP method only for Qt version >= 6
+ */
+#define SIP_PYARGREMOVE6
+
+/*
+ * rename argument in SIP method
+ */
+#define SIP_PYARGRENAME(pyname)
 
 /*
  * https://www.riverbankcomputing.com/static/Docs/sip/annotations.html?highlight=keepreference#function-annotation-ReleaseGIL
@@ -186,7 +200,7 @@
  * try/catch blocks around call and catch the correct exception, otherwise only
  * unknown generic exceptions are available for Python code.
  */
-#define SIP_THROW(name)
+#define SIP_THROW(name, ...)
 
 /*
  * Will insert a `%End` directive in sip files
@@ -255,11 +269,23 @@
  */
 #define SIP_MONKEYPATCH_SCOPEENUM
 #define SIP_MONKEYPATCH_SCOPEENUM_UNNEST(OUTSIDE_CLASS,FORMERNAME)
+#define SIP_MONKEYPATCH_FLAGS_UNNEST(OUTSIDE_CLASS,FORMERNAME)
 #define SIP_MONKEYPATCH_COMPAT_NAME(FORMERNAME)
+
+/*
+ * Directive to define the base type for a enum
+ */
+#define SIP_ENUM_BASETYPE(type)
 
 /*
  * Directive to define a Python property;
  */
 #define SIP_PROPERTY(name,getter,setter)
+
+/*
+ * Directive to indicate that following code is only available with Qt 5 version
+ */
+#define SIP_PYQT5_RUN
+
 
 #endif // QGIS_SIP_H

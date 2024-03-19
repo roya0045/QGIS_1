@@ -28,8 +28,11 @@
 #include "qgslayertreelayer.h"
 #include "qgslayertree.h"
 #include "qgsmaplayerstylemanager.h"
+#include "qgscoordinatetransform.h"
 
 #include "qgsexception.h"
+
+#include <QRegularExpression>
 
 namespace QgsWms
 {
@@ -135,15 +138,11 @@ namespace QgsWms
       generalElem.appendChild( windowElem );
 
       //OWS title
-      //why not use project title ?
       const QString title = QgsServerProjectUtils::owsServiceTitle( *project );
-      if ( !title.isEmpty() )
-      {
-        QDomElement titleElem = doc.createElement( QStringLiteral( "ows:Title" ) );
-        const QDomText titleText = doc.createTextNode( title );
-        titleElem.appendChild( titleText );
-        generalElem.appendChild( titleElem );
-      }
+      QDomElement titleElem = doc.createElement( QStringLiteral( "ows:Title" ) );
+      const QDomText titleText = doc.createTextNode( title );
+      titleElem.appendChild( titleText );
+      generalElem.appendChild( titleElem );
 
       //OWS abstract
       const QString abstract = QgsServerProjectUtils::owsServiceAbstract( *project );
@@ -312,7 +311,8 @@ namespace QgsWms
           // layer wms name
           layerElem.setAttribute( QStringLiteral( "name" ), wmsName );
           // define an id based on layer wms name
-          layerElem.setAttribute( QStringLiteral( "id" ), wmsName.replace( QRegExp( "[\\W]" ), QStringLiteral( "_" ) ) );
+          const thread_local QRegularExpression sRegEx( QStringLiteral( "[\\W]" ), QRegularExpression::UseUnicodePropertiesOption );
+          layerElem.setAttribute( QStringLiteral( "id" ), wmsName.replace( sRegEx, QStringLiteral( "_" ) ) );
 
           // layer title
           QDomElement titleElem = doc.createElement( QStringLiteral( "ows:Title" ) );
@@ -412,16 +412,15 @@ namespace QgsWms
           }
 
           // layer metadata URL
-          const QString metadataUrl = l->metadataUrl();
-          if ( !metadataUrl.isEmpty() )
+          const QList<QgsMapLayerServerProperties::MetadataUrl> urls = l->serverProperties()->metadataUrls();
+          for ( const QgsMapLayerServerProperties::MetadataUrl &url : urls )
           {
             QDomElement metaUrlElem = doc.createElement( QStringLiteral( "MetadataURL" ) );
-            const QString metadataUrlFormat = l->metadataUrlFormat();
-            metaUrlElem.setAttribute( QStringLiteral( "format" ), metadataUrlFormat );
+            metaUrlElem.setAttribute( QStringLiteral( "format" ), url.format );
             QDomElement metaUrlORElem = doc.createElement( QStringLiteral( "OnlineResource" ) );
             metaUrlORElem.setAttribute( QStringLiteral( "xmlns:xlink" ), QStringLiteral( "http://www.w3.org/1999/xlink" ) );
             metaUrlORElem.setAttribute( QStringLiteral( "xlink:type" ), QStringLiteral( "simple" ) );
-            metaUrlORElem.setAttribute( QStringLiteral( "xlink:href" ), metadataUrl );
+            metaUrlORElem.setAttribute( QStringLiteral( "xlink:href" ), url.url );
             metaUrlElem.appendChild( metaUrlORElem );
             layerElem.appendChild( metaUrlElem );
           }

@@ -20,7 +20,6 @@
 #include "qgshanasourceselect.h"
 #include "qgshanaconnection.h"
 #include "qgshananewconnection.h"
-#include "qgshanaprovider.h"
 #include "qgshanatablemodel.h"
 #include "qgshanautils.h"
 #include "qgslogger.h"
@@ -56,19 +55,19 @@ QWidget *QgsHanaSourceSelectDelegate::createEditor(
   if ( index.column() == QgsHanaTableModel::DbtmGeomType && index.data( Qt::UserRole + 1 ).toBool() )
   {
     QComboBox *cb = new QComboBox( parent );
-    for ( const QgsWkbTypes::Type type :
-          QList<QgsWkbTypes::Type>()
-          << QgsWkbTypes::Point
-          << QgsWkbTypes::LineString
-          << QgsWkbTypes::Polygon
-          << QgsWkbTypes::MultiPoint
-          << QgsWkbTypes::MultiLineString
-          << QgsWkbTypes::MultiPolygon
-          << QgsWkbTypes::CircularString
-          << QgsWkbTypes::GeometryCollection
-          << QgsWkbTypes::NoGeometry )
+    for ( const Qgis::WkbType type :
+          QList<Qgis::WkbType>()
+          << Qgis::WkbType::Point
+          << Qgis::WkbType::LineString
+          << Qgis::WkbType::Polygon
+          << Qgis::WkbType::MultiPoint
+          << Qgis::WkbType::MultiLineString
+          << Qgis::WkbType::MultiPolygon
+          << Qgis::WkbType::CircularString
+          << Qgis::WkbType::GeometryCollection
+          << Qgis::WkbType::NoGeometry )
     {
-      cb->addItem( QgsHanaTableModel::iconForWkbType( type ), QgsWkbTypes::displayString( type ), type );
+      cb->addItem( QgsHanaTableModel::iconForWkbType( type ), QgsWkbTypes::displayString( type ), static_cast< quint32>( type ) );
     }
     return cb;
   }
@@ -118,11 +117,11 @@ void QgsHanaSourceSelectDelegate::setModelData(
   {
     if ( index.column() == QgsHanaTableModel::DbtmGeomType )
     {
-      const QgsWkbTypes::Type type = static_cast<QgsWkbTypes::Type>( cb->currentData().toInt() );
+      const Qgis::WkbType type = static_cast<Qgis::WkbType>( cb->currentData().toInt() );
 
       model->setData( index, QgsHanaTableModel::iconForWkbType( type ), Qt::DecorationRole );
-      model->setData( index, type != QgsWkbTypes::Unknown ? QgsWkbTypes::displayString( type ) : tr( "Select…" ) );
-      model->setData( index, type, Qt::UserRole + 2 );
+      model->setData( index, type != Qgis::WkbType::Unknown ? QgsWkbTypes::displayString( type ) : tr( "Select…" ) );
+      model->setData( index, static_cast< quint32>( type ), Qt::UserRole + 2 );
     }
     else if ( index.column() == QgsHanaTableModel::DbtmPkCol )
     {
@@ -198,9 +197,8 @@ QgsHanaSourceSelect::QgsHanaSourceSelect(
   QWidget *parent,
   Qt::WindowFlags fl,
   QgsProviderRegistry::WidgetMode theWidgetMode )
-  : QgsAbstractDataSourceWidget( parent, fl, theWidgetMode )
+  : QgsAbstractDbSourceSelect( parent, fl, theWidgetMode )
 {
-  setupUi( this );
   QgsGui::instance()->enableAutoGeometryRestore( this );
 
   connect( btnConnect, &QPushButton::clicked, this, &QgsHanaSourceSelect::btnConnect_clicked );
@@ -210,14 +208,8 @@ QgsHanaSourceSelect::QgsHanaSourceSelect(
   connect( btnDelete, &QPushButton::clicked, this, &QgsHanaSourceSelect::btnDelete_clicked );
   connect( btnSave, &QPushButton::clicked, this, &QgsHanaSourceSelect::btnSave_clicked );
   connect( btnLoad, &QPushButton::clicked, this, &QgsHanaSourceSelect::btnLoad_clicked );
-  connect( mSearchGroupBox, &QGroupBox::toggled, this, &QgsHanaSourceSelect::mSearchGroupBox_toggled );
-  connect( mSearchTableEdit, &QLineEdit::textChanged, this, &QgsHanaSourceSelect::mSearchTableEdit_textChanged );
-  connect( mSearchColumnComboBox, &QComboBox::currentTextChanged, this, &QgsHanaSourceSelect::mSearchColumnComboBox_currentTextChanged );
-  connect( mSearchModeComboBox, &QComboBox::currentTextChanged, this, &QgsHanaSourceSelect::mSearchModeComboBox_currentTextChanged );
   connect( cmbConnections, static_cast<void ( QComboBox::* )( int )>( &QComboBox::activated ),
            this, &QgsHanaSourceSelect::cmbConnections_activated );
-  connect( mTablesTreeView, &QTreeView::clicked, this, &QgsHanaSourceSelect::mTablesTreeView_clicked );
-  connect( mTablesTreeView, &QTreeView::doubleClicked, this, &QgsHanaSourceSelect::mTablesTreeView_doubleClicked );
   setupButtons( buttonBox );
   connect( buttonBox, &QDialogButtonBox::helpRequested, this, &QgsHanaSourceSelect::showHelp );
 
@@ -226,40 +218,10 @@ QgsHanaSourceSelect::QgsHanaSourceSelect(
   else
     setWindowTitle( tr( "Add SAP HANA Table(s)" ) );
 
-  mBuildQueryButton = new QPushButton( tr( "&Set Filter" ) );
-  mBuildQueryButton->setToolTip( tr( "Set Filter" ) );
-  mBuildQueryButton->setDisabled( true );
-
-  if ( widgetMode() != QgsProviderRegistry::WidgetMode::Manager )
-  {
-    buttonBox->addButton( mBuildQueryButton, QDialogButtonBox::ActionRole );
-    connect( mBuildQueryButton, &QAbstractButton::clicked, this, &QgsHanaSourceSelect::buildQuery );
-  }
-
   populateConnectionList();
 
-  mSearchModeComboBox->addItem( tr( "Wildcard" ) );
-  mSearchModeComboBox->addItem( tr( "RegExp" ) );
-
-  mSearchColumnComboBox->addItem( tr( "All" ) );
-  mSearchColumnComboBox->addItem( tr( "Schema" ) );
-  mSearchColumnComboBox->addItem( tr( "Table" ) );
-  mSearchColumnComboBox->addItem( tr( "Comment" ) );
-  mSearchColumnComboBox->addItem( tr( "Geometry column" ) );
-  mSearchColumnComboBox->addItem( tr( "Type" ) );
-  mSearchColumnComboBox->addItem( tr( "Feature id" ) );
-  mSearchColumnComboBox->addItem( tr( "SRID" ) );
-  mSearchColumnComboBox->addItem( tr( "Sql" ) );
-
-  mProxyModel.setParent( this );
-  mProxyModel.setFilterKeyColumn( -1 );
-  mProxyModel.setFilterCaseSensitivity( Qt::CaseInsensitive );
-  mProxyModel.setSourceModel( &mTableModel );
-
-  mTablesTreeView->setModel( &mProxyModel );
-  mTablesTreeView->setSortingEnabled( true );
-  mTablesTreeView->setEditTriggers( QAbstractItemView::CurrentChanged );
-  mTablesTreeView->setItemDelegate( new QgsHanaSourceSelectDelegate( this ) );
+  mTableModel = new QgsHanaTableModel( this );
+  init( mTableModel, new QgsHanaSourceSelectDelegate( this ) );
 
   connect( mTablesTreeView->selectionModel(), &QItemSelectionModel::selectionChanged,
            this, &QgsHanaSourceSelect::treeWidgetSelectionChanged );
@@ -268,28 +230,14 @@ QgsHanaSourceSelect::QgsHanaSourceSelect(
   mTablesTreeView->setSelectionMode( settings.value( QStringLiteral( "qgis/addHanaDC" ), false ).toBool() ?
                                      QAbstractItemView::ExtendedSelection : QAbstractItemView::MultiSelection );
 
-  //for Qt < 4.3.2, passing -1 to include all model columns
-  //in search does not seem to work
-  mSearchColumnComboBox->setCurrentIndex( 2 );
-
   restoreGeometry( settings.value( QStringLiteral( "Windows/HanaSourceSelect/geometry" ) ).toByteArray() );
   mHoldDialogOpen->setChecked( settings.value( QStringLiteral( "Windows/HanaSourceSelect/HoldDialogOpen" ), false ).toBool() );
 
-  for ( int i = 0; i < mTableModel.columnCount(); i++ )
+  for ( int i = 0; i < mTableModel->columnCount(); i++ )
   {
     mTablesTreeView->setColumnWidth( i, settings.value( QStringLiteral( "Windows/HanaSourceSelect/columnWidths/%1" )
                                      .arg( i ), mTablesTreeView->columnWidth( i ) ).toInt() );
   }
-
-  //hide the search options by default
-  //they will be shown when the user ticks
-  //the search options group box
-  mSearchLabel->setVisible( false );
-  mSearchColumnComboBox->setVisible( false );
-  mSearchColumnsLabel->setVisible( false );
-  mSearchModeComboBox->setVisible( false );
-  mSearchModeLabel->setVisible( false );
-  mSearchTableEdit->setVisible( false );
 
   cbxAllowGeometrylessTables->setDisabled( true );
 }
@@ -365,8 +313,7 @@ void QgsHanaSourceSelect::cmbConnections_activated( int )
   QgsHanaSettings::setSelectedConnection( cmbConnections->currentText() );
 
   cbxAllowGeometrylessTables->blockSignals( true );
-  QgsHanaSettings settings( cmbConnections->currentText() );
-  settings.load();
+  QgsHanaSettings settings( cmbConnections->currentText(), true );
   cbxAllowGeometrylessTables->setChecked( settings.allowGeometrylessTables() );
   cbxAllowGeometrylessTables->blockSignals( false );
 }
@@ -376,17 +323,7 @@ void QgsHanaSourceSelect::cbxAllowGeometrylessTables_stateChanged( int )
   btnConnect_clicked();
 }
 
-void QgsHanaSourceSelect::buildQuery()
-{
-  setSql( mTablesTreeView->currentIndex() );
-}
-
-void QgsHanaSourceSelect::mTablesTreeView_clicked( const QModelIndex &index )
-{
-  mBuildQueryButton->setEnabled( index.parent().isValid() );
-}
-
-void QgsHanaSourceSelect::mTablesTreeView_doubleClicked( const QModelIndex &index )
+void QgsHanaSourceSelect::treeviewDoubleClicked( const QModelIndex &index )
 {
   const QgsSettings settings;
   if ( settings.value( QStringLiteral( "qgis/addHANADC" ), false ).toBool() )
@@ -395,71 +332,9 @@ void QgsHanaSourceSelect::mTablesTreeView_doubleClicked( const QModelIndex &inde
     setSql( index );
 }
 
-void QgsHanaSourceSelect::mSearchGroupBox_toggled( bool checked )
-{
-  if ( mSearchTableEdit->text().isEmpty() )
-    return;
-
-  mSearchTableEdit_textChanged( checked ? mSearchTableEdit->text() : QString( ) );
-}
-
-void QgsHanaSourceSelect::mSearchTableEdit_textChanged( const QString &text )
-{
-  if ( mSearchModeComboBox->currentText() == tr( "Wildcard" ) )
-    mProxyModel._setFilterWildcard( text );
-  else if ( mSearchModeComboBox->currentText() == tr( "RegExp" ) )
-    mProxyModel._setFilterRegExp( text );
-}
-
-void QgsHanaSourceSelect::mSearchColumnComboBox_currentTextChanged( const QString &text )
-{
-  if ( text == tr( "All" ) )
-  {
-    mProxyModel.setFilterKeyColumn( -1 );
-  }
-  else if ( text == tr( "Schema" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmSchema );
-  }
-  else if ( text == tr( "Table" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmTable );
-  }
-  else if ( text == tr( "Comment" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmComment );
-  }
-  else if ( text == tr( "Geometry column" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmGeomCol );
-  }
-  else if ( text == tr( "Type" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmGeomType );
-  }
-  else if ( text == tr( "Feature id" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmPkCol );
-  }
-  else if ( text == tr( "SRID" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmSrid );
-  }
-  else if ( text == tr( "Sql" ) )
-  {
-    mProxyModel.setFilterKeyColumn( QgsHanaTableModel::DbtmSql );
-  }
-}
-
-void QgsHanaSourceSelect::mSearchModeComboBox_currentTextChanged( const QString &text )
-{
-  Q_UNUSED( text );
-  mSearchTableEdit_textChanged( mSearchTableEdit->text() );
-}
-
 void QgsHanaSourceSelect::setLayerType( const QgsHanaLayerProperty &layerProperty )
 {
-  mTableModel.addTableEntry( mConnectionName, layerProperty );
+  mTableModel->addTableEntry( mConnectionName, layerProperty );
 }
 
 QgsHanaSourceSelect::~QgsHanaSourceSelect()
@@ -475,7 +350,7 @@ QgsHanaSourceSelect::~QgsHanaSourceSelect()
   settings.setValue( QStringLiteral( "Windows/HanaSourceSelect/geometry" ), saveGeometry() );
   settings.setValue( QStringLiteral( "Windows/HanaSourceSelect/HoldDialogOpen" ), mHoldDialogOpen->isChecked() );
 
-  for ( int i = 0; i < mTableModel.columnCount(); i++ )
+  for ( int i = 0; i < mTableModel->columnCount(); i++ )
   {
     settings.setValue( QStringLiteral( "Windows/HanaSourceSelect/columnWidths/%1" )
                        .arg( i ), mTablesTreeView->columnWidth( i ) );
@@ -518,7 +393,7 @@ void QgsHanaSourceSelect::addButtonClicked()
     if ( idx.column() != QgsHanaTableModel::DbtmTable )
       continue;
 
-    const QString uri = mTableModel.layerURI( mProxyModel.mapToSource( idx ), mConnectionName, mConnectionInfo );
+    const QString uri = mTableModel->layerURI( proxyModel()->mapToSource( idx ), mConnectionName, mConnectionInfo );
     if ( uri.isNull() )
       continue;
 
@@ -550,8 +425,8 @@ void QgsHanaSourceSelect::btnConnect_clicked()
 
   const QString connName = cmbConnections->currentText();
 
-  const QModelIndex rootItemIndex = mTableModel.indexFromItem( mTableModel.invisibleRootItem() );
-  mTableModel.removeRows( 0, mTableModel.rowCount( rootItemIndex ), rootItemIndex );
+  const QModelIndex rootItemIndex = mTableModel->indexFromItem( mTableModel->invisibleRootItem() );
+  mTableModel->removeRows( 0, mTableModel->rowCount( rootItemIndex ), rootItemIndex );
 
   QgsHanaSettings settings( connName, true );
   settings.setAllowGeometrylessTables( cbxAllowGeometrylessTables->isChecked() );
@@ -623,19 +498,18 @@ void QgsHanaSourceSelect::setSql( const QModelIndex &index )
 {
   if ( !index.parent().isValid() )
   {
-    QgsDebugMsg( "schema item found" );
+    QgsDebugMsgLevel( "schema item found", 2 );
     return;
   }
 
-  const QModelIndex idx = mProxyModel.mapToSource( index );
-  const QString uri = mTableModel.layerURI( idx, mConnectionName, mConnectionInfo );
+  const QString uri = mTableModel->layerURI( index, mConnectionName, mConnectionInfo );
   if ( uri.isNull() )
   {
-    QgsDebugMsg( "no uri" );
+    QgsDebugMsgLevel( "no uri", 2 );
     return;
   }
 
-  const QString tableName = mTableModel.itemFromIndex( idx.sibling( idx.row(), QgsHanaTableModel::DbtmTable ) )->text();
+  const QString tableName = mTableModel->itemFromIndex( index.sibling( index.row(), QgsHanaTableModel::DbtmTable ) )->text();
 
   QgsVectorLayer vlayer( uri, tableName, QStringLiteral( "hana" ) );
   if ( !vlayer.isValid() )
@@ -643,7 +517,7 @@ void QgsHanaSourceSelect::setSql( const QModelIndex &index )
 
   QgsQueryBuilder gb( &vlayer, this );
   if ( gb.exec() )
-    mTableModel.setSql( mProxyModel.mapToSource( index ), gb.sql() );
+    mTableModel->setSql( index, gb.sql() );
 }
 
 QString QgsHanaSourceSelect::fullDescription(

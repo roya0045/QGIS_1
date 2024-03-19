@@ -33,7 +33,8 @@ void QgsProviderConnectionComboBox::setProvider( const QString &provider )
   {
     disconnect( this, static_cast < void ( QComboBox::* )( int ) > ( &QComboBox::activated ), this, &QgsProviderConnectionComboBox::indexChanged );
     disconnect( mSortModel, &QAbstractItemModel::rowsInserted, this, &QgsProviderConnectionComboBox::rowsChanged );
-    disconnect( mSortModel, &QAbstractItemModel::rowsRemoved, this, &QgsProviderConnectionComboBox::rowsChanged );
+    disconnect( mSortModel, &QAbstractItemModel::rowsAboutToBeRemoved, this, &QgsProviderConnectionComboBox::rowsAboutToBeRemoved );
+    disconnect( mSortModel, &QAbstractItemModel::rowsRemoved, this, &QgsProviderConnectionComboBox::rowsRemoved );
     delete mSortModel;
     delete mModel;
   }
@@ -52,7 +53,8 @@ void QgsProviderConnectionComboBox::setProvider( const QString &provider )
 
   connect( this, static_cast < void ( QComboBox::* )( int ) > ( &QComboBox::activated ), this, &QgsProviderConnectionComboBox::indexChanged );
   connect( mSortModel, &QAbstractItemModel::rowsInserted, this, &QgsProviderConnectionComboBox::rowsChanged );
-  connect( mSortModel, &QAbstractItemModel::rowsRemoved, this, &QgsProviderConnectionComboBox::rowsChanged );
+  connect( mSortModel, &QAbstractItemModel::rowsAboutToBeRemoved, this, &QgsProviderConnectionComboBox::rowsAboutToBeRemoved );
+  connect( mSortModel, &QAbstractItemModel::rowsRemoved, this, &QgsProviderConnectionComboBox::rowsRemoved );
 }
 
 void QgsProviderConnectionComboBox::setAllowEmptyConnection( bool allowEmpty )
@@ -80,7 +82,7 @@ void QgsProviderConnectionComboBox::setConnection( const QString &connection )
     return;
   }
 
-  const QModelIndexList idx = mSortModel->match( mSortModel->index( 0, 0 ), QgsProviderConnectionModel::RoleConnectionName, connection, Qt::MatchFixedString | Qt::MatchCaseSensitive );
+  const QModelIndexList idx = mSortModel->match( mSortModel->index( 0, 0 ), static_cast< int >( QgsProviderConnectionModel::CustomRole::ConnectionName ), connection, Qt::MatchFixedString | Qt::MatchCaseSensitive );
   if ( !idx.empty() )
   {
     const QModelIndex proxyIdx = idx.at( 0 );
@@ -103,7 +105,7 @@ QString QgsProviderConnectionComboBox::currentConnection() const
     return QString();
   }
 
-  return mSortModel->data( proxyIndex, QgsProviderConnectionModel::RoleConnectionName ).toString();
+  return mSortModel->data( proxyIndex, static_cast< int >( QgsProviderConnectionModel::CustomRole::ConnectionName ) ).toString();
 }
 
 QString QgsProviderConnectionComboBox::currentConnectionUri() const
@@ -114,7 +116,7 @@ QString QgsProviderConnectionComboBox::currentConnectionUri() const
     return QString();
   }
 
-  return mSortModel->data( proxyIndex, QgsProviderConnectionModel::RoleUri ).toString();
+  return mSortModel->data( proxyIndex, static_cast< int >( QgsProviderConnectionModel::CustomRole::Uri ) ).toString();
 }
 
 void QgsProviderConnectionComboBox::indexChanged( int i )
@@ -136,6 +138,30 @@ void QgsProviderConnectionComboBox::rowsChanged()
   }
 }
 
+void QgsProviderConnectionComboBox::rowsAboutToBeRemoved()
+{
+  mPreviousConnection = currentConnection();
+}
+
+void QgsProviderConnectionComboBox::rowsRemoved()
+{
+  const QString newConnection = currentConnection();
+  if ( mPreviousConnection != newConnection )
+  {
+    if ( mModel->allowEmptyConnection() )
+    {
+      // if current connection was removed, reset to empty connection item
+      setCurrentIndex( 0 );
+    }
+    if ( currentIndex() == -1 )
+    {
+      // make sure we have a valid selection
+      setCurrentIndex( 0 );
+    }
+    emit connectionChanged( currentConnection() );
+  }
+}
+
 
 ///@cond PRIVATE
 QgsProviderConnectionComboBoxSortModel::QgsProviderConnectionComboBoxSortModel( QObject *parent )
@@ -147,9 +173,9 @@ QgsProviderConnectionComboBoxSortModel::QgsProviderConnectionComboBoxSortModel( 
 bool QgsProviderConnectionComboBoxSortModel::lessThan( const QModelIndex &left, const QModelIndex &right ) const
 {
   // empty row is always first
-  if ( sourceModel()->data( left, QgsProviderConnectionModel::RoleEmpty ).toBool() )
+  if ( sourceModel()->data( left, static_cast< int >( QgsProviderConnectionModel::CustomRole::Empty ) ).toBool() )
     return true;
-  else if ( sourceModel()->data( right, QgsProviderConnectionModel::RoleEmpty ).toBool() )
+  else if ( sourceModel()->data( right, static_cast< int >( QgsProviderConnectionModel::CustomRole::Empty ) ).toBool() )
     return false;
 
   // default mode is alphabetical order

@@ -28,8 +28,18 @@
 //
 
 #include <Qt3DCore/QEntity>
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <Qt3DRender/QAttribute>
 #include <Qt3DRender/QGeometry>
+typedef Qt3DRender::QAttribute Qt3DQAttribute;
+typedef Qt3DRender::QGeometry Qt3DQGeometry;
+#else
+#include <Qt3DCore/QAttribute>
+#include <Qt3DCore/QGeometry>
+typedef Qt3DCore::QAttribute Qt3DQAttribute;
+typedef Qt3DCore::QGeometry Qt3DQGeometry;
+#endif
 #include <QVector3D>
 #include <Qt3DRender/QGeometryRenderer>
 
@@ -43,7 +53,6 @@ class AABBMesh;
  * \ingroup 3d
  * \brief Draws bounds of axis aligned bounding boxes
  * \note Not available in Python bindings
- * \since QGIS 3.0
  */
 class QgsChunkBoundsEntity : public Qt3DCore::QEntity
 {
@@ -61,7 +70,7 @@ class QgsChunkBoundsEntity : public Qt3DCore::QEntity
 };
 
 
-class LineMeshGeometry : public Qt3DRender::QGeometry
+class LineMeshGeometry : public Qt3DQGeometry
 {
     Q_OBJECT
 
@@ -76,8 +85,12 @@ class LineMeshGeometry : public Qt3DRender::QGeometry
     void setVertices( const QList<QVector3D> &vertices );
 
   private:
-    Qt3DRender::QAttribute *mPositionAttribute = nullptr;
+    Qt3DQAttribute *mPositionAttribute = nullptr;
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     Qt3DRender::QBuffer *mVertexBuffer = nullptr;
+#else
+    Qt3DCore::QBuffer *mVertexBuffer = nullptr;
+#endif
     int mVertexCount = 0;
 
 };

@@ -252,6 +252,9 @@ tests:
       OUTPUT:
         name: expected/multi_polys_non_null_non_empty.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: native:removenullgeometries
     name: Remove null geometries, 2 outputs (do not remove empty, but there is empty data)
@@ -351,6 +354,21 @@ tests:
     results:
       OUTPUT:
         name: expected/extract_specific_nodes_polys.gml
+        type: vector
+        compare:
+          fields:
+            fid: skip
+
+  - algorithm: native:extractspecificvertices
+    name: Extract specific vertices points
+    params:
+      INPUT:
+        name: multipoints.gml
+        type: vector
+      VERTICES: '0'
+    results:
+      OUTPUT:
+        name: expected/extract_specific_nodes_points.gml
         type: vector
         compare:
           fields:
@@ -629,6 +647,25 @@ tests:
       OUTPUT:
         name: expected/snap_geometries.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
+
+  - algorithm: native:snapgeometries
+    name: Snap lines to lines (against itself; ordering check)
+    params:
+      BEHAVIOR: '0'
+      INPUT:
+        name: lines_t_shape.gml
+        type: vector
+      REFERENCE_LAYER:
+        name: lines_t_shape.gml
+        type: vector
+      TOLERANCE: 0.3
+    results:
+      OUTPUT:
+        name: expected/lines_t_shape_snapped.gml
+        type: vector
 
   - algorithm: native:poleofinaccessibility
     name: Pole of inaccessibility (polygons)
@@ -895,6 +932,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:creategrid
     name: Create grid (rectangles)
@@ -920,6 +958,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:creategrid
     name: Create grid (diamond)
@@ -945,6 +984,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:creategrid
     name: Create grid (hexagon)
@@ -970,6 +1010,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:creategrid
     name: Create grid (lines with overlay)
@@ -995,6 +1036,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:creategrid
     name: Create grid (rectangle with overlay)
@@ -1022,6 +1064,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:creategrid
     name: Create grid (diamond with overlay)
@@ -1049,6 +1092,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:creategrid
     name: Create grid (hexagon with overlay)
@@ -1076,6 +1120,7 @@ tests:
               precision: 7
             bottom:
               precision: 7
+            fid: skip
 
   - algorithm: native:deleteholes
     name: Delete holes (no min)
@@ -1088,6 +1133,7 @@ tests:
       OUTPUT:
         name: expected/removed_holes.gml
         type: vector
+        pk: intval
 
   - algorithm: native:deleteholes
     name: Delete holes (with min)
@@ -1100,6 +1146,7 @@ tests:
       OUTPUT:
         name: expected/removed_holes_min_area.gml
         type: vector
+        pk: intval
 
   - algorithm: qgis:basicstatisticsforfields
     name: Basic stats datetime
@@ -1158,7 +1205,7 @@ tests:
           - 'Maximum value: 15:29:22'
           - 'NULL \(missing\) values: 1'
 
-  - algorithm: qgis:rastercalculator
+  - algorithm: native:rastercalc
     name: Raster Calculator with cellsize
     params:
       LAYERS:
@@ -1167,13 +1214,14 @@ tests:
             type: raster
         type: multi
       CELLSIZE: 0.001
-      EXPRESSION: dem@1
+      EXPRESSION: '"dem.tif@1"'
     results:
       OUTPUT:
         hash: 525577c05dd999239d9c6f95fd5e70d96355da3a0ea71bfcf021e729
+        hash: 6ced822cc490c7a3d9346b6c8cd4b282eb4e2a9fdd6e7371f6174117
         type: rasterhash
 
-  - algorithm: qgis:rastercalculator
+  - algorithm: native:rastercalc
     name: Raster Calculator
     params:
       LAYERS:
@@ -1182,7 +1230,7 @@ tests:
             type: raster
         type: multi
       CELLSIZE: 0.0
-      EXPRESSION: dem@1 * 2
+      EXPRESSION: '"dem.tif@1" * 2'
     results:
       OUTPUT:
         hash: 98daf025230ec9d031f7502c6a80a3b04dd060808d6b7bcb4328e87c
@@ -1198,6 +1246,7 @@ tests:
       OUTPUT:
         name: expected/oriented_bounds.gml
         type: vector
+        pk: intval
         compare:
           geometry:
             precision: 7
@@ -1262,6 +1311,9 @@ tests:
       OUTPUT:
         name: expected/refactorfields.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: qgis:refactorfields
     name: Refactor fields, empty expression
@@ -1294,6 +1346,42 @@ tests:
       OUTPUT:
         name: expected/refactor_fields_null.gml
         type: vector
+
+  - algorithm: qgis:refactorfields
+    name: Refactor fields, array
+    params:
+      FIELDS_MAPPING:
+        - expression: '"fid"'
+          length: 0
+          name: fid
+          precision: 0
+          type: 10
+        - expression: '"id"'
+          length: 0
+          name: id
+          precision: 0
+          type: 2
+        - expression: '"id2"'
+          length: 0
+          name: id2
+          precision: 0
+          type: 2
+        - expression: 'array(1,2,3)'
+          length: 0
+          name: array
+          precision: 0
+          type: 9
+          sub_type: 2
+      INPUT:
+        name: points.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/refactor_array.gml
+        type: vector
+        compare:
+          fields:
+            gml_id: skip
 
   - algorithm: native:reprojectlayer
     name: reproject vector layer
@@ -1343,6 +1431,7 @@ tests:
         compare:
           geometry:
             precision: 5
+            normalize: True
           fields:
             id: skip
             id2: skip
@@ -1524,6 +1613,9 @@ tests:
       OUTPUT:
         name: expected/hub_lines_field_subset.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: native:hublines
     name: Hub lines geodesic
@@ -1547,7 +1639,7 @@ tests:
         type: vector
         compare:
           geometry:
-            precision: 6
+            precision: 2
 
   - algorithm: native:hublines
     name: Hub lines, geodesic, split
@@ -1571,7 +1663,7 @@ tests:
         type: vector
         compare:
           geometry:
-            precision: 6
+            precision: 2
 
   - algorithm: qgis:pointstopath
     name: Points to path (non grouped)
@@ -1584,6 +1676,9 @@ tests:
       OUTPUT:
         name: expected/points_to_path.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: qgis:pointstopath
     name: Points to path (grouped)
@@ -1615,6 +1710,9 @@ tests:
       OUTPUT:
         name: expected/points_to_path_close_path.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: native:joinattributestable
     name: join the attribute table by common field (one-to-one)
@@ -1725,6 +1823,7 @@ tests:
 
   - algorithm: native:shortestpathpointtopoint
     name: Shortest path (point to point, shortest route)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 5.0
@@ -1751,9 +1850,11 @@ tests:
               precision: 2
             start: skip
             end: skip
+            fid: skip
 
   - algorithm: native:shortestpathpointtopoint
     name: Shortest path (point to point, fastest route)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 5.0
@@ -1781,9 +1882,11 @@ tests:
               precision: 2
             start: skip
             end: skip
+            fid: skip
 
   - algorithm: native:shortestpathlayertopoint
     name: Shortest path layer to point
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 5.0
@@ -1814,6 +1917,7 @@ tests:
 
   - algorithm: native:shortestpathpointtolayer
     name: Shortest path point to layer
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 5.0
@@ -1844,6 +1948,7 @@ tests:
 
   - algorithm: native:serviceareafrompoint
     name: Service area from point (shortest, nodes)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0
@@ -1871,9 +1976,11 @@ tests:
               precision: 2
             start: skip
             end: skip
+            fid: skip
 
   - algorithm: native:serviceareafrompoint
     name: Service area from point (shortest, nodes, bounds)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0
@@ -1895,9 +2002,12 @@ tests:
         compare:
           geometry:
             precision: 3
+          fields:
+            fid: skip
 
   - algorithm: native:serviceareafrompoint
     name: Service area from point (shortest, lines)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0
@@ -1925,9 +2035,11 @@ tests:
               precision: 2
             start: skip
             end: skip
+            fid: skip
 
   - algorithm: native:serviceareafrompoint
     name: Service area from point (fastest, old parameter)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0
@@ -1949,15 +2061,20 @@ tests:
         compare:
           geometry:
             precision: 3
+          fields:
+            fid: skip
       OUTPUT_LINES:
         name: expected/service_area_fastests_lines.gml
         type: vector
         compare:
           geometry:
             precision: 3
+          fields:
+            fid: skip
 
   - algorithm: native:serviceareafrompoint
     name: Service area from point (fastest, new parameter)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0
@@ -1979,15 +2096,20 @@ tests:
         compare:
           geometry:
             precision: 3
+          fields:
+            fid: skip
       OUTPUT_LINES:
         name: expected/service_area_fastests_lines.gml
         type: vector
         compare:
           geometry:
             precision: 3
+          fields:
+            fid: skip
 
   - algorithm: native:serviceareafromlayer
     name: Service area from layer (shortest, nodes)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0
@@ -2023,6 +2145,7 @@ tests:
 
   - algorithm: native:serviceareafromlayer
     name: Service area from layer (shortest, nodes, boundary)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0
@@ -2050,6 +2173,7 @@ tests:
 
   - algorithm: native:serviceareafromlayer
     name: Service area from layer (shortest, lines)
+    ellipsoid: WGS84
     params:
       DEFAULT_DIRECTION: 2
       DEFAULT_SPEED: 50.0

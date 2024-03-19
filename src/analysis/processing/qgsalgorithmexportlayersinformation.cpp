@@ -47,8 +47,8 @@ QString QgsExportLayersInformationAlgorithm::groupId() const
 
 void QgsExportLayersInformationAlgorithm::initAlgorithm( const QVariantMap & )
 {
-  addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "LAYERS" ), QObject::tr( "Input layer(s)" ), QgsProcessing::TypeMapLayer ) );
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Output" ), QgsProcessing::TypeVectorPolygon, QVariant() ) );
+  addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "LAYERS" ), QObject::tr( "Input layer(s)" ), Qgis::ProcessingSourceType::MapLayer ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Output" ), Qgis::ProcessingSourceType::VectorPolygon, QVariant() ) );
 }
 
 QString QgsExportLayersInformationAlgorithm::shortHelpString() const
@@ -106,7 +106,7 @@ QVariantMap QgsExportLayersInformationAlgorithm::processAlgorithm( const QVarian
 
   QString outputDest;
   std::unique_ptr< QgsFeatureSink > outputSink( parameterAsSink( parameters, QStringLiteral( "OUTPUT" ), context, outputDest, outFields,
-      QgsWkbTypes::Polygon, mCrs ) );
+      Qgis::WkbType::Polygon, mCrs ) );
 
   const QList< QgsMapLayer * > layers = parameterAsLayerList( parameters, QStringLiteral( "LAYERS" ), context );
 
@@ -149,7 +149,8 @@ QVariantMap QgsExportLayersInformationAlgorithm::processAlgorithm( const QVarian
     {
       if ( layer->crs() != mCrs )
       {
-        const QgsCoordinateTransform transform( layer->crs(), mCrs, context.transformContext() );
+        QgsCoordinateTransform transform( layer->crs(), mCrs, context.transformContext() );
+        transform.setBallparkTransformsAreAppropriate( true );
         try
         {
           rect = transform.transformBoundingBox( rect );

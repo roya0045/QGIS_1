@@ -27,8 +27,6 @@
 #include <QFile>
 
 #include "qgspointcloudindex.h"
-#include "qgspointcloudattribute.h"
-#include "qgsstatisticalsummary.h"
 #include "qgis_sip.h"
 
 ///@cond PRIVATE
@@ -44,20 +42,29 @@ class CORE_EXPORT QgsEptPointCloudIndex: public QgsPointCloudIndex
     explicit QgsEptPointCloudIndex();
     ~QgsEptPointCloudIndex();
 
+    std::unique_ptr<QgsPointCloudIndex> clone() const override;
+
     void load( const QString &fileName ) override;
 
-    QgsPointCloudBlock *nodeData( const IndexedPointCloudNode &n, const QgsPointCloudRequest &request ) override;
+    std::unique_ptr<QgsPointCloudBlock> nodeData( const IndexedPointCloudNode &n, const QgsPointCloudRequest &request ) override;
     QgsPointCloudBlockRequest *asyncNodeData( const IndexedPointCloudNode &n, const QgsPointCloudRequest &request ) override;
 
     QgsCoordinateReferenceSystem crs() const override;
     qint64 pointCount() const override;
-    QVariant metadataStatistic( const QString &attribute, QgsStatisticalSummary::Statistic statistic ) const override;
+    bool hasStatisticsMetadata() const override;
+    QVariant metadataStatistic( const QString &attribute, Qgis::Statistic statistic ) const override;
     QVariantList metadataClasses( const QString &attribute ) const override;
-    QVariant metadataClassStatistic( const QString &attribute, const QVariant &value, QgsStatisticalSummary::Statistic statistic ) const override;
+    QVariant metadataClassStatistic( const QString &attribute, const QVariant &value, Qgis::Statistic statistic ) const override;
     QVariantMap originalMetadata() const override { return mOriginalMetadata; }
 
     bool isValid() const override;
     QgsPointCloudIndex::AccessType accessType() const override { return QgsPointCloudIndex::Local; };
+
+    /**
+     * Copies common properties to the \a destination index
+     * \since QGIS 3.26
+     */
+    void copyCommonProperties( QgsEptPointCloudIndex *destination ) const;
 
   protected:
     bool loadSchema( const QByteArray &dataJson );

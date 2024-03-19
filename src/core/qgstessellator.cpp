@@ -16,15 +16,12 @@
 #include "qgstessellator.h"
 
 #include "qgscurve.h"
+#include "qgsgeometryutils_base.h"
 #include "qgsgeometry.h"
-#include "qgsmessagelog.h"
 #include "qgsmultipolygon.h"
 #include "qgspoint.h"
 #include "qgspolygon.h"
 #include "qgstriangle.h"
-#include "qgis_sip.h"
-#include "qgsgeometryengine.h"
-
 #include "poly2tri.h"
 
 #include <QtDebug>
@@ -206,7 +203,7 @@ static bool _isRingCounterClockWise( const QgsCurve &ring )
 {
   double a = 0;
   const int count = ring.numPoints();
-  QgsVertexId::VertexType vt;
+  Qgis::VertexType vt;
   QgsPoint pt, ptPrev;
   ring.pointAt( 0, ptPrev, vt );
   for ( int i = 1; i < count + 1; ++i )
@@ -431,64 +428,6 @@ static QgsPolygon *_transform_polygon_to_new_base( const QgsPolygon &polygon, co
   return p;
 }
 
-static bool _check_intersecting_rings( const QgsPolygon &polygon )
-{
-  std::vector< std::unique_ptr< QgsGeometryEngine > > ringEngines;
-  ringEngines.reserve( 1 + polygon.numInteriorRings() );
-  ringEngines.emplace_back( QgsGeometry::createGeometryEngine( polygon.exteriorRing() ) );
-  for ( int i = 0; i < polygon.numInteriorRings(); ++i )
-    ringEngines.emplace_back( QgsGeometry::createGeometryEngine( polygon.interiorRing( i ) ) );
-
-  // we need to make sure that the polygon has no rings with self-intersection: that may
-  // crash the tessellator. The original geometry maybe have been valid and the self-intersection
-  // was introduced when transforming to a new base (in a rare case when all points are not in the same plane)
-
-  for ( const std::unique_ptr< QgsGeometryEngine > &ring : ringEngines )
-  {
-    if ( !ring->isSimple() )
-      return false;
-  }
-
-  // At this point we assume that input polygons are valid according to the OGC definition.
-  // This means e.g. no duplicate points, polygons are simple (no butterfly shaped polygon with self-intersection),
-  // internal rings are inside exterior rings, rings do not cross each other, no dangles.
-
-  // There is however an issue with polygons where rings touch:
-  //  +---+
-  //  |   |
-  //  | +-+-+
-  //  | | | |
-  //  | +-+ |
-  //  |     |
-  //  +-----+
-  // This is a valid polygon with one exterior and one interior ring that touch at one point,
-  // but poly2tri library does not allow interior rings touch each other or exterior ring.
-  // TODO: Handle the situation better - rather than just detecting the problem, try to fix
-  // it by converting touching rings into one ring.
-
-  if ( ringEngines.size() > 1 )
-  {
-    for ( size_t i = 0; i < ringEngines.size(); ++i )
-    {
-      std::unique_ptr< QgsGeometryEngine > &first = ringEngines.at( i );
-      if ( polygon.numInteriorRings() > 1 )
-        first->prepareGeometry();
-
-      // TODO this is inefficient - QgsGeometryEngine::intersects only works with QgsAbstractGeometry
-      // objects and accordingly we have to use those, instead of the previously build geos
-      // representations available in ringEngines
-      // This needs addressing by extending the QgsGeometryEngine relation tests to allow testing against
-      // another QgsGeometryEngine object.
-      for ( int interiorRing = static_cast< int >( i ); interiorRing < polygon.numInteriorRings(); ++interiorRing )
-      {
-        if ( first->intersects( polygon.interiorRing( interiorRing ) ) )
-          return false;
-      }
-    }
-  }
-  return true;
-}
-
 
 double _minimum_distance_between_coordinates( const QgsPolygon &polygon )
 {
@@ -514,7 +453,7 @@ double _minimum_distance_between_coordinates( const QgsPolygon &polygon )
     {
       const double x1 = *srcXData++;
       const double y1 = *srcYData++;
-      const double d = ( x0 - x1 ) * ( x0 - x1 ) + ( y0 - y1 ) * ( y0 - y1 );
+      const double d = QgsGeometryUtilsBase::sqrDistance2D( x0, y0, x1, y1 );
       if ( d < min_d )
         min_d = d;
       x0 = x1;
@@ -537,7 +476,8 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
     return;
 
   float zMin = std::numeric_limits<float>::max();
-  float zMax = std::numeric_limits<float>::min();
+  float zMaxBase = -std::numeric_limits<float>::max();
+  float zMaxExtruded = -std::numeric_limits<float>::max();
 
   const float scale = mBounds.isNull() ? 1.0 : std::max( 10000.0 / mBounds.width(), 10000.0 / mBounds.height() );
 
@@ -567,7 +507,7 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
     }
 
     ptStart = QgsPoint( exterior->startPoint() );
-    pt0 = QgsPoint( QgsWkbTypes::PointZ, ptStart.x(), ptStart.y(), std::isnan( ptStart.z() ) ? 0 : ptStart.z() );
+    pt0 = QgsPoint( Qgis::WkbType::PointZ, ptStart.x(), ptStart.y(), std::isnan( ptStart.z() ) ? 0 : ptStart.z() );
 
     // subtract ptFirst from geometry for better numerical stability in triangulation
     // and apply new 3D vector base if the polygon is not horizontal
@@ -580,12 +520,13 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
 
   const QVector3D upVector( 0, 0, 1 );
   const float pNormalUpVectorDotProduct = QVector3D::dotProduct( upVector, pNormal );
-  const float radsBetwwenUpNormal = qAcos( pNormalUpVectorDotProduct );
+  const float radsBetweenUpNormal = static_cast<float>( qAcos( pNormalUpVectorDotProduct ) );
 
   const float detectionDelta = qDegreesToRadians( 10.0f );
   int facade = 0;
-  if ( radsBetwwenUpNormal > M_PI_2 - detectionDelta && radsBetwwenUpNormal < M_PI_2 + detectionDelta ) facade = 1;
-  else if ( radsBetwwenUpNormal > - M_PI_2 - detectionDelta && radsBetwwenUpNormal < -M_PI_2 + detectionDelta ) facade = 1;
+  if ( ( radsBetweenUpNormal > M_PI_2 - detectionDelta && radsBetweenUpNormal < M_PI_2 + detectionDelta )
+       || ( radsBetweenUpNormal > - M_PI_2 - detectionDelta && radsBetweenUpNormal < -M_PI_2 + detectionDelta ) )
+    facade = 1;
   else facade = 2;
 
   if ( pCount == 4 && polygon.numInteriorRings() == 0 && ( mTessellatedFacade & facade ) )
@@ -604,11 +545,14 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
     const double *zData = !mNoZ ? exterior->zData() : nullptr;
     for ( int i = 0; i < 3; i++ )
     {
-      const float z = !zData ? 0 : *zData;
-      if ( z < zMin )
-        zMin = z;
-      if ( z > zMax )
-        zMax = z;
+      const float baseHeight = !zData || mNoZ ? 0.0f : static_cast<float>( * zData );
+      const float z = mNoZ ? 0.0f : ( baseHeight + extrusionHeight );
+      if ( baseHeight < zMin )
+        zMin = baseHeight;
+      if ( baseHeight > zMaxBase )
+        zMaxBase = baseHeight;
+      if ( z > zMaxExtruded )
+        zMaxExtruded = z;
 
       mData << *xData - mOriginX << z << - *yData + mOriginY;
       if ( mAddNormals )
@@ -670,28 +614,21 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
       const QgsGeometry polygonSimplified = QgsGeometry( polygonNew->clone() ).simplify( 0.001 );
       if ( polygonSimplified.isNull() )
       {
-        QgsMessageLog::logMessage( QObject::tr( "geometry simplification failed - skipping" ), QObject::tr( "3D" ) );
+        mError = QObject::tr( "geometry simplification failed - skipping" );
         return;
       }
       const QgsPolygon *polygonSimplifiedData = qgsgeometry_cast<const QgsPolygon *>( polygonSimplified.constGet() );
-      if ( _minimum_distance_between_coordinates( *polygonSimplifiedData ) < 0.001 )
+      if ( polygonSimplifiedData == nullptr || _minimum_distance_between_coordinates( *polygonSimplifiedData ) < 0.001 )
       {
         // Failed to fix that. It could be a really tiny geometry... or maybe they gave us
         // geometry in unprojected lat/lon coordinates
-        QgsMessageLog::logMessage( QObject::tr( "geometry's coordinates are too close to each other and simplification failed - skipping" ), QObject::tr( "3D" ) );
+        mError = QObject::tr( "geometry's coordinates are too close to each other and simplification failed - skipping" );
         return;
       }
       else
       {
         polygonNew.reset( polygonSimplifiedData->clone() );
       }
-    }
-
-    if ( !_check_intersecting_rings( *polygonNew ) )
-    {
-      // skip the polygon - it would cause a crash inside poly2tri library
-      QgsMessageLog::logMessage( QObject::tr( "polygon rings self-intersect or intersect each other - skipping" ), QObject::tr( "3D" ) );
-      return;
     }
 
     QList< std::vector<p2t::Point *> > polylinesToDelete;
@@ -735,11 +672,14 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
             pt = *toOldBase * pt;
           const double fx = ( pt.x() / scale ) - mOriginX + pt0.x();
           const double fy = ( pt.y() / scale ) - mOriginY + pt0.y();
+          const double baseHeight = mNoZ ? 0 : ( pt.z() + pt0.z() );
           const double fz = mNoZ ? 0 : ( pt.z() + extrusionHeight + pt0.z() );
-          if ( fz < zMin )
-            zMin = fz;
-          if ( fz > zMax )
-            zMax = fz;
+          if ( baseHeight < zMin )
+            zMin = baseHeight;
+          if ( baseHeight > zMaxBase )
+            zMaxBase = baseHeight;
+          if ( fz > zMaxExtruded )
+            zMaxExtruded = fz;
 
           mData << fx << fz << -fy;
           if ( mAddNormals )
@@ -775,9 +715,13 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
         }
       }
     }
+    catch ( std::runtime_error &err )
+    {
+      mError = err.what();
+    }
     catch ( ... )
     {
-      QgsMessageLog::logMessage( QObject::tr( "Triangulation failed. Skipping polygon…" ), QObject::tr( "3D" ) );
+      mError = QObject::tr( "An unknown error occurred" );
     }
 
     for ( int i = 0; i < polylinesToDelete.count(); ++i )
@@ -792,13 +736,16 @@ void QgsTessellator::addPolygon( const QgsPolygon &polygon, float extrusionHeigh
     for ( int i = 0; i < polygon.numInteriorRings(); ++i )
       _makeWalls( *qgsgeometry_cast< const QgsLineString * >( polygon.interiorRing( i ) ), true, extrusionHeight, mData, mAddNormals, mAddTextureCoords, mOriginX, mOriginY, mTextureRotation );
 
-    zMax += extrusionHeight;
+    if ( zMaxBase + extrusionHeight > zMaxExtruded )
+      zMaxExtruded = zMaxBase + extrusionHeight;
   }
 
   if ( zMin < mZMin )
     mZMin = zMin;
-  if ( zMax > mZMax )
-    mZMax = zMax;
+  if ( zMaxExtruded > mZMax )
+    mZMax = zMaxExtruded;
+  if ( zMaxBase > mZMax )
+    mZMax = zMaxBase;
 }
 
 int QgsTessellator::dataVerticesCount() const

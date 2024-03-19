@@ -18,9 +18,7 @@
 
 #include "qgsvectorlayer.h"
 #include "qgsconditionalstyle.h"
-#include "qgsapplication.h"
-#include "qgssettings.h"
-
+#include "qgsexpressioncontextutils.h"
 
 QgsFeaturePickerModelBase::QgsFeaturePickerModelBase( QObject *parent )
   : QAbstractItemModel( parent )
@@ -159,31 +157,26 @@ QVariant QgsFeaturePickerModelBase::data( const QModelIndex &index, int role ) c
   {
     case Qt::DisplayRole:
     case Qt::EditRole:
-    case ValueRole:
+    case static_cast< int >( CustomRole::Value ):
       return mEntries.value( index.row() ).value;
 
-    case FeatureIdRole:
+    case static_cast< int >( CustomRole::FeatureId ):
       return mEntries.value( index.row() ).featureId;
 
-    case FeatureRole:
+    case static_cast< int >( CustomRole::Feature ):
       return mEntries.value( index.row() ).feature;
 
-    case IdentifierValueRole:
+    case static_cast< int >( CustomRole::IdentifierValue ):
     {
       const QVariantList values = mEntries.value( index.row() ).identifierFields;
       return values.value( 0 );
     }
 
-    case IdentifierValuesRole:
+    case static_cast< int >( CustomRole::IdentifierValues ):
       return mEntries.value( index.row() ).identifierFields;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-    case Qt::BackgroundColorRole:
-    case Qt::TextColorRole:
-#else
     case Qt::BackgroundRole:
     case Qt::ForegroundRole:
-#endif
     case Qt::DecorationRole:
     case Qt::FontRole:
     {
@@ -191,11 +184,7 @@ QVariant QgsFeaturePickerModelBase::data( const QModelIndex &index, int role ) c
       if ( isNull )
       {
         // Representation for NULL value
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-        if ( role == Qt::TextColorRole )
-#else
         if ( role == Qt::ForegroundRole )
-#endif
         {
           return QBrush( QColor( Qt::gray ) );
         }
@@ -216,17 +205,9 @@ QVariant QgsFeaturePickerModelBase::data( const QModelIndex &index, int role ) c
 
         if ( style.isValid() )
         {
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-          if ( role == Qt::BackgroundColorRole && style.validBackgroundColor() )
-#else
           if ( role == Qt::BackgroundRole && style.validBackgroundColor() )
-#endif
             return style.backgroundColor();
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-          if ( role == Qt::TextColorRole && style.validTextColor() )
-#else
           if ( role == Qt::ForegroundRole && style.validTextColor() )
-#endif
             return style.textColor();
           if ( role == Qt::DecorationRole )
             return style.icon();
@@ -421,7 +402,10 @@ void QgsFeaturePickerModelBase::scheduledReload()
       filterClause = QStringLiteral( "(%1) AND ((%2) ILIKE '%%3%')" ).arg( mFilterExpression, mDisplayExpression, mFilterValue );
 
     if ( !filterClause.isEmpty() )
+    {
       request.setFilterExpression( filterClause );
+      request.expressionContext()->appendScopes( QgsExpressionContextUtils::globalProjectLayerScopes( sourceLayer() ) );
+    }
   }
   QSet<QString> attributes = requestedAttributes();
   if ( !attributes.isEmpty() )
@@ -434,7 +418,7 @@ void QgsFeaturePickerModelBase::scheduledReload()
   }
 
   if ( !mFetchGeometry )
-    request.setFlags( QgsFeatureRequest::NoGeometry );
+    request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   if ( mFetchLimit > 0 )
     request.setLimit( mFetchLimit );
 
@@ -606,6 +590,8 @@ void QgsFeaturePickerModelBase::setFetchLimit( int fetchLimit )
 
   mFetchLimit = fetchLimit;
   emit fetchLimitChanged();
+
+  reload();
 }
 
 

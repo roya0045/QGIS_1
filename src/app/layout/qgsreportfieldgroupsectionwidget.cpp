@@ -28,13 +28,14 @@ QgsReportSectionFieldGroupWidget::QgsReportSectionFieldGroupWidget( QgsReportOrg
 {
   setupUi( this );
 
-  mLayerComboBox->setFilters( QgsMapLayerProxyModel::VectorLayer );
+  mLayerComboBox->setFilters( Qgis::LayerFilter::VectorLayer );
   connect( mLayerComboBox, &QgsMapLayerComboBox::layerChanged, mFieldComboBox, &QgsFieldComboBox::setLayer );
   connect( mButtonEditBody, &QPushButton::clicked, this, &QgsReportSectionFieldGroupWidget::editBody );
   connect( mButtonEditHeader, &QPushButton::clicked, this, &QgsReportSectionFieldGroupWidget::editHeader );
   connect( mButtonEditFooter, &QPushButton::clicked, this, &QgsReportSectionFieldGroupWidget::editFooter );
 
   mLayerComboBox->setLayer( section->layer() );
+  mFieldComboBox->setLayer( section->layer() );
   mFieldComboBox->setField( section->field() );
   mSortAscendingCheckBox->setChecked( section->sortAscending() );
 

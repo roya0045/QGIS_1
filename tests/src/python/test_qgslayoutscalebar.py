@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsLayoutItemScaleBar.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,20 +9,20 @@ __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '23/10/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.testing import start_app, unittest
 from qgis.core import QgsLayoutItemScaleBar
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from test_qgslayoutitem import LayoutItemTestCase
 
 start_app()
 
 
-class TestQgsLayoutScaleBar(unittest.TestCase, LayoutItemTestCase):
+class TestQgsLayoutScaleBar(QgisTestCase, LayoutItemTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(TestQgsLayoutScaleBar, cls).setUpClass()
         cls.item_class = QgsLayoutItemScaleBar
 
 

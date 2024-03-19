@@ -20,10 +20,7 @@
 
 //qgis includes...
 #include "qgsdataitem.h"
-#include "qgsvectorlayer.h"
 #include "qgsapplication.h"
-#include "qgslogger.h"
-#include "qgssettings.h"
 #include "qgsbrowsermodel.h"
 #include "qgsbrowserproxymodel.h"
 #include "qgsdatacollectionitem.h"
@@ -47,6 +44,7 @@ class TestQgsBrowserProxyModel : public QObject
 
 class TestCollectionItem: public QgsDataCollectionItem
 {
+    Q_OBJECT
   public:
 
     TestCollectionItem( QgsDataItem *parent, const QString &name, const QString &path = QString(), const QString &providerKey = QString() )
@@ -112,7 +110,7 @@ void TestQgsBrowserProxyModel::testModel()
   QCOMPARE( proxy.rowCount( root1Index ), 0 );
   QCOMPARE( proxy.columnCount( root1Index ), 1 );
   QCOMPARE( proxy.data( root1Index ).toString(), QStringLiteral( "Test" ) );
-  QCOMPARE( proxy.data( root1Index, QgsBrowserModel::PathRole ).toString(), QStringLiteral( "root1" ) );
+  QCOMPARE( proxy.data( root1Index, static_cast< int >( QgsBrowserModel::CustomRole::Path ) ).toString(), QStringLiteral( "root1" ) );
   QCOMPARE( proxy.dataItem( root1Index ), rootItem1 );
 
   // second root item
@@ -129,7 +127,7 @@ void TestQgsBrowserProxyModel::testModel()
   QCOMPARE( proxy.rowCount( root2Index ), 0 );
   QCOMPARE( proxy.columnCount( root2Index ), 1 );
   QCOMPARE( proxy.data( root2Index ).toString(), QStringLiteral( "Test2" ) );
-  QCOMPARE( proxy.data( root2Index, QgsBrowserModel::PathRole ).toString(), QStringLiteral( "root2" ) );
+  QCOMPARE( proxy.data( root2Index, static_cast< int >( QgsBrowserModel::CustomRole::Path ) ).toString(), QStringLiteral( "root2" ) );
   QCOMPARE( proxy.dataItem( root2Index ), rootItem2 );
 
   // child item
@@ -143,7 +141,7 @@ void TestQgsBrowserProxyModel::testModel()
   QVERIFY( proxy.hasChildren( root1Index ) );
   QModelIndex child1Index = proxy.index( 0, 0, root1Index );
   QCOMPARE( proxy.data( child1Index ).toString(), QStringLiteral( "Child1" ) );
-  QCOMPARE( proxy.data( child1Index, QgsBrowserModel::PathRole ).toString(), QStringLiteral( "child1" ) );
+  QCOMPARE( proxy.data( child1Index, static_cast< int >( QgsBrowserModel::CustomRole::Path ) ).toString(), QStringLiteral( "child1" ) );
   QCOMPARE( proxy.dataItem( child1Index ), childItem1 );
 
   // more children
@@ -234,7 +232,7 @@ void TestQgsBrowserProxyModel::testModel()
   proxy.setFilterString( QString() );
 
   // layer type filtering
-  proxy.setLayerType( QgsMapLayerType::VectorLayer );
+  proxy.setLayerType( Qgis::LayerType::Vector );
   proxy.setFilterByLayerType( true );
 
   QCOMPARE( proxy.rowCount(), 2 );
@@ -252,7 +250,7 @@ void TestQgsBrowserProxyModel::testModel()
   QCOMPARE( proxy.data( proxy.index( 0, 0, child2Index ) ).toString(), QStringLiteral( "Child3" ) );
   QCOMPARE( proxy.rowCount( root2Index ), 0 );
 
-  proxy.setLayerType( QgsMapLayerType::RasterLayer );
+  proxy.setLayerType( Qgis::LayerType::Raster );
   QCOMPARE( proxy.rowCount(), 2 );
   root1Index = proxy.index( 0, 0 );
   root2Index = proxy.index( 1, 0 );

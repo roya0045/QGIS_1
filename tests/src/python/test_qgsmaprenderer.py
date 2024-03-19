@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsMapRenderer.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,32 +9,33 @@ __author__ = 'Nyall Dawson'
 __date__ = '1/02/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (QgsMapRendererCache,
-                       QgsMapRendererParallelJob,
-                       QgsMapRendererSequentialJob,
-                       QgsMapRendererCustomPainterJob,
-                       QgsPalLayerSettings,
-                       QgsRectangle,
-                       QgsTextFormat,
-                       QgsVectorLayer,
-                       QgsVectorLayerSimpleLabeling,
-                       QgsFeature,
-                       QgsGeometry,
-                       QgsMapSettings,
-                       QgsPointXY)
-from qgis.testing import start_app, unittest
-from qgis.PyQt.QtCore import QSize, QThreadPool
-from qgis.PyQt.QtGui import QPainter, QImage
-from qgis.PyQt.QtTest import QSignalSpy
 from random import uniform
 
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtGui import QImage, QPainter
+from qgis.PyQt.QtTest import QSignalSpy
+from qgis.core import (
+    QgsFeature,
+    QgsGeometry,
+    QgsMapRendererCache,
+    QgsMapRendererCustomPainterJob,
+    QgsMapRendererParallelJob,
+    QgsMapRendererSequentialJob,
+    QgsMapSettings,
+    QgsPalLayerSettings,
+    QgsPointXY,
+    QgsRectangle,
+    QgsTextFormat,
+    QgsVectorLayer,
+    QgsVectorLayerSimpleLabeling,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 app = start_app()
 
 
-class TestQgsMapRenderer(unittest.TestCase):
+class TestQgsMapRenderer(QgisTestCase):
 
     def setUp(self):
         pass
@@ -354,7 +354,7 @@ class TestQgsMapRenderer(unittest.TestCase):
         labelSettings2 = QgsPalLayerSettings()
         labelSettings2.fieldName = "fldtxt"
         format2 = QgsTextFormat()
-        format2.setBlendMode(QPainter.CompositionMode_SourceIn)
+        format2.setBlendMode(QPainter.CompositionMode.CompositionMode_SourceIn)
         labelSettings2.setFormat(format2)
         layer2.setLabeling(QgsVectorLayerSimpleLabeling(labelSettings2))
         layer2.setLabelsEnabled(True)
@@ -452,7 +452,7 @@ class TestQgsMapRenderer(unittest.TestCase):
 
     def testCustomPainterRenderer(self):
         """ run test suite on QgsMapRendererCustomPainterJob"""
-        im = QImage(200, 200, QImage.Format_RGB32)
+        im = QImage(200, 200, QImage.Format.Format_RGB32)
         p = QPainter(im)
 
         def create_job(settings):

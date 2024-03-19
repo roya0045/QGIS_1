@@ -50,9 +50,9 @@ QStringList QgsRasterizeAlgorithm::tags() const
   return QObject::tr( "layer,raster,convert,file,map themes,tiles,render" ).split( ',' );
 }
 
-QgsProcessingAlgorithm::Flags QgsRasterizeAlgorithm::flags() const
+Qgis::ProcessingAlgorithmFlags QgsRasterizeAlgorithm::flags() const
 {
-  return QgsProcessingAlgorithm::flags() | FlagRequiresProject;
+  return QgsProcessingAlgorithm::flags() | Qgis::ProcessingAlgorithmFlag::RequiresProject;
 }
 
 QString QgsRasterizeAlgorithm::group() const
@@ -73,21 +73,21 @@ void QgsRasterizeAlgorithm::initAlgorithm( const QVariantMap & )
   addParameter( new QgsProcessingParameterNumber(
                   QStringLiteral( "EXTENT_BUFFER" ),
                   QObject::tr( "Buffer around tiles in map units" ),
-                  QgsProcessingParameterNumber::Type::Double,
+                  Qgis::ProcessingNumberParameterType::Double,
                   0,
                   true,
                   0 ) );
   addParameter( new QgsProcessingParameterNumber(
                   QStringLiteral( "TILE_SIZE" ),
                   QObject::tr( "Tile size" ),
-                  QgsProcessingParameterNumber::Type::Integer,
+                  Qgis::ProcessingNumberParameterType::Integer,
                   1024,
                   false,
                   64 ) );
   addParameter( new QgsProcessingParameterNumber(
                   QStringLiteral( "MAP_UNITS_PER_PIXEL" ),
                   QObject::tr( "Map units per pixel" ),
-                  QgsProcessingParameterNumber::Type::Double,
+                  Qgis::ProcessingNumberParameterType::Double,
                   100,
                   true,
                   0 ) );
@@ -101,11 +101,10 @@ void QgsRasterizeAlgorithm::initAlgorithm( const QVariantMap & )
                   QObject::tr( "Map theme to render" ),
                   QVariant(), true ) );
 
-  QList<QgsMapLayer *> projectLayers { QgsProject::instance()->mapLayers().values() };
   addParameter( new QgsProcessingParameterMultipleLayers(
                   QStringLiteral( "LAYERS" ),
                   QObject::tr( "Layers to render" ),
-                  QgsProcessing::TypeMapLayer,
+                  Qgis::ProcessingSourceType::MapLayer,
                   QVariant(),
                   true
                 ) );
@@ -163,13 +162,13 @@ QVariantMap QgsRasterizeAlgorithm::processAlgorithm( const QVariantMap &paramete
     throw QgsProcessingException( QObject::tr( "Error creating GDAL driver" ) );
   }
 
-  gdal::dataset_unique_ptr hOutputDataset( GDALCreate( hOutputFileDriver, outputLayerFileName.toLocal8Bit().constData(), width, height, nBands, GDALDataType::GDT_Byte, nullptr ) );
+  gdal::dataset_unique_ptr hOutputDataset( GDALCreate( hOutputFileDriver, outputLayerFileName.toUtf8().constData(), width, height, nBands, GDALDataType::GDT_Byte, nullptr ) );
   if ( !hOutputDataset )
   {
     throw QgsProcessingException( QObject::tr( "Error creating GDAL output layer" ) );
   }
 
-  GDALSetProjection( hOutputDataset.get(), context.project()->crs().toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ).toLatin1().constData() );
+  GDALSetProjection( hOutputDataset.get(), context.project()->crs().toWkt( Qgis::CrsWktVariant::PreferredGdal ).toLatin1().constData() );
   double geoTransform[6];
   geoTransform[0] = extent.xMinimum();
   geoTransform[1] = mapUnitsPerPixel;
@@ -196,9 +195,10 @@ QVariantMap QgsRasterizeAlgorithm::processAlgorithm( const QVariantMap &paramete
   QgsMapSettings mapSettings;
   mapSettings.setOutputImageFormat( QImage::Format_ARGB32 );
   mapSettings.setDestinationCrs( context.project()->crs() );
-  mapSettings.setFlag( QgsMapSettings::Antialiasing, true );
-  mapSettings.setFlag( QgsMapSettings::RenderMapTile, true );
-  mapSettings.setFlag( QgsMapSettings::UseAdvancedEffects, true );
+  mapSettings.setFlag( Qgis::MapSettingsFlag::Antialiasing, true );
+  mapSettings.setFlag( Qgis::MapSettingsFlag::HighQualityImageTransforms, true );
+  mapSettings.setFlag( Qgis::MapSettingsFlag::RenderMapTile, true );
+  mapSettings.setFlag( Qgis::MapSettingsFlag::UseAdvancedEffects, true );
   mapSettings.setTransformContext( context.transformContext() );
   mapSettings.setExtentBuffer( extentBuffer );
   mapSettings.setBackgroundColor( bgColor );
@@ -215,7 +215,6 @@ QVariantMap QgsRasterizeAlgorithm::processAlgorithm( const QVariantMap &paramete
   // Start rendering
   const double extentRatio { mapUnitsPerPixel * tileSize };
   const int numTiles { xTileCount * yTileCount };
-  const QString fileExtension { QFileInfo( outputLayerFileName ).suffix() };
 
   // Custom deleter for CPL allocation
   struct CPLDelete

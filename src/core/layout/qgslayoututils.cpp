@@ -17,10 +17,12 @@
 
 #include "qgslayoututils.h"
 #include "qgslayout.h"
+#include "qgssettingsregistrycore.h"
 #include "qgslayoutitemmap.h"
 #include "qgsprojectviewsettings.h"
 #include "qgsrendercontext.h"
 #include "qgssettings.h"
+#include "qgslayoutrendercontext.h"
 
 #include <QStyleOptionGraphicsItem>
 #include <QPainter>
@@ -126,7 +128,7 @@ QgsRenderContext QgsLayoutUtils::createRenderContextForMap( QgsLayoutItemMap *ma
     // get map settings from reference map
     QgsRectangle extent = map->extent();
     QSizeF mapSizeLayoutUnits = map->rect().size();
-    QSizeF mapSizeMM = map->layout()->convertFromLayoutUnits( mapSizeLayoutUnits, QgsUnitTypes::LayoutMillimeters ).toQSizeF();
+    QSizeF mapSizeMM = map->layout()->convertFromLayoutUnits( mapSizeLayoutUnits, Qgis::LayoutUnit::Millimeters ).toQSizeF();
     QgsMapSettings ms = map->mapSettings( extent, mapSizeMM * dotsPerMM, dpi, false );
     QgsRenderContext context = QgsRenderContext::fromMapSettings( ms );
     if ( painter )
@@ -416,7 +418,8 @@ double QgsLayoutUtils::scaleFactorFromItemStyle( const QStyleOptionGraphicsItem 
 
 double QgsLayoutUtils::scaleFactorFromItemStyle( const QStyleOptionGraphicsItem *style, QPainter *painter )
 {
-  return style->levelOfDetailFromTransform( painter->worldTransform() );
+  Q_UNUSED( style );
+  return QStyleOptionGraphicsItem::levelOfDetailFromTransform( painter->worldTransform() );
 }
 
 QgsMapLayer *QgsLayoutUtils::mapLayerFromString( const QString &string, QgsProject *project )
@@ -512,7 +515,7 @@ double QgsLayoutUtils::mmToPoints( const double mmSize )
 
 QVector< double > QgsLayoutUtils::predefinedScales( const QgsLayout *layout )
 {
-  QgsProject *lProject = layout->project();
+  QgsProject *lProject = layout ? layout->project() : nullptr;
   QVector< double > mapScales;
   if ( lProject )
     mapScales = lProject->viewSettings()->mapScales();
@@ -522,8 +525,7 @@ QVector< double > QgsLayoutUtils::predefinedScales( const QgsLayout *layout )
   {
     // default to global map tool scales
     QgsSettings settings;
-    QString scalesStr( settings.value( QStringLiteral( "Map/scales" ), Qgis::defaultProjectScales() ).toString() );
-    const QStringList scales = scalesStr.split( ',' );
+    const QStringList scales = QgsSettingsRegistryCore::settingsMapScales->value();
     for ( const QString &scale : scales )
     {
       QStringList parts( scale.split( ':' ) );

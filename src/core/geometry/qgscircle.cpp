@@ -21,6 +21,7 @@
 #include "qgstriangle.h"
 
 #include <memory>
+#include <utility>
 
 QgsCircle::QgsCircle() :
   QgsEllipse( QgsPoint(), 0.0, 0.0, 0.0 )
@@ -37,7 +38,7 @@ QgsCircle::QgsCircle( const QgsPoint &center, double radius, double azimuth ) :
 QgsCircle QgsCircle::from2Points( const QgsPoint &pt1, const QgsPoint &pt2 )
 {
   QgsPoint center = QgsGeometryUtils::midpoint( pt1, pt2 );
-  const double azimuth = QgsGeometryUtils::lineAngle( pt1.x(), pt1.y(), pt2.x(), pt2.y() ) * 180.0 / M_PI;
+  const double azimuth = QgsGeometryUtilsBase::lineAngle( pt1.x(), pt1.y(), pt2.x(), pt2.y() ) * 180.0 / M_PI;
   const double radius = pt1.distance( pt2 ) / 2.0;
 
   QgsGeometryUtils::transferFirstZOrMValueToPoint( QgsPointSequence() << pt1 << pt2, center );
@@ -140,7 +141,7 @@ QgsCircle QgsCircle::from3Points( const QgsPoint &pt1, const QgsPoint &pt2, cons
   const double aSlope = yDelta_a / xDelta_a;
   const double bSlope = yDelta_b / xDelta_b;
 
-  // set z coordinate for center
+  // set z and m coordinate for center
   QgsGeometryUtils::transferFirstZOrMValueToPoint( QgsPointSequence() << p1 << p2 << p3, center );
 
   if ( ( std::fabs( xDelta_a ) <= epsilon ) && ( std::fabs( yDelta_b ) <= epsilon ) )
@@ -180,7 +181,7 @@ QgsCircle QgsCircle::fromCenterDiameter( const QgsPoint &center, double diameter
 
 QgsCircle QgsCircle::fromCenterPoint( const QgsPoint &center, const QgsPoint &pt1 )
 {
-  const double azimuth = QgsGeometryUtils::lineAngle( center.x(), center.y(), pt1.x(), pt1.y() ) * 180.0 / M_PI;
+  const double azimuth = QgsGeometryUtilsBase::lineAngle( center.x(), center.y(), pt1.x(), pt1.y() ) * 180.0 / M_PI;
 
   QgsPoint centerPt( center );
   QgsGeometryUtils::transferFirstZOrMValueToPoint( QgsPointSequence() << center << pt1, centerPt );
@@ -188,7 +189,7 @@ QgsCircle QgsCircle::fromCenterPoint( const QgsPoint &center, const QgsPoint &pt
   return QgsCircle( centerPt, centerPt.distance( pt1 ), azimuth );
 }
 
-static QVector<QgsCircle> from2ParallelsLine( const QgsPoint &pt1_par1, const QgsPoint &pt2_par1, const QgsPoint &pt1_par2, const QgsPoint &pt2_par2, const QgsPoint &pt1_line1, const QgsPoint &pt2_line1, QgsPoint pos, double epsilon )
+static QVector<QgsCircle> from2ParallelsLine( const QgsPoint &pt1_par1, const QgsPoint &pt2_par1, const QgsPoint &pt1_par2, const QgsPoint &pt2_par2, const QgsPoint &pt1_line1, const QgsPoint &pt2_line1, const QgsPoint &pos, double epsilon )
 {
   const double radius = QgsGeometryUtils::perpendicularSegment( pt1_par2, pt1_par1, pt2_par1 ).length() / 2.0;
 
@@ -199,11 +200,11 @@ static QVector<QgsCircle> from2ParallelsLine( const QgsPoint &pt1_par1, const Qg
   QgsPoint ptInter_par1line1, ptInter_par2line1;
   double angle1, angle2;
   double x, y;
-  QgsGeometryUtils::angleBisector( pt1_par1.x(), pt1_par1.y(), pt2_par1.x(), pt2_par1.y(), pt1_line1.x(), pt1_line1.y(), pt2_line1.x(), pt2_line1.y(), x, y, angle1 );
+  QgsGeometryUtilsBase::angleBisector( pt1_par1.x(), pt1_par1.y(), pt2_par1.x(), pt2_par1.y(), pt1_line1.x(), pt1_line1.y(), pt2_line1.x(), pt2_line1.y(), x, y, angle1 );
   ptInter_par1line1.setX( x );
   ptInter_par1line1.setY( y );
 
-  QgsGeometryUtils::angleBisector( pt1_par2.x(), pt1_par2.y(), pt2_par2.x(), pt2_par2.y(), pt1_line1.x(), pt1_line1.y(), pt2_line1.x(), pt2_line1.y(), x, y, angle2 );
+  QgsGeometryUtilsBase::angleBisector( pt1_par2.x(), pt1_par2.y(), pt2_par2.x(), pt2_par2.y(), pt1_line1.x(), pt1_line1.y(), pt2_line1.x(), pt2_line1.y(), x, y, angle2 );
   ptInter_par2line1.setX( x );
   ptInter_par2line1.setY( y );
 
@@ -274,7 +275,7 @@ static QVector<QgsCircle> from2ParallelsLine( const QgsPoint &pt1_par1, const Qg
   return circles;
 }
 
-QVector<QgsCircle> QgsCircle::from3TangentsMulti( const QgsPoint &pt1_tg1, const QgsPoint &pt2_tg1, const QgsPoint &pt1_tg2, const QgsPoint &pt2_tg2, const QgsPoint &pt1_tg3, const QgsPoint &pt2_tg3, double epsilon, QgsPoint pos )
+QVector<QgsCircle> QgsCircle::from3TangentsMulti( const QgsPoint &pt1_tg1, const QgsPoint &pt2_tg1, const QgsPoint &pt1_tg2, const QgsPoint &pt2_tg2, const QgsPoint &pt1_tg3, const QgsPoint &pt2_tg3, double epsilon, const QgsPoint &pos )
 {
   QgsPoint p1, p2, p3;
   bool isIntersect_tg1tg2 = false;
@@ -314,7 +315,7 @@ QVector<QgsCircle> QgsCircle::from3TangentsMulti( const QgsPoint &pt1_tg1, const
   return circles;
 }
 
-QgsCircle QgsCircle::from3Tangents( const QgsPoint &pt1_tg1, const QgsPoint &pt2_tg1, const QgsPoint &pt1_tg2, const QgsPoint &pt2_tg2, const QgsPoint &pt1_tg3, const QgsPoint &pt2_tg3, double epsilon, QgsPoint pos )
+QgsCircle QgsCircle::from3Tangents( const QgsPoint &pt1_tg1, const QgsPoint &pt2_tg1, const QgsPoint &pt1_tg2, const QgsPoint &pt2_tg2, const QgsPoint &pt1_tg3, const QgsPoint &pt2_tg3, double epsilon, const QgsPoint &pos )
 {
   const QVector<QgsCircle> circles = from3TangentsMulti( pt1_tg1, pt2_tg1, pt1_tg2, pt2_tg2, pt1_tg3, pt2_tg3, epsilon, pos );
   if ( circles.length() != 1 )
@@ -418,10 +419,10 @@ void QgsCircle::setSemiMinorAxis( const double semiMinorAxis )
 QVector<QgsPoint> QgsCircle::northQuadrant() const
 {
   QVector<QgsPoint> quad;
-  quad.append( QgsPoint( mCenter.x(), mCenter.y() + mSemiMajorAxis, mCenter.z() ) );
-  quad.append( QgsPoint( mCenter.x() + mSemiMajorAxis, mCenter.y(), mCenter.z() ) );
-  quad.append( QgsPoint( mCenter.x(), mCenter.y() - mSemiMajorAxis, mCenter.z() ) );
-  quad.append( QgsPoint( mCenter.x() - mSemiMajorAxis, mCenter.y(), mCenter.z() ) );
+  quad.append( QgsPoint( mCenter.x(), mCenter.y() + mSemiMajorAxis, mCenter.z(), mCenter.m() ) );
+  quad.append( QgsPoint( mCenter.x() + mSemiMajorAxis, mCenter.y(), mCenter.z(), mCenter.m() ) );
+  quad.append( QgsPoint( mCenter.x(), mCenter.y() - mSemiMajorAxis, mCenter.z(), mCenter.m() ) );
+  quad.append( QgsPoint( mCenter.x() - mSemiMajorAxis, mCenter.y(), mCenter.z(), mCenter.m() ) );
 
   return quad;
 }

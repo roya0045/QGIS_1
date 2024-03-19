@@ -28,14 +28,9 @@ include_directories(
 )
 
 include_directories(SYSTEM
-  ${GDAL_INCLUDE_DIR}
-  ${PROJ_INCLUDE_DIR}
   ${LIBZIP_INCLUDE_DIRS}
   ${SPATIALINDEX_INCLUDE_DIR}
-  ${GEOS_INCLUDE_DIR}
-  ${EXPAT_INCLUDE_DIR}
   ${SQLITE3_INCLUDE_DIR}
-  ${SPATIALITE_INCLUDE_DIR}
   ${QCA_INCLUDE_DIR}
   ${QTKEYCHAIN_INCLUDE_DIR}
 )
@@ -43,7 +38,7 @@ include_directories(SYSTEM
 ############################################################
 # qgis_quick_plugin module (QML) library
 
-if (WITH_QT6)
+if (BUILD_WITH_QT6)
   QT6_WRAP_CPP(QGIS_QUICK_PLUGIN_MOC_SRCS ${QGIS_QUICK_PLUGIN_MOC_HDRS})
 else()
   QT5_WRAP_CPP(QGIS_QUICK_PLUGIN_MOC_SRCS ${QGIS_QUICK_PLUGIN_MOC_HDRS})

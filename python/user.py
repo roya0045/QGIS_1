@@ -48,7 +48,7 @@ def load_user_expressions(path):
             error = traceback.format_exc()
             msgtitle = QCoreApplication.translate("UserExpressions", "User expressions")
             msg = QCoreApplication.translate("UserExpressions", "The user expression {0} is not valid").format(name)
-            QgsMessageLog.logMessage(msg + "\n" + error, msgtitle, Qgis.Warning)
+            QgsMessageLog.logMessage(msg + "\n" + error, msgtitle, Qgis.MessageLevel.Warning)
 
 
 userpythonhome = os.path.join(QgsApplication.qgisSettingsDirPath(), "python")
@@ -66,8 +66,8 @@ if not os.path.exists(initfile):
 template = """from qgis.core import *
 from qgis.gui import *
 
-@qgsfunction(args='auto', group='Custom', referenced_columns=[])
-def my_sum(value1, value2, feature, parent):
+@qgsfunction(group='Custom', referenced_columns=[])
+def my_sum(value1, value2):
     \"\"\"
     Calculates the sum of the two parameters value1 and value2.
     <h2>Example usage:</h2>

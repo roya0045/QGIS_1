@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     EditRenderingStylesDialog.py
@@ -45,12 +43,12 @@ with warnings.catch_warnings():
 class EditRenderingStylesDialog(BASE, WIDGET):
 
     def __init__(self, alg):
-        super(EditRenderingStylesDialog, self).__init__(None)
+        super().__init__(None)
         self.setupUi(self)
 
         self.alg = alg
 
-        self.tblStyles.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tblStyles.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.setWindowTitle(self.alg.displayName())
 
         self.valueItems = {}
@@ -69,7 +67,7 @@ class EditRenderingStylesDialog(BASE, WIDGET):
             if isinstance(output, (QgsProcessingOutputVectorLayer, QgsProcessingOutputRasterLayer)):
                 item = QTableWidgetItem(output.description() + '<' +
                                         output.__class__.__name__ + '>')
-                item.setFlags(Qt.ItemIsEnabled)
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled)
                 self.tblStyles.setItem(i, 0, item)
                 item = RenderingStyleFilePanel()
                 style = \

@@ -27,6 +27,8 @@
 #include "qgsstylemanagerdialog.h"
 #include "qgsguiutils.h"
 #include "qgsfileutils.h"
+#include "qgsnewnamedialog.h"
+#include "layers/qgsapplayerhandling.h"
 
 #include <QDesktopServices>
 #include <QMessageBox>
@@ -63,7 +65,7 @@ bool QgsBookmarkItem::hasDragEnabled() const
   return true;
 }
 
-QgsMimeDataUtils::Uri QgsBookmarkItem::mimeUri() const
+QgsMimeDataUtils::UriList QgsBookmarkItem::mimeUris() const
 {
   QgsMimeDataUtils::Uri u;
   u.layerType = QStringLiteral( "custom" );
@@ -74,7 +76,7 @@ QgsMimeDataUtils::Uri QgsBookmarkItem::mimeUri() const
   doc.appendChild( mBookmark.writeXml( doc ) );
   u.uri = doc.toString();
 
-  return u;
+  return { u };
 }
 
 //
@@ -120,9 +122,9 @@ QString QgsQlrDataItemProvider::name()
   return QStringLiteral( "QLR" );
 }
 
-int QgsQlrDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsQlrDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsQlrDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -144,7 +146,7 @@ QString QgsQlrDropHandler::customUriProviderKey() const
 void QgsQlrDropHandler::handleCustomUriDrop( const QgsMimeDataUtils::Uri &uri ) const
 {
   const QString path = uri.uri;
-  QgisApp::instance()->openLayerDefinition( path );
+  QgsAppLayerHandling::openLayerDefinition( path );
 }
 
 //
@@ -156,9 +158,9 @@ QString QgsQptDataItemProvider::name()
   return QStringLiteral( "QPT" );
 }
 
-int QgsQptDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsQptDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsQptDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -302,9 +304,9 @@ QString QgsPyDataItemProvider::name()
   return QStringLiteral( "py" );
 }
 
-int QgsPyDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsPyDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsPyDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -409,6 +411,9 @@ void QgsStyleXmlDataItem::browseStyle( const QString &xmlPath )
   auto cursorOverride = std::make_unique< QgsTemporaryCursorOverride >( Qt::WaitCursor );
   if ( s.importXml( xmlPath ) )
   {
+    s.setFileName( xmlPath );
+    s.setName( QFileInfo( xmlPath ).completeBaseName() );
+
     cursorOverride.reset();
     const QFileInfo fi( xmlPath );
     QgsStyleManagerDialog dlg( &s, QgisApp::instance(), Qt::WindowFlags(), true );
@@ -428,9 +433,9 @@ QString QgsStyleXmlDataItemProvider::name()
   return QStringLiteral( "style_xml" );
 }
 
-int QgsStyleXmlDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsStyleXmlDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsStyleXmlDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -453,18 +458,14 @@ QString QgsStyleXmlDropHandler::customUriProviderKey() const
 
 void QgsStyleXmlDropHandler::handleCustomUriDrop( const QgsMimeDataUtils::Uri &uri ) const
 {
-  QgsStyleExportImportDialog dlg( QgsStyle::defaultStyle(), QgisApp::instance(), QgsStyleExportImportDialog::Import );
-  dlg.setImportFilePath( uri.uri );
-  dlg.exec();
+  QgsStyleXmlDataItem::browseStyle( uri.uri );
 }
 
 bool QgsStyleXmlDropHandler::handleFileDrop( const QString &file )
 {
   if ( QgsStyle::isXmlStyleFile( file ) )
   {
-    QgsStyleExportImportDialog dlg( QgsStyle::defaultStyle(), QgisApp::instance(), QgsStyleExportImportDialog::Import );
-    dlg.setImportFilePath( file );
-    dlg.exec();
+    QgsStyleXmlDataItem::browseStyle( file );
     return true;
   }
   return false;
@@ -487,8 +488,11 @@ QVector<QgsDataItem *> QgsProjectRootDataItem::createChildren()
 {
   QVector<QgsDataItem *> childItems;
 
-  QgsProject p;
-  if ( !p.read( mPath, QgsProject::ReadFlag::FlagDontResolveLayers | QgsProject::ReadFlag::FlagDontLoadLayouts | QgsProject::ReadFlag::FlagDontStoreOriginalStyles ) )
+  QgsProject p( nullptr, Qgis::ProjectCapabilities() );
+  if ( !p.read( mPath, Qgis::ProjectReadFlag::DontResolveLayers
+                | Qgis::ProjectReadFlag::DontLoadLayouts
+                | Qgis::ProjectReadFlag::DontStoreOriginalStyles
+                | Qgis::ProjectReadFlag::DontLoad3DViews ) )
   {
     childItems.append( new QgsErrorItem( nullptr, p.error(), mPath + "/error" ) );
     return childItems;
@@ -581,9 +585,9 @@ QString QgsProjectDataItemProvider::name()
   return QStringLiteral( "project_item" );
 }
 
-int QgsProjectDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsProjectDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsProjectDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )
@@ -605,9 +609,9 @@ QString QgsBookmarksDataItemProvider::name()
   return QStringLiteral( "bookmarks_item" );
 }
 
-int QgsBookmarksDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsBookmarksDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::Database;
+  return Qgis::DataItemProviderCapability::Databases;
 }
 
 QgsDataItem *QgsBookmarksDataItemProvider::createDataItem( const QString &, QgsDataItem *parentItem )
@@ -916,6 +920,7 @@ bool QgsBookmarkDropHandler::handleCustomUriCanvasDrop( const QgsMimeDataUtils::
     }
     else
     {
+      canvas->setRotation( b.rotation() );
       canvas->refresh();
     }
   }
@@ -1044,6 +1049,7 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
         }
         else
         {
+          QgisApp::instance()->mapCanvas()->setRotation( bookmarkItem->bookmark().rotation() );
           QgisApp::instance()->mapCanvas()->refresh();
         }
       }
@@ -1089,7 +1095,7 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
       else
       {
         if ( QMessageBox::question( nullptr, QObject::tr( "Delete Spatial Bookmarks" ),
-                                    QObject::tr( "Are you sure you want to delete the %1 selected bookmarks?" ).arg( ids.count() ),
+                                    QObject::tr( "Are you sure you want to delete the %n selected bookmark(s)?", nullptr, ids.count() ),
                                     QMessageBox::Yes | QMessageBox::No, QMessageBox::No ) != QMessageBox::Yes )
           return;
 
@@ -1112,14 +1118,47 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
       }
     }
 
+    // Export bookmarks
     QAction *exportBookmarks = new QAction( QgsApplication::getThemeIcon( QStringLiteral( "/mActionSharingExport.svg" ) ), tr( "Export Spatial Bookmarks…" ), menu );
     connect( exportBookmarks, &QAction::triggered, this, [ = ]
     {
       exportBookmarksFromManagers( QList< const QgsBookmarkManager * >() << groupItem->manager(), context.messageBar(), groupItem->group() );
     } );
     menu->addAction( exportBookmarks );
+
+    // Add spatial bookmark
+    QAction *addBookmarkToGroup = new QAction( tr( "New Spatial Bookmark…" ), menu );
+    const bool inProject = manager != QgsApplication::bookmarkManager();
+    connect( addBookmarkToGroup, &QAction::triggered, this, [ = ]
+    {
+      QgisApp::instance()->newBookmark( inProject, groupItem->group() );
+    } );
+    menu->addAction( addBookmarkToGroup );
     menu->addSeparator();
 
+    // Rename bookmark group
+    QAction *renameBookmarkGroup = new QAction( tr( "Rename Bookmark Group…" ), menu );
+    const QString groupName = groupItem->group();
+    connect( renameBookmarkGroup, &QAction::triggered, this, [groupName, manager]
+    {
+      QStringList existingGroupNames = manager->groups();
+      existingGroupNames.removeOne( groupName );
+      QgsNewNameDialog dlg(
+        tr( "bookmark group “%1”" ).arg( groupName ),
+        groupName,
+        QStringList(),
+        existingGroupNames
+      );
+      dlg.setWindowTitle( tr( "Rename Bookmark Group" ) );
+      dlg.setOverwriteEnabled( true );
+      dlg.setConflictingNameWarning( tr( "Group name already exists, overwriting will merge the bookmark groups." ) );
+      if ( dlg.exec() != QDialog::Accepted || dlg.name() == groupName )
+        return;
+      manager->renameGroup( groupName, dlg.name() );
+    } );
+    menu->addAction( renameBookmarkGroup );
+
+    // Delete bookmark group
     QAction *actionDelete = new QAction( selectedItems.count() == 1 ? tr( "Delete Bookmark Group" ) : tr( "Delete Bookmark Groups" ), menu );
     connect( actionDelete, &QAction::triggered, this, [selectedItems, groups, manager]
     {
@@ -1139,11 +1178,10 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
       else
       {
         if ( QMessageBox::question( nullptr, QObject::tr( "Delete Bookmark Groups" ),
-                                    QObject::tr( "Are you sure you want to delete the %1 selected bookmark groups? This will delete all bookmarks in these groups." ).arg( groups.count() ),
+                                    QObject::tr( "Are you sure you want to delete the %n selected bookmark group(s)? This will delete all bookmarks in these groups.", nullptr, groups.count() ),
                                     QMessageBox::Yes | QMessageBox::No, QMessageBox::No ) != QMessageBox::Yes )
           return;
 
-        int i = 0;
         for ( const QString &g : groups )
         {
           const QList<QgsBookmark> matching = manager->bookmarksByGroup( g );
@@ -1151,7 +1189,6 @@ void QgsBookmarksItemGuiProvider::populateContextMenu( QgsDataItem *item, QMenu 
           {
             manager->removeBookmark( bookmark.id() );
           }
-          i++;
         }
       }
     } );
@@ -1171,6 +1208,7 @@ bool QgsBookmarksItemGuiProvider::handleDoubleClick( QgsDataItem *item, QgsDataI
       }
       else
       {
+        QgisApp::instance()->mapCanvas()->setRotation( bookmarkItem->bookmark().rotation() );
         QgisApp::instance()->mapCanvas()->refresh();
       }
     }
@@ -1264,9 +1302,9 @@ QString QgsHtmlDataItemProvider::name()
   return QStringLiteral( "html" );
 }
 
-int QgsHtmlDataItemProvider::capabilities() const
+Qgis::DataItemProviderCapabilities QgsHtmlDataItemProvider::capabilities() const
 {
-  return QgsDataProvider::File;
+  return Qgis::DataItemProviderCapability::Files;
 }
 
 QgsDataItem *QgsHtmlDataItemProvider::createDataItem( const QString &path, QgsDataItem *parentItem )

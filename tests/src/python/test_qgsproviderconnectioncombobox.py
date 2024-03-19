@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsProviderConnectionComboBox
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,22 +9,17 @@ __author__ = 'Nyall Dawson'
 __date__ = '8/03/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
-import tempfile
-import shutil
 import os
+import shutil
+import tempfile
 
-from qgis.core import (
-    QgsVectorLayer,
-    QgsProviderRegistry
-)
-from qgis.gui import QgsProviderConnectionComboBox
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtTest import QSignalSpy
-
+from qgis.core import QgsProviderRegistry, QgsVectorLayer
+from qgis.gui import QgsProviderConnectionComboBox
 from qgis.testing import unittest
-from utilities import unitTestDataPath, start_app
+
+from utilities import start_app, unitTestDataPath
 
 start_app()
 
@@ -37,22 +31,23 @@ class TestQgsProviderConnectionComboBox(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(cls.__name__)
         QCoreApplication.setApplicationName(cls.__name__)
         start_app()
 
-        gpkg_original_path = '{}/qgis_server/test_project_wms_grouped_layers.gpkg'.format(TEST_DATA_DIR)
+        gpkg_original_path = f'{TEST_DATA_DIR}/qgis_server/test_project_wms_grouped_layers.gpkg'
         cls.basetestpath = tempfile.mkdtemp()
-        cls.gpkg_path = '{}/test_gpkg.gpkg'.format(cls.basetestpath)
+        cls.gpkg_path = f'{cls.basetestpath}/test_gpkg.gpkg'
         shutil.copy(gpkg_original_path, cls.gpkg_path)
-        vl = QgsVectorLayer('{}|layername=cdb_lines'.format(cls.gpkg_path), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{cls.gpkg_path}|layername=cdb_lines', 'test', 'ogr')
         assert vl.isValid()
 
-        gpkg2_original_path = '{}/points_gpkg.gpkg'.format(TEST_DATA_DIR)
-        cls.gpkg_path2 = '{}/test_gpkg2.gpkg'.format(cls.basetestpath)
+        gpkg2_original_path = f'{TEST_DATA_DIR}/points_gpkg.gpkg'
+        cls.gpkg_path2 = f'{cls.basetestpath}/test_gpkg2.gpkg'
         shutil.copy(gpkg2_original_path, cls.gpkg_path2)
-        vl = QgsVectorLayer('{}'.format(cls.gpkg_path2), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{cls.gpkg_path2}', 'test', 'ogr')
         assert vl.isValid()
 
     @classmethod
@@ -60,6 +55,7 @@ class TestQgsProviderConnectionComboBox(unittest.TestCase):
         """Run after all tests"""
         os.unlink(cls.gpkg_path)
         os.unlink(cls.gpkg_path2)
+        super().tearDownClass()
 
     def testCombo(self):
         """ test combobox functionality """
@@ -180,11 +176,13 @@ class TestQgsProviderConnectionComboBox(unittest.TestCase):
         self.assertEqual(m.currentConnectionUri(), self.gpkg_path)
         self.assertEqual(len(spy), 3)
 
+        # deleting the selected connection when we are allowing empty
+        # connections should fallback to the empty item
         md.deleteConnection('qgis_test1')
-        self.assertEqual(m.currentConnection(), 'aaa_qgis_test2')
-        self.assertEqual(m.currentConnectionUri(), self.gpkg_path2)
+        self.assertFalse(m.currentConnection())
+        self.assertFalse(m.currentConnectionUri())
         self.assertEqual(len(spy), 4)
-        self.assertEqual(spy[-1][0], 'aaa_qgis_test2')
+        self.assertFalse(spy[-1][0])
 
 
 if __name__ == '__main__':

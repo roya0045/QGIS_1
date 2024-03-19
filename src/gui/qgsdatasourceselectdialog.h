@@ -58,7 +58,7 @@ class GUI_EXPORT QgsDataSourceSelectWidget: public QgsPanelWidget, private Ui::Q
      */
     QgsDataSourceSelectWidget( QgsBrowserGuiModel *browserModel = nullptr,
                                bool setFilterByLayerType = false,
-                               QgsMapLayerType layerType = QgsMapLayerType::VectorLayer,
+                               Qgis::LayerType layerType = Qgis::LayerType::Vector,
                                QWidget *parent = nullptr );
 
 
@@ -67,15 +67,24 @@ class GUI_EXPORT QgsDataSourceSelectWidget: public QgsPanelWidget, private Ui::Q
     /**
      * Sets layer type filter to \a layerType and activates the filtering
      */
-    void setLayerTypeFilter( QgsMapLayerType layerType );
+    void setLayerTypeFilter( Qgis::LayerType layerType );
 
     /**
      * Sets a description label
      * \param description a description string
      * \note the description will be displayed at the bottom of the dialog
-     * \since 3.8
+     * \since QGIS 3.8
      */
     void setDescription( const QString &description );
+
+    /**
+     * Expands out a file \a path in the view.
+     *
+     * The \a path must correspond to a valid directory existing on the file system.
+     *
+     * \since QGIS 3.28
+     */
+    void expandPath( const QString &path );
 
     /**
      * Returns the (possibly invalid) uri of the selected data source
@@ -165,21 +174,30 @@ class GUI_EXPORT QgsDataSourceSelectDialog: public QDialog
      */
     QgsDataSourceSelectDialog( QgsBrowserGuiModel *browserModel = nullptr,
                                bool setFilterByLayerType = false,
-                               QgsMapLayerType layerType = QgsMapLayerType::VectorLayer,
+                               Qgis::LayerType layerType = Qgis::LayerType::Vector,
                                QWidget *parent = nullptr );
 
     /**
      * Sets layer type filter to \a layerType and activates the filtering
      */
-    void setLayerTypeFilter( QgsMapLayerType layerType );
+    void setLayerTypeFilter( Qgis::LayerType layerType );
 
     /**
      * Sets a description label
      * \param description a description string
      * \note the description will be displayed at the bottom of the dialog
-     * \since 3.8
+     * \since QGIS 3.8
      */
     void setDescription( const QString &description );
+
+    /**
+     * Expands out a file \a path in the view.
+     *
+     * The \a path must correspond to a valid directory existing on the file system.
+     *
+     * \since QGIS 3.28
+     */
+    void expandPath( const QString &path );
 
     /**
      * Returns the (possibly invalid) uri of the selected data source

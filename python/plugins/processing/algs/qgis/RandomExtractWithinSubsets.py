@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     RandomSelectionWithinSubsets.py
@@ -66,7 +64,7 @@ class RandomExtractWithinSubsets(QgisAlgorithm):
                                                      self.tr('Method'), self.methods, False, 0))
 
         self.addParameter(QgsProcessingParameterNumber(self.NUMBER,
-                                                       self.tr('Number/percentage of selected features'), QgsProcessingParameterNumber.Integer,
+                                                       self.tr('Number/percentage of selected features'), QgsProcessingParameterNumber.Type.Integer,
                                                        10, False, 0.0))
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr('Extracted (random stratified)')))
@@ -88,7 +86,7 @@ class RandomExtractWithinSubsets(QgisAlgorithm):
 
         index = source.fields().lookupField(field)
 
-        features = source.getFeatures(QgsFeatureRequest(), QgsProcessingFeatureSource.FlagSkipGeometryValidityChecks)
+        features = source.getFeatures(QgsFeatureRequest(), QgsProcessingFeatureSource.Flag.FlagSkipGeometryValidityChecks)
         featureCount = source.featureCount()
         unique = source.uniqueValues(index)
         value = self.parameterAsInt(parameters, self.NUMBER, context)
@@ -124,13 +122,14 @@ class RandomExtractWithinSubsets(QgisAlgorithm):
             selValue = value if method != 1 else int(round(value * len(subset), 0))
             if selValue > len(subset):
                 selValue = len(subset)
-                feedback.reportError(self.tr('Subset "{}" is smaller than requested number of features.'.format(k)))
+                feedback.reportError(self.tr(
+                    'Subset "{}" is smaller than requested number of features.').format(k))
             selran.extend(random.sample(subset, selValue))
 
         total = 100.0 / featureCount if featureCount else 1
         for (i, feat) in enumerate(selran):
             if feedback.isCanceled():
                 break
-            sink.addFeature(feat, QgsFeatureSink.FastInsert)
+            sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
             feedback.setProgress(int(i * total))
         return {self.OUTPUT: dest_id}

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     GdalAlgorithmVectorTest.py
@@ -31,8 +29,8 @@ from qgis.core import (QgsProcessingContext,
                        QgsCoordinateReferenceSystem,
                        QgsRectangle)
 
-from qgis.testing import (start_app,
-                          unittest)
+from qgis.testing import (QgisTestCase,
+                          start_app)
 
 import AlgorithmsTestBase
 from processing.algs.gdal.ogr2ogr import ogr2ogr
@@ -47,7 +45,7 @@ from processing.algs.gdal.PointsAlongLines import PointsAlongLines
 testDataPath = os.path.join(os.path.dirname(__file__), 'testdata')
 
 
-class TestGdalVectorAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsTest):
+class TestGdalVectorAlgorithms(QgisTestCase, AlgorithmsTestBase.AlgorithmsTest):
 
     @classmethod
     def setUpClass(cls):
@@ -61,13 +59,14 @@ class TestGdalVectorAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsT
         for path in cls.cleanup_paths:
             shutil.rmtree(path)
 
-    def test_definition_file(self):
+    def definition_file(self):
         return 'gdal_algorithm_vector_tests.yaml'
 
     def testOgr2Ogr(self):
         context = QgsProcessingContext()
         feedback = QgsProcessingFeedback()
         source = os.path.join(testDataPath, 'polys.gml')
+        multi_source = os.path.join(testDataPath, 'multi_layers.gml')
         alg = ogr2ogr()
         alg.initAlgorithm()
 
@@ -99,6 +98,22 @@ class TestGdalVectorAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsT
                 ['ogr2ogr',
                  '-f "GPKG" ' + outdir + '/check.gpkg ' +
                  source + ' polys2'])
+
+            self.assertEqual(
+                alg.getConsoleCommands({'INPUT': multi_source + '|layername=lines',
+                                        'CONVERT_ALL_LAYERS': False,
+                                        'OUTPUT': outdir + '/check.gpkg'}, context, feedback),
+                ['ogr2ogr',
+                 '-f "GPKG" ' + outdir + '/check.gpkg ' +
+                 multi_source + ' lines'])
+
+            self.assertEqual(
+                alg.getConsoleCommands({'INPUT': multi_source + '|layername=lines',
+                                        'CONVERT_ALL_LAYERS': True,
+                                        'OUTPUT': outdir + '/check.gpkg'}, context, feedback),
+                ['ogr2ogr',
+                 '-f "GPKG" ' + outdir + '/check.gpkg ' +
+                 multi_source])
 
     def testOgrInfo(self):
         context = QgsProcessingContext()
@@ -159,6 +174,16 @@ class TestGdalVectorAlgorithms(unittest.TestCase, AlgorithmsTestBase.AlgorithmsT
                  outdir + '/check.shp ' +
                  source + ' ' +
                  '-dialect sqlite -sql "SELECT ST_Buffer(geometry, 5.0) AS geometry,* FROM """polys2"""" ' +
+                 '-f "ESRI Shapefile"'])
+
+            self.assertEqual(
+                alg.getConsoleCommands({'INPUT': source,
+                                        'DISTANCE': -5,
+                                        'OUTPUT': outdir + '/check.shp'}, context, feedback),
+                ['ogr2ogr',
+                 outdir + '/check.shp ' +
+                 source + ' ' +
+                 '-dialect sqlite -sql "SELECT ST_Buffer(geometry, -5.0) AS geometry,* FROM """polys2"""" ' +
                  '-f "ESRI Shapefile"'])
 
             self.assertEqual(

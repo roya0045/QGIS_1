@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsCoordinateTransform.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,21 +9,21 @@ __author__ = '(C) 2012 by Tim Sutton'
 __date__ = '20/08/2012'
 __copyright__ = 'Copyright 2012, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.core import (QgsRectangle,
-                       QgsCoordinateReferenceSystem,
-                       QgsCoordinateTransform,
-                       QgsCoordinateTransformContext,
-                       QgsDatumTransform,
-                       QgsProject,
-                       QgsProjUtils)
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsCoordinateTransformContext,
+    QgsProject,
+    QgsRectangle,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsCoordinateTransform(unittest.TestCase):
+class TestQgsCoordinateTransform(QgisTestCase):
 
     def testTransformBoundingBox(self):
         """Test that we can transform a rectangular bbox from utm56s to LonLat"""
@@ -60,20 +59,20 @@ class TestQgsCoordinateTransform(unittest.TestCase):
         myUtmCrs = QgsCoordinateReferenceSystem('EPSG:3857')
         myXForm = QgsCoordinateTransform(myUtmCrs, myGeoCrs, QgsProject.instance())
         myTransformedExtent = myXForm.transform(myExtent)
-        myTransformedExtentForward = myXForm.transform(myExtent, QgsCoordinateTransform.ForwardTransform)
-        self.assertAlmostEquals(myTransformedExtentForward.xMaximum(), myTransformedExtent.xMaximum())
-        self.assertAlmostEquals(myTransformedExtentForward.xMinimum(), myTransformedExtent.xMinimum())
-        self.assertAlmostEquals(myTransformedExtentForward.yMaximum(), myTransformedExtent.yMaximum())
-        self.assertAlmostEquals(myTransformedExtentForward.yMinimum(), myTransformedExtent.yMinimum())
-        self.assertAlmostEquals(myTransformedExtentForward.xMaximum(), 54.13181426773211)
-        self.assertAlmostEquals(myTransformedExtentForward.xMinimum(), -16.14368685298181)
-        self.assertAlmostEquals(myTransformedExtentForward.yMaximum(), 50.971783118386895)
-        self.assertAlmostEquals(myTransformedExtentForward.yMinimum(), 36.66235970825241)
-        myTransformedExtentReverse = myXForm.transform(myTransformedExtent, QgsCoordinateTransform.ReverseTransform)
-        self.assertAlmostEquals(myTransformedExtentReverse.xMaximum(), myExtent.xMaximum())
-        self.assertAlmostEquals(myTransformedExtentReverse.xMinimum(), myExtent.xMinimum())
-        self.assertAlmostEquals(myTransformedExtentReverse.yMaximum(), myExtent.yMaximum())
-        self.assertAlmostEquals(myTransformedExtentReverse.yMinimum(), myExtent.yMinimum())
+        myTransformedExtentForward = myXForm.transform(myExtent, QgsCoordinateTransform.TransformDirection.ForwardTransform)
+        self.assertAlmostEqual(myTransformedExtentForward.xMaximum(), myTransformedExtent.xMaximum())
+        self.assertAlmostEqual(myTransformedExtentForward.xMinimum(), myTransformedExtent.xMinimum())
+        self.assertAlmostEqual(myTransformedExtentForward.yMaximum(), myTransformedExtent.yMaximum())
+        self.assertAlmostEqual(myTransformedExtentForward.yMinimum(), myTransformedExtent.yMinimum())
+        self.assertAlmostEqual(myTransformedExtentForward.xMaximum(), 54.13181426773211)
+        self.assertAlmostEqual(myTransformedExtentForward.xMinimum(), -16.14368685298181)
+        self.assertAlmostEqual(myTransformedExtentForward.yMaximum(), 50.971783118386895)
+        self.assertAlmostEqual(myTransformedExtentForward.yMinimum(), 36.66235970825241)
+        myTransformedExtentReverse = myXForm.transform(myTransformedExtent, QgsCoordinateTransform.TransformDirection.ReverseTransform)
+        self.assertAlmostEqual(myTransformedExtentReverse.xMaximum(), myExtent.xMaximum())
+        self.assertAlmostEqual(myTransformedExtentReverse.xMinimum(), myExtent.xMinimum())
+        self.assertAlmostEqual(myTransformedExtentReverse.yMaximum(), myExtent.yMaximum())
+        self.assertAlmostEqual(myTransformedExtentReverse.yMinimum(), myExtent.yMinimum())
 
     def testContextProj6(self):
         """
@@ -152,6 +151,15 @@ class TestQgsCoordinateTransform(unittest.TestCase):
 
         transform = QgsCoordinateTransform(QgsCoordinateReferenceSystem('EPSG:28356'), QgsCoordinateReferenceSystem('EPSG:3111'), p)
         self.assertEqual(transform.coordinateOperation(), 'proj')
+
+    def testTransformBoundingBoxFullWorldToWebMercator(self):
+        extent = QgsRectangle(-180, -90, 180, 90)
+        transform = QgsCoordinateTransform(QgsCoordinateReferenceSystem('EPSG:4326'), QgsCoordinateReferenceSystem('EPSG:3857'), QgsProject.instance())
+        transformedExtent = transform.transformBoundingBox(extent)
+        self.assertAlmostEqual(transformedExtent.xMinimum(), -20037508.343, delta=1e-3)
+        self.assertAlmostEqual(transformedExtent.yMinimum(), -44927335.427, delta=1e-3)
+        self.assertAlmostEqual(transformedExtent.xMaximum(), 20037508.343, delta=1e-3)
+        self.assertAlmostEqual(transformedExtent.yMaximum(), 44927335.427, delta=1e-3)
 
 
 if __name__ == '__main__':

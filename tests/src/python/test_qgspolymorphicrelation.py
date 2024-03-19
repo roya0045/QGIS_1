@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsPolymorphicRelation.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,19 +9,17 @@ __author__ = 'Ivan Ivanov'
 __date__ = '11/1/2021'
 __copyright__ = 'Copyright 2021, QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.core import (QgsVectorLayer,
-                       QgsFeature,
-                       QgsPolymorphicRelation,
-                       QgsGeometry,
-                       QgsPointXY,
-                       QgsAttributeEditorElement,
-                       QgsAttributeEditorRelation,
-                       QgsProject
-                       )
-from qgis.testing import start_app, unittest
-import os
+from qgis.core import (
+    QgsFeature,
+    QgsGeometry,
+    QgsPointXY,
+    QgsPolymorphicRelation,
+    QgsProject,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -72,7 +69,7 @@ def formatAttributes(attrs):
     return repr([str(a) for a in attrs])
 
 
-class TestQgsRelation(unittest.TestCase):
+class TestQgsRelation(QgisTestCase):
 
     def setUp(self):
         self.referencedLayer1 = createReferencedLayer('referencedlayer1')

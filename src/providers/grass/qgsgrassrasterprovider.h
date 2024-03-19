@@ -145,7 +145,7 @@ class GRASS_LIB_EXPORT QgsGrassRasterProvider : public QgsRasterDataProvider
 
     bool isValid() const override;
 
-    QgsRasterIdentifyResult identify( const QgsPointXY &point, QgsRaster::IdentifyFormat format, const QgsRectangle &boundingBox = QgsRectangle(), int width = 0, int height = 0, int dpi = 96 ) override;
+    QgsRasterIdentifyResult identify( const QgsPointXY &point, Qgis::RasterIdentifyFormat format, const QgsRectangle &boundingBox = QgsRectangle(), int width = 0, int height = 0, int dpi = 96 ) override;
 
     /**
      * \brief   Returns the caption error text for the last error in this provider
@@ -181,7 +181,7 @@ class GRASS_LIB_EXPORT QgsGrassRasterProvider : public QgsRasterDataProvider
 
     int bandCount() const override;
 
-    int colorInterpretation( int bandNo ) const override;
+    Qgis::RasterColorInterpretation colorInterpretation( int bandNo ) const override;
 
     int xBlockSize() const override;
     int yBlockSize() const override;
@@ -193,7 +193,7 @@ class GRASS_LIB_EXPORT QgsGrassRasterProvider : public QgsRasterDataProvider
     bool readBlock( int bandNo, QgsRectangle  const &viewExtent, int width, int height, void *data, QgsRasterBlockFeedback *feedback = nullptr ) override;
 
     QgsRasterBandStats bandStatistics( int bandNo,
-                                       int stats = QgsRasterBandStats::All,
+                                       Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
                                        const QgsRectangle &boundingBox = QgsRectangle(),
                                        int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) override;
 
@@ -201,12 +201,7 @@ class GRASS_LIB_EXPORT QgsGrassRasterProvider : public QgsRasterDataProvider
 
     // void buildSupportedRasterFileFilter( QString & fileFiltersString );
 
-    /**
-     * Gets metadata in a format suitable for feeding directly
-     * into a subset of the GUI raster properties "Metadata" tab.
-     */
-    QString htmlMetadata() override;
-
+    QString htmlMetadata() const override;
     QDateTime dataTimestamp() const override;
 
     // used by GRASS tools

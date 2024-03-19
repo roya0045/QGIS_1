@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     menus.py
@@ -23,7 +21,7 @@ __copyright__ = '(C) 2016, Victor Olaya'
 
 import os
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtWidgets import QAction, QMenu
+from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QApplication
 from processing.core.ProcessingConfig import ProcessingConfig, Setting
@@ -41,11 +39,13 @@ from processing.tools import dataobjects
 algorithmsToolbar = None
 menusSettingsGroup = 'Menus'
 defaultMenuEntries = {}
-toolBarButtons = {}
+toolBarButtons = []
+toolButton = None
+toolButtonAction = None
 
 
 def initMenusAndToolbars():
-    global defaultMenuEntries, toolBarButtons
+    global defaultMenuEntries, toolBarButtons, toolButton, toolButtonAction
     vectorMenu = iface.vectorMenu().title()
     analysisToolsMenu = vectorMenu + "/" + Processing.tr('&Analysis Tools')
     defaultMenuEntries.update({'qgis:distancematrix': analysisToolsMenu,
@@ -67,6 +67,7 @@ def initMenusAndToolbars():
                                'native:randompointsonlines': researchToolsMenu,
                                'qgis:regularpoints': researchToolsMenu,
                                'native:selectbylocation': researchToolsMenu,
+                               'native:selectwithindistance': researchToolsMenu,
                                'native:polygonfromlayerextent': researchToolsMenu})
     geoprocessingToolsMenu = vectorMenu + "/" + Processing.tr('&Geoprocessing Tools')
     defaultMenuEntries.update({'native:buffer': geoprocessingToolsMenu,
@@ -82,8 +83,8 @@ def initMenusAndToolbars():
     defaultMenuEntries.update({'qgis:checkvalidity': geometryToolsMenu,
                                'qgis:exportaddgeometrycolumns': geometryToolsMenu,
                                'native:centroids': geometryToolsMenu,
-                               'qgis:delaunaytriangulation': geometryToolsMenu,
-                               'qgis:voronoipolygons': geometryToolsMenu,
+                               'native:delaunaytriangulation': geometryToolsMenu,
+                               'native:voronoipolygons': geometryToolsMenu,
                                'native:simplifygeometries': geometryToolsMenu,
                                'native:densifygeometries': geometryToolsMenu,
                                'native:multiparttosingleparts': geometryToolsMenu,
@@ -99,6 +100,7 @@ def initMenusAndToolbars():
                                'native:createspatialindex': managementToolsMenu})
 
     rasterMenu = iface.rasterMenu().title()
+    defaultMenuEntries.update({'native:alignrasters': rasterMenu})
     projectionsMenu = rasterMenu + "/" + Processing.tr('Projections')
     defaultMenuEntries.update({'gdal:warpreproject': projectionsMenu,
                                'gdal:extractprojection': projectionsMenu,
@@ -135,7 +137,12 @@ def initMenusAndToolbars():
                                'gdal:overviews': miscMenu,
                                'gdal:tileindex': miscMenu})
 
-    toolBarButtons = {'native:selectbylocation': iface.selectionToolBar()}
+    toolBarButtons = ['native:selectbylocation', 'native:selectwithindistance']
+
+    toolbar = iface.selectionToolBar()
+    toolButton = QToolButton(toolbar)
+    toolButton.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+    toolButtonAction = toolbar.addWidget(toolButton)
 
 
 if iface is not None:
@@ -182,7 +189,8 @@ def createMenus():
             icon = None
         if menuPath:
             paths = menuPath.split("/")
-            addAlgorithmEntry(alg, paths[0], paths[-1], addButton=addButton, icon=icon)
+            subMenuName = paths[-1] if len(paths) > 1 else ""
+            addAlgorithmEntry(alg, paths[0], subMenuName, addButton=addButton, icon=icon)
 
 
 def removeMenus():
@@ -195,9 +203,9 @@ def removeMenus():
 
 def addAlgorithmEntry(alg, menuName, submenuName, actionText=None, icon=None, addButton=False):
     if actionText is None:
-        if (QgsGui.higFlags() & QgsGui.HigMenuTextIsTitleCase) and not (
-                alg.flags() & QgsProcessingAlgorithm.FlagDisplayNameIsLiteral):
-            alg_title = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.TitleCase)
+        if (QgsGui.higFlags() & QgsGui.HigFlag.HigMenuTextIsTitleCase) and not (
+                alg.flags() & QgsProcessingAlgorithm.Flag.FlagDisplayNameIsLiteral):
+            alg_title = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.Capitalization.TitleCase)
         else:
             alg_title = alg.displayName()
         actionText = alg_title + QCoreApplication.translate('Processing', '…')
@@ -209,8 +217,11 @@ def addAlgorithmEntry(alg, menuName, submenuName, actionText=None, icon=None, ad
 
     if menuName:
         menu = getMenu(menuName, iface.mainWindow().menuBar())
-        submenu = getMenu(submenuName, menu)
-        submenu.addAction(action)
+        if submenuName:
+            submenu = getMenu(submenuName, menu)
+            submenu.addAction(action)
+        else:
+            menu.addAction(action)
 
     if addButton:
         global algorithmsToolbar
@@ -248,7 +259,7 @@ def _executeAlgorithm(alg_id):
         dlg.setMessage(
             Processing.tr('The algorithm "{}" is no longer available. (Perhaps a plugin was uninstalled?)').format(
                 alg_id))
-        dlg.exec_()
+        dlg.exec()
         return
 
     ok, message = alg.canExecute()
@@ -258,7 +269,7 @@ def _executeAlgorithm(alg_id):
         dlg.setMessage(
             Processing.tr('<h3>Missing dependency. This algorithm cannot '
                           'be run :-( </h3>\n{0}').format(message))
-        dlg.exec_()
+        dlg.exec()
         return
 
     if (alg.countVisibleParameters()) > 0:
@@ -268,7 +279,7 @@ def _executeAlgorithm(alg_id):
         canvas = iface.mapCanvas()
         prevMapTool = canvas.mapTool()
         dlg.show()
-        dlg.exec_()
+        dlg.exec()
         if canvas.mapTool() != prevMapTool:
             try:
                 canvas.mapTool().reset()
@@ -300,15 +311,15 @@ def findAction(actions, alg):
     return None
 
 
-def addToolBarButton(algId, toolbar, icon=None, tooltip=None):
+def addToolBarButton(index, algId, icon=None, tooltip=None):
     alg = QgsApplication.processingRegistry().algorithmById(algId)
     if alg is None or alg.id() != algId:
         assert False, algId
 
     if tooltip is None:
-        if (QgsGui.higFlags() & QgsGui.HigMenuTextIsTitleCase) and not (
-                alg.flags() & QgsProcessingAlgorithm.FlagDisplayNameIsLiteral):
-            tooltip = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.TitleCase)
+        if (QgsGui.higFlags() & QgsGui.HigFlag.HigMenuTextIsTitleCase) and not (
+                alg.flags() & QgsProcessingAlgorithm.Flag.FlagDisplayNameIsLiteral):
+            tooltip = QgsStringUtils.capitalize(alg.displayName(), QgsStringUtils.Capitalization.TitleCase)
         else:
             tooltip = alg.displayName()
 
@@ -318,25 +329,16 @@ def addToolBarButton(algId, toolbar, icon=None, tooltip=None):
     action.triggered.connect(lambda: _executeAlgorithm(algId))
     action.setObjectName("mProcessingAlg_%s" % algId)
 
-    if toolbar:
-        toolbar.addAction(action)
-    else:
-        QgsMessageLog.logMessage(Processing.tr('Toolbar "{}" not found').format(toolbar.windowTitle),
-                                 Processing.tr('Processing'))
-
-
-def removeToolBarButton(algId, toolbar):
-    if toolbar:
-        action = findAction(toolbar.actions(), algId)
-        if action is not None:
-            toolbar.removeAction(action)
+    toolButton.addAction(action)
+    if index == 0:
+        toolButton.setDefaultAction(action)
 
 
 def createButtons():
-    for algId, toolbar in toolBarButtons.items():
-        addToolBarButton(algId, toolbar)
+    toolbar = iface.selectionToolBar()
+    for index, algId in enumerate(toolBarButtons):
+        addToolBarButton(index, algId)
 
 
 def removeButtons():
-    for algId, toolbar in toolBarButtons.items():
-        removeToolBarButton(algId, toolbar)
+    iface.selectionToolBar().removeAction(toolButtonAction)

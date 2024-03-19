@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     EditScriptAction.py
@@ -24,7 +22,7 @@ __copyright__ = '(C) 201, Victor Olaya'
 import os
 import shutil
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
-from qgis.PyQt.QtCore import QFileInfo, QCoreApplication
+from qgis.PyQt.QtCore import QFileInfo, QCoreApplication, QDir
 
 from qgis.core import QgsApplication, QgsSettings, QgsProcessingModelAlgorithm
 
@@ -45,7 +43,7 @@ class AddModelFromFileAction(ToolboxAction):
 
     def execute(self):
         settings = QgsSettings()
-        lastDir = settings.value('Processing/lastModelsDir', '')
+        lastDir = settings.value('Processing/lastModelsDir', QDir.homePath())
         filename, selected_filter = QFileDialog.getOpenFileName(self.toolbox,
                                                                 self.tr('Open Model', 'AddModelFromFileAction'), lastDir,
                                                                 self.tr('Processing models (*.model3 *.MODEL3)', 'AddModelFromFileAction'))
@@ -61,7 +59,7 @@ class AddModelFromFileAction(ToolboxAction):
                     self.tr('The selected file does not contain a valid model', 'AddModelFromFileAction'))
                 return
 
-            if QgsApplication.instance().processingRegistry().algorithmById('model:{}'.format(alg.id())):
+            if QgsApplication.instance().processingRegistry().algorithmById(f'model:{alg.id()}'):
                 QMessageBox.warning(
                     self.toolbox,
                     self.tr('Open Model', 'AddModelFromFileAction'),
@@ -74,10 +72,11 @@ class AddModelFromFileAction(ToolboxAction):
                     self.toolbox,
                     self.tr('Open Model', 'AddModelFromFileAction'),
                     self.tr('There is already a model file with the same name. Overwrite?', 'AddModelFromFileAction'),
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No)
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No)
 
-                if reply == QMessageBox.Yes:
-                    shutil.copyfile(filename, destFilename)
+                if reply == QMessageBox.StandardButton.No:
+                    return
 
+            shutil.copyfile(filename, destFilename)
             QgsApplication.processingRegistry().providerById('model').refreshAlgorithms()

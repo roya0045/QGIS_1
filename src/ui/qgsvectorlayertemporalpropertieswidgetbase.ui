@@ -13,9 +13,6 @@
   <property name="windowTitle">
    <string notr="true">Form</string>
   </property>
-  <property name="toolTip">
-   <string>If checked, the layer will be dynamically filtered and visualised using the map's temporal range</string>
-  </property>
   <layout class="QHBoxLayout" name="horizontalLayout_5">
    <property name="spacing">
     <number>0</number>
@@ -94,7 +91,7 @@ background: white;QgsCollapsibleGroupBoxBasic::title, QgsCollapsibleGroupBox::ti
             </property>
            </widget>
           </item>
-          <item row="1" column="0" colspan="2">
+          <item row="2" column="0" colspan="2">
            <widget class="QStackedWidget" name="mStackedWidget">
             <property name="currentIndex">
              <number>0</number>
@@ -424,7 +421,7 @@ background: white;QgsCollapsibleGroupBoxBasic::title, QgsCollapsibleGroupBox::ti
             </widget>
            </widget>
           </item>
-          <item row="2" column="0">
+          <item row="3" column="0">
            <widget class="QFrame" name="mFixedTimeRangeFrame">
             <property name="enabled">
              <bool>false</bool>
@@ -446,6 +443,16 @@ background: white;QgsCollapsibleGroupBoxBasic::title, QgsCollapsibleGroupBox::ti
               <number>0</number>
              </property>
             </layout>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="mLimitsComboBox"/>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="mLimitsLabel">
+            <property name="text">
+             <string>Limits</string>
+            </property>
            </widget>
           </item>
          </layout>

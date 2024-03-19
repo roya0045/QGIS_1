@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for Postgres QgsQueryResultModel.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,29 +9,33 @@ the Free Software Foundation; either version 2 of the License, or
 __author__ = 'Alessandro Pasotti'
 __date__ = '24/12/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
-# This will get replaced with a git SHA1 when you do a git archive
-__revision__ = '$Format:%H$'
 
 import os
-from time import sleep
+
+from qgis.PyQt.QtCore import (
+    QCoreApplication,
+    QModelIndex,
+    Qt,
+    QTimer,
+    QVariant,
+)
+from qgis.PyQt.QtTest import QAbstractItemModelTester
+from qgis.PyQt.QtWidgets import QDialog, QLabel, QListView, QVBoxLayout
 from qgis.core import (
     QgsProviderRegistry,
-    QgsQueryResultModel,
-    QgsAbstractDatabaseProviderConnection,
-)
-from qgis.testing import unittest, start_app
-from qgis.PyQt.QtCore import QCoreApplication, QVariant, Qt, QTimer, QModelIndex
-from qgis.PyQt.QtWidgets import QListView, QDialog, QVBoxLayout, QLabel
-from qgis.PyQt.QtTest import QAbstractItemModelTester
+    QgsQueryResultModel, NULL)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
-class TestPyQgsQgsQueryResultModel(unittest.TestCase):
+class TestPyQgsQgsQueryResultModel(QgisTestCase):
 
     NUM_RECORDS = 100050
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(cls.__name__)
@@ -49,12 +52,13 @@ class TestPyQgsQgsQueryResultModel(unittest.TestCase):
         md = QgsProviderRegistry.instance().providerMetadata('postgres')
         conn = md.createConnection(cls.uri, {})
         conn.executeSql('DROP TABLE IF EXISTS qgis_test.random_big_data CASCADE;')
-        conn.executeSql('SELECT * INTO qgis_test.random_big_data FROM ( SELECT x AS id, md5(random()::text) AS descr FROM generate_series(1,%s) x ) AS foo_row;' % cls.NUM_RECORDS)
+        conn.executeSql(f'SELECT * INTO qgis_test.random_big_data FROM ( SELECT x AS id, md5(random()::text) AS descr FROM generate_series(1,{cls.NUM_RECORDS}) x ) AS foo_row;')
 
     @classmethod
     def tearDownClass(cls):
 
         cls._deleteBigData()
+        super().tearDownClass()
 
     @classmethod
     def _deleteBigData(cls):
@@ -81,20 +85,20 @@ class TestPyQgsQgsQueryResultModel(unittest.TestCase):
 
         self.assertEqual(model.columnCount(model.index(-1, -1)), 1)
         self.assertEqual(model.rowCount(model.index(-1, -1)), 1000)
-        self.assertEqual(model.data(model.index(999, 0), Qt.DisplayRole), 1000)
+        self.assertEqual(model.data(model.index(999, 0), Qt.ItemDataRole.DisplayRole), 1000)
 
         # Test data
         for i in range(1000):
-            self.assertEqual(model.data(model.index(i, 0), Qt.DisplayRole), i + 1)
+            self.assertEqual(model.data(model.index(i, 0), Qt.ItemDataRole.DisplayRole), i + 1)
 
-        self.assertEqual(model.data(model.index(1000, 0), Qt.DisplayRole), QVariant())
-        self.assertEqual(model.data(model.index(1, 1), Qt.DisplayRole), QVariant())
+        self.assertEqual(model.data(model.index(1000, 0), Qt.ItemDataRole.DisplayRole), NULL)
+        self.assertEqual(model.data(model.index(1, 1), Qt.ItemDataRole.DisplayRole), NULL)
 
     def test_model_stop(self):
         """Test that when a model is deleted fetching query rows is also interrupted"""
 
         def model_deleter():
-            del(self.model)
+            del self.model
 
         def loop_exiter():
             self.running = False
@@ -141,15 +145,15 @@ class TestPyQgsQgsQueryResultModel(unittest.TestCase):
         v.setModel(model)
 
         def _set_row_count(idx, first, last):
-            lbl.setText('Rows %s fetched' % model.rowCount(model.index(-1, -1)))  # noqa: F821
+            lbl.setText(f'Rows {model.rowCount(model.index(-1, -1))} fetched')  # noqa: F821
 
         model.rowsInserted.connect(_set_row_count)
 
-        d.exec_()
+        d.exec()
 
         # Because exit handler will exit QGIS and clear the connections pool before
         # the model is deleted (and it will in turn clear the connection)
-        del(model)
+        del model
 
 
 if __name__ == '__main__':

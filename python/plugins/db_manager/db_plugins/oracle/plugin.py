@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : DB Manager
@@ -22,8 +20,6 @@ The content of this file is based on
  *                                                                         *
  ***************************************************************************/
 """
-from builtins import str
-from builtins import range
 
 # this will disable the dbplugin if the connector raise an ImportError
 from .connector import OracleDBConnector
@@ -79,20 +75,20 @@ class OracleDBPlugin(DBPlugin):
     def connect(self, parent=None):
         conn_name = self.connectionName()
         settings = QgsSettings()
-        settings.beginGroup(u"/{0}/{1}".format(
+        settings.beginGroup("/{}/{}".format(
             self.connectionSettingsKey(), conn_name))
 
         if not settings.contains("database"):  # non-existent entry?
             raise InvalidDataException(
-                self.tr('There is no defined database connection "{0}".'.format(
+                self.tr('There is no defined database connection "{}".'.format(
                     conn_name)))
 
         from qgis.core import QgsDataSourceUri
         uri = QgsDataSourceUri()
 
         settingsList = ["host", "port", "database", "username", "password"]
-        host, port, database, username, password = [
-            settings.value(x, "", type=str) for x in settingsList]
+        host, port, database, username, password = (
+            settings.value(x, "", type=str) for x in settingsList)
 
         # get all of the connection options
 
@@ -115,7 +111,7 @@ class OracleDBPlugin(DBPlugin):
 
         uri.setUseEstimatedMetadata(useEstimatedMetadata)
 
-        err = u""
+        err = ""
         try:
             return self.connectToUri(uri)
         except ConnectionError as e:
@@ -171,20 +167,20 @@ class ORDatabase(Database):
         return ORSchema(row, db)
 
     def columnUniqueValuesModel(self, col, table, limit=10):
-        l = u""
+        l = ""
         if limit:
-            l = u"WHERE ROWNUM < {:d}".format(limit)
+            l = "WHERE ROWNUM < {:d}".format(limit)
         con = self.database().connector
         # Prevent geometry column show
-        tableName = table.replace(u'"', u"").split(u".")
+        tableName = table.replace('"', "").split(".")
         if len(tableName) == 0:
             tableName = [None, tableName[0]]
-        colName = col.replace(u'"', u"").split(u".")[-1]
+        colName = col.replace('"', "").split(".")[-1]
 
         if con.isGeometryColumn(tableName, colName):
             return None
 
-        query = u"SELECT DISTINCT {} FROM {} {}".format(col, table, l)
+        query = "SELECT DISTINCT {} FROM {} {}".format(col, table, l)
         return self.sqlResultModel(query, self)
 
     def sqlResultModel(self, sql, parent):
@@ -197,7 +193,7 @@ class ORDatabase(Database):
         return ORSqlResultModelAsync(self, sql, parent)
 
     def toSqlLayer(self, sql, geomCol, uniqueCol,
-                   layerName=u"QueryLayer", layerType=None,
+                   layerName="QueryLayer", layerType=None,
                    avoidSelectById=False, filter=""):
 
         uri = self.uri()
@@ -206,7 +202,7 @@ class ORDatabase(Database):
         if uniqueCol is not None:
             uniqueCol = uniqueCol.strip('"').replace('""', '"')
 
-        uri.setDataSource(u"", u"({}\n)".format(
+        uri.setDataSource("", "({}\n)".format(
             sql), geomCol, filter, uniqueCol)
 
         if avoidSelectById:
@@ -218,7 +214,7 @@ class ORDatabase(Database):
         if not vlayer.isValid():
 
             wkbType, srid = con.getTableMainGeomType(
-                u"({}\n)".format(sql), geomCol)
+                "({}\n)".format(sql), geomCol)
             uri.setWkbType(wkbType)
             if srid:
                 uri.setSrid(str(srid))
@@ -245,7 +241,7 @@ class ORDatabase(Database):
         action = QAction(QApplication.translate(
             "DBManagerPlugin", "Delete Selected Item"), self)
         mainWindow.registerAction(action, None, self.deleteActionSlot)
-        action.setShortcuts(QKeySequence.Delete)
+        action.setShortcuts(QKeySequence.StandardKey.Delete)
 
         action = QAction(QgsApplication.getThemeIcon("/mActionCreateTable.svg"),
                          QApplication.translate(
@@ -324,7 +320,7 @@ class ORTable(Table):
             (self.schemaName(), self.name), self.objectType)
 
     def getMViewInfo(self):
-        if self.objectType == u"MATERIALIZED VIEW":
+        if self.objectType == "MATERIALIZED VIEW":
             return self.database().connector.getMViewInfo(
                 (self.schemaName(), self.name))
         else:
@@ -353,10 +349,10 @@ class ORTable(Table):
                         QApplication.translate(
                             "DBManagerPlugin", "Table Index"),
                         msg,
-                        QMessageBox.Yes | QMessageBox.No) == QMessageBox.No:
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.No:
                     return False
             finally:
-                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
             if index_action == "rebuild":
                 self.aboutToChange.emit()
@@ -364,7 +360,7 @@ class ORTable(Table):
                     (self.schemaName(), self.name), index_name)
                 self.refreshIndexes()
                 return True
-        elif action.startswith(u"mview/"):
+        elif action.startswith("mview/"):
             if action == "mview/refresh":
                 self.aboutToChange.emit()
                 self.database().connector.refreshMView(
@@ -412,12 +408,12 @@ class ORTable(Table):
             for idx in indexes:
                 if idx.isUnique and len(idx.columns) == 1:
                     fld = idx.fields()[idx.columns[0]]
-                    if (fld.dataType == u"NUMBER" and not fld.modifier and fld.notNull and fld not in ret):
+                    if (fld.dataType == "NUMBER" and not fld.modifier and fld.notNull and fld not in ret):
                         ret.append(fld)
 
         # and finally append the other suitable fields
         for fld in self.fields():
-            if (fld.dataType == u"NUMBER" and not fld.modifier and fld.notNull and fld not in ret):
+            if (fld.dataType == "NUMBER" and not fld.modifier and fld.notNull and fld not in ret):
                 ret.append(fld)
 
         if onlyOne:
@@ -507,13 +503,13 @@ class ORTableField(TableField):
         else:
             self.modifier = int(self.modifier)
 
-        if self.notNull.upper() == u"Y":
+        if self.notNull.upper() == "Y":
             self.notNull = False
         else:
             self.notNull = True
 
         if self.comment == NULL:
-            self.comment = u""
+            self.comment = ""
 
         # find out whether fields are part of primary key
         for con in self.table().constraints():
@@ -522,15 +518,15 @@ class ORTableField(TableField):
                 break
 
     def type2String(self):
-        if (u"TIMESTAMP" in self.dataType or self.dataType in [u"DATE", u"SDO_GEOMETRY", u"BINARY_FLOAT", u"BINARY_DOUBLE"]):
-            return u"{}".format(self.dataType)
+        if ("TIMESTAMP" in self.dataType or self.dataType in ["DATE", "SDO_GEOMETRY", "BINARY_FLOAT", "BINARY_DOUBLE"]):
+            return "{}".format(self.dataType)
         if self.charMaxLen in [None, -1]:
-            return u"{}".format(self.dataType)
+            return "{}".format(self.dataType)
         elif self.modifier in [None, -1, 0]:
-            return u"{}({})".format(self.dataType, self.charMaxLen)
+            return "{}({})".format(self.dataType, self.charMaxLen)
 
-        return u"{}({},{})".format(self.dataType, self.charMaxLen,
-                                   self.modifier)
+        return "{}({},{})".format(self.dataType, self.charMaxLen,
+                                  self.modifier)
 
     def update(self, new_name, new_type_str=None, new_not_null=None,
                new_default_str=None):
@@ -578,22 +574,22 @@ class ORTableConstraint(TableConstraint):
             self.type = ORTableConstraint.TypeUnknown
 
         if row[6] == NULL:
-            self.checkSource = u""
+            self.checkSource = ""
         else:
             self.checkSource = row[6]
 
         if row[8] == NULL:
-            self.foreignTable = u""
+            self.foreignTable = ""
         else:
             self.foreignTable = row[8]
 
         if row[7] == NULL:
-            self.foreignOnDelete = u""
+            self.foreignOnDelete = ""
         else:
             self.foreignOnDelete = row[7]
 
         if row[9] == NULL:
-            self.foreignKey = u""
+            self.foreignKey = ""
         else:
             self.foreignKey = row[9]
 

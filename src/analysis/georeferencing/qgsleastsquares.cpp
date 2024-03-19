@@ -77,7 +77,7 @@ void QgsLeastSquares::helmert( const QVector<QgsPointXY> &sourceCoordinates,
   ( void )origin;
   ( void )pixelSize;
   ( void )rotation;
-  throw QgsNotSupportedException( QStringLiteral( "Calculating a helmert transformation requires a QGIS build based GSL" ) );
+  throw QgsNotSupportedException( QObject::tr( "Calculating a helmert transformation requires a QGIS build based GSL" ) );
 #else
   const int n = destinationCoordinates.size();
   if ( n < 2 )
@@ -137,6 +137,8 @@ void QgsLeastSquares::helmert( const QVector<QgsPointXY> &sourceCoordinates,
   pixelSize = std::sqrt( std::pow( gsl_vector_get( x, 0 ), 2 ) +
                          std::pow( gsl_vector_get( x, 1 ), 2 ) );
   rotation = std::atan2( gsl_vector_get( x, 1 ), gsl_vector_get( x, 0 ) );
+
+  gsl_vector_free( x );
 #endif
 }
 
@@ -262,7 +264,7 @@ void QgsLeastSquares::projective( const QVector<QgsPointXY> &sourceCoordinates,
   ( void )sourceCoordinates;
   ( void )destinationCoordinates;
   ( void )H;
-  throw QgsNotSupportedException( QStringLiteral( "Calculating a projective transformation requires a QGIS build based GSL" ) );
+  throw QgsNotSupportedException( QObject::tr( "Calculating a projective transformation requires a QGIS build based GSL" ) );
 #else
   Q_ASSERT( sourceCoordinates.size() == destinationCoordinates.size() );
 

@@ -19,7 +19,7 @@ if (WITH_GUI)
     qgsxyzsourcewidget.cpp
   )
 
-  set(WMS_UIS qgswmstsettingswidgetbase.ui)
+  set(WMS_UIS ${CMAKE_SOURCE_DIR}/src/ui/qgswmstsettingswidgetbase.ui)
 endif()
 
 # static library
@@ -33,7 +33,7 @@ target_include_directories(provider_wms_a PUBLIC
 target_compile_features(provider_wms_a PRIVATE cxx_std_17)
 
 if (WITH_GUI)
-  if (WITH_QT6)
+  if (BUILD_WITH_QT6)
     QT6_WRAP_UI(WMS_UIS_H ${WMS_UIS})
   else()
     QT5_WRAP_UI(WMS_UIS_H ${WMS_UIS})
@@ -55,6 +55,9 @@ endif()
 target_link_libraries(provider_wms_a
   qgis_core
 )
+
+# We use private headers from core that need this
+target_compile_definitions(provider_wms_a PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 target_compile_definitions(provider_wms_a PRIVATE "-DQT_NO_FOREACH")
 
 if (WITH_GUI)
@@ -65,7 +68,7 @@ if (WITH_GUI)
   target_compile_definitions(provider_wms_gui_a PRIVATE "-DQT_NO_FOREACH")
 endif()
 
-if (FORCE_STATIC_PROVIDERS)
+if (FORCE_STATIC_LIBS)
   # for (external) mobile apps to be able to pick up provider for linking
   install (TARGETS provider_wms_a ARCHIVE DESTINATION ${QGIS_PLUGIN_DIR})
   if (WITH_GUI)
@@ -80,7 +83,6 @@ else()
 
   target_link_libraries(provider_wms
     qgis_core
-    ${GDAL_LIBRARY}  # for OGR_G_CreateGeometryFromJson()
   )
 
   if (WITH_GUI)
@@ -91,6 +93,8 @@ else()
   endif()
 
   target_compile_definitions(provider_wms PRIVATE "-DQT_NO_FOREACH")
+  # We use private headers from core that need this
+  target_compile_definitions(provider_wms PRIVATE "CMAKE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
   install (TARGETS provider_wms
     RUNTIME DESTINATION ${QGIS_PLUGIN_DIR}

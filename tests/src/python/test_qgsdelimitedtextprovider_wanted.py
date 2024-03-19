@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     test_qgsdelimitedtextprovider_wanted.py
@@ -94,7 +92,7 @@ def test_003_field_naming():
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
-            'id': '1',
+            'id': '2',
             'description': 'Generation of field names',
             'data': 'Some data',
             'field_4': 'Some info',
@@ -121,7 +119,7 @@ def test_004_max_fields():
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
-            'id': '1',
+            'id': '2',
             'description': 'Generation of field names',
             'data': 'Some data',
             'field_4': 'Some info',
@@ -355,7 +353,7 @@ def test_007_multiple_quote():
     }
     wanted['log'] = [
         'Errors in file test.quote',
-        '3 records discarded due to invalid format',
+        '3 record(s) discarded due to invalid format',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid record format at line 7',
         'Invalid record format at line 8',
@@ -381,7 +379,7 @@ def test_008_badly_formed_quotes():
     }
     wanted['log'] = [
         'Errors in file test.badquote',
-        '2 records discarded due to invalid format',
+        '2 record(s) discarded due to invalid format',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid record format at line 2',
         'Invalid record format at line 5',
@@ -442,7 +440,7 @@ def test_010_read_coordinates():
     }
     wanted['log'] = [
         'Errors in file testpt.csv',
-        '1 records discarded due to invalid geometry definitions',
+        '1 record(s) discarded due to invalid geometry definitions',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid X or Y fields at line 4',
     ]
@@ -488,8 +486,8 @@ def test_011_read_wkt():
     }
     wanted['log'] = [
         'Errors in file testwkt.csv',
-        '1 records discarded due to invalid geometry definitions',
-        '10 records discarded due to incompatible geometry types',
+        '1 record(s) discarded due to invalid geometry definitions',
+        '10 record(s) discarded due to incompatible geometry types',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid WKT at line 8',
     ]
@@ -535,8 +533,8 @@ def test_012_read_wkt_point():
     }
     wanted['log'] = [
         'Errors in file testwkt.csv',
-        '1 records discarded due to invalid geometry definitions',
-        '10 records discarded due to incompatible geometry types',
+        '1 record(s) discarded due to invalid geometry definitions',
+        '10 record(s) discarded due to incompatible geometry types',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid WKT at line 8',
     ]
@@ -594,8 +592,8 @@ def test_013_read_wkt_line():
     }
     wanted['log'] = [
         'Errors in file testwkt.csv',
-        '1 records discarded due to invalid geometry definitions',
-        '8 records discarded due to incompatible geometry types',
+        '1 record(s) discarded due to invalid geometry definitions',
+        '8 record(s) discarded due to incompatible geometry types',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid WKT at line 8',
     ]
@@ -629,8 +627,8 @@ def test_014_read_wkt_polygon():
     }
     wanted['log'] = [
         'Errors in file testwkt.csv',
-        '1 records discarded due to invalid geometry definitions',
-        '12 records discarded due to incompatible geometry types',
+        '1 record(s) discarded due to invalid geometry definitions',
+        '12 record(s) discarded due to incompatible geometry types',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid WKT at line 8',
     ]
@@ -798,7 +796,7 @@ def test_015_read_dms_xy():
     }
     wanted['log'] = [
         'Errors in file testdms.csv',
-        '5 records discarded due to invalid geometry definitions',
+        '5 record(s) discarded due to invalid geometry definitions',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid X or Y fields at line 27',
         'Invalid X or Y fields at line 28',
@@ -929,7 +927,7 @@ def test_019_regular_expression_3():
     }
     wanted['log'] = [
         'Errors in file testre2.txt',
-        '1 records discarded due to invalid format',
+        '1 record(s) discarded due to invalid format',
         'The following lines were not loaded into QGIS due to errors:',
         'Invalid record format at line 3',
     ]
@@ -943,9 +941,9 @@ def test_020_regular_expression_4():
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
-            'id': 'f',
+            'id': 'g',
             'description': 'i',
-            's': 'f',
+            's': 'g',
             'm': 'i',
             'a': '.',
             'l': '.',
@@ -967,9 +965,9 @@ def test_021_regular_expression_5():
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
-            'id': 'fi',
+            'id': 'gi',
             'description': '..',
-            'small': 'fi',
+            'small': 'gi',
             'field_2': '..',
             'field_3': 'ile',
             '#fid': 2,
@@ -987,7 +985,7 @@ def test_022_utf8_encoded_file():
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
-            'id': '1',
+            'id': '2',
             'description': 'Correctly read UTF8 encoding',
             'name': 'Field has \u0101cc\xe8nt\xe9d text',
             '#fid': 2,
@@ -1005,7 +1003,7 @@ def test_023_latin1_encoded_file():
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
-            'id': '1',
+            'id': '2',
             'description': 'Correctly read latin1 encoding',
             'name': 'This test is \xa9',
             '#fid': 2,
@@ -2110,9 +2108,14 @@ def test_033_reset_subset_string():
 
 
 def test_034_csvt_file():
+    """In the test file we have two rows with 11 and 12 fields, the CSV has only 11 headers:
+    id,description,fint,freal,fstr,fstr,fdatetime,fdate,ftime,flong,flonglong
+    The CSVT contains 11 field types (note "long" which is not supported but interpreted as an alias for "longlong"):
+    integer,string,integer,real,string,string,string,string,string,long,longlong
+    """
     wanted = {}
     wanted['uri'] = 'file://testcsvt.csv?geomType=none&type=csv'
-    wanted['fieldTypes'] = ['integer', 'text', 'integer', 'double', 'text', 'text', 'text', 'text', 'text', 'text', 'longlong', 'longlong']
+    wanted['fieldTypes'] = ['integer', 'text', 'integer', 'double', 'text', 'text', 'text', 'text', 'text', 'longlong', 'longlong', 'longlong']
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
@@ -2141,7 +2144,7 @@ def test_034_csvt_file():
             'fdatetime': '80',
             'fdate': '2015-03-28',
             'ftime': '2014-12-30',
-            'flong': '01:55',
+            'flong': 'NULL',
             'flonglong': '9189304972279762602',
             'field_12': '-3123724580211819352',
             '#fid': 3,
@@ -2390,7 +2393,7 @@ def test_039_issue_13749():
     }
     wanted['log'] = [
         'Errors in file test13749.csv',
-        '1 records have missing geometry definitions',
+        '1 record(s) have missing geometry definitions',
     ]
     return wanted
 
@@ -2444,7 +2447,7 @@ def test_040_issue_14666():
     }
     wanted['log'] = [
         'Errors in file test14666.csv',
-        '2 records have missing geometry definitions',
+        '2 record(s) have missing geometry definitions',
     ]
     return wanted
 
@@ -2546,9 +2549,12 @@ def test_041_no_detect_type():
 
 
 def test_042_no_detect_types_csvt():
+    """detectTypes is no, the types are taken from the CSVT except the last one (which is not in the CSVT
+    and it is not detected)"""
+
     wanted = {}
     wanted['uri'] = 'file://testcsvt.csv?geomType=none&type=csv&detectTypes=no'
-    wanted['fieldTypes'] = ['integer', 'text', 'integer', 'double', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']
+    wanted['fieldTypes'] = ['integer', 'text', 'integer', 'double', 'text', 'text', 'text', 'text', 'text', 'longlong', 'longlong', 'text']
     wanted['geometryType'] = 4
     wanted['data'] = {
         2: {
@@ -2577,7 +2583,7 @@ def test_042_no_detect_types_csvt():
             'fdatetime': '80',
             'fdate': '2015-03-28',
             'ftime': '2014-12-30',
-            'flong': '01:55',
+            'flong': 'NULL',
             'flonglong': '9189304972279762602',
             'field_12': '-3123724580211819352',
             '#fid': 3,
@@ -2586,4 +2592,33 @@ def test_042_no_detect_types_csvt():
     }
     wanted['log'] = [
     ]
+    return wanted
+
+
+def test_048_csvt_file():
+    wanted = {}
+    wanted['uri'] = 'file://testcsvt5.csv?geomType=none&type=csv'
+    wanted['fieldTypes'] = ['text', 'text', 'double', 'double', 'double']
+    wanted['geometryType'] = 4
+    wanted['data'] = {
+        2: {
+            'id': '01',
+            'description': 'Test csvt 1',
+            'f1': '0.3',
+            'f2': '0.8',
+            'f3': '1.4',
+            '#fid': 2,
+            '#geometry': 'None',
+        },
+        3: {
+            'id': '12',
+            'description': 'Test csvt 2',
+            'f1': '0.2',
+            'f2': '78.0',
+            'f3': '13.4',
+            '#fid': 3,
+            '#geometry': 'None',
+        },
+    }
+    wanted['log'] = []
     return wanted

@@ -25,13 +25,18 @@
 #include "qgslayoutframe.h"
 #include "qgsproject.h"
 #include "qgsrelationmanager.h"
+#include "qgsfieldformatter.h"
+#include "qgsfieldformatterregistry.h"
 #include "qgsgeometry.h"
 #include "qgsexception.h"
-#include "qgsmapsettings.h"
+#include "qgslayoutreportcontext.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgsexpressionnodeimpl.h"
 #include "qgsgeometryengine.h"
 #include "qgsconditionalstyle.h"
+#include "qgsfontutils.h"
+#include "qgsvariantutils.h"
+#include "qgslayoutrendercontext.h"
 
 //
 // QgsLayoutItemAttributeTable
@@ -234,7 +239,6 @@ void QgsLayoutItemAttributeTable::setMap( QgsLayoutItemMap *map )
     //listen out for extent changes in linked map
     connect( mMap, &QgsLayoutItemMap::extentChanged, this, &QgsLayoutTable::refreshAttributes );
     connect( mMap, &QgsLayoutItemMap::mapRotationChanged, this, &QgsLayoutTable::refreshAttributes );
-    connect( mMap, &QObject::destroyed, this, &QgsLayoutItemAttributeTable::disconnectCurrentMap );
   }
   refreshAttributes();
   emit changed();
@@ -387,6 +391,7 @@ void QgsLayoutItemAttributeTable::restoreFieldAliasMap( const QMap<int, QString>
 bool QgsLayoutItemAttributeTable::getTableContents( QgsLayoutTableContents &contents )
 {
   contents.clear();
+  mLayerCache.clear();
 
   QgsVectorLayer *layer = sourceLayer();
   if ( !layer )
@@ -431,11 +436,13 @@ bool QgsLayoutItemAttributeTable::getTableContents( QgsLayoutTableContents &cont
     visibleRegion = QgsGeometry::fromQPolygonF( mMap->visibleExtentPolygon() );
     selectionRect = visibleRegion.boundingBox();
     //transform back to layer CRS
-    QgsCoordinateTransform coordTransform( layer->crs(), mMap->crs(), mLayout->project() );
+    const QgsCoordinateTransform coordTransform( layer->crs(), mMap->crs(), mLayout->project() );
+    QgsCoordinateTransform extentTransform = coordTransform;
+    extentTransform.setBallparkTransformsAreAppropriate( true );
     try
     {
-      selectionRect = coordTransform.transformBoundingBox( selectionRect, QgsCoordinateTransform::ReverseTransform );
-      visibleRegion.transform( coordTransform, QgsCoordinateTransform::ReverseTransform );
+      selectionRect = extentTransform.transformBoundingBox( selectionRect, Qgis::TransformDirection::Reverse );
+      visibleRegion.transform( coordTransform, Qgis::TransformDirection::Reverse );
     }
     catch ( QgsCsException &cse )
     {
@@ -477,7 +484,7 @@ bool QgsLayoutItemAttributeTable::getTableContents( QgsLayoutTableContents &cont
   if ( !selectionRect.isEmpty() )
     req.setFilterRect( selectionRect );
 
-  req.setFlags( mShowOnlyVisibleFeatures ? QgsFeatureRequest::ExactIntersect : QgsFeatureRequest::NoFlags );
+  req.setFlags( mShowOnlyVisibleFeatures ? Qgis::FeatureRequestFlag::ExactIntersect : Qgis::FeatureRequestFlag::NoFlags );
 
   if ( mSource == QgsLayoutItemAttributeTable::AtlasFeature )
   {
@@ -560,13 +567,11 @@ bool QgsLayoutItemAttributeTable::getTableContents( QgsLayoutTableContents &cont
 
     for ( const QgsLayoutTableColumn &column : std::as_const( mColumns ) )
     {
-      int idx = layer->fields().lookupField( column.attribute() );
-
       QgsConditionalStyle style;
-
+      int idx = layer->fields().lookupField( column.attribute() );
       if ( idx != -1 )
       {
-        const QVariant val = f.attributes().at( idx );
+        QVariant val = f.attributes().at( idx );
 
         if ( mUseConditionalStyling )
         {
@@ -576,7 +581,28 @@ bool QgsLayoutItemAttributeTable::getTableContents( QgsLayoutTableContents &cont
           style = QgsConditionalStyle::compressStyles( styles );
         }
 
-        QVariant v = replaceWrapChar( val );
+        const QgsEditorWidgetSetup setup = layer->fields().at( idx ).editorWidgetSetup();
+
+        if ( ! setup.isNull() )
+        {
+          QgsFieldFormatter *fieldFormatter = QgsApplication::fieldFormatterRegistry()->fieldFormatter( setup.type() );
+          QVariant cache;
+
+          auto it = mLayerCache.constFind( column.attribute() );
+          if ( it != mLayerCache.constEnd() )
+          {
+            cache = it.value();
+          }
+          else
+          {
+            cache = fieldFormatter->createCache( layer, idx, setup.config() );
+            mLayerCache.insert( column.attribute(), cache );
+          }
+
+          val = fieldFormatter->representValue( layer, idx, setup.config(), cache, val );
+        }
+
+        QVariant v = QgsVariantUtils::isNull( val ) ? QString() : replaceWrapChar( val );
         currentRow << Cell( v, style, f );
         rowContents << v;
       }
@@ -638,6 +664,47 @@ QgsConditionalStyle QgsLayoutItemAttributeTable::conditionalCellStyle( int row, 
   return mConditionalStyles.at( row ).at( column );
 }
 
+QgsTextFormat QgsLayoutItemAttributeTable::textFormatForCell( int row, int column ) const
+{
+  QgsTextFormat format = mContentTextFormat;
+
+  const QgsConditionalStyle style = conditionalCellStyle( row, column );
+  if ( style.isValid() )
+  {
+    // apply conditional style formatting to text format
+    const QFont styleFont = style.font();
+    if ( styleFont != QFont() )
+    {
+      QFont newFont = format.font();
+      // we want to keep all the other font settings, like word/letter spacing
+      QgsFontUtils::setFontFamily( newFont, styleFont.family() );
+
+      // warning -- there's a potential trap here! We can't just read QFont::styleName(), as that may be blank even when
+      // the font has the bold or italic attributes set! Reading the style name via QFontInfo avoids this and always returns
+      // a correct style name
+      const QString styleName = QgsFontUtils::resolveFontStyleName( styleFont );
+      if ( !styleName.isEmpty() )
+        newFont.setStyleName( styleName );
+
+      newFont.setStrikeOut( styleFont.strikeOut() );
+      newFont.setUnderline( styleFont.underline() );
+      format.setFont( newFont );
+      if ( styleName.isEmpty() )
+      {
+        // we couldn't find a direct match for the conditional font's bold/italic settings as a font style name.
+        // This means the conditional style is using Qt's "faux bold/italic" mode. Even though it causes reduced quality font
+        // rendering, we'll apply it here anyway just to ensure that the rendered font styling matches the conditional style.
+        if ( styleFont.bold() )
+          format.setForcedBold( true );
+        if ( styleFont.italic() )
+          format.setForcedItalic( true );
+      }
+    }
+  }
+
+  return format;
+}
+
 QgsExpressionContextScope *QgsLayoutItemAttributeTable::scopeForCell( int row, int column ) const
 {
   std::unique_ptr< QgsExpressionContextScope >scope( QgsLayoutTable::scopeForCell( row, column ) );
@@ -678,7 +745,7 @@ void QgsLayoutItemAttributeTable::refreshDataDefinedProperty( const QgsLayoutObj
   QgsExpressionContext context = createExpressionContext();
 
   if ( mSource == QgsLayoutItemAttributeTable::LayerAttributes &&
-       ( property == QgsLayoutObject::AttributeTableSourceLayer || property == QgsLayoutObject::AllProperties ) )
+       ( property == QgsLayoutObject::DataDefinedProperty::AttributeTableSourceLayer || property == QgsLayoutObject::DataDefinedProperty::AllProperties ) )
   {
     mDataDefinedVectorLayer = nullptr;
 
@@ -686,7 +753,7 @@ void QgsLayoutItemAttributeTable::refreshDataDefinedProperty( const QgsLayoutObj
     if ( QgsVectorLayer *currentLayer = mVectorLayer.get() )
       currentLayerIdentifier = currentLayer->id();
 
-    const QString layerIdentifier = mDataDefinedProperties.valueAsString( QgsLayoutObject::AttributeTableSourceLayer, context, currentLayerIdentifier );
+    const QString layerIdentifier = mDataDefinedProperties.valueAsString( QgsLayoutObject::DataDefinedProperty::AttributeTableSourceLayer, context, currentLayerIdentifier );
     QgsVectorLayer *ddLayer = qobject_cast< QgsVectorLayer * >( QgsLayoutUtils::mapLayerFromString( layerIdentifier, mLayout->project() ) );
     if ( ddLayer )
       mDataDefinedVectorLayer = ddLayer;
@@ -742,11 +809,7 @@ QgsLayoutTableColumns QgsLayoutItemAttributeTable::filteredColumns()
     }
 
     const QStringList filteredAttributes { layout()->renderContext().featureFilterProvider()->layerAttributes( source, allowedAttributes.values() ) };
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
     const QSet<QString> filteredAttributesSet( filteredAttributes.constBegin(), filteredAttributes.constEnd() );
-#else
-    const QSet<QString> filteredAttributesSet { filteredAttributes.toSet() };
-#endif
     if ( filteredAttributesSet != allowedAttributes )
     {
       const auto forbidden { allowedAttributes.subtract( filteredAttributesSet ) };

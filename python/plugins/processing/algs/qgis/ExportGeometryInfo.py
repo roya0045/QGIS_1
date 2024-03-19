@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     ExportGeometryInfo.py
@@ -28,6 +26,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import QVariant
 
 from qgis.core import (NULL,
+                       Qgis,
                        QgsApplication,
                        QgsCoordinateTransform,
                        QgsField,
@@ -40,7 +39,8 @@ from qgis.core import (NULL,
                        QgsProcessingException,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterEnum,
-                       QgsProcessingParameterFeatureSink)
+                       QgsProcessingParameterFeatureSink,
+                       QgsUnitTypes)
 
 from processing.algs.qgis.QgisAlgorithm import QgisAlgorithm
 
@@ -72,6 +72,8 @@ class ExportGeometryInfo(QgisAlgorithm):
         self.export_z = False
         self.export_m = False
         self.distance_area = None
+        self.distance_conversion_factor = 1
+        self.area_conversion_factor = 1
         self.calc_methods = [self.tr('Layer CRS'),
                              self.tr('Project CRS'),
                              self.tr('Ellipsoidal')]
@@ -100,10 +102,10 @@ class ExportGeometryInfo(QgisAlgorithm):
         fields = source.fields()
 
         new_fields = QgsFields()
-        if QgsWkbTypes.geometryType(wkb_type) == QgsWkbTypes.PolygonGeometry:
+        if QgsWkbTypes.geometryType(wkb_type) == QgsWkbTypes.GeometryType.PolygonGeometry:
             new_fields.append(QgsField('area', QVariant.Double))
             new_fields.append(QgsField('perimeter', QVariant.Double))
-        elif QgsWkbTypes.geometryType(wkb_type) == QgsWkbTypes.LineGeometry:
+        elif QgsWkbTypes.geometryType(wkb_type) == QgsWkbTypes.GeometryType.LineGeometry:
             new_fields.append(QgsField('length', QVariant.Double))
             if not QgsWkbTypes.isMultiType(source.wkbType()):
                 new_fields.append(QgsField('straightdis', QVariant.Double))
@@ -138,6 +140,13 @@ class ExportGeometryInfo(QgisAlgorithm):
         if method == 2:
             self.distance_area.setSourceCrs(source.sourceCrs(), context.transformContext())
             self.distance_area.setEllipsoid(context.ellipsoid())
+
+            self.distance_conversion_factor = QgsUnitTypes.fromUnitToUnitFactor(self.distance_area.lengthUnits(),
+                                                                                context.distanceUnit())
+
+            self.area_conversion_factor = QgsUnitTypes.fromUnitToUnitFactor(self.distance_area.areaUnits(),
+                                                                            context.areaUnit())
+
         elif method == 1:
             if not context.project():
                 raise QgsProcessingException(self.tr('No project is available in this context'))
@@ -156,9 +165,9 @@ class ExportGeometryInfo(QgisAlgorithm):
                 if coordTransform is not None:
                     inGeom.transform(coordTransform)
 
-                if inGeom.type() == QgsWkbTypes.PointGeometry:
+                if inGeom.type() == QgsWkbTypes.GeometryType.PointGeometry:
                     attrs.extend(self.point_attributes(inGeom))
-                elif inGeom.type() == QgsWkbTypes.PolygonGeometry:
+                elif inGeom.type() == QgsWkbTypes.GeometryType.PolygonGeometry:
                     attrs.extend(self.polygon_attributes(inGeom))
                 else:
                     attrs.extend(self.line_attributes(inGeom))
@@ -170,7 +179,7 @@ class ExportGeometryInfo(QgisAlgorithm):
                 attrs += [NULL] * (len(fields) - len(attrs))
 
             outFeat.setAttributes(attrs)
-            sink.addFeature(outFeat, QgsFeatureSink.FastInsert)
+            sink.addFeature(outFeat, QgsFeatureSink.Flag.FastInsert)
 
             feedback.setProgress(int(current * total))
 
@@ -198,13 +207,13 @@ class ExportGeometryInfo(QgisAlgorithm):
             curve = geometry.constGet()
             p1 = curve.startPoint()
             p2 = curve.endPoint()
-            straight_distance = self.distance_area.measureLine(QgsPointXY(p1), QgsPointXY(p2))
+            straight_distance = self.distance_conversion_factor * self.distance_area.measureLine(QgsPointXY(p1), QgsPointXY(p2))
             sinuosity = curve.sinuosity()
             if math.isnan(sinuosity):
                 sinuosity = NULL
-            return [self.distance_area.measureLength(geometry), straight_distance, sinuosity]
+            return [self.distance_conversion_factor * self.distance_area.measureLength(geometry), straight_distance, sinuosity]
 
     def polygon_attributes(self, geometry):
-        area = self.distance_area.measureArea(geometry)
-        perimeter = self.distance_area.measurePerimeter(geometry)
+        area = self.area_conversion_factor * self.distance_area.measureArea(geometry)
+        perimeter = self.distance_conversion_factor * self.distance_area.measurePerimeter(geometry)
         return [area, perimeter]

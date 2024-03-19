@@ -15,17 +15,16 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "qgsnetworkcontentfetcher.h"
 #include "qgsnetworkaccessmanager.h"
 #include "qgsapplication.h"
 #include "qgis.h"
 #include <QObject>
 #include "qgstest.h"
-#include "qgssettings.h"
 #include <QNetworkCookieJar>
 #include <QNetworkReply>
 #include <QAuthenticator>
 #include <QThread>
+#include <QHttpMultiPart>
 
 class BackgroundRequest : public QThread
 {
@@ -151,16 +150,19 @@ class TestQgsNetworkAccessManager : public QObject
     void init();// will be called before each testfunction is executed.
     void cleanup();// will be called after every testfunction.
     void testRequestPreprocessor();
-    void testProxyExcludeList();
     void fetchEmptyUrl(); //test fetching blank url
     void fetchBadUrl(); //test fetching bad url
     void fetchEncodedContent(); //test fetching url content encoded as utf-8
     void fetchPost();
+    void fetchPostMultiPart();
+    void fetchPostMultiPart_data();
     void fetchBadSsl();
     void testSslErrorHandler();
     void testAuthRequestHandler();
     void fetchTimeout();
     void testCookieManagement();
+    void testProxyExcludeList();
+    void testHandlers();
 
   private:
 
@@ -178,7 +180,7 @@ void TestQgsNetworkAccessManager::initTestCase()
   QgsApplication::init();
   QgsApplication::initQgis();
 
-  QgsNetworkAccessManager::settingsNetworkTimeout.setValue( 5000 );
+  QgsNetworkAccessManager::settingsNetworkTimeout->setValue( 5000 );
 
   mHttpBinHost = QStringLiteral( "httpbin.org" );
   const QString overrideHost = qgetenv( "QGIS_HTTPBIN_HOST" );
@@ -223,6 +225,38 @@ void TestQgsNetworkAccessManager::testProxyExcludeList()
   proxies = QgsNetworkAccessManager::instance()->proxyFactory()->queryProxy( QNetworkProxyQuery( QUrl( "noProxy/mystuff" ) ) );
   QCOMPARE( proxies.count(), 1 );
   QCOMPARE( proxies.at( 0 ).type(),  QNetworkProxy::NoProxy );
+}
+
+
+class DummySslErrorHandler : public QgsSslErrorHandler
+{
+
+  public:
+
+};
+
+class DummyNetworkAuthenticationHandler : public QgsNetworkAuthenticationHandler
+{
+
+  public:
+
+};
+
+void TestQgsNetworkAccessManager::testHandlers()
+{
+  QgsNetworkAccessManager::instance()->setSslErrorHandler( std::make_unique< DummySslErrorHandler >() );
+  QgsNetworkAccessManager::instance()->setAuthHandler( std::make_unique< DummyNetworkAuthenticationHandler >() );
+
+  QVERIFY( dynamic_cast< DummySslErrorHandler * >( QgsNetworkAccessManager::instance()->mSslErrorHandler.get() ) );
+  QVERIFY( dynamic_cast< DummyNetworkAuthenticationHandler * >( QgsNetworkAccessManager::instance()->mAuthHandler.get() ) );
+
+  // handlers should NOT be overwritten
+  QgsNetworkAccessManager::instance()->setupDefaultProxyAndCache();
+  QVERIFY( dynamic_cast< DummySslErrorHandler * >( QgsNetworkAccessManager::instance()->mSslErrorHandler.get() ) );
+  QVERIFY( dynamic_cast< DummyNetworkAuthenticationHandler * >( QgsNetworkAccessManager::instance()->mAuthHandler.get() ) );
+
+  QgsNetworkAccessManager::instance()->setSslErrorHandler( std::make_unique< QgsSslErrorHandler >() );
+  QgsNetworkAccessManager::instance()->setAuthHandler( std::make_unique< QgsNetworkAuthenticationHandler >() );
 }
 
 void TestQgsNetworkAccessManager::fetchEmptyUrl()
@@ -493,8 +527,6 @@ void TestQgsNetworkAccessManager::fetchPost()
     loaded = true;
   } );
 
-  // TODO: something is borked with NAM.finished() signal, see #42554
-  /*
   QNetworkReply *reply = QgsNetworkAccessManager::instance()->post( req, QByteArray( "a=b&c=d" ) );
 
   while ( !loaded )
@@ -506,7 +538,6 @@ void TestQgsNetworkAccessManager::fetchPost()
   replyContent = reply->readAll();
   QVERIFY( replyContent.contains( QStringLiteral( "\"a\": \"b\"" ) ) );
   QVERIFY( replyContent.contains( QStringLiteral( "\"c\": \"d\"" ) ) );
-  */
   gotRequestAboutToBeCreatedSignal = false;
   loaded = false;
 
@@ -559,6 +590,42 @@ void TestQgsNetworkAccessManager::fetchPost()
   blockingThread->deleteLater();
 }
 
+void TestQgsNetworkAccessManager::fetchPostMultiPart()
+{
+  QFETCH( int, iContentType );
+  QHttpMultiPart::ContentType contentType = static_cast< QHttpMultiPart::ContentType>( iContentType );
+  QHttpMultiPart *multipart = new QHttpMultiPart( contentType );
+  QHttpPart part;
+  part.setHeader( QNetworkRequest::ContentDispositionHeader,
+                  QStringLiteral( "form-data; name=\"param\"" ) );
+  part.setBody( QStringLiteral( "some data" ) .toUtf8() );
+  multipart->append( part );
+  QUrl u = QUrl( QStringLiteral( "http://" ) + mHttpBinHost + QStringLiteral( "/post" ) );
+  QNetworkRequest req( u );
+
+  // MultiPart
+  QNetworkReply *reply = QgsNetworkAccessManager::instance()->post( req, multipart );
+  multipart->setParent( reply );
+
+  QEventLoop el;
+  connect( QgsNetworkAccessManager::instance(), &QgsNetworkAccessManager::finished, &el, &QEventLoop::quit );
+  el.exec();
+
+  QCOMPARE( reply->error(), QNetworkReply::NoError );
+  QVERIFY( reply->rawHeaderList().contains( "Content-Type" ) );
+  QCOMPARE( reply->request().url(), u );
+}
+
+void TestQgsNetworkAccessManager::fetchPostMultiPart_data()
+{
+  QTest::addColumn<int>( "iContentType" );
+
+  QTest::newRow( "MixedType" ) << static_cast<int>( QHttpMultiPart::MixedType );
+  QTest::newRow( "FormDataType" ) << static_cast<int>( QHttpMultiPart::FormDataType );
+  QTest::newRow( "RelatedType" ) << static_cast<int>( QHttpMultiPart::FormDataType );
+  QTest::newRow( "AlternativeType" ) << static_cast<int>( QHttpMultiPart::FormDataType );
+}
+
 void TestQgsNetworkAccessManager::fetchBadSsl()
 {
   const QObject context;
@@ -596,8 +663,6 @@ void TestQgsNetworkAccessManager::fetchBadSsl()
     gotRequestEncounteredSslError = true;
   } );
 
-  // TODO: something is borked with NAM.finished() signal, see #42554
-  /*
   QgsNetworkAccessManager::instance()->get( QNetworkRequest( u ) );
 
   while ( !loaded || !gotSslError || !gotRequestAboutToBeCreatedSignal || !gotRequestEncounteredSslError )
@@ -606,7 +671,6 @@ void TestQgsNetworkAccessManager::fetchBadSsl()
   }
 
   QVERIFY( gotRequestAboutToBeCreatedSignal );
-  */
 
   // blocking request
   gotRequestAboutToBeCreatedSignal = false;
@@ -615,7 +679,11 @@ void TestQgsNetworkAccessManager::fetchBadSsl()
   gotRequestEncounteredSslError = false;
   QNetworkRequest req{ u };
   const QgsNetworkReplyContent rep = QgsNetworkAccessManager::blockingGet( req );
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   QCOMPARE( rep.errorString(), QStringLiteral( "SSL handshake failed" ) );
+#else
+  QCOMPARE( rep.errorString(), QStringLiteral( "SSL handshake failed: The certificate has expired" ) );
+#endif
   while ( !loaded || !gotSslError || !gotRequestAboutToBeCreatedSignal || !gotRequestEncounteredSslError )
   {
     qApp->processEvents();
@@ -698,8 +766,6 @@ void TestQgsNetworkAccessManager::testSslErrorHandler()
     gotRequestEncounteredSslError = true;
   } );
 
-  // TODO: something is borked with NAM.finished() signal, see #42554
-  /*
   QgsNetworkAccessManager::instance()->get( QNetworkRequest( u ) );
 
   while ( !loaded || !gotSslError || !gotRequestAboutToBeCreatedSignal || !gotRequestEncounteredSslError )
@@ -708,7 +774,6 @@ void TestQgsNetworkAccessManager::testSslErrorHandler()
   }
 
   QVERIFY( gotRequestAboutToBeCreatedSignal );
-  */
 
   // blocking request
   gotRequestAboutToBeCreatedSignal = false;
@@ -778,7 +843,7 @@ void TestQgsNetworkAccessManager::testAuthRequestHandler()
   QString expectedPassword;
   int requestId = -1;
   QUrl u =  QUrl( QStringLiteral( "http://" ) + mHttpBinHost + QStringLiteral( "/basic-auth/me/" ) + hash );
-  QNetworkReply::NetworkError expectedError = QNetworkReply::AuthenticationRequiredError;
+  QNetworkReply::NetworkError expectedError = QNetworkReply::NoError;
 
   connect( QgsNetworkAccessManager::instance(), qOverload< QgsNetworkRequestParameters >( &QgsNetworkAccessManager::requestAboutToBeCreated ), &context, [&]( const QgsNetworkRequestParameters & params )
   {
@@ -812,8 +877,6 @@ void TestQgsNetworkAccessManager::testAuthRequestHandler()
     gotAuthDetailsAdded = true;
   } );
 
-  // TODO: something is borked with NAM.finished() signal, see #42554
-  /*
   expectedError = QNetworkReply::AuthenticationRequiredError;
   QgsNetworkAccessManager::instance()->get( QNetworkRequest( u ) );
 
@@ -823,7 +886,6 @@ void TestQgsNetworkAccessManager::testAuthRequestHandler()
   }
 
   QVERIFY( gotRequestAboutToBeCreatedSignal );
-  */
 
   // blocking request
   hash = QUuid::createUuid().toString().mid( 1, 10 );
@@ -896,15 +958,12 @@ void TestQgsNetworkAccessManager::testAuthRequestHandler()
   expectedUser = QStringLiteral( "me" );
   expectedPassword = hash;
 
-  // TODO: something is borked with NAM.finished() signal, see #42554
-  /*
   QgsNetworkAccessManager::instance()->get( QNetworkRequest( u ) );
 
   while ( !loaded || !gotAuthRequest || !gotRequestAboutToBeCreatedSignal  || !gotAuthDetailsAdded )
   {
     qApp->processEvents();
   }
-  */
 
   // blocking request
   loaded = false;
@@ -1006,8 +1065,6 @@ void TestQgsNetworkAccessManager::fetchTimeout()
     finished = reply.error() != QNetworkReply::OperationCanceledError; // should not happen!
   } );
 
-  // TODO: something is borked with NAM.finished() signal, see #42554
-  /*
   QgsNetworkAccessManager::instance()->get( QNetworkRequest( u ) );
 
   while ( !gotTimeoutError )
@@ -1018,7 +1075,6 @@ void TestQgsNetworkAccessManager::fetchTimeout()
   QVERIFY( !finished );
 
   QVERIFY( gotRequestAboutToBeCreatedSignal );
-  */
 
   // blocking request
   gotRequestAboutToBeCreatedSignal = false;
@@ -1075,6 +1131,7 @@ void TestQgsNetworkAccessManager::fetchTimeout()
 
 class FunctionThread : public QThread
 {
+    Q_OBJECT
   public:
     FunctionThread( const std::function<bool()> &f ) : m_f( f ), m_result( false ) {}
     bool getResult() const
@@ -1132,12 +1189,12 @@ void TestQgsNetworkAccessManager::testCookieManagement()
 
 void TestQgsNetworkAccessManager::testRequestPreprocessor()
 {
-  const QString processorId = QgsNetworkAccessManager::instance()->setRequestPreprocessor( []( QNetworkRequest * request ) { request->setHeader( QNetworkRequest::UserAgentHeader, QStringLiteral( "QGIS" ) );} );
+  const QString processorId = QgsNetworkAccessManager::setRequestPreprocessor( []( QNetworkRequest * request ) { request->setHeader( QNetworkRequest::UserAgentHeader, QStringLiteral( "QGIS" ) );} );
   QNetworkRequest request;
   QgsNetworkAccessManager::instance()->preprocessRequest( &request );
   const QString userAgent = request.header( QNetworkRequest::UserAgentHeader ).toString();
   QCOMPARE( userAgent, "QGIS" );
-  QgsNetworkAccessManager::instance()->removeRequestPreprocessor( processorId );
+  QgsNetworkAccessManager::removeRequestPreprocessor( processorId );
 };
 
 QGSTEST_MAIN( TestQgsNetworkAccessManager )

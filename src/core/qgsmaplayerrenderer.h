@@ -20,9 +20,11 @@
 
 #include "qgis_core.h"
 #include "qgis_sip.h"
+#include "qgis.h"
 
 class QgsFeedback;
 class QgsRenderContext;
+class QgsRenderedItemDetails;
 
 /**
  * \ingroup core
@@ -40,15 +42,11 @@ class QgsRenderContext;
  *
  * The scenario will be:
  *
- * # renderer job (doing preparation in the GUI thread) calls
- *   QgsMapLayer::createMapRenderer() and gets instance of this class.
- *   The instance is initialized at that point and should not need
- *   additional calls to QgsVectorLayer.
- * # renderer job (still in GUI thread) stores the renderer for later use.
- * # renderer job (in worker thread) calls QgsMapLayerRenderer::render()
- * # renderer job (again in GUI thread) will check errors() and report them
+ * 1. renderer job (doing preparation in the GUI thread) calls QgsMapLayer::createMapRenderer() and gets instance of this class. The instance is initialized at that point and should not need additional calls to QgsVectorLayer.
+ * 2. renderer job (still in GUI thread) stores the renderer for later use.
+ * 3. renderer job (in worker thread) calls QgsMapLayerRenderer::render()
+ * 4. renderer job (again in GUI thread) will check errors() and report them
  *
- * \since QGIS 2.4
  */
 class CORE_EXPORT QgsMapLayerRenderer
 {
@@ -62,7 +60,7 @@ class CORE_EXPORT QgsMapLayerRenderer
       , mContext( context )
     {}
 
-    virtual ~QgsMapLayerRenderer() = default;
+    virtual ~QgsMapLayerRenderer();
 
     /**
      * Do the rendering (based on data stored in the class).
@@ -88,13 +86,19 @@ class CORE_EXPORT QgsMapLayerRenderer
      *
      * \since QGIS 3.18
      */
-    virtual bool forceRasterRender() const { return false; }
+    virtual bool forceRasterRender() const;
+
+    /**
+     * Returns flags which control how the map layer rendering behaves.
+     *
+     * \since QGIS 3.34
+     */
+    virtual Qgis::MapLayerRendererFlags flags() const;
 
     /**
      * Access to feedback object of the layer renderer (may be NULLPTR)
-     * \since QGIS 3.0
      */
-    virtual QgsFeedback *feedback() const { return nullptr; }
+    virtual QgsFeedback *feedback() const;
 
     //! Returns list of errors (problems) that happened during the rendering
     QStringList errors() const { return mErrors; }
@@ -137,6 +141,16 @@ class CORE_EXPORT QgsMapLayerRenderer
      */
     virtual void setLayerRenderingTimeHint( int time ) SIP_SKIP { Q_UNUSED( time ) }
 
+    /**
+     * Takes the list of rendered item details from the renderer.
+     *
+     * Ownership of items is transferred to the caller.
+     *
+     * \see appendRenderedItemDetails()
+     * \since QGIS 3.22
+     */
+    QList< QgsRenderedItemDetails * > takeRenderedItemDetails() SIP_TRANSFERBACK;
+
   protected:
     QStringList mErrors;
     QString mLayerID;
@@ -169,6 +183,18 @@ class CORE_EXPORT QgsMapLayerRenderer
      */
     static constexpr int MAX_TIME_TO_USE_CACHED_PREVIEW_IMAGE = 3000 SIP_SKIP;
 
+    /**
+     * Appends the \a details of a rendered item to the renderer.
+     *
+     * Rendered item details can be retrieved by calling takeRenderedItemDetails().
+     *
+     * Ownership of \a details is transferred to the renderer.
+     *
+     * \see takeRenderedItemDetails()
+     * \since QGIS 3.22
+     */
+    void appendRenderedItemDetails( QgsRenderedItemDetails *details SIP_TRANSFER );
+
   private:
 
     // TODO QGIS 4.0 - make reference instead of pointer!
@@ -179,6 +205,8 @@ class CORE_EXPORT QgsMapLayerRenderer
      * \since QGIS 3.10
      */
     QgsRenderContext *mContext = nullptr;
+
+    QList<QgsRenderedItemDetails *> mRenderedItemDetails;
 };
 
 #endif // QGSMAPLAYERRENDERER_H

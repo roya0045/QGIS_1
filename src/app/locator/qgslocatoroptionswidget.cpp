@@ -196,7 +196,7 @@ QVariant QgsLocatorFiltersModel::data( const QModelIndex &index, int role ) cons
 
     case Qt::TextAlignmentRole:
       if ( index.column() == Config )
-        return Qt::AlignCenter;
+        return static_cast<Qt::Alignment::Int>( Qt::AlignCenter );
       break;
 
   }
@@ -330,26 +330,26 @@ void QgsLocatorFiltersModel::commitChanges()
     if ( !activePrefix.isEmpty() && activePrefix != filter->prefix() )
     {
       filter->setActivePrefix( activePrefix );
-      QgsLocator::settingsLocatorFilterPrefix.setValue( activePrefix, filter->name() );
+      QgsLocator::settingsLocatorFilterPrefix->setValue( activePrefix, filter->name() );
     }
     else
     {
       filter->setActivePrefix( QString() );
-      QgsLocator::settingsLocatorFilterPrefix.remove( filter->name() );
+      QgsLocator::settingsLocatorFilterPrefix->remove( filter->name() );
     }
   }
   QHash< QgsLocatorFilter *, bool >::const_iterator it = mEnabledChanges.constBegin();
   for ( ; it != mEnabledChanges.constEnd(); ++it )
   {
     QgsLocatorFilter *filter = it.key();
-    QgsLocator::settingsLocatorFilterEnabled.setValue( it.value(), filter->name() );
+    QgsLocator::settingsLocatorFilterEnabled->setValue( it.value(), filter->name() );
     filter->setEnabled( it.value() );
   }
   it = mDefaultChanges.constBegin();
   for ( ; it != mDefaultChanges.constEnd(); ++it )
   {
     QgsLocatorFilter *filter = it.key();
-    QgsLocator::settingsLocatorFilterDefault.setValue( it.value(), filter->name() );
+    QgsLocator::settingsLocatorFilterDefault->setValue( it.value(), filter->name() );
     filter->setUseWithoutPrefix( it.value() );
   }
 }

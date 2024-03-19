@@ -31,7 +31,6 @@ class QgsStyle;
  * \brief A cross platform button subclass for selecting color ramps. Will open color ramp dialogs when clicked.
  * Offers live updates to button from color ramp dialog. An attached drop-down menu allows for access to
  * saved color ramps, as well as option to invert the current color ramp and create new ramps.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsColorRampButton : public QToolButton
 {
@@ -137,7 +136,7 @@ class GUI_EXPORT QgsColorRampButton : public QToolButton
     bool showRandomColorRamp() const { return mShowRandomColorRamp; }
 
     /**
-     * Returns TRUE if the current color is null.
+     * Returns TRUE if the current color ramp is random.
      * \see setShowNull()
      * \see showNull()
      */
@@ -159,7 +158,7 @@ class GUI_EXPORT QgsColorRampButton : public QToolButton
     bool showNull() const;
 
     /**
-     * Returns TRUE if the current color is null.
+     * Returns TRUE if the current color ramp is null.
      * \see setShowNull()
      * \see showNull()
      */

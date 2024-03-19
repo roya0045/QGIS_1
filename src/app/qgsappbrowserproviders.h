@@ -18,7 +18,6 @@
 #include "qgis_app.h"
 #include "qgsbookmarkmanager.h"
 #include "qgsdataitemprovider.h"
-#include "qgsdataprovider.h"
 #include "qgscustomdrophandler.h"
 #include "qgsdataitemguiprovider.h"
 #include "qgslayeritem.h"
@@ -48,7 +47,7 @@ class QgsQlrDataItemProvider : public QgsDataItemProvider
 {
   public:
     QString name() override;
-    int capabilities() const override;
+    Qgis::DataItemProviderCapabilities capabilities() const override;
     QgsDataItem *createDataItem( const QString &path, QgsDataItem *parentItem ) override;
 };
 
@@ -90,7 +89,7 @@ class QgsQptDataItemProvider : public QgsDataItemProvider
 {
   public:
     QString name() override;
-    int capabilities() const override;
+    Qgis::DataItemProviderCapabilities capabilities() const override;
     QgsDataItem *createDataItem( const QString &path, QgsDataItem *parentItem ) override;
 };
 
@@ -135,7 +134,7 @@ class QgsPyDataItemProvider : public QgsDataItemProvider
 {
   public:
     QString name() override;
-    int capabilities() const override;
+    Qgis::DataItemProviderCapabilities capabilities() const override;
     QgsDataItem *createDataItem( const QString &path, QgsDataItem *parentItem ) override;
 };
 
@@ -169,8 +168,6 @@ class QgsStyleXmlDataItem : public QgsDataItem
     bool handleDoubleClick() override;
     QList< QAction * > actions( QWidget *parent ) override;
 
-  private:
-
     static void browseStyle( const QString &xmlPath );
 
 };
@@ -182,7 +179,7 @@ class QgsStyleXmlDataItemProvider : public QgsDataItemProvider
 {
   public:
     QString name() override;
-    int capabilities() const override;
+    Qgis::DataItemProviderCapabilities capabilities() const override;
     QgsDataItem *createDataItem( const QString &path, QgsDataItem *parentItem ) override;
 };
 
@@ -241,7 +238,7 @@ class APP_EXPORT QgsProjectDataItemProvider : public QgsDataItemProvider
 {
   public:
     QString name() override;
-    int capabilities() const override;
+    Qgis::DataItemProviderCapabilities capabilities() const override;
     QgsDataItem *createDataItem( const QString &path, QgsDataItem *parentItem ) override;
 };
 
@@ -252,7 +249,7 @@ class APP_EXPORT QgsBookmarksDataItemProvider : public QgsDataItemProvider
 {
   public:
     QString name() override;
-    int capabilities() const override;
+    Qgis::DataItemProviderCapabilities capabilities() const override;
     QgsDataItem *createDataItem( const QString &pathIn, QgsDataItem *parentItem ) override;
 };
 
@@ -387,7 +384,7 @@ class APP_EXPORT QgsBookmarkItem : public QgsDataItem
     //! Icon for bookmark item
     static QIcon iconBookmark();
     bool hasDragEnabled() const override;
-    QgsMimeDataUtils::Uri mimeUri() const override;
+    QgsMimeDataUtils::UriList mimeUris() const override;
 
   private:
 
@@ -418,7 +415,7 @@ class QgsHtmlDataItemProvider : public QgsDataItemProvider
 {
   public:
     QString name() override;
-    int capabilities() const override;
+    Qgis::DataItemProviderCapabilities capabilities() const override;
     QgsDataItem *createDataItem( const QString &path, QgsDataItem *parentItem ) override;
 };
 

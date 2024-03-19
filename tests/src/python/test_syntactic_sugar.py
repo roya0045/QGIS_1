@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for some syntactic sugar in python
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,19 +9,15 @@ __author__ = 'Matthias Kuhn'
 __date__ = '12.8.2015'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.testing import unittest, start_app
-from qgis.core import (edit,
-                       QgsFeature,
-                       QgsVectorLayer,
-                       QgsEditError
-                       )
+from qgis.core import QgsEditError, QgsFeature, QgsVectorLayer, edit
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestSyntacticSugar(unittest.TestCase):
+class TestSyntacticSugar(QgisTestCase):
 
     def testEdit(self):
         """Test `with edit(layer):` code"""

@@ -128,7 +128,7 @@ QgsBench::QgsBench( int width, int height, int iterations )
   , mParallel( false )
 {
 
-  QgsDebugMsg( QStringLiteral( "mIterations = %1" ).arg( mIterations ) );
+  QgsDebugMsgLevel( QStringLiteral( "mIterations = %1" ).arg( mIterations ), 1 );
 
   connect( QgsProject::instance(), &QgsProject::readProject,
            this, &QgsBench::readProject );
@@ -167,7 +167,7 @@ void QgsBench::setExtent( const QgsRectangle &extent )
 void QgsBench::render()
 {
 
-  QgsDebugMsg( "extent: " +  mMapSettings.extent().toString() );
+  QgsDebugMsgLevel( "extent: " +  mMapSettings.extent().toString(), 1 );
 
   const QMap<QString, QgsMapLayer *> layersMap = QgsProject::instance()->mapLayers();
 
@@ -184,12 +184,12 @@ void QgsBench::render()
   //mMapRenderer->setDestinationCrs( outputCRS );
 
   // Enable labeling
-  mMapSettings.setFlag( QgsMapSettings::DrawLabeling );
+  mMapSettings.setFlag( Qgis::MapSettingsFlag::DrawLabeling );
 
   mMapSettings.setOutputSize( QSize( mWidth, mHeight ) );
 
   // TODO: do we need the other QPainter flags?
-  mMapSettings.setFlag( QgsMapSettings::Antialiasing, mRendererHints.testFlag( QPainter::Antialiasing ) );
+  mMapSettings.setFlag( Qgis::MapSettingsFlag::Antialiasing, mRendererHints.testFlag( QPainter::Antialiasing ) );
 
   for ( int i = 0; i < mIterations; i++ )
   {

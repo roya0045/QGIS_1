@@ -27,10 +27,10 @@
 
 #include "qgsconditionalstyle.h"
 #include "qgsattributeeditorcontext.h"
+#include "qgsmaplayeractionregistry.h"
 #include "qgis_gui.h"
 
 class QgsMapCanvas;
-class QgsMapLayerAction;
 class QgsEditorWidgetFactory;
 class QgsFieldFormatter;
 class QgsVectorLayerCache;
@@ -51,14 +51,25 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     Q_OBJECT
 
   public:
-    enum Role
+
+    // *INDENT-OFF*
+
+    /**
+     * Custom model roles.
+     *
+     * \note Prior to QGIS 3.36 this was available as QgsAttributeTableModel::Role
+     * \since QGIS 3.36
+     */
+    enum class CustomRole SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsAttributeTableModel, Role ) : int
     {
-      FeatureIdRole = Qt::UserRole, //!< Get the feature id of the feature in this row
-      FieldIndexRole,               //!< Get the field index of this column
-      UserRole,                     //!< Start further roles starting from this role
+      FeatureId SIP_MONKEYPATCH_COMPAT_NAME(FeatureIdRole)= Qt::UserRole, //!< Get the feature id of the feature in this row
+      FieldIndex SIP_MONKEYPATCH_COMPAT_NAME(FieldIndexRole),               //!< Get the field index of this column
+      User SIP_MONKEYPATCH_COMPAT_NAME(UserRole),                     //!< Start further roles starting from this role
       // Insert new values here, SortRole needs to be the last one
-      SortRole,                     //!< Role used for sorting start here
+      Sort SIP_MONKEYPATCH_COMPAT_NAME(SortRole),                     //!< Role used for sorting start here
     };
+    Q_ENUM( CustomRole )
+    // *INDENT-ON*
 
   public:
 
@@ -180,7 +191,7 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     /**
      * Execute a QgsMapLayerAction
      */
-    void executeMapLayerAction( QgsMapLayerAction *action, const QModelIndex &idx ) const;
+    void executeMapLayerAction( QgsMapLayerAction *action, const QModelIndex &idx, const QgsMapLayerActionContext &context = QgsMapLayerActionContext() ) const;
 
     /**
      * Returns the feature attributes at given model index
@@ -256,6 +267,20 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
      */
     void setExtraColumns( int extraColumns );
 
+    /**
+     * Returns whether the attribute table will add a visual feedback to cells when an attribute
+     * constraint is not met.
+     * \since QGIS 3.30
+     */
+    bool showValidityState() const { return mShowValidityState; }
+
+    /**
+     * Sets whether the attribute table will add a visual feedback to cells when an attribute constraint
+     * is not met.
+     * \since QGIS 3.30
+     */
+    void setShowValidityState( bool show ) { mShowValidityState = show; }
+
   public slots:
 
     /**
@@ -267,7 +292,6 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     /**
      * Handles updating the model when the conditional style for a field changes.
      * \param fieldName name of field whose conditional style has changed
-     * \since QGIS 2.12
      */
     void fieldConditionalStyleChanged( const QString &fieldName );
 
@@ -335,22 +359,34 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
 
     mutable QgsFeature mFeat;
 
+    QgsFields mFields;
     QgsAttributeList mAttributes;
-    QVector<QgsEditorWidgetFactory *> mWidgetFactories;
-    QVector<QgsFieldFormatter *> mFieldFormatters;
-    QVector<QVariant> mAttributeWidgetCaches;
-    QVector<QVariantMap> mWidgetConfigs;
+
+    struct WidgetData
+    {
+      QgsFieldFormatter *fieldFormatter = nullptr;
+      QVariant cache;
+      QVariantMap config;
+      bool loaded = false;
+    };
+    mutable QVector<WidgetData> mWidgetDatas;
 
     QHash<QgsFeatureId, int> mIdRowMap;
     QHash<int, QgsFeatureId> mRowIdMap;
     mutable QHash<QgsFeatureId, QList<QgsConditionalStyle> > mRowStylesMap;
+    mutable QHash<QgsFeatureId, QHash<int, QgsConditionalStyle> > mConstraintStylesMap;
 
     mutable QgsExpressionContext mExpressionContext;
 
     /**
+     * Returns widget information for \a column index
+     */
+    const WidgetData &getWidgetData( int column ) const;
+
+    /**
       * Gets mFieldCount, mAttributes
       */
-    virtual void loadAttributes();
+    void loadAttributes();
 
     /**
      * Load feature fid into local cache (mFeat)
@@ -360,6 +396,18 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
      * \returns feature exists
      */
     virtual bool loadFeatureAtId( QgsFeatureId fid ) const;
+
+    /**
+     * Load feature fid into local cache (mFeat) ensuring that the field with
+     * index \a fieldIdx is also fetched even if the cached attributes did not
+     * contain the field (e.g. because it was hidden in the attribute table).
+     *
+     * \param  fid      feature id
+     * \param  fieldIdx field index
+     *
+     * \returns feature exists
+     */
+    virtual bool loadFeatureAtId( QgsFeatureId fid, int fieldIdx ) const;
 
     QgsFeatureRequest mFeatureRequest;
 
@@ -394,6 +442,14 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
 
     //! Changed attribute values within a bulk edit command
     QMap<QPair<QgsFeatureId, int>, QVariant> mAttributeValueChanges;
+
+    //! Inserted feature IDs within a bulk edit command
+    QList<QgsFeatureId> mInsertedRowsChanges;
+
+    //! TRUE if triggered by afterRollback()
+    bool mIsCleaningUpAfterRollback = false;
+
+    bool mShowValidityState = false;
 
     friend class TestQgsAttributeTable;
 

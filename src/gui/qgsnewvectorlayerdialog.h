@@ -75,7 +75,7 @@ class GUI_EXPORT QgsNewVectorLayerDialog: public QDialog, private Ui::QgsNewVect
      */
     QgsNewVectorLayerDialog( QWidget *parent SIP_TRANSFERTHIS = nullptr, Qt::WindowFlags fl = QgsGuiUtils::ModalDialogFlags );
     //! Returns the selected geometry type
-    QgsWkbTypes::Type selectedType() const;
+    Qgis::WkbType selectedType() const;
     //! Appends the chosen attribute names and types to at
     void attributes( QList< QPair<QString, QString> > &at ) const;
     //! Returns the file format for storage
@@ -108,9 +108,11 @@ class GUI_EXPORT QgsNewVectorLayerDialog: public QDialog, private Ui::QgsNewVect
     /**
      * Sets the \a crs value for the new layer in the dialog.
      * \see crs()
-     * \since QGIS 3.0
      */
     void setCrs( const QgsCoordinateReferenceSystem &crs );
+
+  public slots:
+    void accept() override;
 
   private slots:
     void mAddAttributeButton_clicked();
@@ -126,6 +128,8 @@ class GUI_EXPORT QgsNewVectorLayerDialog: public QDialog, private Ui::QgsNewVect
 
   private:
     QPushButton *mOkButton = nullptr;
+
+    void updateExtension();
 };
 
 #endif //qgsnewvectorlayerdialog_H

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : DB Manager
@@ -21,8 +19,8 @@ The content of this file is based on
  *                                                                         *
  ***************************************************************************/
 """
-from builtins import str
 
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QFileInfo
 from qgis.PyQt.QtWidgets import QDialog, QFileDialog, QMessageBox, QApplication
 from qgis.PyQt.QtGui import QCursor
@@ -34,7 +32,9 @@ from qgis.core import (QgsVectorFileWriter,
                        QgsSettings)
 from qgis.utils import OverrideCursor
 
-from .ui.ui_DlgExportVector import Ui_DbManagerDlgExportVector as Ui_Dialog
+from .gui_utils import GuiUtils
+
+Ui_Dialog, _ = uic.loadUiType(GuiUtils.get_ui_file_path('DlgExportVector.ui'))
 
 
 class DlgExportVector(QDialog, Ui_Dialog):
@@ -46,8 +46,8 @@ class DlgExportVector(QDialog, Ui_Dialog):
         self.setupUi(self)
 
         vectorFilterName = "lastVectorFileFilter"  # "lastRasterFileFilter"
-        self.lastUsedVectorFilterSettingsKey = u"/UI/{0}".format(vectorFilterName)
-        self.lastUsedVectorDirSettingsKey = u"/UI/{0}Dir".format(vectorFilterName)
+        self.lastUsedVectorFilterSettingsKey = "/UI/{}".format(vectorFilterName)
+        self.lastUsedVectorDirSettingsKey = "/UI/{}Dir".format(vectorFilterName)
 
         # update UI
         self.setupWorkingMode()
@@ -146,7 +146,7 @@ class DlgExportVector(QDialog, Ui_Dialog):
                                         self.tr("Invalid target srid: must be an integer"))
                 return
 
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             # store current input layer crs, so I can restore it later
             prevInCrs = self.inLayer.crs()
             try:

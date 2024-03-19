@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsalgorithmpointslayerfromtable.h"
+#include "qgsvariantutils.h"
 
 ///@cond PRIVATE
 
@@ -63,18 +64,18 @@ QgsPointsLayerFromTableAlgorithm *QgsPointsLayerFromTableAlgorithm::createInstan
 void QgsPointsLayerFromTableAlgorithm::initAlgorithm( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterFeatureSource( QStringLiteral( "INPUT" ), QObject::tr( "Input layer" ),
-                QList< int >() << QgsProcessing::TypeVector ) );
+                QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::Vector ) ) );
   addParameter( new QgsProcessingParameterField( QStringLiteral( "XFIELD" ), QObject::tr( "X field" ), QVariant(),
-                QStringLiteral( "INPUT" ), QgsProcessingParameterField::Any ) );
+                QStringLiteral( "INPUT" ), Qgis::ProcessingFieldParameterDataType::Any ) );
   addParameter( new QgsProcessingParameterField( QStringLiteral( "YFIELD" ), QObject::tr( "Y field" ), QVariant(),
-                QStringLiteral( "INPUT" ), QgsProcessingParameterField::Any ) );
+                QStringLiteral( "INPUT" ), Qgis::ProcessingFieldParameterDataType::Any ) );
   addParameter( new QgsProcessingParameterField( QStringLiteral( "ZFIELD" ), QObject::tr( "Z field" ), QVariant(),
-                QStringLiteral( "INPUT" ), QgsProcessingParameterField::Any, false, true ) );
+                QStringLiteral( "INPUT" ), Qgis::ProcessingFieldParameterDataType::Any, false, true ) );
   addParameter( new QgsProcessingParameterField( QStringLiteral( "MFIELD" ), QObject::tr( "M field" ), QVariant(),
-                QStringLiteral( "INPUT" ), QgsProcessingParameterField::Any, false, true ) );
+                QStringLiteral( "INPUT" ), Qgis::ProcessingFieldParameterDataType::Any, false, true ) );
   addParameter( new QgsProcessingParameterCrs( QStringLiteral( "TARGET_CRS" ), QObject::tr( "Target CRS" ), QStringLiteral( "EPSG:4326" ) ) );
 
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Points from table" ), QgsProcessing::TypeVectorPoint ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT" ), QObject::tr( "Points from table" ), Qgis::ProcessingSourceType::VectorPoint ) );
 }
 
 QVariantMap QgsPointsLayerFromTableAlgorithm::processAlgorithm( const QVariantMap &parameters, QgsProcessingContext &context, QgsProcessingFeedback *feedback )
@@ -97,7 +98,7 @@ QVariantMap QgsPointsLayerFromTableAlgorithm::processAlgorithm( const QVariantMa
   if ( !fieldName.isEmpty() )
     mFieldIndex = fields.lookupField( fieldName );
 
-  QgsWkbTypes::Type outputWkbType = QgsWkbTypes::Point;
+  Qgis::WkbType outputWkbType = Qgis::WkbType::Point;
   if ( zFieldIndex >= 0 )
     outputWkbType = QgsWkbTypes::addZ( outputWkbType );
   if ( mFieldIndex >= 0 )
@@ -113,8 +114,8 @@ QVariantMap QgsPointsLayerFromTableAlgorithm::processAlgorithm( const QVariantMa
   const double step = featureSource->featureCount() > 0 ? 100.0 / featureSource->featureCount() : 1;
 
   QgsFeatureRequest req;
-  req.setFlags( QgsFeatureRequest::NoGeometry );
-  QgsFeatureIterator fi = featureSource->getFeatures( req, QgsProcessingFeatureSource::FlagSkipGeometryValidityChecks );
+  req.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
+  QgsFeatureIterator fi = featureSource->getFeatures( req, Qgis::ProcessingFeatureSourceFlag::SkipGeometryValidityChecks );
   QgsFeature f;
   int current = 0;
 
@@ -132,14 +133,14 @@ QVariantMap QgsPointsLayerFromTableAlgorithm::processAlgorithm( const QVariantMa
     const double x = attrs.at( xFieldIndex ).toDouble( &xOk );
     const double y = attrs.at( yFieldIndex ).toDouble( &yOk );
 
-    if ( ! attrs.at( xFieldIndex ).isNull() && ! attrs.at( yFieldIndex ).isNull() && xOk && yOk )
+    if ( ! QgsVariantUtils::isNull( attrs.at( xFieldIndex ) ) && ! QgsVariantUtils::isNull( attrs.at( yFieldIndex ) ) && xOk && yOk )
     {
       QgsPoint point( x, y );
 
-      if ( zFieldIndex >= 0 && ! attrs.at( zFieldIndex ).isNull() )
+      if ( zFieldIndex >= 0 && ! QgsVariantUtils::isNull( attrs.at( zFieldIndex ) ) )
         point.addZValue( attrs.at( zFieldIndex ).toDouble() );
 
-      if ( mFieldIndex >= 0 && ! attrs.at( mFieldIndex ).isNull() )
+      if ( mFieldIndex >= 0 && ! QgsVariantUtils::isNull( attrs.at( mFieldIndex ) ) )
         point.addMValue( attrs.at( mFieldIndex ).toDouble() );
 
       f.setGeometry( QgsGeometry( point.clone() ) );

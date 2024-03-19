@@ -26,7 +26,6 @@
  * \ingroup core
  * \class QgsCompoundCurve
  * \brief Compound curve geometry type
- * \since QGIS 2.10
  */
 class CORE_EXPORT QgsCompoundCurve: public QgsCurve
 {
@@ -36,7 +35,58 @@ class CORE_EXPORT QgsCompoundCurve: public QgsCurve
     QgsCompoundCurve &operator=( const QgsCompoundCurve &curve );
     ~QgsCompoundCurve() override;
 
-    bool equals( const QgsCurve &other ) const override;
+#ifndef SIP_RUN
+  private:
+    bool fuzzyHelper( const QgsAbstractGeometry &other, double epsilon, bool useDistance ) const
+    {
+      const QgsCompoundCurve *otherCurve = qgsgeometry_cast< const QgsCompoundCurve * >( &other );
+      if ( !otherCurve )
+        return false;
+
+      if ( mWkbType != otherCurve->mWkbType )
+        return false;
+
+      if ( mCurves.size() != otherCurve->mCurves.size() )
+        return false;
+
+      for ( int i = 0; i < mCurves.size(); ++i )
+      {
+        if ( useDistance )
+        {
+          if ( !( *mCurves.at( i ) ).fuzzyDistanceEqual( *otherCurve->mCurves.at( i ), epsilon ) )
+          {
+            return false;
+          }
+
+        }
+        else
+        {
+          if ( !( *mCurves.at( i ) ).fuzzyEqual( *otherCurve->mCurves.at( i ), epsilon ) )
+          {
+            return false;
+          }
+
+        }
+      }
+
+      return true;
+    }
+#endif
+  public:
+    bool fuzzyEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper( other, epsilon, false );
+    }
+    bool fuzzyDistanceEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper( other, epsilon, true );
+    }
+
+    bool equals( const QgsCurve &other ) const override
+    {
+      return fuzzyEqual( other, 1e-8 );
+    }
+
 
     QString geometryType() const override SIP_HOLDGIL;
     int dimension() const override SIP_HOLDGIL;
@@ -73,7 +123,7 @@ class CORE_EXPORT QgsCompoundCurve: public QgsCurve
 
     QgsCompoundCurve *snappedToGrid( double hSpacing, double vSpacing, double dSpacing = 0, double mSpacing = 0 ) const override SIP_FACTORY;
     bool removeDuplicateNodes( double epsilon = 4 * std::numeric_limits<double>::epsilon(), bool useZValues = false ) override;
-    bool boundingBoxIntersects( const QgsRectangle &rectangle ) const override SIP_HOLDGIL;
+    bool boundingBoxIntersects( const QgsBox3D &box3d ) const override SIP_HOLDGIL;
     const QgsAbstractGeometry *simplifiedTypeRef() const override SIP_HOLDGIL;
 
     /**
@@ -127,7 +177,7 @@ class CORE_EXPORT QgsCompoundCurve: public QgsCurve
     bool toggleCircularAtVertex( QgsVertexId position );
 
     void draw( QPainter &p ) const override;
-    void transform( const QgsCoordinateTransform &ct, QgsCoordinateTransform::TransformDirection d = QgsCoordinateTransform::ForwardTransform, bool transformZ = false ) override  SIP_THROW( QgsCsException );
+    void transform( const QgsCoordinateTransform &ct, Qgis::TransformDirection d = Qgis::TransformDirection::Forward, bool transformZ = false ) override  SIP_THROW( QgsCsException );
     void transform( const QTransform &t, double zTranslate = 0.0, double zScale = 1.0, double mTranslate = 0.0, double mScale = 1.0 ) override;
     void addToPainterPath( QPainterPath &path ) const override;
     void drawAsPolygon( QPainter &p ) const override;
@@ -135,7 +185,7 @@ class CORE_EXPORT QgsCompoundCurve: public QgsCurve
     bool moveVertex( QgsVertexId position, const QgsPoint &newPos ) override;
     bool deleteVertex( QgsVertexId position ) override;
     double closestSegment( const QgsPoint &pt, QgsPoint &segmentPt SIP_OUT, QgsVertexId &vertexAfter SIP_OUT, int *leftOf SIP_OUT = nullptr, double epsilon = 4 * std::numeric_limits<double>::epsilon() ) const override;
-    bool pointAt( int node, QgsPoint &point, QgsVertexId::VertexType &type ) const override;
+    bool pointAt( int node, QgsPoint &point, Qgis::VertexType &type ) const override;
     void sumUpArea( double &sum SIP_OUT ) const override;
 
     //! Appends first point if not already closed.
@@ -157,6 +207,8 @@ class CORE_EXPORT QgsCompoundCurve: public QgsCurve
 
     double xAt( int index ) const override SIP_HOLDGIL;
     double yAt( int index ) const override SIP_HOLDGIL;
+    double zAt( int index ) const override SIP_HOLDGIL;
+    double mAt( int index ) const override SIP_HOLDGIL;
 
     bool transform( QgsAbstractGeometryTransformer *transformer, QgsFeedback *feedback = nullptr ) override;
     void scroll( int firstVertexIndex ) final;
@@ -171,11 +223,10 @@ class CORE_EXPORT QgsCompoundCurve: public QgsCurve
      * Should be used by qgsgeometry_cast<QgsCompoundCurve *>( geometry ).
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
-     * \since QGIS 3.0
      */
     inline static const QgsCompoundCurve *cast( const QgsAbstractGeometry *geom )
     {
-      if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == QgsWkbTypes::CompoundCurve )
+      if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == Qgis::WkbType::CompoundCurve )
         return static_cast<const QgsCompoundCurve *>( geom );
       return nullptr;
     }
@@ -197,7 +248,7 @@ class CORE_EXPORT QgsCompoundCurve: public QgsCurve
   protected:
 
     int compareToSameClass( const QgsAbstractGeometry *other ) const final;
-    QgsRectangle calculateBoundingBox() const override;
+    QgsBox3D calculateBoundingBox3D() const override;
 
   private:
     QVector< QgsCurve * > mCurves;

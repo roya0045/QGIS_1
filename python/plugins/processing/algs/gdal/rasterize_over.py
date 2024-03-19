@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     rasterize_over.py
@@ -61,7 +59,7 @@ class rasterize_over(GdalAlgorithm):
                                                       self.tr('Field to use for burn in value'),
                                                       None,
                                                       self.INPUT,
-                                                      QgsProcessingParameterField.Numeric,
+                                                      QgsProcessingParameterField.DataType.Numeric,
                                                       optional=False))
 
         params = [
@@ -75,7 +73,7 @@ class rasterize_over(GdalAlgorithm):
                                          optional=True)
         ]
         for p in params:
-            p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             self.addParameter(p)
 
         self.addOutput(QgsProcessingOutputRasterLayer(self.OUTPUT,
@@ -125,3 +123,24 @@ class rasterize_over(GdalAlgorithm):
         arguments.append(inLayer.source())
 
         return [self.commandName(), GdalUtils.escapeAndJoin(arguments)]
+
+    def postProcessAlgorithm(self, context, feedback):
+        fileName = self.output_values.get(self.OUTPUT)
+        if not fileName:
+            return {}
+
+        if context.project():
+            for l in context.project().mapLayers().values():
+                if l.source() != fileName:
+                    continue
+
+                l.dataProvider().reloadData()
+                l.triggerRepaint()
+
+        for l in context.temporaryLayerStore().mapLayers().values():
+            if l.source() != fileName:
+                continue
+
+            l.dataProvider().reloadData()
+
+        return {}

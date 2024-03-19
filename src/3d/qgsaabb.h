@@ -28,7 +28,6 @@
  * \ingroup 3d
  * \brief Axis-aligned bounding box - in world coords.
  * \note Not available in Python bindings
- * \since QGIS 3.0
  */
 class _3D_EXPORT QgsAABB
 {
@@ -77,6 +76,12 @@ class _3D_EXPORT QgsAABB
 
     //! Returns text representation of the bounding box
     QString toString() const;
+
+    //! Returns true if xExtent(), yExtent() and zExtent() are all zero, false otherwise
+    bool isEmpty() const
+    {
+      return xMin == xMax && yMin == yMax && zMin == zMax;
+    }
 
     float xMin = 0.0f;
     float yMin = 0.0f;

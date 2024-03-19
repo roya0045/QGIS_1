@@ -24,6 +24,7 @@
 #include <qgsgml.h>
 #include "qgsapplication.h"
 #include "qgslogger.h"
+#include "qgscoordinatereferencesystem.h"
 
 /**
  * \ingroup UnitTests
@@ -86,6 +87,7 @@ class TestQgsGML : public QObject
     void testUnknownEncoding_data();
     void testUnknownEncoding();
     void testUnhandledEncoding();
+    void testXPath();
 };
 
 const QString data1( "<myns:FeatureCollection "
@@ -116,13 +118,13 @@ void TestQgsGML::testFromURL()
   fields.append( QgsField( QStringLiteral( "intfield" ), QVariant::Int, QStringLiteral( "int" ) ) );
   fields.append( QgsField( QStringLiteral( "nillablefield" ), QVariant::Int, QStringLiteral( "nillablefield" ) ) );
   QgsGml gmlParser( QStringLiteral( "mytypename" ), QStringLiteral( "mygeom" ), fields );
-  QgsWkbTypes::Type wkbType;
+  Qgis::WkbType wkbType;
   QTemporaryFile tmpFile;
   tmpFile.open();
   tmpFile.write( data1.toLatin1() );
   tmpFile.flush();
   QCOMPARE( gmlParser.getFeatures( QUrl::fromLocalFile( tmpFile.fileName() ).toString(), &wkbType ), 0 );
-  QCOMPARE( wkbType, QgsWkbTypes::Point );
+  QCOMPARE( wkbType, Qgis::WkbType::Point );
   QMap<QgsFeatureId, QgsFeature * > featureMaps = gmlParser.featuresMap();
   QCOMPARE( featureMaps.size(), 1 );
   QCOMPARE( gmlParser.idsMap().size(), 1 );
@@ -138,7 +140,7 @@ void TestQgsGML::testFromByteArray()
   fields.append( QgsField( QStringLiteral( "intfield" ), QVariant::Int, QStringLiteral( "int" ) ) );
   fields.append( QgsField( QStringLiteral( "nillablefield" ), QVariant::Int, QStringLiteral( "nillablefield" ) ) );
   QgsGml gmlParser( QStringLiteral( "mytypename" ), QStringLiteral( "mygeom" ), fields );
-  QgsWkbTypes::Type wkbType;
+  Qgis::WkbType wkbType;
   QCOMPARE( gmlParser.getFeatures( data1.toLatin1(), &wkbType ), 0 );
   QMap<QgsFeatureId, QgsFeature * > featureMaps = gmlParser.featuresMap();
   QCOMPARE( featureMaps.size(), 1 );
@@ -176,12 +178,12 @@ void TestQgsGML::testStreamingParser()
   QCOMPARE( features[0].first->attributes().at( 4 ), QVariant( "foo" ) );
   QCOMPARE( features[0].first->attributes().at( 5 ), QVariant( QDateTime( QDate( 2016, 4, 10 ), QTime( 12, 34, 56, 789 ), Qt::UTC ) ) );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 10, 20 ) );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
   QCOMPARE( gmlParser.getAndStealReadyFeatures().size(), 0 );
   QCOMPARE( gmlParser.getEPSGCode(), 27700 );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   delete features[0].first;
 }
 
@@ -210,11 +212,11 @@ void TestQgsGML::testPointGML2()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 10, 20 ) );
   delete features[0].first;
 }
@@ -236,11 +238,11 @@ void TestQgsGML::testLineStringGML2()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::LineString );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::LineString );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::LineString );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::LineString );
   QgsPolylineXY line = features[0].first->geometry().asPolyline();
   QCOMPARE( line.size(), 2 );
   QCOMPARE( line[0], QgsPointXY( 10, 20 ) );
@@ -274,11 +276,11 @@ void TestQgsGML::testPolygonGML2()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Polygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Polygon );
   QgsPolygonXY poly = features[0].first->geometry().asPolygon();
   QCOMPARE( poly.size(), 2 );
   QCOMPARE( poly[0].size(), 5 );
@@ -312,11 +314,11 @@ void TestQgsGML::testMultiPointGML2()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::MultiPoint );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::MultiPoint );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiPoint );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiPoint );
   QgsMultiPointXY multi = features[0].first->geometry().asMultiPoint();
   QCOMPARE( multi.size(), 2 );
   QCOMPARE( multi[0], QgsPointXY( 10, 20 ) );
@@ -350,11 +352,11 @@ void TestQgsGML::testMultiLineStringGML2()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::MultiLineString );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::MultiLineString );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiLineString );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiLineString );
   QgsMultiPolylineXY multi = features[0].first->geometry().asMultiPolyline();
   QCOMPARE( multi.size(), 2 );
   QCOMPARE( multi[0].size(), 2 );
@@ -389,11 +391,11 @@ void TestQgsGML::testMultiPolygonGML2()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::MultiPolygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiPolygon );
   QgsMultiPolygonXY multi = features[0].first->geometry().asMultiPolygon();
   QCOMPARE( multi.size(), 1 );
   QCOMPARE( multi[0].size(), 1 );
@@ -418,13 +420,13 @@ void TestQgsGML::testPointGML3()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 27700 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 10, 20 ) );
   delete features[0].first;
 }
@@ -446,13 +448,13 @@ void TestQgsGML::testPointGML3_EPSG_4326()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 4326 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 2, 49 ) );
   delete features[0].first;
 }
@@ -474,13 +476,13 @@ void TestQgsGML::testPointGML3_uri_EPSG_4326()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 4326 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 2, 49 ) );
   delete features[0].first;
 }
@@ -502,13 +504,13 @@ void TestQgsGML::testPointGML3_urn_EPSG_4326()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 4326 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 2, 49 ) );
   delete features[0].first;
 }
@@ -530,13 +532,13 @@ void TestQgsGML::testPointGML3_EPSG_4326_honour_EPSG()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 4326 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 2, 49 ) );
   delete features[0].first;
 }
@@ -558,13 +560,13 @@ void TestQgsGML::testPointGML3_EPSG_4326_honour_EPSG_invert()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 4326 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 2, 49 ) );
   delete features[0].first;
 }
@@ -586,11 +588,11 @@ void TestQgsGML::testLineStringGML3()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::LineString );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::LineString );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::LineString );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::LineString );
   QgsPolylineXY line = features[0].first->geometry().asPolyline();
   QCOMPARE( line.size(), 2 );
   QCOMPARE( line[0], QgsPointXY( 10, 20 ) );
@@ -613,11 +615,11 @@ void TestQgsGML::testLineStringGML3_LineStringSegment()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::LineString );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::LineString );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::LineString );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::LineString );
   QgsPolylineXY line = features[0].first->geometry().asPolyline();
   QCOMPARE( line.size(), 2 );
   QCOMPARE( line[0], QgsPointXY( 10, 20 ) );
@@ -651,11 +653,11 @@ void TestQgsGML::testPolygonGML3()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Polygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Polygon );
   QgsPolygonXY poly = features[0].first->geometry().asPolygon();
   QCOMPARE( poly.size(), 2 );
   QCOMPARE( poly[0].size(), 5 );
@@ -684,11 +686,11 @@ void TestQgsGML::testPolygonGML3_srsDimension_on_Polygon()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Polygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Polygon );
   QgsPolygonXY poly = features[0].first->geometry().asPolygon();
   QCOMPARE( poly.size(), 1 );
   QCOMPARE( poly[0].size(), 5 );
@@ -716,11 +718,11 @@ void TestQgsGML::testPolygonGML3_srsDimension_on_posList()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Polygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Polygon );
   QgsPolygonXY poly = features[0].first->geometry().asPolygon();
   QCOMPARE( poly.size(), 1 );
   QCOMPARE( poly[0].size(), 5 );
@@ -753,11 +755,11 @@ void TestQgsGML::testMultiLineStringGML3()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::MultiLineString );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::MultiLineString );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiLineString );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiLineString );
   QgsMultiPolylineXY multi = features[0].first->geometry().asMultiPolyline();
   QCOMPARE( multi.size(), 2 );
   QCOMPARE( multi[0].size(), 2 );
@@ -801,11 +803,11 @@ void TestQgsGML::testMultiPolygonGML3()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::MultiPolygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiPolygon );
   QgsMultiPolygonXY multi = features[0].first->geometry().asMultiPolygon();
   QCOMPARE( multi.size(), 2 );
   QCOMPARE( multi[0].size(), 1 );
@@ -831,13 +833,13 @@ void TestQgsGML::testPointGML3_2()
                                    "</myns:mytypename>"
                                    "</wfs:member>"
                                    "</wfs:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 27700 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mytypename.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 10, 20 ) );
   delete features[0].first;
 }
@@ -863,7 +865,7 @@ void TestQgsGML::testBoundingBoxGML2()
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Polygon );
   QgsPolygonXY poly = features[0].first->geometry().asPolygon();
   QCOMPARE( poly.size(), 1 );
   QCOMPARE( poly[0].size(), 5 );
@@ -892,7 +894,7 @@ void TestQgsGML::testBoundingBoxGML3()
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Polygon );
   QgsPolygonXY poly = features[0].first->geometry().asPolygon();
   QCOMPARE( poly.size(), 1 );
   QCOMPARE( poly[0].size(), 5 );
@@ -1027,7 +1029,7 @@ void TestQgsGML::testTuple()
                                      "</wfs:FeatureCollection>"
                                    ), true ), true );
   QCOMPARE( gmlParser.isException(), false );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 27700 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
@@ -1036,7 +1038,7 @@ void TestQgsGML::testTuple()
   QCOMPARE( features[0].first->attributes().at( 1 ), QVariant( 2 ) );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "firstlayer.1|secondlayer.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 10, 20 ) );
   delete features[0].first;
 }
@@ -1068,7 +1070,7 @@ void TestQgsGML::testRenamedFields()
                                      "</wfs:FeatureCollection>"
                                    ), true ), true );
   QCOMPARE( gmlParser.isException(), false );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Point );
   QCOMPARE( gmlParser.getEPSGCode(), 27700 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
@@ -1076,7 +1078,7 @@ void TestQgsGML::testRenamedFields()
   QCOMPARE( features[0].first->attributes().at( 0 ), QVariant( 2 ) );
   QVERIFY( features[0].first->hasGeometry() );
   QCOMPARE( features[0].second, QString( "mylayer.1" ) );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::Point );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::Point );
   QCOMPARE( features[0].first->geometry().asPoint(), QgsPointXY( 10, 20 ) );
   delete features[0].first;
 }
@@ -1132,12 +1134,12 @@ void TestQgsGML::testThroughOGRGeometry()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Polygon );
   QCOMPARE( gmlParser.getEPSGCode(), 27700 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiPolygon );
   QgsMultiPolygonXY multi = features[0].first->geometry().asMultiPolygon();
   QCOMPARE( multi.size(), 1 );
   QCOMPARE( multi[0].size(), 1 );
@@ -1168,17 +1170,17 @@ void TestQgsGML::testThroughOGRGeometry_urn_EPSG_4326()
                                    "</myns:mytypename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::Polygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::Polygon );
   QCOMPARE( gmlParser.getEPSGCode(), 4326 );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiPolygon );
   QgsMultiPolygonXY multi = features[0].first->geometry().asMultiPolygon();
   QCOMPARE( multi.size(), 1 );
   QCOMPARE( multi[0].size(), 1 );
   QCOMPARE( multi[0][0].size(), 4 );
-  QgsDebugMsg( multi[0][0][0].toString() );
+  QgsDebugMsgLevel( multi[0][0][0].toString(), 1 );
   QCOMPARE( multi[0][0][0], QgsPointXY( 2, 49 ) );
   delete features[0].first;
 }
@@ -1219,11 +1221,11 @@ void TestQgsGML::testAccents()
                                    "</myns:my\xc3\xa9typename>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::MultiPolygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiPolygon );
   QgsMultiPolygonXY multi = features[0].first->geometry().asMultiPolygon();
   QCOMPARE( multi.size(), 2 );
   QCOMPARE( multi[0].size(), 1 );
@@ -1265,11 +1267,11 @@ void TestQgsGML::testSameTypeameAsGeomName()
                                    "</myns:foo>"
                                    "</gml:featureMember>"
                                    "</myns:FeatureCollection>" ), true ), true );
-  QCOMPARE( gmlParser.wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( gmlParser.wkbType(), Qgis::WkbType::MultiPolygon );
   QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
   QCOMPARE( features.size(), 1 );
   QVERIFY( features[0].first->hasGeometry() );
-  QCOMPARE( features[0].first->geometry().wkbType(), QgsWkbTypes::MultiPolygon );
+  QCOMPARE( features[0].first->geometry().wkbType(), Qgis::WkbType::MultiPolygon );
   QgsMultiPolygonXY multi = features[0].first->geometry().asMultiPolygon();
   QCOMPARE( multi.size(), 2 );
   QCOMPARE( multi[0].size(), 1 );
@@ -1293,7 +1295,7 @@ void TestQgsGML::testUnknownEncoding()
   QFETCH( QString, xmlHeader );
   QFETCH( QByteArray, encoding );
 
-  QgsWkbTypes::Type wkbType;
+  Qgis::WkbType wkbType;
 
   QTextCodec *codec = QTextCodec::codecForName( encoding );
 
@@ -1346,7 +1348,7 @@ void TestQgsGML::testUnknownEncoding()
 
 void TestQgsGML::testUnhandledEncoding()
 {
-  QgsWkbTypes::Type wkbType;
+  Qgis::WkbType wkbType;
 
   QString data = QStringLiteral(
                    "<?xml version='1.0' encoding='my-unexisting-encoding'?>"
@@ -1374,6 +1376,89 @@ void TestQgsGML::testUnhandledEncoding()
   QCOMPARE( gmlParser.getFeatures( data.toUtf8(), &wkbType ), 0 );
   QMap<QgsFeatureId, QgsFeature * > featureMaps = gmlParser.featuresMap();
   QCOMPARE( featureMaps.size(), 0 );
+}
+
+void TestQgsGML::testXPath()
+{
+  QString data = QStringLiteral(
+                   "<?xml version='1.0' encoding='utf-8'?>"
+                   "<myns:FeatureCollection "
+                   "xmlns:myns='http://myns' "
+                   "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' "
+                   "xmlns:gml='http://www.opengis.net/gml'>"
+                   "<gml:boundedBy><gml:null>unknown</gml:null></gml:boundedBy>"
+                   "<gml:featureMember>"
+                   "<myns:mytypename fid='mytypename.1' myns:my_attr='my_value'>"
+                   "<myns:strfield>foo</myns:strfield>"
+                   "<myns:nested>"
+                   "<myns:strfield2 attr='attr_val'>bar</myns:strfield2>"
+                   "<myns:strfield3>baz</myns:strfield3>"
+                   "</myns:nested>"
+                   "<myns:complex foo='bar'>"
+                   "<myns:l1>"
+                   "<myns:a>x</myns:a>"
+                   "<myns:b k='v'>"
+                   "y</myns:b>"
+                   "<c><k1>1234567890123</k1><k2>12</k2><k3>01</k3><k4>1.25</k4><k5>12345678901234567890123456789</k5></c>"
+                   "<myns:d>a<i>b</i></myns:d>"
+                   "<myns:d><i>a</i>b</myns:d>"
+                   "<myns:d>a<i>b</i>c</myns:d>"
+                   "<myns:d>x</myns:d>"
+                   "</myns:l1>"
+                   "</myns:complex>"
+                   "<myns:complex2/>"
+                   "<myns:complex_repeated>foo</myns:complex_repeated>"
+                   "<myns:complex_repeated>bar</myns:complex_repeated>"
+                   "<myns:mygeom>"
+                   "<gml:Point srsName='http://www.opengis.net/gml/srs/epsg.xml#27700'>"
+                   "<gml:coordinates decimal='.' cs=',' ts=' '>10,20</gml:coordinates>"
+                   "</gml:Point>"
+                   "</myns:mygeom>"
+                   "</myns:mytypename>"
+                   "</gml:featureMember>"
+                   "</myns:FeatureCollection>" );
+
+  QgsFields fields;
+  fields.append( QgsField( QStringLiteral( "fid" ), QVariant::String, QStringLiteral( "fid" ) ) );
+  fields.append( QgsField( QStringLiteral( "my_attr" ), QVariant::String, QStringLiteral( "string" ) ) );
+  fields.append( QgsField( QStringLiteral( "strfield" ), QVariant::String, QStringLiteral( "string" ) ) );
+  fields.append( QgsField( QStringLiteral( "nested_strfield2" ), QVariant::String, QStringLiteral( "string" ) ) );
+  fields.append( QgsField( QStringLiteral( "nested_strfield2_attr" ), QVariant::String, QStringLiteral( "string" ) ) );
+  fields.append( QgsField( QStringLiteral( "nested_strfield3" ), QVariant::String, QStringLiteral( "string" ) ) );
+  fields.append( QgsField( QStringLiteral( "complex" ), QVariant::String, QStringLiteral( "string" ) ) );
+  fields.append( QgsField( QStringLiteral( "complex2" ), QVariant::String, QStringLiteral( "string" ) ) );
+  fields.append( QgsField( QStringLiteral( "complex_repeated" ), QVariant::String, QStringLiteral( "string" ) ) );
+
+  QgsGmlStreamingParser gmlParser( QStringLiteral( "mytypename" ), QStringLiteral( "mygeom" ), fields );
+
+  QMap<QString, QPair<QString, bool>> mapFieldNameToXPathAndIsNestedContent;
+  QMap<QString, QString> mapNamespacePrefixToURI;
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "fid" )] = QPair<QString, bool>( QStringLiteral( "@fid" ), false );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "my_attr" )] = QPair<QString, bool>( QStringLiteral( "@myns:my_attr" ), false );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "strfield" )] = QPair<QString, bool>( QStringLiteral( "myns:strfield" ), false );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "nested_strfield2" )] = QPair<QString, bool>( QStringLiteral( "myns:nested/myns:strfield2" ), false );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "nested_strfield2_attr" )] = QPair<QString, bool>( QStringLiteral( "myns:nested/myns:strfield2/@attr" ), false );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "nested_strfield3" )] = QPair<QString, bool>( QStringLiteral( "myns:nested/myns:strfield3" ), false );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "complex" )] = QPair<QString, bool>( QStringLiteral( "myns:complex" ), true );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "complex2" )] = QPair<QString, bool>( QStringLiteral( "myns:complex2" ), true );
+  mapFieldNameToXPathAndIsNestedContent[QStringLiteral( "complex_repeated" )] = QPair<QString, bool>( QStringLiteral( "myns:complex_repeated" ), true );
+  mapNamespacePrefixToURI[QStringLiteral( "myns" )] = QStringLiteral( "http://myns" );
+  gmlParser.setFieldsXPath( mapFieldNameToXPathAndIsNestedContent, mapNamespacePrefixToURI );
+
+  QCOMPARE( gmlParser.processData( data.toUtf8(), true ), true );
+  QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> features = gmlParser.getAndStealReadyFeatures();
+  QCOMPARE( features.size(), 1 );
+  auto &f = *( features[ 0 ].first );
+  QCOMPARE( f.attributes().size(), 9 );
+  QCOMPARE( f.attribute( QStringLiteral( "fid" ) ).toString(), QStringLiteral( "mytypename.1" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "my_attr" ) ).toString(), QStringLiteral( "my_value" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "strfield" ) ).toString(), QStringLiteral( "foo" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "nested_strfield2" ) ).toString(), QStringLiteral( "bar" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "nested_strfield2_attr" ) ).toString(), QStringLiteral( "attr_val" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "nested_strfield3" ) ).toString(), QStringLiteral( "baz" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "complex" ) ).toString(), QStringLiteral( "{\"@foo\":\"bar\",\"myns:l1\":{\"c\":{\"k1\":1234567890123,\"k2\":12,\"k3\":\"01\",\"k4\":1.25,\"k5\":\"12345678901234567890123456789\"},\"myns:a\":\"x\",\"myns:b\":{\"@k\":\"v\",\"_text\":\"y\"},\"myns:d\":[{\"_text\":\"a\",\"i\":\"b\"},{\"_text\":\"b\",\"i\":\"a\"},{\"_text\":[\"a\",\"c\"],\"i\":\"b\"},\"x\"]}}" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "complex2" ) ).toString(), QStringLiteral( "{}" ) );
+  QCOMPARE( f.attribute( QStringLiteral( "complex_repeated" ) ).toString(), QStringLiteral( "[\"foo\",\"bar\"]" ) );
 }
 
 QGSTEST_MAIN( TestQgsGML )

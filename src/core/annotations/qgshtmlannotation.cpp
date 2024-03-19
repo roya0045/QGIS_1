@@ -26,6 +26,7 @@
 #include "qgswebpage.h"
 #include "qgswebframe.h"
 #include "qgsexpressioncontextutils.h"
+#include "qgsrendercontext.h"
 
 #include <QDomElement>
 #include <QDir>
@@ -44,6 +45,11 @@ QgsHtmlAnnotation::QgsHtmlAnnotation( QObject *parent )
   mWebPage->mainFrame()->setScrollBarPolicy( Qt::Horizontal, Qt::ScrollBarAlwaysOff );
   mWebPage->mainFrame()->setScrollBarPolicy( Qt::Vertical, Qt::ScrollBarAlwaysOff );
   mWebPage->setNetworkAccessManager( QgsNetworkAccessManager::instance() );
+
+  // Make QWebPage transparent so that the background color of the annotation frame is used
+  QPalette palette = mWebPage->palette();
+  palette.setBrush( QPalette::Base, Qt::transparent );
+  mWebPage->setPalette( palette );
 
   connect( mWebPage->mainFrame(), &QWebFrame::javaScriptWindowObjectCleared, this, &QgsHtmlAnnotation::javascript );
 }
@@ -88,7 +94,7 @@ void QgsHtmlAnnotation::setHtmlSource( const QString &htmlSource )
 
 void QgsHtmlAnnotation::renderAnnotation( QgsRenderContext &context, QSizeF size ) const
 {
-  if ( !context.painter() )
+  if ( !context.painter() || ( context.feedback() && context.feedback()->isCanceled() ) )
   {
     return;
   }
@@ -185,6 +191,3 @@ void QgsHtmlAnnotation::javascript()
   QWebFrame *frame = mWebPage->mainFrame();
   frame->addToJavaScriptWindowObject( QStringLiteral( "layer" ), mapLayer() );
 }
-
-
-

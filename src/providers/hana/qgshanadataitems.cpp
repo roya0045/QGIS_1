@@ -55,13 +55,18 @@ QVector<QgsDataItem *> QgsHanaConnectionItem::createChildren()
     return items;
   }
 
-  updateToolTip( conn->getUserName(), conn->getDatabaseVersion() );
+  QgsHanaSettings settings( mName, true );
 
   try
   {
-    QgsHanaSettings settings( mName, true );
+    QString userName = conn->getUserName();
+    if ( userName.isEmpty() )
+      userName = settings.userName();
+
+    updateToolTip( userName, conn->getDatabaseVersion() );
+
     const QVector<QgsHanaSchemaProperty> schemas =
-      conn->getSchemas( settings.userTablesOnly() ? settings.userName() : QString() );
+      conn->getSchemas( settings.userTablesOnly() ? userName : QString() );
 
     if ( schemas.isEmpty() )
     {
@@ -109,16 +114,19 @@ void QgsHanaConnectionItem::updateToolTip( const QString &userName, const QStrin
 {
   QgsHanaSettings settings( mName, true );
   QString tip;
-  if ( !settings.database().isEmpty() )
-    tip = tr( "Database: " ) + settings.database();
-  if ( !tip.isEmpty() )
+  if ( settings.connectionType() == QgsHanaConnectionType::HostPort )
+  {
+    if ( !settings.database().isEmpty() )
+      tip = tr( "Database: " ) + settings.database();
+    if ( !tip.isEmpty() )
+      tip += '\n';
+    tip += tr( "Host: " ) + settings.host() + QStringLiteral( " " );
+    if ( QgsHanaIdentifierType::fromInt( settings.identifierType() ) == QgsHanaIdentifierType::InstanceNumber )
+      tip += settings.identifier();
+    else
+      tip += settings.port();
     tip += '\n';
-  tip += tr( "Host: " ) + settings.host() + QStringLiteral( " " );
-  if ( QgsHanaIdentifierType::fromInt( settings.identifierType() ) == QgsHanaIdentifierType::INSTANCE_NUMBER )
-    tip += settings.identifier();
-  else
-    tip += settings.port();
-  tip += '\n';
+  }
   if ( !dbmsVersion.isEmpty() )
     tip += tr( "DB Version: " ) + dbmsVersion + '\n';
   tip += tr( "User: " ) + userName + '\n';
@@ -167,7 +175,7 @@ bool QgsHanaConnectionItem::handleDrop( const QMimeData *data, const QString &to
         if ( geomColumn.isEmpty() )
         {
           bool fieldsInUpperCase = QgsHanaUtils::countFieldsWithFirstLetterInUppercase( srcLayer->fields() ) > srcLayer->fields().size() / 2;
-          geomColumn = ( srcLayer->geometryType() != QgsWkbTypes::NullGeometry ) ? ( fieldsInUpperCase ? QStringLiteral( "GEOM" ) : QStringLiteral( "geom" ) ) : nullptr;
+          geomColumn = ( srcLayer->geometryType() != Qgis::GeometryType::Null ) ? ( fieldsInUpperCase ? QStringLiteral( "GEOM" ) : QStringLiteral( "geom" ) ) : nullptr;
         }
 
         uri.setDataSource( toSchema, u.name, geomColumn, QString(), dsUri.keyColumn() );
@@ -256,7 +264,7 @@ QString QgsHanaLayerItem::createUri() const
 
   if ( !connItem )
   {
-    QgsDebugMsg( "Connection item not found." );
+    QgsDebugError( "Connection item not found." );
     return QString();
   }
 
@@ -282,7 +290,7 @@ QString QgsHanaLayerItem::createUri() const
   uri.setDataSource( mLayerProperty.schemaName, mLayerProperty.tableName,
                      mLayerProperty.geometryColName, mLayerProperty.sql, pkColumns.join( ',' ) );
   uri.setWkbType( mLayerProperty.type );
-  if ( uri.wkbType() != QgsWkbTypes::NoGeometry )
+  if ( uri.wkbType() != Qgis::WkbType::NoGeometry )
     uri.setSrid( QString::number( mLayerProperty.srid ) );
   QgsDebugMsgLevel( QStringLiteral( "layer uri: %1" ).arg( uri.uri( false ) ), 4 );
   return uri.uri( false );
@@ -366,16 +374,16 @@ QgsHanaLayerItem *QgsHanaSchemaItem::createLayer( const QgsHanaLayerProperty &la
     if ( !layerProperty.tableComment.isEmpty() )
       tip = layerProperty.tableComment + '\n' + tip;
 
-    QgsWkbTypes::GeometryType geomType = QgsWkbTypes::geometryType( layerProperty.type );
+    Qgis::GeometryType geomType = QgsWkbTypes::geometryType( layerProperty.type );
     switch ( geomType )
     {
-      case QgsWkbTypes::PointGeometry:
+      case Qgis::GeometryType::Point:
         layerType = Qgis::BrowserLayerType::Point;
         break;
-      case QgsWkbTypes::LineGeometry:
+      case Qgis::GeometryType::Line:
         layerType = Qgis::BrowserLayerType::Line;
         break;
-      case QgsWkbTypes::PolygonGeometry:
+      case Qgis::GeometryType::Polygon:
         layerType = Qgis::BrowserLayerType::Polygon;
         break;
       default:

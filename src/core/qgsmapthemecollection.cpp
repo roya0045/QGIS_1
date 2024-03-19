@@ -18,12 +18,10 @@
 #include "qgslayertree.h"
 #include "qgslayertreemodel.h"
 #include "qgslayertreemodellegendnode.h"
-#include "qgsmaplayerlistutils.h"
 #include "qgsmaplayerstylemanager.h"
 #include "qgsproject.h"
 #include "qgsrenderer.h"
 #include "qgsvectorlayer.h"
-#include "qgssymbol.h"
 
 QgsMapThemeCollection::QgsMapThemeCollection( QgsProject *project )
   : mProject( project )
@@ -38,7 +36,8 @@ QgsMapThemeCollection::MapThemeLayerRecord QgsMapThemeCollection::createThemeLay
   layerRec.usingCurrentStyle = true;
   layerRec.currentStyle = nodeLayer->layer()->styleManager()->currentStyle();
   layerRec.expandedLayerNode = nodeLayer->isExpanded();
-  layerRec.expandedLegendItems = qgis::listToSet( nodeLayer->customProperty( QStringLiteral( "expandedLegendNodes" ) ).toStringList() );
+  const QStringList expandedLegendNodes = nodeLayer->customProperty( QStringLiteral( "expandedLegendNodes" ) ).toStringList();
+  layerRec.expandedLegendItems = QSet<QString>( expandedLegendNodes.begin(), expandedLegendNodes.end() );
 
   // get checked legend items
   bool hasCheckableItems = false;
@@ -52,7 +51,7 @@ QgsMapThemeCollection::MapThemeLayerRecord QgsMapThemeCollection::createThemeLay
       hasCheckableItems = true;
 
       if ( legendNode->data( Qt::CheckStateRole ).toInt() == Qt::Checked )
-        checkedItems << legendNode->data( QgsLayerTreeModelLegendNode::RuleKeyRole ).toString();
+        checkedItems << legendNode->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) ).toString();
       else
         someItemsUnchecked = true;
     }
@@ -152,7 +151,7 @@ void QgsMapThemeCollection::applyThemeToLayer( QgsLayerTreeLayer *nodeLayer, Qgs
     const QList<QgsLayerTreeModelLegendNode *> constLayerLegendNodes = model->layerLegendNodes( nodeLayer, true );
     for ( QgsLayerTreeModelLegendNode *legendNode : constLayerLegendNodes )
     {
-      QString ruleKey = legendNode->data( QgsLayerTreeModelLegendNode::RuleKeyRole ).toString();
+      QString ruleKey = legendNode->data( static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) ).toString();
       Qt::CheckState shouldHaveState = layerRec.checkedLegendItems.contains( ruleKey ) ? Qt::Checked : Qt::Unchecked;
       if ( ( legendNode->flags() & Qt::ItemIsUserCheckable ) &&
            legendNode->data( Qt::CheckStateRole ).toInt() != shouldHaveState )
@@ -175,7 +174,7 @@ void QgsMapThemeCollection::applyThemeToLayer( QgsLayerTreeLayer *nodeLayer, Qgs
   if ( rec.hasExpandedStateInfo() )
   {
     nodeLayer->setExpanded( layerRec.expandedLayerNode );
-    nodeLayer->setCustomProperty( QStringLiteral( "expandedLegendNodes" ), QStringList( qgis::setToList( layerRec.expandedLegendItems ) ) );
+    nodeLayer->setCustomProperty( QStringLiteral( "expandedLegendNodes" ), QStringList( layerRec.expandedLegendItems.constBegin(), layerRec.expandedLegendItems.constEnd() ) );
   }
 }
 

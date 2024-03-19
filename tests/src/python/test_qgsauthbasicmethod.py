@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for Basic Auth
 
@@ -10,14 +9,18 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 """
 
+import base64
 import os
 import tempfile
-import base64
 
-from qgis.core import QgsApplication, QgsAuthManager, QgsAuthMethodConfig, QgsNetworkAccessManager
 from qgis.PyQt.QtCore import QFileInfo, QUrl
-from qgis.testing import start_app, unittest
 from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.core import (
+    QgsApplication,
+    QgsAuthMethodConfig,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 AUTHDBDIR = tempfile.mkdtemp()
 os.environ['QGIS_AUTH_DB_DIR_PATH'] = AUTHDBDIR
@@ -30,7 +33,7 @@ __copyright__ = 'Copyright 2020, The QGIS Project'
 qgis_app = start_app()
 
 
-class TestAuthManager(unittest.TestCase):
+class TestAuthManager(QgisTestCase):
 
     @classmethod
     def setUpAuth(cls, username, password):
@@ -48,6 +51,7 @@ class TestAuthManager(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         cls.authm = QgsApplication.authManager()
         assert not cls.authm.isDisabled(), cls.authm.disabledMessage()
 
@@ -58,11 +62,6 @@ class TestAuthManager(unittest.TestCase):
         db2 = QFileInfo(AUTHDBDIR + '/qgis-auth.db').canonicalFilePath()
         msg = 'Auth db temp path does not match db path of manager'
         assert db1 == db2, msg
-
-    @classmethod
-    def tearDownClass(cls):
-        """Run after all tests"""
-        pass
 
     def setUp(self):
         """Run before each test."""
@@ -80,7 +79,7 @@ class TestAuthManager(unittest.TestCase):
         self.authm.updateNetworkRequest(req, ac.id())
         auth = bytes(req.rawHeader(b'Authorization'))[6:]
         # Note that RFC7617 states clearly: User-ids containing colons cannot be encoded in user-pass strings
-        u, p = base64.decodestring(auth).split(b':')
+        u, p = base64.b64decode(auth).split(b':')
         return u.decode('utf8'), p.decode('utf8')
 
     def testHeaderEncoding(self):

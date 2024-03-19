@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsTextDocument.
 
 Run with: ctest -V -R QgsTextDocument
@@ -12,21 +11,23 @@ __author__ = 'Nyall Dawson'
 __date__ = '12/05/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
+from qgis.PyQt.QtCore import QT_VERSION_STR
 from qgis.core import (
-    QgsTextDocument,
+    Qgis,
+    QgsFontUtils,
+    QgsStringUtils,
     QgsTextBlock,
-    QgsTextFragment,
     QgsTextCharacterFormat,
-    QgsStringUtils
+    QgsTextDocument,
+    QgsTextFragment,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsTextDocument(unittest.TestCase):
+class TestQgsTextDocument(QgisTestCase):
 
     def testConstructors(self):
         # empty
@@ -57,25 +58,78 @@ class TestQgsTextDocument(unittest.TestCase):
         self.assertEqual(doc[2][0].text(), 'e')
 
     def testFromHtml(self):
-        doc = QgsTextDocument.fromHtml(['abc<div style="color: red"><b style="text-decoration: underline">def</b> ghi<div>jkl</div></div>', 'b c d', 'e'])
+        doc = QgsTextDocument.fromHtml(['abc<div style="color: red"><b style="text-decoration: underline; font-style: italic; font-size: 15pt; font-family: Serif">def</b> ghi<div>jkl</div></div>', 'b c d', 'e'])
         self.assertEqual(len(doc), 5)
         self.assertEqual(len(doc[0]), 1)
         self.assertEqual(doc[0][0].text(), 'abc')
         self.assertEqual(doc[0][0].characterFormat().underline(), QgsTextCharacterFormat.BooleanValue.NotSet)
+        self.assertEqual(doc[0][0].characterFormat().italic(), QgsTextCharacterFormat.BooleanValue.NotSet)
+        self.assertEqual(doc[0][0].characterFormat().fontWeight(), -1)
+        self.assertFalse(doc[0][0].characterFormat().family())
+        self.assertEqual(doc[0][0].characterFormat().fontPointSize(), -1)
         self.assertFalse(doc[0][0].characterFormat().textColor().isValid())
+        self.assertFalse(doc[0][0].characterFormat().hasVerticalAlignmentSet())
         self.assertEqual(len(doc[1]), 2)
         self.assertEqual(doc[1][0].text(), 'def')
         self.assertEqual(doc[1][0].characterFormat().underline(), QgsTextCharacterFormat.BooleanValue.SetTrue)
+        self.assertEqual(doc[1][0].characterFormat().italic(), QgsTextCharacterFormat.BooleanValue.SetTrue)
+        if int(QT_VERSION_STR.split('.')[0]) >= 6:
+            self.assertEqual(doc[1][0].characterFormat().fontWeight(), 700)
+        else:
+            self.assertEqual(doc[1][0].characterFormat().fontWeight(), 75)
+        self.assertEqual(doc[1][0].characterFormat().family(), 'Serif')
         self.assertEqual(doc[1][0].characterFormat().textColor().name(), '#ff0000')
+        self.assertEqual(doc[1][0].characterFormat().fontPointSize(), 15)
+        self.assertFalse(doc[1][0].characterFormat().hasVerticalAlignmentSet())
         self.assertEqual(doc[1][1].text(), ' ghi')
         self.assertEqual(doc[1][1].characterFormat().underline(), QgsTextCharacterFormat.BooleanValue.NotSet)
+        self.assertEqual(doc[1][1].characterFormat().italic(), QgsTextCharacterFormat.BooleanValue.NotSet)
+        self.assertEqual(doc[1][1].characterFormat().fontWeight(), -1)
+        self.assertFalse(doc[1][1].characterFormat().family())
         self.assertEqual(doc[1][1].characterFormat().textColor().name(), '#ff0000')
+        self.assertEqual(doc[1][1].characterFormat().fontPointSize(), -1)
+        self.assertFalse(doc[1][1].characterFormat().hasVerticalAlignmentSet())
         self.assertEqual(len(doc[2]), 1)
         self.assertEqual(doc[2][0].text(), 'jkl')
         self.assertEqual(len(doc[3]), 1)
         self.assertEqual(doc[3][0].text(), 'b c d')
         self.assertEqual(len(doc[4]), 1)
         self.assertEqual(doc[4][0].text(), 'e')
+
+        doc = QgsTextDocument.fromHtml(['<span style="color:red">a<br><span style="color:blue">b<br></span>c</span>d'])
+        self.assertEqual(len(doc), 3)
+        self.assertEqual(doc[0][0].characterFormat().textColor().name(), '#ff0000')
+        self.assertEqual(doc[0][0].text(), 'a')
+        self.assertEqual(doc[1][0].characterFormat().textColor().name(), '#0000ff')
+        self.assertEqual(doc[1][0].text(), 'b')
+        self.assertEqual(len(doc[2]), 2)
+        self.assertEqual(doc[2][0].characterFormat().textColor().name(), '#ff0000')
+        self.assertEqual(doc[2][0].text(), 'c')
+        self.assertEqual(doc[2][1].characterFormat().textColor().name(), '#000000')
+        self.assertEqual(doc[2][1].text(), 'd')
+
+    def testFromHtmlVerticalAlignment(self):
+        doc = QgsTextDocument.fromHtml(['abc<div style="color: red"><sub>def<b>extra</b></sub> ghi</div><sup>sup</sup><span style="vertical-align: sub">css</span>'])
+        self.assertEqual(len(doc), 3)
+        self.assertEqual(len(doc[0]), 1)
+        self.assertEqual(doc[0][0].text(), 'abc')
+        self.assertFalse(doc[0][0].characterFormat().hasVerticalAlignmentSet())
+        self.assertEqual(len(doc[1]), 3)
+        self.assertEqual(doc[1][0].text(), 'def')
+        self.assertTrue(doc[1][0].characterFormat().hasVerticalAlignmentSet())
+        self.assertEqual(doc[1][0].characterFormat().verticalAlignment(), Qgis.TextCharacterVerticalAlignment.SubScript)
+        self.assertEqual(doc[1][1].text(), 'extra')
+        self.assertTrue(doc[1][1].characterFormat().hasVerticalAlignmentSet())
+        self.assertEqual(doc[1][1].characterFormat().verticalAlignment(), Qgis.TextCharacterVerticalAlignment.SubScript)
+        self.assertEqual(doc[1][2].text(), ' ghi')
+        self.assertFalse(doc[1][2].characterFormat().hasVerticalAlignmentSet())
+        self.assertEqual(len(doc[2]), 2)
+        self.assertEqual(doc[2][0].text(), 'sup')
+        self.assertTrue(doc[2][0].characterFormat().hasVerticalAlignmentSet())
+        self.assertEqual(doc[2][0].characterFormat().verticalAlignment(), Qgis.TextCharacterVerticalAlignment.SuperScript)
+        self.assertEqual(doc[2][1].text(), 'css')
+        self.assertTrue(doc[2][1].characterFormat().hasVerticalAlignmentSet())
+        self.assertEqual(doc[2][1].characterFormat().verticalAlignment(), Qgis.TextCharacterVerticalAlignment.SubScript)
 
     def testAppend(self):
         doc = QgsTextDocument()
@@ -163,7 +217,7 @@ class TestQgsTextDocument(unittest.TestCase):
 
     def testCapitalize(self):
         doc = QgsTextDocument.fromPlainText(['abc def ghi', 'more text', 'another block'])
-        doc.applyCapitalization(QgsStringUtils.TitleCase)
+        doc.applyCapitalization(QgsStringUtils.Capitalization.TitleCase)
         self.assertEqual(doc.toPlainText(), ['Abc Def Ghi', 'More Text', 'Another Block'])
 
 

@@ -16,9 +16,6 @@
 #ifndef QGSFIELDCALCULATOR_H
 #define QGSFIELDCALCULATOR_H
 
-// We don't want to expose this in the public API
-#define SIP_NO_FILE
-
 #include "ui_qgsfieldcalculatorbase.h"
 #include "qgshelp.h"
 #include "qgsfields.h"
@@ -26,25 +23,45 @@
 
 class QgsVectorLayer;
 
-//! A dialog class that provides calculation of new fields using existing fields, values and a set of operators
+/**
+ * \ingroup gui
+ * \class QgsFieldCalculator
+ *
+ * \brief A dialog class that provides calculation of new fields using existing fields, values and a set of operators
+ *
+ * Sample usage of the QgsFieldCalculator class:
+ *
+ * \code{.py}
+ *     uri = "point?crs=epsg:4326&field=id:integer"
+ *     layer = QgsVectorLayer(uri, "Scratch point layer",  "memory")
+ *     layer.startEditing()
+ *     dialog = QgsFieldCalculator(layer)
+ *     dialog.exec()
+ * \endcode
+ */
 class GUI_EXPORT QgsFieldCalculator: public QDialog, private Ui::QgsFieldCalculatorBase
 {
     Q_OBJECT
   public:
     QgsFieldCalculator( QgsVectorLayer *vl, QWidget *parent = nullptr );
 
+    /**
+     * \brief Returns the field index of the field for which new attribute values were calculated.
+     *
+     * \returns The field index if attribute values were calculated or -1, e.g. in case of geometry changes.
+     */
     int changedAttributeId() const { return mAttributeId; }
 
   public slots:
     void accept() override;
 
+  private slots:
     void mNewFieldGroupBox_toggled( bool on );
     void mUpdateExistingGroupBox_toggled( bool on );
     void mCreateVirtualFieldCheckbox_stateChanged( int state );
     void mOutputFieldNameLineEdit_textChanged( const QString &text );
     void mOutputFieldTypeComboBox_activated( int index );
 
-  private slots:
     //! Sets the OK button enabled / disabled
     void setOkButtonState();
     void setPrecisionMinMax();

@@ -57,8 +57,8 @@ QgsNewMeshLayerDialog::QgsNewMeshLayerDialog( QWidget *parent, Qt::WindowFlags f
   const QStringList filters = mDriverFileFilters.values();
   mFormatComboBox->setCurrentIndex( -1 );
   mFileWidget->setStorageMode( QgsFileWidget::SaveFile );
-  mFileWidget->setFilter( filters.join( QStringLiteral( ";;" ) ) );
-  mMeshProjectComboBox->setFilters( QgsMapLayerProxyModel::MeshLayer );
+  mFileWidget->setFilter( filters.join( QLatin1String( ";;" ) ) );
+  mMeshProjectComboBox->setFilters( Qgis::LayerFilter::MeshLayer );
 
   connect( mFormatComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ),
            this, &QgsNewMeshLayerDialog::onFormatChanged );
@@ -81,10 +81,11 @@ void QgsNewMeshLayerDialog::setCrs( const QgsCoordinateReferenceSystem &crs )
   mProjectionSelectionWidget->setCrs( crs );
 }
 
-void QgsNewMeshLayerDialog::setSourceMeshLayer( QgsMeshLayer *meshLayer )
+void QgsNewMeshLayerDialog::setSourceMeshLayer( QgsMeshLayer *meshLayer, bool fromExistingAsDefault )
 {
   mMeshProjectComboBox->setLayer( meshLayer );
   mMeshProjectRadioButton->setChecked( true );
+  mInitializeMeshGroupBox->setChecked( fromExistingAsDefault );
 }
 
 void QgsNewMeshLayerDialog::accept()
@@ -196,19 +197,22 @@ void QgsNewMeshLayerDialog::updateSourceMeshInformation()
 
   mInformationTextBrowser->clear();
   mInformationTextBrowser->document()->setDefaultStyleSheet( myStyle );
-  if ( mMeshProjectRadioButton->isChecked() )
+  if ( mInitializeMeshGroupBox->isChecked() )
   {
-    if ( mMeshProjectComboBox->currentLayer() )
-      mInformationTextBrowser->setHtml( mMeshProjectComboBox->currentLayer()->htmlMetadata() );
-  }
+    if ( mMeshProjectRadioButton->isChecked() )
+    {
+      if ( mMeshProjectComboBox->currentLayer() )
+        mInformationTextBrowser->setHtml( mMeshProjectComboBox->currentLayer()->htmlMetadata() );
+    }
 
-  if ( mMeshFileRadioButton->isChecked() )
-  {
-    if ( mSourceMeshFromFile )
-      mInformationTextBrowser->setHtml( mSourceMeshFromFile->htmlMetadata() );
-  }
+    if ( mMeshFileRadioButton->isChecked() )
+    {
+      if ( mSourceMeshFromFile )
+        mInformationTextBrowser->setHtml( mSourceMeshFromFile->htmlMetadata() );
+    }
 
-  mInformationTextBrowser->setOpenLinks( false );
+    mInformationTextBrowser->setOpenLinks( false );
+  }
 };
 
 bool QgsNewMeshLayerDialog::apply()
@@ -252,7 +256,7 @@ bool QgsNewMeshLayerDialog::apply()
       {
         layerName = fileName;
         QFileInfo fileInfo( fileName );
-        layerName = fileInfo.baseName();
+        layerName = fileInfo.completeBaseName();
       }
       std::unique_ptr<QgsMeshLayer> newMeshLayer = std::make_unique<QgsMeshLayer>( fileName, layerName, QStringLiteral( "mdal" ) );
 
@@ -260,12 +264,20 @@ bool QgsNewMeshLayerDialog::apply()
         newMeshLayer->setCrs( crs );
 
       if ( newMeshLayer->isValid() )
+      {
+        mNewLayer = newMeshLayer.get();
         QgsProject::instance()->addMapLayer( newMeshLayer.release(), true, true );
-      return true;
+        return true;
+      }
     }
   }
 
   QMessageBox::warning( this, windowTitle(), tr( "Unable to create a new mesh layer with format \"%1\"" ).arg( mFormatComboBox->currentText() ) );
   return false;
+}
+
+QgsMeshLayer *QgsNewMeshLayerDialog::newLayer() const
+{
+  return mNewLayer;
 }
 

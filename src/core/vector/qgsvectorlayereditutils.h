@@ -66,7 +66,6 @@ class CORE_EXPORT QgsVectorLayerEditUtils
      * Deletes a vertex from a feature.
      * \param featureId ID of feature to remove vertex from
      * \param vertex index of vertex to delete
-     * \since QGIS 2.14
      */
     Qgis::VectorEditResult deleteVertex( QgsFeatureId featureId, int vertex );
 
@@ -90,6 +89,17 @@ class CORE_EXPORT QgsVectorLayerEditUtils
      * \return OperationResult result code: success or reason of failure
      */
     Qgis::GeometryOperationResult addRing( const QgsPointSequence &ring, const QgsFeatureIds &targetFeatureIds = QgsFeatureIds(), QgsFeatureId *modifiedFeatureId = nullptr );
+
+    /**
+     * Adds a ring to polygon/multipolygon features
+     * \param ring ring to add (ownership is transferred)
+     * \param targetFeatureIds if specified, only these features will be the candidates for adding a ring. Otherwise
+     * all intersecting features are tested and the ring is added to all valid features.
+     * \param modifiedFeatureIds if specified, feature IDS for features that ring was added to will be stored in this parameter
+     * \return OperationResult result code: success or reason of failure
+     * \since QGIS 3.28
+     */
+    Qgis::GeometryOperationResult addRingV2( QgsCurve *ring SIP_TRANSFER, const QgsFeatureIds &targetFeatureIds = QgsFeatureIds(), QgsFeatureIds *modifiedFeatureIds SIP_OUT = nullptr );
 
     /**
      * Adds a ring to polygon/multipolygon features
@@ -256,6 +266,20 @@ class CORE_EXPORT QgsVectorLayerEditUtils
      * \since QGIS 3.16
      */
     int addTopologicalPoints( const QgsPointSequence &ps );
+
+    /**
+     * Merge features into a single one.
+     * \param targetFeatureId id of the target feature (will be updated)
+     * \param mergeFeatureIds id list of features to merge (will be deleted)
+     * \param mergeAttributes are the resulting attributes in the merged feature
+     * \param unionGeometry is the resulting geometry of the merged feature
+     * \param errorMessage will be set to a descriptive error message if any occurs
+     *
+     * \returns TRUE if the merge was successful, or FALSE if the operation failed.
+     *
+     * \since QGIS 3.30
+     */
+    bool mergeFeatures( const QgsFeatureId &targetFeatureId, const QgsFeatureIds &mergeFeatureIds, const QgsAttributes &mergeAttributes, const QgsGeometry &unionGeometry, QString &errorMessage SIP_OUT );
 
   private:
 

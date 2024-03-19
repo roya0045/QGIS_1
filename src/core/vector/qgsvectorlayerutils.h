@@ -25,12 +25,27 @@ class QgsFeatureRenderer;
 class QgsSymbolLayer;
 class QgsSymbolLayerId;
 
+
+#ifndef SIP_RUN
+
+struct QgsMaskedLayer
+{
+  bool hasEffects = false;
+
+  // masked symbol layers
+  QSet<QString> symbolLayerIds;
+};
+
+//! masked layers where key is the layer id
+typedef QHash<QString, QgsMaskedLayer> QgsMaskedLayers;
+
+#endif
+
 /**
  * \ingroup core
  * \class QgsVectorLayerUtils
  * \brief Contains utility methods for working with QgsVectorLayers.
  *
- * \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsVectorLayerUtils
@@ -42,7 +57,6 @@ class CORE_EXPORT QgsVectorLayerUtils
      * \class QgsDuplicateFeatureContext
      * \brief Contains mainly the QMap with QgsVectorLayer and QgsFeatureIds do list all the duplicated features
      *
-     * \since QGIS 3.0
      */
     class CORE_EXPORT QgsDuplicateFeatureContext
     {
@@ -53,13 +67,11 @@ class CORE_EXPORT QgsVectorLayerUtils
 
         /**
          * Returns all the layers on which features have been duplicated
-         * \since QGIS 3.0
          */
         QList<QgsVectorLayer *> layers() const;
 
         /**
          * Returns the duplicated features in the given layer
-         * \since QGIS 3.0
          */
         QgsFeatureIds duplicatedFeatures( QgsVectorLayer *layer ) const;
 
@@ -70,7 +82,6 @@ class CORE_EXPORT QgsVectorLayerUtils
 
         /**
          * To set info about duplicated features to the function feedback (layout and ids)
-         * \since QGIS 3.0
          */
         void setDuplicatedFeatures( QgsVectorLayer *layer, const QgsFeatureIds &ids );
     };
@@ -113,7 +124,6 @@ class CORE_EXPORT QgsVectorLayerUtils
      * \param ok will be set to FALSE if field or expression is invalid, otherwise TRUE
      * \param selectedOnly set to TRUE to get values from selected features only
      * \returns feature iterator
-     * \since QGIS 3.0
      */
     static QgsFeatureIterator getValuesIterator( const QgsVectorLayer *layer, const QString &fieldOrExpression, bool &ok, bool selectedOnly );
 
@@ -126,7 +136,6 @@ class CORE_EXPORT QgsVectorLayerUtils
      * \param feedback optional feedback object to allow cancellation
      * \returns list of fetched values
      * \see getDoubleValues
-     * \since QGIS 3.0
      */
     static QList< QVariant > getValues( const QgsVectorLayer *layer, const QString &fieldOrExpression, bool &ok, bool selectedOnly = false, QgsFeedback *feedback = nullptr );
 
@@ -141,7 +150,6 @@ class CORE_EXPORT QgsVectorLayerUtils
      * \param feedback optional feedback object to allow cancellation
      * \returns list of fetched values
      * \see getValues
-     * \since QGIS 3.0
      */
     static QList< double > getDoubleValues( const QgsVectorLayer *layer, const QString &fieldOrExpression, bool &ok, bool selectedOnly = false, int *nullCount = nullptr, QgsFeedback *feedback = nullptr );
 
@@ -169,7 +177,15 @@ class CORE_EXPORT QgsVectorLayerUtils
     static QVariant createUniqueValueFromCache( const QgsVectorLayer *layer, int fieldIndex, const QSet<QVariant> &existingValues, const QVariant &seed = QVariant() );
 
     /**
-     * Tests an attribute value to check whether it passes all constraints which are present on the corresponding field.
+     * Returns TRUE if a feature attribute has active constraints.
+     * \param layer the vector layer from which field constraints will be checked for
+     * \param attributeIndex the attribute index
+     * \since QGIS 3.30
+     */
+    static bool attributeHasConstraints( const QgsVectorLayer *layer, int attributeIndex );
+
+    /**
+     * Tests a feature attribute value to check whether it passes all constraints which are present on the corresponding field.
      * Returns TRUE if the attribute value is valid for the field. Any constraint failures will be reported in the errors argument.
      * If the strength or origin parameter is set then only constraints with a matching strength/origin will be checked.
      */
@@ -209,7 +225,6 @@ class CORE_EXPORT QgsVectorLayerUtils
      * \a maxDepth the maximum depth to duplicate children in relations, 0 is unlimited depth (in any case, limited to 100)
      * \a depth the current depth, not exposed in Python
      * \a referencedLayersBranch the current branch of layers across the relations, not exposed in Python, taken by copy not reference, used to avoid infinite loop
-     * \since QGIS 3.0
      */
     static QgsFeature duplicateFeature( QgsVectorLayer *layer, const QgsFeature &feature, QgsProject *project, QgsDuplicateFeatureContext &duplicateFeatureContext SIP_OUT, const int maxDepth = 0, int depth SIP_PYARGREMOVE = 0, QList<QgsVectorLayer *> referencedLayersBranch SIP_PYARGREMOVE = QList<QgsVectorLayer *>() );
 
@@ -336,7 +351,7 @@ class CORE_EXPORT QgsVectorLayerUtils
       * \note Not available in Python bindings
       * \since QGIS 3.12
       */
-    static QHash<QString, QHash<QString, QSet<QgsSymbolLayerId>>> labelMasks( const QgsVectorLayer * ) SIP_SKIP;
+    static QHash<QString, QgsMaskedLayers> labelMasks( const QgsVectorLayer * ) SIP_SKIP;
 
     /**
      * Returns all masks that may be defined on symbol layers for a given vector layer.
@@ -345,7 +360,7 @@ class CORE_EXPORT QgsVectorLayerUtils
      * \note Not available in Python bindings
      * \since QGIS 3.12
      */
-    static QHash<QString, QSet<QgsSymbolLayerId>> symbolLayerMasks( const QgsVectorLayer * ) SIP_SKIP;
+    static QgsMaskedLayers symbolLayerMasks( const QgsVectorLayer * ) SIP_SKIP;
 
     /**
      * \returns a descriptive string for a \a feature, suitable for displaying to the user.
@@ -359,7 +374,7 @@ class CORE_EXPORT QgsVectorLayerUtils
      *
      * \since QGIS 3.4
      */
-    enum CascadedFeatureFlag
+    enum CascadedFeatureFlag SIP_ENUM_BASETYPE( IntFlag )
     {
       IgnoreAuxiliaryLayers = 1 << 1, //!< Ignore auxiliary layers
     };
@@ -373,8 +388,10 @@ class CORE_EXPORT QgsVectorLayerUtils
      */
     static bool impactsCascadeFeatures( const QgsVectorLayer *layer, const QgsFeatureIds &fids, const QgsProject *project, QgsDuplicateFeatureContext &context SIP_OUT, QgsVectorLayerUtils::CascadedFeatureFlags flags = QgsVectorLayerUtils::CascadedFeatureFlags() );
 
+#ifndef SIP_RUN
+
     /**
-     * Given a set of \a fields, attempts to pick the "most useful" field
+     * Given a set of fields, attempts to pick the "most useful" field
      * for user-friendly identification of features.
      *
      * For instance, if a field called "name" is present, this will be returned.
@@ -382,9 +399,59 @@ class CORE_EXPORT QgsVectorLayerUtils
      * Assumes that the user has organized the data with the more "interesting" field
      * names first. As such, "name" would be selected before "oldname", "othername", etc.
      *
+     * If no friendly identifier is found, the function will fallback to the
+     * first available.
+     *
+     * An optional boolean parameter can be used to determine whether the returned
+     * field name is a friendly identifier or not.
+     *
+     * \param fields list of fields to pick a friendly identifier from
+     * \param foundFriendly set to TRUE if the returned field name is a friendly identifier (since QGIS 3.22)
+     * \returns field name
+     * \since QGIS 3.18
+     */
+#else
+
+    /**
+     * Given a set of fields, attempts to pick the "most useful" field
+     * for user-friendly identification of features.
+     *
+     * For instance, if a field called "name" is present, this will be returned.
+     *
+     * Assumes that the user has organized the data with the more "interesting" field
+     * names first. As such, "name" would be selected before "oldname", "othername", etc.
+     *
+     * If no friendly identifier is found, the function will fallback to the
+     * first available.
+     *
+     * \param fields list of fields to pick a friendly identifier from
+     * \param foundFriendly set to TRUE if the returned field name is a friendly identifier
+     * \returns field name
+     * \since QGIS 3.22
+     */
+#endif
+    static QString guessFriendlyIdentifierField( const QgsFields &fields, bool *foundFriendly SIP_OUT = nullptr ) SIP_PYNAME( guessFriendlyIdentifierFieldV2 );
+
+#ifdef SIP_RUN
+
+    /**
+     * Given a set of fields, attempts to pick the "most useful" field
+     * for user-friendly identification of features.
+     *
+     * For instance, if a field called "name" is present, this will be returned.
+     *
+     * Assumes that the user has organized the data with the more "interesting" field
+     * names first. As such, "name" would be selected before "oldname", "othername", etc.
+     *
+     * If no friendly identifier is found, the function will fallback to the
+     * first available.
+     *
+     * \param fields list of fields to pick a friendly identifier from
+     * \returns field name
      * \since QGIS 3.18
      */
     static QString guessFriendlyIdentifierField( const QgsFields &fields );
+#endif
 
 };
 

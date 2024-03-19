@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     test_qgsblockingprocess.py
@@ -24,13 +22,10 @@ __copyright__ = '(C) 2021, Nyall Dawson'
 import os
 import tempfile
 
-import qgis  # NOQA
 from qgis.PyQt.QtCore import QProcess
-from qgis.core import (
-    QgsBlockingProcess,
-    QgsFeedback
-)
-from qgis.testing import unittest, start_app
+from qgis.core import QgsBlockingProcess, QgsFeedback
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -39,7 +34,7 @@ TEST_DATA_DIR = unitTestDataPath()
 app = start_app()
 
 
-class TestQgsBlockingProcess(unittest.TestCase):
+class TestQgsBlockingProcess(QgisTestCase):
 
     def test_process_ok(self):
         def std_out(ba):
@@ -58,7 +53,7 @@ class TestQgsBlockingProcess(unittest.TestCase):
 
         f = QgsFeedback()
         self.assertEqual(p.run(f), 0)
-        self.assertEqual(p.exitStatus(), QProcess.NormalExit)
+        self.assertEqual(p.exitStatus(), QProcess.ExitStatus.NormalExit)
         self.assertIn('GDAL', std_out.val)
         self.assertEqual(std_err.val, '')
 
@@ -79,7 +74,7 @@ class TestQgsBlockingProcess(unittest.TestCase):
 
         f = QgsFeedback()
         self.assertEqual(p.run(f), 1)
-        self.assertEqual(p.exitStatus(), QProcess.NormalExit)
+        self.assertEqual(p.exitStatus(), QProcess.ExitStatus.NormalExit)
         self.assertIn('Usage', std_out.val)
         self.assertIn('FAILURE', std_err.val)
 
@@ -90,7 +85,7 @@ class TestQgsBlockingProcess(unittest.TestCase):
         temp_folder = tempfile.mkdtemp()
 
         script_file = os.path.join(temp_folder, 'crash_process.sh')
-        with open(script_file, 'wt') as f:
+        with open(script_file, 'w') as f:
             f.write('kill $$')
 
         os.chmod(script_file, 0o775)
@@ -111,7 +106,7 @@ class TestQgsBlockingProcess(unittest.TestCase):
 
         f = QgsFeedback()
         self.assertNotEqual(p.run(f), 0)
-        self.assertEqual(p.exitStatus(), QProcess.CrashExit)
+        self.assertEqual(p.exitStatus(), QProcess.ExitStatus.CrashExit)
 
     def test_process_no_file(self):
         """
@@ -135,8 +130,8 @@ class TestQgsBlockingProcess(unittest.TestCase):
 
         f = QgsFeedback()
         self.assertEqual(p.run(f), 1)
-        self.assertEqual(p.exitStatus(), QProcess.NormalExit)
-        self.assertEqual(p.processError(), QProcess.FailedToStart)
+        self.assertEqual(p.exitStatus(), QProcess.ExitStatus.NormalExit)
+        self.assertEqual(p.processError(), QProcess.ProcessError.FailedToStart)
 
     def test_process_env(self):
         """
@@ -145,7 +140,7 @@ class TestQgsBlockingProcess(unittest.TestCase):
         temp_folder = tempfile.mkdtemp()
 
         script_file = os.path.join(temp_folder, 'process_env.sh')
-        with open(script_file, 'wt') as f:
+        with open(script_file, 'w') as f:
             f.write('echo $my_var')
 
         os.chmod(script_file, 0o775)
@@ -167,7 +162,7 @@ class TestQgsBlockingProcess(unittest.TestCase):
 
         f = QgsFeedback()
         self.assertEqual(p.run(f), 0)
-        self.assertEqual(p.exitStatus(), QProcess.NormalExit)
+        self.assertEqual(p.exitStatus(), QProcess.ExitStatus.NormalExit)
         self.assertFalse(std_out.val.strip())
         self.assertFalse(std_err.val.strip())
 
@@ -181,18 +176,18 @@ class TestQgsBlockingProcess(unittest.TestCase):
 
         f = QgsFeedback()
         self.assertEqual(p.run(f), 0)
-        self.assertEqual(p.exitStatus(), QProcess.NormalExit)
+        self.assertEqual(p.exitStatus(), QProcess.ExitStatus.NormalExit)
         self.assertEqual(std_out.val.strip(), 'my test variable')
         self.assertFalse(std_err.val.strip())
 
         # test python changing path
 
         script_file = os.path.join(temp_folder, 'process_env_path.sh')
-        with open(script_file, 'wt') as f:
+        with open(script_file, 'w') as f:
             f.write('echo $PATH')
 
         prev_path_val = os.getenv('PATH')
-        new_path = "{}{}{}".format('/my_test/folder', os.pathsep, prev_path_val)
+        new_path = f"/my_test/folder{os.pathsep}{prev_path_val}"
         os.environ['PATH'] = new_path
 
         std_out.val = ''
@@ -203,7 +198,7 @@ class TestQgsBlockingProcess(unittest.TestCase):
 
         f = QgsFeedback()
         self.assertEqual(p.run(f), 0)
-        self.assertEqual(p.exitStatus(), QProcess.NormalExit)
+        self.assertEqual(p.exitStatus(), QProcess.ExitStatus.NormalExit)
         self.assertEqual(std_out.val.strip(), new_path)
         self.assertFalse(std_err.val.strip())
 

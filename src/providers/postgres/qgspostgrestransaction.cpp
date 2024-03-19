@@ -61,6 +61,7 @@ bool QgsPostgresTransaction::executeSql( const QString &sql, QString &errorMsg, 
 {
   if ( !mConn )
   {
+    errorMsg = tr( "Connection to the database not available" );
     return false;
   }
 
@@ -70,13 +71,13 @@ bool QgsPostgresTransaction::executeSql( const QString &sql, QString &errorMsg, 
     createSavepoint( err );
   }
 
-  QgsDebugMsg( QStringLiteral( "Transaction sql: %1" ).arg( sql ) );
-  QgsPostgresResult r( mConn->PQexec( sql, true ) );
+  QgsDebugMsgLevel( QStringLiteral( "Transaction sql: %1" ).arg( sql ), 2 );
+  QgsPostgresResult r( mConn->LoggedPQexec( "QgsPostgresTransaction", sql ) );
   if ( r.PQresultStatus() == PGRES_BAD_RESPONSE ||
        r.PQresultStatus() == PGRES_FATAL_ERROR )
   {
     errorMsg = QStringLiteral( "Status %1 (%2)" ).arg( r.PQresultStatus() ).arg( r.PQresultErrorMessage() );
-    QgsDebugMsg( errorMsg );
+    QgsDebugError( errorMsg );
 
     if ( isDirty )
     {
@@ -92,6 +93,6 @@ bool QgsPostgresTransaction::executeSql( const QString &sql, QString &errorMsg, 
     emit dirtied( sql, name );
   }
 
-  QgsDebugMsg( QStringLiteral( "Status %1 (OK)" ).arg( r.PQresultStatus() ) );
+  QgsDebugMsgLevel( QStringLiteral( "Status %1 (OK)" ).arg( r.PQresultStatus() ), 2 );
   return true;
 }

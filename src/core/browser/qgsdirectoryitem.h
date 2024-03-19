@@ -200,11 +200,12 @@ class CORE_EXPORT QgsDirectoryItem : public QgsDataCollectionItem
     void directoryChanged();
 
   protected:
-    void init();
 
     QString mDirPath;
 
   private:
+
+    void init( const QString &dirName );
 
     void createOrDestroyFileSystemWatcher();
 
@@ -214,6 +215,9 @@ class CORE_EXPORT QgsDirectoryItem : public QgsDataCollectionItem
     bool mRefreshLater = false;
     QDateTime mLastScan;
     QColor mIconColor;
+
+    bool mIsDir = false;
+    bool mIsSymLink = false;
 
     friend class TestQgsDataItem;
 };
@@ -249,7 +253,6 @@ class CORE_EXPORT QgsDirectoryParamWidget : public QTreeWidget
  * \ingroup core
  * \brief A directory item showing the current project directory.
  * \note Not available in Python bindings.
- * \since QGIS 3.0
 */
 class CORE_EXPORT QgsProjectHomeItem : public QgsDirectoryItem
 {

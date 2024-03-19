@@ -120,7 +120,6 @@ namespace QgsWfs
    * \ingroup server
    * \class QgsWfs::QgsWfsParameters
    * \brief Provides an interface to retrieve and manipulate WFS parameters received from the client.
-   * \since QGIS 3.0
    */
   class QgsWfsParameters : public QgsServerParameters
   {
@@ -134,8 +133,7 @@ namespace QgsWfs
         NONE,
         GML2,
         GML3,
-        GeoJSON,
-        XSD
+        GeoJSON
       };
 
       //! Type of results

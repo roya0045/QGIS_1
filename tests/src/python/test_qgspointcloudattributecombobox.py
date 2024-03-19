@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsPointCloudAttributeComboBox
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,20 +9,18 @@ __author__ = 'Nyall Dawson'
 __date__ = '09/11/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
+from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import (
-    QgsProviderRegistry,
-    QgsPointCloudLayer,
+    QgsPointCloudAttribute,
     QgsPointCloudAttributeCollection,
     QgsPointCloudAttributeProxyModel,
-    QgsPointCloudAttribute
+    QgsPointCloudLayer,
+    QgsProviderRegistry,
 )
 from qgis.gui import QgsPointCloudAttributeComboBox
-from qgis.PyQt.QtCore import QVariant, Qt
-from qgis.PyQt.QtTest import QSignalSpy
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
-from qgis.testing import start_app, unittest
 from utilities import unitTestDataPath
 
 start_app()
@@ -31,15 +28,15 @@ start_app()
 
 def create_attributes():
     collection = QgsPointCloudAttributeCollection()
-    collection.push_back(QgsPointCloudAttribute('x', QgsPointCloudAttribute.Float))
-    collection.push_back(QgsPointCloudAttribute('y', QgsPointCloudAttribute.Float))
-    collection.push_back(QgsPointCloudAttribute('z', QgsPointCloudAttribute.Float))
-    collection.push_back(QgsPointCloudAttribute('cat', QgsPointCloudAttribute.Char))
-    collection.push_back(QgsPointCloudAttribute('red', QgsPointCloudAttribute.Int32))
+    collection.push_back(QgsPointCloudAttribute('x', QgsPointCloudAttribute.DataType.Float))
+    collection.push_back(QgsPointCloudAttribute('y', QgsPointCloudAttribute.DataType.Float))
+    collection.push_back(QgsPointCloudAttribute('z', QgsPointCloudAttribute.DataType.Float))
+    collection.push_back(QgsPointCloudAttribute('cat', QgsPointCloudAttribute.DataType.Char))
+    collection.push_back(QgsPointCloudAttribute('red', QgsPointCloudAttribute.DataType.Int32))
     return collection
 
 
-class TestQgsPointCloudAttributeComboBox(unittest.TestCase):
+class TestQgsPointCloudAttributeComboBox(QgisTestCase):
 
     def testGettersSetters(self):
         """ test combobox getters/setters """
@@ -88,15 +85,15 @@ class TestQgsPointCloudAttributeComboBox(unittest.TestCase):
         cb.setAttributes(create_attributes())
 
         self.assertEqual([cb.itemText(i) for i in range(cb.count())], ['x', 'y', 'z', 'cat', 'red'])
-        cb.setFilters(QgsPointCloudAttributeProxyModel.Numeric)
+        cb.setFilters(QgsPointCloudAttributeProxyModel.Filter.Numeric)
         self.assertEqual([cb.itemText(i) for i in range(cb.count())], ['x', 'y', 'z', 'red'])
-        self.assertEqual(cb.filters(), QgsPointCloudAttributeProxyModel.Numeric)
-        cb.setFilters(QgsPointCloudAttributeProxyModel.Char)
+        self.assertEqual(cb.filters(), QgsPointCloudAttributeProxyModel.Filter.Numeric)
+        cb.setFilters(QgsPointCloudAttributeProxyModel.Filter.Char)
         self.assertEqual([cb.itemText(i) for i in range(cb.count())], ['cat'])
-        self.assertEqual(cb.filters(), QgsPointCloudAttributeProxyModel.Char)
-        cb.setFilters(QgsPointCloudAttributeProxyModel.Char | QgsPointCloudAttributeProxyModel.Int32)
+        self.assertEqual(cb.filters(), QgsPointCloudAttributeProxyModel.Filter.Char)
+        cb.setFilters(QgsPointCloudAttributeProxyModel.Filter.Char | QgsPointCloudAttributeProxyModel.Filter.Int32)
         self.assertEqual([cb.itemText(i) for i in range(cb.count())], ['cat', 'red'])
-        self.assertEqual(cb.filters(), QgsPointCloudAttributeProxyModel.Char | QgsPointCloudAttributeProxyModel.Int32)
+        self.assertEqual(cb.filters(), QgsPointCloudAttributeProxyModel.Filter.Char | QgsPointCloudAttributeProxyModel.Filter.Int32)
 
 
 if __name__ == '__main__':

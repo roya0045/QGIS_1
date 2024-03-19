@@ -17,15 +17,12 @@
 
 #include <QElapsedTimer>
 #include <QVector4D>
-#include <Qt3DRender/QObjectPicker>
-#include <Qt3DRender/QPickTriangleEvent>
 
 #include "qgs3dutils.h"
 #include "qgschunkboundsentity_p.h"
 #include "qgschunklist_p.h"
 #include "qgschunkloader_p.h"
 #include "qgschunknode_p.h"
-#include "qgstessellatedpolygongeometry.h"
 
 #include "qgseventtracing.h"
 
@@ -33,47 +30,37 @@
 
 ///@cond PRIVATE
 
-static float screenSpaceError( float epsilon, float distance, float screenSize, float fov )
-{
-  /* This routine approximately calculates how an error (epsilon) of an object in world coordinates
-   * at given distance (between camera and the object) will look like in screen coordinates.
-   *
-   * the math below simply uses triangle similarity:
-   *
-   *             epsilon                       phi
-   *   -----------------------------  = ----------------
-   *   [ frustum width at distance ]    [ screen width ]
-   *
-   * Then we solve for phi, substituting [frustum width at distance] = 2 * distance * tan(fov / 2)
-   *
-   *  ________xxx__      xxx = real world error (epsilon)
-   *  \     |     /        x = screen space error (phi)
-   *   \    |    /
-   *    \___|_x_/   near plane (screen space)
-   *     \  |  /
-   *      \ | /
-   *       \|/    angle = field of view
-   *       camera
-   */
-  float phi = epsilon * screenSize / ( 2 * distance * tan( fov * M_PI / ( 2 * 180 ) ) );
-  return phi;
-}
 
-static float screenSpaceError( QgsChunkNode *node, const QgsChunkedEntity::SceneState &state )
+static float screenSpaceError( QgsChunkNode *node, const QgsChunkedEntity::SceneContext &sceneContext )
 {
   if ( node->error() <= 0 ) //it happens for meshes
     return 0;
 
-  float dist = node->bbox().distanceFromPoint( state.cameraPos );
+  float dist = node->bbox().distanceFromPoint( sceneContext.cameraPos );
 
   // TODO: what to do when distance == 0 ?
 
-  float sse = screenSpaceError( node->error(), dist, state.screenSizePx, state.cameraFov );
+  float sse = Qgs3DUtils::screenSpaceError( node->error(), dist, sceneContext.screenSizePx, sceneContext.cameraFov );
   return sse;
 }
 
+
+static bool hasAnyActiveChildren( QgsChunkNode *node, QList<QgsChunkNode *> &activeNodes )
+{
+  for ( int i = 0; i < node->childCount(); ++i )
+  {
+    QgsChunkNode *child = node->children()[i];
+    if ( child->entity() && activeNodes.contains( child ) )
+      return true;
+    if ( hasAnyActiveChildren( child, activeNodes ) )
+      return true;
+  }
+  return false;
+}
+
+
 QgsChunkedEntity::QgsChunkedEntity( float tau, QgsChunkLoaderFactory *loaderFactory, bool ownsFactory, int primitiveBudget, Qt3DCore::QNode *parent )
-  : Qt3DCore::QEntity( parent )
+  : Qgs3DMapSceneEntity( parent )
   , mTau( tau )
   , mChunkLoaderFactory( loaderFactory )
   , mOwnsFactory( ownsFactory )
@@ -82,6 +69,13 @@ QgsChunkedEntity::QgsChunkedEntity( float tau, QgsChunkLoaderFactory *loaderFact
   mRootNode = loaderFactory->createRootNode();
   mChunkLoaderQueue = new QgsChunkList;
   mReplacementQueue = new QgsChunkList;
+
+  // in case the chunk loader factory supports fetching of hierarchy in background (to avoid GUI freezes)
+  connect( loaderFactory, &QgsChunkLoaderFactory::childrenPrepared, this, [this]
+  {
+    setNeedsUpdate( true );
+    emit pendingJobsCountChanged();
+  } );
 }
 
 
@@ -126,10 +120,17 @@ QgsChunkedEntity::~QgsChunkedEntity()
 }
 
 
-void QgsChunkedEntity::update( const SceneState &state )
+void QgsChunkedEntity::handleSceneUpdate( const SceneContext &sceneContext )
 {
   if ( !mIsValid )
     return;
+
+  // Let's start the update by removing from loader queue chunks that
+  // would get frustum culled if loaded (outside of the current view
+  // of the camera). Removing them keeps the loading queue shorter,
+  // and we avoid loading chunks that we only wanted for a short period
+  // of time when camera was moving.
+  pruneLoaderQueue( sceneContext );
 
   QElapsedTimer t;
   t.start();
@@ -141,11 +142,13 @@ void QgsChunkedEntity::update( const SceneState &state )
   mFrustumCulled = 0;
   mCurrentTime = QTime::currentTime();
 
-  update( mRootNode, state );
+  update( mRootNode, sceneContext );
 
+#ifdef QGISDEBUG
   int enabled = 0, disabled = 0, unloaded = 0;
+#endif
 
-  for ( QgsChunkNode *node : mActiveNodes )
+  for ( QgsChunkNode *node : std::as_const( mActiveNodes ) )
   {
     if ( activeBefore.contains( node ) )
     {
@@ -153,26 +156,39 @@ void QgsChunkedEntity::update( const SceneState &state )
     }
     else
     {
+      if ( !node->entity() )
+      {
+        QgsDebugError( "Active node has null entity - this should never happen!" );
+        continue;
+      }
       node->entity()->setEnabled( true );
+#ifdef QGISDEBUG
       ++enabled;
+#endif
     }
   }
 
   // disable those that were active but will not be anymore
   for ( QgsChunkNode *node : activeBefore )
   {
+    if ( !node->entity() )
+    {
+      QgsDebugError( "Active node has null entity - this should never happen!" );
+      continue;
+    }
     node->entity()->setEnabled( false );
+#ifdef QGISDEBUG
     ++disabled;
+#endif
   }
 
-  // unload those that are over the limit for replacement
-  // TODO: what to do when our cache is too small and nodes are being constantly evicted + loaded again
-  while ( mReplacementQueue->count() > mMaxLoadedChunks )
-  {
-    QgsChunkListEntry *entry = mReplacementQueue->takeLast();
-    entry->chunk->unloadChunk();  // also deletes the entry
-    ++unloaded;
-  }
+  // if this entity's loaded nodes are using more GPU memory than allowed,
+  // let's try to unload those that are not needed right now
+#ifdef QGISDEBUG
+  unloaded = unloadNodes();
+#else
+  unloadNodes();
+#endif
 
   if ( mBboxesEntity )
   {
@@ -194,9 +210,86 @@ void QgsChunkedEntity::update( const SceneState &state )
                     .arg( enabled )
                     .arg( disabled )
                     .arg( mFrustumCulled )
+                    .arg( mChunkLoaderQueue->count() )
                     .arg( mReplacementQueue->count() )
                     .arg( unloaded )
                     .arg( t.elapsed() ), 2 );
+}
+
+
+int QgsChunkedEntity::unloadNodes()
+{
+  double usedGpuMemory = Qgs3DUtils::calculateEntityGpuMemorySize( this );
+  if ( usedGpuMemory <= mGpuMemoryLimit )
+  {
+    setHasReachedGpuMemoryLimit( false );
+    return 0;
+  }
+
+  QgsDebugMsgLevel( QStringLiteral( "Going to unload nodes to free GPU memory (used: %1 MB, limit: %2 MB)" ).arg( usedGpuMemory ).arg( mGpuMemoryLimit ), 2 );
+
+  int unloaded = 0;
+
+  // unload nodes starting from the back of the queue with currently loaded
+  // nodes - i.e. those that have been least recently used
+  QgsChunkListEntry *entry = mReplacementQueue->last();
+  while ( entry && usedGpuMemory > mGpuMemoryLimit )
+  {
+    // not all nodes are safe to unload: we do not want to unload nodes
+    // that are currently active, or have their descendants active or their
+    // siblings or their descendants are active (because in the next scene
+    // update, these would be very likely loaded again, making the unload worthless)
+    if ( entry->chunk->parent() && !hasAnyActiveChildren( entry->chunk->parent(), mActiveNodes ) )
+    {
+      QgsChunkListEntry *entryPrev = entry->prev;
+      mReplacementQueue->takeEntry( entry );
+      usedGpuMemory -= Qgs3DUtils::calculateEntityGpuMemorySize( entry->chunk->entity() );
+      mActiveNodes.removeOne( entry->chunk );
+      entry->chunk->unloadChunk();  // also deletes the entry
+      ++unloaded;
+      entry = entryPrev;
+    }
+    else
+    {
+      entry = entry->prev;
+    }
+  }
+
+  if ( usedGpuMemory > mGpuMemoryLimit )
+  {
+    setHasReachedGpuMemoryLimit( true );
+    QgsDebugMsgLevel( QStringLiteral( "Unable to unload enough nodes to free GPU memory (used: %1 MB, limit: %2 MB)" ).arg( usedGpuMemory ).arg( mGpuMemoryLimit ), 2 );
+  }
+
+  return unloaded;
+}
+
+
+QgsRange<float> QgsChunkedEntity::getNearFarPlaneRange( const QMatrix4x4 &viewMatrix ) const
+{
+  QList<QgsChunkNode *> activeEntityNodes = activeNodes();
+
+  // it could be that there are no active nodes - they could be all culled or because root node
+  // is not yet loaded - we still need at least something to understand bounds of our scene
+  // so lets use the root node
+  if ( activeEntityNodes.empty() )
+    activeEntityNodes << rootNode();
+
+  float fnear = 1e9;
+  float ffar = 0;
+
+  for ( QgsChunkNode *node : std::as_const( activeEntityNodes ) )
+  {
+    // project each corner of bbox to camera coordinates
+    // and determine closest and farthest point.
+    QgsAABB bbox = node->bbox();
+    float bboxfnear;
+    float bboxffar;
+    Qgs3DUtils::computeBoundingBoxNearFarPlanes( bbox, viewMatrix, bboxfnear, bboxffar );
+    fnear = std::min( fnear, bboxfnear );
+    ffar = std::max( ffar, bboxffar );
+  }
+  return QgsRange<float>( fnear, ffar );
 }
 
 void QgsChunkedEntity::setShowBoundingBoxes( bool enabled )
@@ -240,6 +333,47 @@ void QgsChunkedEntity::updateNodes( const QList<QgsChunkNode *> &nodes, QgsChunk
   startJobs();
 }
 
+void QgsChunkedEntity::pruneLoaderQueue( const SceneContext &sceneContext )
+{
+  QList<QgsChunkNode *> toRemoveFromLoaderQueue;
+
+  // Step 1: collect all entries from chunk loader queue that would get frustum culled
+  // (i.e. they are outside of the current view of the camera) and therefore loading
+  // such chunks would be probably waste of time.
+  QgsChunkListEntry *e = mChunkLoaderQueue->first();
+  while ( e )
+  {
+    Q_ASSERT( e->chunk->state() == QgsChunkNode::QueuedForLoad || e->chunk->state() == QgsChunkNode::QueuedForUpdate );
+    if ( Qgs3DUtils::isCullable( e->chunk->bbox(), sceneContext.viewProjectionMatrix ) )
+    {
+      toRemoveFromLoaderQueue.append( e->chunk );
+    }
+    e = e->next;
+  }
+
+  // Step 2: remove collected chunks from the loading queue
+  for ( QgsChunkNode *n : toRemoveFromLoaderQueue )
+  {
+    mChunkLoaderQueue->takeEntry( n->loaderQueueEntry() );
+    if ( n->state() == QgsChunkNode::QueuedForLoad )
+    {
+      n->cancelQueuedForLoad();
+    }
+    else  // queued for update
+    {
+      n->cancelQueuedForUpdate();
+      mReplacementQueue->takeEntry( n->replacementQueueEntry() );
+      n->unloadChunk();
+    }
+  }
+
+  if ( !toRemoveFromLoaderQueue.isEmpty() )
+  {
+    QgsDebugMsgLevel( QStringLiteral( "Pruned %1 chunks in loading queue" ).arg( toRemoveFromLoaderQueue.count() ), 2 );
+  }
+}
+
+
 int QgsChunkedEntity::pendingJobsCount() const
 {
   return mChunkLoaderQueue->count() + mActiveJobs.count();
@@ -271,38 +405,55 @@ struct
   }
 } ResidencyRequestSorter;
 
-void QgsChunkedEntity::update( QgsChunkNode *root, const SceneState &state )
+void QgsChunkedEntity::update( QgsChunkNode *root, const SceneContext &sceneContext )
 {
   QSet<QgsChunkNode *> nodes;
   QVector<ResidencyRequest> residencyRequests;
 
   using slotItem = std::pair<QgsChunkNode *, float>;
-  auto cmp_funct = []( slotItem & p1, slotItem & p2 )
+  auto cmp_funct = []( const slotItem & p1, const slotItem & p2 )
   {
     return p1.second <= p2.second;
   };
   int renderedCount = 0;
   std::priority_queue<slotItem, std::vector<slotItem>, decltype( cmp_funct )> pq( cmp_funct );
-  pq.push( std::make_pair( root, screenSpaceError( root, state ) ) );
+  pq.push( std::make_pair( root, screenSpaceError( root, sceneContext ) ) );
   while ( !pq.empty() && renderedCount <= mPrimitivesBudget )
   {
     slotItem s = pq.top();
     pq.pop();
     QgsChunkNode *node = s.first;
 
-    if ( Qgs3DUtils::isCullable( node->bbox(), state.viewProjectionMatrix ) )
+    if ( Qgs3DUtils::isCullable( node->bbox(), sceneContext.viewProjectionMatrix ) )
     {
       ++mFrustumCulled;
       continue;
     }
 
     // ensure we have child nodes (at least skeletons) available, if any
-    if ( node->childCount() == -1 )
-      node->populateChildren( mChunkLoaderFactory->createChildren( node ) );
+    if ( !node->hasChildrenPopulated() )
+    {
+      // Some chunked entities (e.g. tiled scene) may not know the full node hierarchy in advance
+      // and need to fetch it from a remote server. Having a blocking network request
+      // in createChildren() is not wanted because this code runs on the main thread and thus
+      // would cause GUI freezes. Here is a mechanism to first check whether there are any
+      // network requests needed (with canCreateChildren()), and if that's the case,
+      // prepareChildren() will start those requests in the background and immediately returns.
+      // The factory will emit a signal when hierarchy fetching is done to force another update
+      // of this entity to create children of this node.
+      if ( mChunkLoaderFactory->canCreateChildren( node ) )
+      {
+        node->populateChildren( mChunkLoaderFactory->createChildren( node ) );
+      }
+      else
+      {
+        mChunkLoaderFactory->prepareChildren( node );
+      }
+    }
 
     // make sure all nodes leading to children are always loaded
     // so that zooming out does not create issues
-    double dist = node->bbox().center().distanceToPoint( state.cameraPos );
+    double dist = node->bbox().center().distanceToPoint( sceneContext.cameraPos );
     residencyRequests.push_back( ResidencyRequest( node, dist, node->level() ) );
 
     if ( !node->entity() )
@@ -312,49 +463,81 @@ void QgsChunkedEntity::update( QgsChunkNode *root, const SceneState &state )
     }
     bool becomesActive = false;
 
-    // QgsDebugMsgLevel( QStringLiteral( "%1|%2|%3  %4  %5" ).arg( node->tileId().x ).arg( node->tileId().y ).arg( node->tileId().z ).arg( mTau ).arg( screenSpaceError( node, state ) ), 2 );
+    // QgsDebugMsgLevel( QStringLiteral( "%1|%2|%3  %4  %5" ).arg( node->tileId().x ).arg( node->tileId().y ).arg( node->tileId().z ).arg( mTau ).arg( screenSpaceError( node, sceneContext ) ), 2 );
     if ( node->childCount() == 0 )
     {
       // there's no children available for this node, so regardless of whether it has an acceptable error
       // or not, it's the best we'll ever get...
       becomesActive = true;
     }
-    else if ( mTau > 0 && screenSpaceError( node, state ) <= mTau )
+    else if ( mTau > 0 && screenSpaceError( node, sceneContext ) <= mTau )
     {
       // acceptable error for the current chunk - let's render it
       becomesActive = true;
     }
-    else if ( node->allChildChunksResident( mCurrentTime ) )
-    {
-      // error is not acceptable and children are ready to be used - recursive descent
-      if ( mAdditiveStrategy )
-      {
-        // With additive strategy enabled, also all parent nodes are added to active nodes.
-        // This is desired when child nodes add more detailed data rather than just replace
-        // coarser data in parents. We use this e.g. with point cloud data.
-        becomesActive = true;
-      }
-      QgsChunkNode *const *children = node->children();
-      for ( int i = 0; i < node->childCount(); ++i )
-        pq.push( std::make_pair( children[i], screenSpaceError( children[i], state ) ) );
-    }
     else
     {
-      // error is not acceptable but children are not ready either - still use parent but request children
-      becomesActive = true;
+      // This chunk does not have acceptable error (it does not provide enough detail)
+      // so we'll try to use its children. The exact logic depends on whether the entity
+      // has additive strategy. With additive strategy, child nodes should be rendered
+      // in addition to the parent nodes (rather than child nodes replacing parent entirely)
 
-      QgsChunkNode *const *children = node->children();
-      for ( int i = 0; i < node->childCount(); ++i )
+      if ( node->refinementProcess() == Qgis::TileRefinementProcess::Additive )
       {
-        double dist = children[i]->bbox().center().distanceToPoint( state.cameraPos );
-        residencyRequests.push_back( ResidencyRequest( children[i], dist, children[i]->level() ) );
+        // Logic of the additive strategy:
+        // - children that are not loaded will get requested to be loaded
+        // - children that are already loaded get recursively visited
+        becomesActive = true;
+
+        QgsChunkNode *const *children = node->children();
+        for ( int i = 0; i < node->childCount(); ++i )
+        {
+          if ( children[i]->entity() || !children[i]->hasData() )
+          {
+            // chunk is resident - let's visit it recursively
+            pq.push( std::make_pair( children[i], screenSpaceError( children[i], sceneContext ) ) );
+          }
+          else
+          {
+            // chunk is not yet resident - let's try to load it
+            if ( Qgs3DUtils::isCullable( children[i]->bbox(), sceneContext.viewProjectionMatrix ) )
+              continue;
+
+            double dist = children[i]->bbox().center().distanceToPoint( sceneContext.cameraPos );
+            residencyRequests.push_back( ResidencyRequest( children[i], dist, children[i]->level() ) );
+          }
+        }
+      }
+      else
+      {
+        // Logic of the replace strategy:
+        // - if we have all children loaded, we use them instead of the parent node
+        // - if we do not have all children loaded, we request to load them and keep using the parent for the time being
+        if ( node->allChildChunksResident( mCurrentTime ) )
+        {
+          QgsChunkNode *const *children = node->children();
+          for ( int i = 0; i < node->childCount(); ++i )
+            pq.push( std::make_pair( children[i], screenSpaceError( children[i], sceneContext ) ) );
+        }
+        else
+        {
+          becomesActive = true;
+
+          QgsChunkNode *const *children = node->children();
+          for ( int i = 0; i < node->childCount(); ++i )
+          {
+            double dist = children[i]->bbox().center().distanceToPoint( sceneContext.cameraPos );
+            residencyRequests.push_back( ResidencyRequest( children[i], dist, children[i]->level() ) );
+          }
+        }
       }
     }
+
     if ( becomesActive )
     {
       mActiveNodes << node;
       // if we are not using additive strategy we need to make sure the parent primitives are not counted
-      if ( !mAdditiveStrategy && node->parent() && nodes.contains( node->parent() ) )
+      if ( node->refinementProcess() != Qgis::TileRefinementProcess::Additive && node->parent() && nodes.contains( node->parent() ) )
       {
         nodes.remove( node->parent() );
         renderedCount -= mChunkLoaderFactory->primitivesCount( node->parent() );
@@ -433,17 +616,18 @@ void QgsChunkedEntity::onActiveJobFinished()
 
     if ( entity )
     {
+      // The returned QEntity is initially enabled, so let's add it to active nodes too.
+      // Soon afterwards updateScene() will be called, which would remove it from the scene
+      // if the node should not be shown anymore. Ideally entities should be initially disabled,
+      // but there seems to be a bug in Qt3D - if entity is disabled initially, showing it
+      // by setting setEnabled(true) is not reliable (entity eventually gets shown, but only after
+      // some more changes in the scene) - see https://github.com/qgis/QGIS/issues/48334
+      mActiveNodes << node;
+
       // load into node (should be in main thread again)
       node->setLoaded( entity );
 
       mReplacementQueue->insertFirst( node->replacementQueueEntry() );
-
-      if ( mPickingEnabled )
-      {
-        Qt3DRender::QObjectPicker *picker = new Qt3DRender::QObjectPicker( node->entity() );
-        node->entity()->addComponent( picker );
-        connect( picker, &Qt3DRender::QObjectPicker::clicked, this, &QgsChunkedEntity::onPickEvent );
-      }
 
       emit newEntityCreated( entity );
     }
@@ -476,11 +660,8 @@ void QgsChunkedEntity::onActiveJobFinished()
 
 void QgsChunkedEntity::startJobs()
 {
-  while ( mActiveJobs.count() < 4 )
+  while ( mActiveJobs.count() < 4 && !mChunkLoaderQueue->isEmpty() )
   {
-    if ( mChunkLoaderQueue->isEmpty() )
-      return;
-
     QgsChunkListEntry *entry = mChunkLoaderQueue->takeFirst();
     Q_ASSERT( entry );
     QgsChunkNode *node = entry->chunk;
@@ -523,6 +704,7 @@ void QgsChunkedEntity::cancelActiveJob( QgsChunkQueueJob *job )
   Q_ASSERT( job );
 
   QgsChunkNode *node = job->chunk();
+  disconnect( job, &QgsChunkQueueJob::finished, this, &QgsChunkedEntity::onActiveJobFinished );
 
   if ( qobject_cast<QgsChunkLoader *>( job ) )
   {
@@ -554,69 +736,11 @@ void QgsChunkedEntity::cancelActiveJobs()
 }
 
 
-void QgsChunkedEntity::setPickingEnabled( bool enabled )
+QVector<QgsRayCastingUtils::RayHit> QgsChunkedEntity::rayIntersection( const QgsRayCastingUtils::Ray3D &ray, const QgsRayCastingUtils::RayCastContext &context ) const
 {
-  if ( mPickingEnabled == enabled )
-    return;
-
-  mPickingEnabled = enabled;
-
-  if ( enabled )
-  {
-    QgsChunkListEntry *entry = mReplacementQueue->first();
-    while ( entry )
-    {
-      QgsChunkNode *node = entry->chunk;
-      Qt3DRender::QObjectPicker *picker = new Qt3DRender::QObjectPicker( node->entity() );
-      node->entity()->addComponent( picker );
-      connect( picker, &Qt3DRender::QObjectPicker::clicked, this, &QgsChunkedEntity::onPickEvent );
-
-      entry = entry->next;
-    }
-  }
-  else
-  {
-    for ( Qt3DRender::QObjectPicker *picker : findChildren<Qt3DRender::QObjectPicker *>() )
-      picker->deleteLater();
-  }
-}
-
-void QgsChunkedEntity::onPickEvent( Qt3DRender::QPickEvent *event )
-{
-  Qt3DRender::QPickTriangleEvent *triangleEvent = qobject_cast<Qt3DRender::QPickTriangleEvent *>( event );
-  if ( !triangleEvent )
-    return;
-
-  Qt3DRender::QObjectPicker *picker = qobject_cast<Qt3DRender::QObjectPicker *>( sender() );
-  if ( !picker )
-    return;
-
-  Qt3DCore::QEntity *entity = qobject_cast<Qt3DCore::QEntity *>( picker->parent() );
-  if ( !entity )
-    return;
-
-  // go figure out feature ID from the triangle index
-  QgsFeatureId fid = FID_NULL;
-  for ( Qt3DRender::QGeometryRenderer *geomRenderer : entity->findChildren<Qt3DRender::QGeometryRenderer *>() )
-  {
-    // unfortunately we can't access which sub-entity triggered the pick event
-    // so as a temporary workaround let's just ignore the entity with selection
-    // and hope the event was the main entity (QTBUG-58206)
-    if ( geomRenderer->objectName() != QLatin1String( "main" ) )
-      continue;
-
-    if ( QgsTessellatedPolygonGeometry *g = qobject_cast<QgsTessellatedPolygonGeometry *>( geomRenderer->geometry() ) )
-    {
-      fid = g->triangleIndexToFeatureId( triangleEvent->triangleIndex() );
-      if ( !FID_IS_NULL( fid ) )
-        break;
-    }
-  }
-
-  if ( !FID_IS_NULL( fid ) )
-  {
-    emit pickedObject( event, fid );
-  }
+  Q_UNUSED( ray )
+  Q_UNUSED( context )
+  return QVector<QgsRayCastingUtils::RayHit>();
 }
 
 /// @endcond

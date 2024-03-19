@@ -20,6 +20,7 @@
 #include "qgsapplication.h"
 #include "qgsvectorlayer.h"
 #include "qgsiconutils.h"
+#include "qgsmaplayerlistutils_p.h"
 #include <QMimeData>
 
 QgsMapLayerModel::QgsMapLayerModel( const QList<QgsMapLayer *> &layers, QObject *parent, QgsProject *project )
@@ -38,6 +39,25 @@ QgsMapLayerModel::QgsMapLayerModel( QObject *parent, QgsProject *project )
   connect( mProject, static_cast < void ( QgsProject::* )( const QStringList & ) >( &QgsProject::layersWillBeRemoved ), this, &QgsMapLayerModel::removeLayers );
   addLayers( mProject->mapLayers().values() );
 }
+
+void QgsMapLayerModel::setProject( QgsProject *project )
+{
+
+  // remove layers from previous project
+  if ( mProject )
+  {
+    removeLayers( mProject->mapLayers().keys() );
+    disconnect( mProject, &QgsProject::layersAdded, this, &QgsMapLayerModel::addLayers );
+    disconnect( mProject, static_cast < void ( QgsProject::* )( const QStringList & ) >( &QgsProject::layersWillBeRemoved ), this, &QgsMapLayerModel::removeLayers );
+  }
+
+  mProject = project ? project : QgsProject::instance();
+
+  connect( mProject, &QgsProject::layersAdded, this, &QgsMapLayerModel::addLayers );
+  connect( mProject, static_cast < void ( QgsProject::* )( const QStringList & ) >( &QgsProject::layersWillBeRemoved ), this, &QgsMapLayerModel::removeLayers );
+  addLayers( mProject->mapLayers().values() );
+}
+
 
 void QgsMapLayerModel::setItemsCheckable( bool checkable )
 {
@@ -132,7 +152,7 @@ QModelIndex QgsMapLayerModel::indexFromLayer( QgsMapLayer *layer ) const
 
 QgsMapLayer *QgsMapLayerModel::layerFromIndex( const QModelIndex &index ) const
 {
-  return mProject->mapLayer( index.data( LayerIdRole ).toString() );
+  return mProject->mapLayer( index.data( static_cast< int >( CustomRole::LayerId ) ).toString() );
 }
 
 void QgsMapLayerModel::setAdditionalItems( const QStringList &items )
@@ -160,6 +180,37 @@ void QgsMapLayerModel::setAdditionalItems( const QStringList &items )
   endInsertRows();
 }
 
+void QgsMapLayerModel::setAdditionalLayers( const QList<QgsMapLayer *> &layers )
+{
+  if ( layers == _qgis_listQPointerToRaw( mAdditionalLayers ) )
+    return;
+
+  QStringList layerIdsToRemove;
+  for ( QgsMapLayer *layer : std::as_const( mAdditionalLayers ) )
+  {
+    if ( layer )
+      layerIdsToRemove << layer->id();
+  }
+  removeLayers( layerIdsToRemove );
+
+  for ( QgsMapLayer *layer : layers )
+  {
+    if ( layer )
+    {
+      addLayers( { layer } );
+      const QString layerId = layer->id();
+      connect( layer, &QgsMapLayer::willBeDeleted, this, [this, layerId] { removeLayers( {layerId} ); } );
+    }
+  }
+
+  mAdditionalLayers = _qgis_listRawToQPointer( layers );
+}
+
+QList<QgsMapLayer *> QgsMapLayerModel::additionalLayers() const
+{
+  return _qgis_listQPointerToRaw( mAdditionalLayers );
+}
+
 void QgsMapLayerModel::removeLayers( const QStringList &layerIds )
 {
   int offset = 0;
@@ -169,7 +220,7 @@ void QgsMapLayerModel::removeLayers( const QStringList &layerIds )
   for ( const QString &layerId : layerIds )
   {
     QModelIndex startIndex = index( 0, 0 );
-    QModelIndexList list = match( startIndex, LayerIdRole, layerId, 1 );
+    QModelIndexList list = match( startIndex, static_cast< int >( CustomRole::LayerId ), layerId, 1 );
     if ( !list.isEmpty() )
     {
       QModelIndex index = list[0];
@@ -274,7 +325,7 @@ QVariant QgsMapLayerModel::data( const QModelIndex &index, int role ) const
       }
     }
 
-    case LayerIdRole:
+    case static_cast< int >( CustomRole::LayerId ):
     {
       if ( isEmpty || additionalIndex >= 0 )
         return QVariant();
@@ -283,7 +334,7 @@ QVariant QgsMapLayerModel::data( const QModelIndex &index, int role ) const
       return layer ? layer->id() : QVariant();
     }
 
-    case LayerRole:
+    case static_cast< int >( CustomRole::Layer ):
     {
       if ( isEmpty || additionalIndex >= 0 )
         return QVariant();
@@ -291,10 +342,10 @@ QVariant QgsMapLayerModel::data( const QModelIndex &index, int role ) const
       return QVariant::fromValue<QgsMapLayer *>( mLayers.value( index.row() - ( mAllowEmpty ? 1 : 0 ) ) );
     }
 
-    case EmptyRole:
+    case static_cast< int >( CustomRole::Empty ):
       return isEmpty;
 
-    case AdditionalRole:
+    case static_cast< int >( CustomRole::Additional ):
       return additionalIndex >= 0;
 
     case Qt::CheckStateRole:
@@ -352,6 +403,9 @@ QVariant QgsMapLayerModel::data( const QModelIndex &index, int role ) const
 
       return iconForLayer( layer );
     }
+
+    default:
+      break;
   }
 
   return QVariant();
@@ -360,8 +414,8 @@ QVariant QgsMapLayerModel::data( const QModelIndex &index, int role ) const
 QHash<int, QByteArray> QgsMapLayerModel::roleNames() const
 {
   QHash<int, QByteArray> roles  = QAbstractItemModel::roleNames();
-  roles[LayerIdRole]  = "layerId";
-  roles[LayerRole] = "layer";
+  roles[static_cast< int >( CustomRole::LayerId ) ]  = "layerId";
+  roles[static_cast< int >( CustomRole::Layer )] = "layer";
 
   return roles;
 }
@@ -463,7 +517,7 @@ QMimeData *QgsMapLayerModel::mimeData( const QModelIndexList &indexes ) const
   {
     if ( i.isValid() )
     {
-      const QString id = data( index( i.row(), 0, i.parent() ), LayerIdRole ).toString();
+      const QString id = data( index( i.row(), 0, i.parent() ), static_cast< int >( CustomRole::LayerId ) ).toString();
       if ( !addedLayers.contains( id ) )
       {
         addedLayers.insert( id );
@@ -502,7 +556,7 @@ bool QgsMapLayerModel::dropMimeData( const QMimeData *data, Qt::DropAction actio
   for ( const QString &text : std::as_const( newItems ) )
   {
     QModelIndex idx = index( row, 0, QModelIndex() );
-    setData( idx, text, LayerIdRole );
+    setData( idx, text, static_cast< int >( CustomRole::LayerId ) );
     row++;
   }
 
@@ -541,13 +595,16 @@ bool QgsMapLayerModel::setData( const QModelIndex &index, const QVariant &value,
       break;
     }
 
-    case LayerIdRole:
+    case static_cast< int >( CustomRole::LayerId ):
       if ( !isEmpty && additionalIndex < 0 )
       {
         mLayers[index.row() - ( mAllowEmpty ? 1 : 0 )] = mProject->mapLayer( value.toString() );
         emit dataChanged( index, index );
         return true;
       }
+      break;
+
+    default:
       break;
   }
 

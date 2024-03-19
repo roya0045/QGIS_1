@@ -24,24 +24,21 @@
 #include "qgsreadwritecontext.h"
 #include "qgsprintlayout.h"
 #include "qgscurrencynumericformat.h"
-#include "qgsmultirenderchecker.h"
 #include "qgsfontutils.h"
 
 #include <QObject>
 #include "qgstest.h"
 
-class TestQgsLayoutManualTable : public QObject
+class TestQgsLayoutManualTable : public QgsTest
 {
     Q_OBJECT
 
   public:
-    TestQgsLayoutManualTable() = default;
+    TestQgsLayoutManualTable() : QgsTest( QStringLiteral( "Layout Manual Table Tests" ), QStringLiteral( "layout_manual_table" ) ) {}
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init();// will be called before each testfunction is executed.
-    void cleanup();// will be called after every testfunction.
 
     void setContents();
     void scopeForCell();
@@ -55,7 +52,6 @@ class TestQgsLayoutManualTable : public QObject
     void cellTextAlignment();
 
   private:
-    QString mReport;
 
     //compares rows in table to expected rows
     void compareTable( QgsLayoutItemManualTable *table, const QVector<QStringList> &expectedRows );
@@ -66,30 +62,12 @@ void TestQgsLayoutManualTable::initTestCase()
   QgsApplication::init();
   QgsApplication::initQgis();
 
-  mReport = QStringLiteral( "<h1>Layout Manual Table Tests</h1>\n" );
-
   QgsFontUtils::loadStandardTestFonts( QStringList() << QStringLiteral( "Bold" ) );
 }
 
 void TestQgsLayoutManualTable::cleanupTestCase()
 {
-  const QString myReportFile = QDir::tempPath() + "/qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-  }
   QgsApplication::exitQgis();
-}
-
-void TestQgsLayoutManualTable::init()
-{
-}
-
-void TestQgsLayoutManualTable::cleanup()
-{
 }
 
 void TestQgsLayoutManualTable::compareTable( QgsLayoutItemManualTable *table, const QVector<QStringList> &expectedRows )
@@ -274,8 +252,6 @@ void TestQgsLayoutManualTable::setContents()
 
 void TestQgsLayoutManualTable::scopeForCell()
 {
-  const QVector<QStringList> expectedRows;
-
   QgsPrintLayout l( QgsProject::instance() );
   l.initializeDefaults();
   l.setName( QStringLiteral( "my layout" ) );
@@ -409,10 +385,7 @@ void TestQgsLayoutManualTable::rowHeight()
                            << ( QgsTableRow() << QgsTableCell( QStringLiteral( "A" ) ) << QgsTableCell( QStringLiteral( "B" ) ) << QgsTableCell( QStringLiteral( "C" ) ) ) );
 
   table->setRowHeights( QList< double >() << 0 << 40.0 );
-  QgsLayoutChecker checker( QStringLiteral( "manualtable_rowheight" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "layout_manual_table" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "manualtable_rowheight" ), &l );
 }
 
 void TestQgsLayoutManualTable::columnWidth()
@@ -437,10 +410,7 @@ void TestQgsLayoutManualTable::columnWidth()
                            << ( QgsTableRow() << QgsTableCell( QStringLiteral( "A" ) ) << QgsTableCell( QStringLiteral( "B" ) ) << QgsTableCell( QStringLiteral( "C" ) ) ) );
 
   table->setColumnWidths( QList< double >() << 0 << 10.0 << 30.0 );
-  QgsLayoutChecker checker( QStringLiteral( "manualtable_columnwidth" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "layout_manual_table" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "manualtable_columnwidth" ), &l );
 }
 
 void TestQgsLayoutManualTable::headers()
@@ -471,10 +441,7 @@ void TestQgsLayoutManualTable::headers()
                      << QgsLayoutTableColumn( QStringLiteral( "h2" ) )
                      << QgsLayoutTableColumn( QStringLiteral( "header 3" ) ) );
 
-  QgsLayoutChecker checker( QStringLiteral( "manualtable_headers" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "layout_manual_table" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "manualtable_headers" ), &l );
 }
 
 void TestQgsLayoutManualTable::cellTextFormat()
@@ -523,10 +490,7 @@ void TestQgsLayoutManualTable::cellTextFormat()
                            << ( QgsTableRow() << QgsTableCell( QStringLiteral( "A" ) ) << c5 << QgsTableCell( QStringLiteral( "C" ) ) ) );
 
   table->setColumnWidths( QList< double >() << 0 << 0.0 << 30.0 );
-  QgsLayoutChecker checker( QStringLiteral( "manualtable_textformat" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "layout_manual_table" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "manualtable_textformat" ), &l );
 }
 
 void TestQgsLayoutManualTable::cellTextAlignment()
@@ -563,10 +527,7 @@ void TestQgsLayoutManualTable::cellTextAlignment()
                            << ( QgsTableRow() << QgsTableCell( QStringLiteral( "A" ) ) << c5 << QgsTableCell( QStringLiteral( "C" ) ) ) );
 
   table->setColumnWidths( QList< double >() << 0 << 0.0 << 30.0 );
-  QgsLayoutChecker checker( QStringLiteral( "manualtable_textalign" ), &l );
-  checker.setControlPathPrefix( QStringLiteral( "layout_manual_table" ) );
-  const bool result = checker.testLayout( mReport );
-  QVERIFY( result );
+  QGSVERIFYLAYOUTCHECK( QStringLiteral( "manualtable_textalign" ), &l );
 }
 
 QGSTEST_MAIN( TestQgsLayoutManualTable )

@@ -36,8 +36,8 @@ QgsLayoutPdfExportOptionsDialog::QgsLayoutPdfExportOptionsDialog( QWidget *paren
 
   mGeoPdfStructureTreeMenu = new QMenu( this );
 
-  mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Paths (Recommended)" ), QgsRenderContext::TextFormatAlwaysOutlines );
-  mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Text Objects" ), QgsRenderContext::TextFormatAlwaysText );
+  mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Paths (Recommended)" ), static_cast< int >( Qgis::TextRenderFormat::AlwaysOutlines ) );
+  mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Text Objects" ), static_cast< int >( Qgis::TextRenderFormat::AlwaysText ) );
 
   mGeopdfAvailable = allowGeoPdfExport && QgsAbstractGeoPdfExporter::geoPDFCreationAvailable();
   mGeoPDFGroupBox->setEnabled( mGeopdfAvailable );
@@ -59,16 +59,8 @@ QgsLayoutPdfExportOptionsDialog::QgsLayoutPdfExportOptionsDialog( QWidget *paren
     mGeoPdfFormatComboBox->addItem( tr( "OGC Best Practice" ) );
   }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
   mComboImageCompression->addItem( tr( "Lossy (JPEG)" ), false );
   mComboImageCompression->addItem( tr( "Lossless" ), true );
-#else
-  mComboImageCompression->setDisabled( true );
-  mComboImageCompression->addItem( tr( "Lossy (JPEG)" ) );
-  mComboImageCompression->setCurrentIndex( 0 );
-  mComboImageCompression->setToolTip( tr( "Lossless image compression is available only with QGIS builds using Qt 5.13 or later" ) );
-#endif
-
 
   const QStringList themes = QgsProject::instance()->mapThemeCollection()->mapThemes();
   for ( const QString &theme : themes )
@@ -112,18 +104,18 @@ QgsLayoutPdfExportOptionsDialog::QgsLayoutPdfExportOptionsDialog( QWidget *paren
       showContextMenuForGeoPdfStructure( point, mGeoPdfStructureProxyModel->mapToSource( index ) );
   } );
 
-  connect( buttonBox, &QDialogButtonBox::helpRequested, this, &QgsLayoutPdfExportOptionsDialog::showHelp );
+  connect( mHelpButtonBox, &QDialogButtonBox::helpRequested, this, &QgsLayoutPdfExportOptionsDialog::showHelp );
   QgsGui::enableAutoGeometryRestore( this );
 }
 
-void QgsLayoutPdfExportOptionsDialog::setTextRenderFormat( QgsRenderContext::TextRenderFormat format )
+void QgsLayoutPdfExportOptionsDialog::setTextRenderFormat( Qgis::TextRenderFormat format )
 {
-  mTextRenderFormatComboBox->setCurrentIndex( mTextRenderFormatComboBox->findData( format ) );
+  mTextRenderFormatComboBox->setCurrentIndex( mTextRenderFormatComboBox->findData( static_cast< int >( format ) ) );
 }
 
-QgsRenderContext::TextRenderFormat QgsLayoutPdfExportOptionsDialog::textRenderFormat() const
+Qgis::TextRenderFormat QgsLayoutPdfExportOptionsDialog::textRenderFormat() const
 {
-  return static_cast< QgsRenderContext::TextRenderFormat >( mTextRenderFormatComboBox->currentData().toInt() );
+  return static_cast< Qgis::TextRenderFormat >( mTextRenderFormatComboBox->currentData().toInt() );
 }
 
 void QgsLayoutPdfExportOptionsDialog::setForceVector( bool force )
@@ -183,20 +175,12 @@ bool QgsLayoutPdfExportOptionsDialog::geometriesSimplified() const
 
 void QgsLayoutPdfExportOptionsDialog::setLosslessImageExport( bool enabled )
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
   mComboImageCompression->setCurrentIndex( mComboImageCompression->findData( enabled ) );
-#else
-  Q_UNUSED( enabled )
-#endif
 }
 
 bool QgsLayoutPdfExportOptionsDialog::losslessImageExport() const
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
   return mComboImageCompression->currentData().toBool();
-#else
-  return false;
-#endif
 }
 
 void QgsLayoutPdfExportOptionsDialog::setExportGeoPdf( bool enabled )
@@ -272,9 +256,19 @@ QStringList QgsLayoutPdfExportOptionsDialog::geoPdfLayerOrder() const
   QStringList order;
   for ( int row = 0; row < mGeoPdfStructureProxyModel->rowCount(); ++row )
   {
-    order << mGeoPdfStructureProxyModel->data( mGeoPdfStructureProxyModel->index( row, 0 ), QgsGeoPdfLayerTreeModel::LayerIdRole ).toString();
+    order << mGeoPdfStructureProxyModel->data( mGeoPdfStructureProxyModel->index( row, 0 ), static_cast< int >( QgsMapLayerModel::CustomRole::LayerId ) ).toString();
   }
   return order;
+}
+
+void QgsLayoutPdfExportOptionsDialog::setOpenAfterExporting( bool enabled )
+{
+  mOpenAfterExportingCheckBox->setChecked( enabled );
+}
+
+bool QgsLayoutPdfExportOptionsDialog::openAfterExporting() const
+{
+  return mOpenAfterExportingCheckBox->isChecked();
 }
 
 void QgsLayoutPdfExportOptionsDialog::showHelp()

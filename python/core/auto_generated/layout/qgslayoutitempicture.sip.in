@@ -13,8 +13,6 @@ class QgsLayoutItemPicture: QgsLayoutItem
 {
 %Docstring(signature="appended")
 A layout item subclass that displays SVG files or raster format images (jpg, png, ...).
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -250,9 +248,20 @@ Sets the stroke ``width`` (in layout units) used for parametrized SVG files.
 
     Format mode() const;
 %Docstring
-Returns the current picture mode (image format).
+Returns the current picture mode (image format), FormatUnknown if given
+picture format is unknown
 
 .. seealso:: :py:func:`setMode`
+%End
+
+    Format originalMode() const;
+%Docstring
+Returns the original set picture mode (image format).
+It could differ from :py:func:`~QgsLayoutItemPicture.mode` if given picture format is unknown
+
+.. seealso:: :py:func:`setMode`
+
+.. versionadded:: 3.22
 %End
 
     void setMode( Format mode );
@@ -331,7 +340,7 @@ and reloads and redraws the picture.
 Forces a recalculation of the picture's frame size
 %End
 
-    virtual void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::AllProperties );
+    virtual void refreshDataDefinedProperty( QgsLayoutObject::DataDefinedProperty property = QgsLayoutObject::DataDefinedProperty::AllProperties );
 
 
   signals:

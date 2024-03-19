@@ -69,9 +69,7 @@ class CORE_EXPORT  QgsFields
 
       // TODO c++20 - replace with = default
 
-      //! \since QGIS 2.6
       bool operator==( const Field &other ) const { return field == other.field && origin == other.origin && originIndex == other.originIndex; }
-      //! \since QGIS 2.6
       bool operator!=( const Field &other ) const { return !( *this == other ); }
 
       QgsField field;      //!< Field
@@ -167,7 +165,6 @@ class CORE_EXPORT  QgsFields
 
     /**
      * Returns a list with field names
-     * \since QGIS 3.0
      */
     QStringList names() const;
 
@@ -192,6 +189,22 @@ class CORE_EXPORT  QgsFields
       sipIsErr = 1;
     else
       sipRes = new QgsField( sipCpp->operator[]( idx ) );
+    % End
+#endif
+
+#ifdef SIP_RUN
+    SIP_PYOBJECT __getitem__( const QString &name ) const SIP_TYPEHINT( QgsField );
+    % MethodCode
+    const int fieldIdx = sipCpp->lookupField( *a0 );
+    if ( fieldIdx == -1 )
+    {
+      PyErr_SetString( PyExc_KeyError, a0->toLatin1() );
+      sipIsErr = 1;
+    }
+    else
+    {
+      sipRes = sipConvertFromType( new QgsField( sipCpp->at( fieldIdx ) ), sipType_QgsField, Py_None );
+    }
     % End
 #endif
 
@@ -353,7 +366,6 @@ class CORE_EXPORT  QgsFields
      *
      * \returns The field index if found or -1 in case it cannot be found.
      * \see lookupField For a more tolerant alternative.
-     * \since QGIS 3.0
      */
     int indexOf( const QString &fieldName ) const;
 
@@ -369,22 +381,18 @@ class CORE_EXPORT  QgsFields
      *
      * \returns The field index if found or -1 in case it cannot be found.
      * \see indexFromName For a more performant and precise but less tolerant alternative.
-     * \since QGIS 2.4
      */
     int lookupField( const QString &fieldName ) const;
 
     /**
      * Utility function to get list of attribute indexes
-     * \since QGIS 2.4
      */
     QgsAttributeList allAttributesList() const;
 
     //! Utility function to return a list of QgsField instances
     QList<QgsField> toList() const;
 
-    //! \since QGIS 2.6
     bool operator==( const QgsFields &other ) const;
-    //! \since QGIS 2.6
     bool operator!=( const QgsFields &other ) const { return !( *this == other ); }
 
 #ifndef SIP_RUN
@@ -393,7 +401,6 @@ class CORE_EXPORT  QgsFields
      * Returns an icon corresponding to a field index, based on the field's type and source
      * \param fieldIdx the field index
      * \param considerOrigin if TRUE the icon will the origin of the field
-     * \since QGIS 2.14
      */
     QIcon iconForField( int fieldIdx, bool considerOrigin = false ) const SIP_FACTORY;
 #else
@@ -403,7 +410,6 @@ class CORE_EXPORT  QgsFields
      * \param fieldIdx the field index
      * \param considerOrigin if TRUE the icon will the origin of the field
      * \throws KeyError if no field exists at the specified index
-     * \since QGIS 2.14
      */
     QIcon iconForField( int fieldIdx, bool considerOrigin = false ) const SIP_FACTORY;
     % MethodCode
@@ -421,9 +427,13 @@ class CORE_EXPORT  QgsFields
 
     /**
      * Returns an icon corresponding to a field \a type
+     *
+     * Since QGIS 3.24, the optional \a subType argument can be used to specify the type of variant list or map values.
+     * Since QGIS 3.30, the optional \a typeString argument can be used to specify field type strings for handling user field types.
+     *
      * \since QGIS 3.16
      */
-    static QIcon iconForFieldType( const QVariant::Type &type ) SIP_FACTORY;
+    static QIcon iconForFieldType( QVariant::Type type, QVariant::Type subType = QVariant::Type::Invalid, const QString &typeString = QString() );
 
     //! Allows direct construction of QVariants from fields.
     operator QVariant() const
@@ -532,7 +542,6 @@ class CORE_EXPORT  QgsFields
      * Returns a const STL-style iterator pointing to the first item in the list.
      *
      * \note not available in Python bindings
-     * \since QGIS 2.16
      */
     const_iterator constBegin() const noexcept;
 
@@ -540,7 +549,6 @@ class CORE_EXPORT  QgsFields
      * Returns a const STL-style iterator pointing to the imaginary item after the last item in the list.
      *
      * \note not available in Python bindings
-     * \since QGIS 2.16
      */
     const_iterator constEnd() const noexcept;
 
@@ -548,7 +556,6 @@ class CORE_EXPORT  QgsFields
      * Returns a const STL-style iterator pointing to the first item in the list.
      *
      * \note not available in Python bindings
-     * \since QGIS 2.16
      */
     const_iterator begin() const noexcept;
 
@@ -556,7 +563,6 @@ class CORE_EXPORT  QgsFields
      * Returns a const STL-style iterator pointing to the imaginary item after the last item in the list.
      *
      * \note not available in Python bindings
-     * \since QGIS 2.16
      */
     const_iterator end() const noexcept;
 
@@ -564,7 +570,6 @@ class CORE_EXPORT  QgsFields
      * Returns an STL-style iterator pointing to the first item in the list.
      *
      * \note not available in Python bindings
-     * \since QGIS 2.16
      */
     iterator begin();
 
@@ -573,7 +578,6 @@ class CORE_EXPORT  QgsFields
      * Returns an STL-style iterator pointing to the imaginary item after the last item in the list.
      *
      * \note not available in Python bindings
-     * \since QGIS 2.16
      */
     iterator end();
 

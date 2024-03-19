@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsGeocoderLocatorFilter.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,26 +9,21 @@ __author__ = 'Nyall Dawson'
 __date__ = '02/11/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsFeedback,
     QgsGeocoderInterface,
-    QgsWkbTypes,
     QgsGeocoderResult,
     QgsGeometry,
-    QgsPointXY,
-    QgsCoordinateReferenceSystem,
     QgsLocatorContext,
-    QgsFeedback,
-    QgsGeocoderContext,
-    QgsRectangle
+    QgsPointXY,
+    QgsRectangle,
+    QgsWkbTypes,
 )
-from qgis.gui import (
-    QgsMapCanvas,
-    QgsGeocoderLocatorFilter
-)
-from qgis.testing import start_app, unittest
+from qgis.gui import QgsGeocoderLocatorFilter, QgsMapCanvas
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -37,10 +31,10 @@ start_app()
 class TestGeocoder(QgsGeocoderInterface):
 
     def flags(self):
-        return QgsGeocoderInterface.GeocodesStrings
+        return QgsGeocoderInterface.Flag.GeocodesStrings
 
     def wkbType(self):
-        return QgsWkbTypes.Point
+        return QgsWkbTypes.Type.Point
 
     def geocodeString(self, string, context, feedback):
         if string == 'a':
@@ -64,7 +58,7 @@ class TestGeocoder(QgsGeocoderInterface):
         return []
 
 
-class TestQgsGeocoderLocatorFilter(unittest.TestCase):
+class TestQgsGeocoderLocatorFilter(QgisTestCase):
 
     def test_geocode(self):
         geocoder = TestGeocoder()

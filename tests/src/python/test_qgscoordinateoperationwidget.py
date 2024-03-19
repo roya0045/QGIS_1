@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for TestQgsCoordinateOperationWidget
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,25 +9,25 @@ __author__ = 'Nyall Dawson'
 __date__ = '19/12/2019'
 __copyright__ = 'Copyright 2019, The QGIS Project'
 
-import qgis  # NOQA
 import os
 
-from qgis.core import (
-    QgsProjUtils,
-    QgsDatumTransform,
-    QgsCoordinateReferenceSystem,
-    QgsCoordinateTransformContext)
-from qgis.gui import QgsCoordinateOperationWidget
-
 from qgis.PyQt.QtTest import QSignalSpy
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransformContext,
+    QgsDatumTransform,
+)
+from qgis.gui import QgsCoordinateOperationWidget
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsCoordinateOperationWidget(unittest.TestCase):
+class TestQgsCoordinateOperationWidget(QgisTestCase):
 
     def testGettersSetters(self):
         """ test widget getters/setters """

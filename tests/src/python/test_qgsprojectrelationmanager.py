@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsRelationManager
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -11,14 +10,15 @@ __date__ = '19/12/2019'
 __copyright__ = 'Copyright 2019, The QGIS Project'
 
 import os
-import qgis  # NOQA
 
-from qgis.core import (QgsVectorLayer,
-                       QgsRelation,
-                       QgsRelationManager,
-                       QgsProject
-                       )
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsProject,
+    QgsRelation,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 start_app()
@@ -45,7 +45,7 @@ def createReferencedLayer():
     return layer
 
 
-class TestQgsProjectRelationManager(unittest.TestCase):
+class TestQgsProjectRelationManager(QgisTestCase):
 
     def setUp(self):
         self.referencedLayer = createReferencedLayer()

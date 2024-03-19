@@ -23,7 +23,6 @@
 #include "qgswfsutils.h"
 #include "qgsogcutils.h"
 #include "qgsserverprojectutils.h"
-#include "qgswfsparameters.h"
 #include "qgsvectorlayer.h"
 #include "qgsproject.h"
 
@@ -85,7 +84,7 @@ namespace QgsWfs
       {
         continue;
       }
-      if ( layer->type() != QgsMapLayerType::VectorLayer )
+      if ( layer->type() != Qgis::LayerType::Vector )
       {
         continue;
       }
@@ -140,7 +139,7 @@ namespace QgsWfs
       }
       // update server feature ids
       serverFids.append( collectedServerFids );
-      request.setFlags( QgsFeatureRequest::NoFlags );
+      request.setFlags( Qgis::FeatureRequestFlag::NoFlags );
       return request;
     }
     else if ( !goidNodes.isEmpty() )
@@ -174,7 +173,7 @@ namespace QgsWfs
       }
       // update server feature ids
       serverFids.append( collectedServerFids );
-      request.setFlags( QgsFeatureRequest::NoFlags );
+      request.setFlags( Qgis::FeatureRequestFlag::NoFlags );
       return request;
     }
     else if ( filterElem.firstChildElement().tagName() == QLatin1String( "BBOX" ) )
@@ -197,7 +196,7 @@ namespace QgsWfs
         childElem = childElem.nextSiblingElement();
       }
 
-      request.setFlags( QgsFeatureRequest::ExactIntersect | QgsFeatureRequest::NoFlags );
+      request.setFlags( Qgis::FeatureRequestFlag::ExactIntersect | Qgis::FeatureRequestFlag::NoFlags );
       return request;
     }
     // Apply BBOX through filterRect even inside an And to use spatial index
@@ -267,7 +266,7 @@ namespace QgsWfs
       // Update expression
       request.setFilterExpression( childRequest.filterExpression()->expression() );
 
-      request.setFlags( QgsFeatureRequest::ExactIntersect | QgsFeatureRequest::NoFlags );
+      request.setFlags( Qgis::FeatureRequestFlag::ExactIntersect | Qgis::FeatureRequestFlag::NoFlags );
       return request;
     }
     else
@@ -287,7 +286,7 @@ namespace QgsWfs
 
         if ( filter->needsGeometry() )
         {
-          request.setFlags( QgsFeatureRequest::NoFlags );
+          request.setFlags( Qgis::FeatureRequestFlag::NoFlags );
         }
         request.setFilterExpression( filter->expression() );
         return request;

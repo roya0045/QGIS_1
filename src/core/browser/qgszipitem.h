@@ -53,11 +53,17 @@ class CORE_EXPORT QgsZipItem : public QgsDataCollectionItem
     QVector<QgsDataItem *> createChildren() override;
     QStringList getZipFileList();
 
+    bool hasDragEnabled() const override;
+    QgsMimeDataUtils::UriList mimeUris() const override;
+
     //! \note not available via Python bindings
     static QVector<dataItem_t *> sDataItemPtr SIP_SKIP;
     static QStringList sProviderNames;
 
-    static QString vsiPrefix( const QString &uri ) { return qgsVsiPrefix( uri ); }
+    /**
+     * \deprecated Will be removed in QGIS 4.0
+     */
+    Q_DECL_DEPRECATED static QString vsiPrefix( const QString &uri ) SIP_DEPRECATED;
 
     /**
      * Creates a new data item from the specified path.

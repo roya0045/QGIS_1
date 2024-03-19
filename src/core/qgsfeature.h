@@ -169,6 +169,11 @@ class CORE_EXPORT QgsFeature
     else
       sipCpp->deleteAttribute( fieldIdx );
     % End
+
+    long __hash__() const;
+    % MethodCode
+    sipRes = qHash( *sipCpp );
+    % End
 #endif
 
     /**
@@ -200,17 +205,17 @@ class CORE_EXPORT QgsFeature
     /**
      * Assignment operator
      */
-    QgsFeature &operator=( const QgsFeature &rhs ) SIP_SKIP;
+    QgsFeature &operator=( const QgsFeature &rhs );
 
     /**
      * Compares two features
      */
-    bool operator==( const QgsFeature &other ) const SIP_SKIP;
+    bool operator==( const QgsFeature &other ) const;
 
     /**
      * Compares two features
      */
-    bool operator!=( const QgsFeature &other ) const SIP_SKIP;
+    bool operator!=( const QgsFeature &other ) const;
 
     virtual ~QgsFeature();
 
@@ -224,6 +229,9 @@ class CORE_EXPORT QgsFeature
      * Sets the feature \a id for this feature.
      * \param id feature id
      * \see id()
+     * \warning Feature IDs will be automatically changed whenever a feature is added to vector layer or data provider.
+     *  This method is not designed to allow a specific feature ID to be assigned to a feature which will be added to a
+     *  layer or data provider, and the results will be unpredictable
      */
     void setId( QgsFeatureId id );
 
@@ -241,9 +249,57 @@ class CORE_EXPORT QgsFeature
      * \endcode
      *
      * \see setAttributes()
-     * \since QGIS 2.9
+     * \see attributeMap()
      */
     QgsAttributes attributes() const;
+
+#ifndef SIP_RUN
+
+    /**
+     * Returns the feature's attributes as a map of field name to value.
+     *
+     * \note The fields definition must be associated with the feature using setFields() before this method can be used.
+     *
+     * \see attributes()
+     * \see setAttributes()
+     * \since QGIS 3.22.2
+     */
+    QVariantMap attributeMap() const;
+#else
+
+    /**
+     * Returns the feature's attributes as a map of field name to value.
+     *
+     * \note The fields definition must be associated with the feature using setFields() before this method can be used.
+     *
+     * \throws ValueError if the field definition is unset or the size of the fields does not match the size of the feature's attributes()
+     *
+     * \see attributes()
+     * \see setAttributes()
+     * \since QGIS 3.22.2
+     */
+    SIP_PYOBJECT attributeMap() const SIP_TYPEHINT( Dict[str, Optional[object]] );
+    % MethodCode
+    const int fieldSize = sipCpp->fields().size();
+    const int attributeSize = sipCpp->attributes().size();
+    if ( fieldSize == 0 && attributeSize != 0 )
+    {
+      PyErr_SetString( PyExc_ValueError, QStringLiteral( "Field definition has not been set for feature" ).toUtf8().constData() );
+      sipIsErr = 1;
+    }
+    else if ( fieldSize != attributeSize )
+    {
+      PyErr_SetString( PyExc_ValueError, QStringLiteral( "Feature attribute size (%1) does not match number of fields (%2)" ).arg( attributeSize ).arg( fieldSize ).toUtf8().constData() );
+      sipIsErr = 1;
+    }
+    else
+    {
+      QVariantMap *v = new QVariantMap( sipCpp->attributeMap() );
+      const sipTypeDef *qvariantmap_type = sipFindType( "QMap<QString,QVariant>" );
+      sipRes = sipConvertFromNewType( v, qvariantmap_type, Py_None );
+    }
+    % End
+#endif
 
     /**
      * Returns the number of attributes attached to the feature.
@@ -435,7 +491,6 @@ class CORE_EXPORT QgsFeature
     /**
      * Returns TRUE if the feature has an associated geometry.
      * \see geometry()
-     * \since QGIS 3.0.
      */
     bool hasGeometry() const;
 
@@ -501,7 +556,6 @@ class CORE_EXPORT QgsFeature
      * Removes any geometry associated with the feature.
      * \see setGeometry()
      * \see hasGeometry()
-     * \since QGIS 3.0
      */
     void clearGeometry();
 
@@ -510,7 +564,6 @@ class CORE_EXPORT QgsFeature
      * \param fields The attribute fields which this feature holds
      * \param initAttributes If TRUE, attributes are initialized. Clears any data previously assigned.
      * \see fields()
-     * \since QGIS 2.9
      */
     void setFields( const QgsFields &fields, bool initAttributes = false SIP_PYARGDEFAULT( true ) );
 
@@ -542,8 +595,6 @@ class CORE_EXPORT QgsFeature
     /**
      * Insert a value into attribute, by field \a name.
      *
-     * Returns FALSE if field \a name could not be matched.
-     *
      * Field map must be associated using setFields() before this method can be used.
      *
      * Calling this method will automatically set the feature as valid (see isValid()).
@@ -564,7 +615,7 @@ class CORE_EXPORT QgsFeature
      *
      * \param name The name of the field to set
      * \param value The value to set
-     *  \throws KeyError if the attribute name could not be converted to an index
+     * \throws KeyError if the attribute name could not could not be matched.
      * \see setFields()
      */
     void setAttribute( const QString &name, const QVariant &value / GetWrapper / );
@@ -629,7 +680,7 @@ class CORE_EXPORT QgsFeature
      * \endcode
      *
      * \param name The name of the field to clear
-     * \throws KeyError if attribute name could not be converted to index
+     * \throws KeyError if attribute name could not be matched.
      * \see setFields()
      */
     bool deleteAttribute( const QString &name );
@@ -757,6 +808,41 @@ class CORE_EXPORT QgsFeature
     % End
 #endif
 
+
+#ifndef SIP_RUN
+
+    /**
+     * Returns TRUE if the attribute at the specified index is an unset value.
+     *
+     * \see QgsUnsetAttributeValue
+     * \since QGIS 3.28
+     */
+    bool isUnsetValue( int fieldIdx ) const;
+#else
+
+    /**
+     * Returns TRUE if the attribute at the specified index is an unset value.
+     *
+     * \throws KeyError if the field is not found
+     * \see QgsUnsetAttributeValue
+     * \since QGIS 3.28
+     */
+    bool isUnsetValue( int fieldIdx ) const;
+    % MethodCode
+    {
+      if ( a0 < 0 || a0 >= sipCpp->attributes().count() )
+      {
+        PyErr_SetString( PyExc_KeyError, QByteArray::number( a0 ) );
+        sipIsErr = 1;
+      }
+      else
+      {
+        sipRes = sipCpp->isUnsetValue( a0 );
+      }
+    }
+    % End
+#endif
+
     /**
      * Returns the feature's embedded symbology, or NULLPTR if the feature has no embedded symbol.
      *
@@ -830,7 +916,7 @@ typedef QMap<qint64, QgsGeometry> QgsGeometryMap;
 
 typedef QList<QgsFeature> QgsFeatureList;
 
-uint qHash( const QgsFeature &key, uint seed = 0 )  SIP_SKIP;
+CORE_EXPORT uint qHash( const QgsFeature &key, uint seed = 0 )  SIP_SKIP;
 
 Q_DECLARE_METATYPE( QgsFeature )
 Q_DECLARE_METATYPE( QgsFeatureList )

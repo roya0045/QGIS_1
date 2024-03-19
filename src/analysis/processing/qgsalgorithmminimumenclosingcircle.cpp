@@ -50,14 +50,14 @@ QString QgsMinimumEnclosingCircleAlgorithm::outputName() const
   return QObject::tr( "Minimum enclosing circles" );
 }
 
-QgsWkbTypes::Type QgsMinimumEnclosingCircleAlgorithm::outputWkbType( QgsWkbTypes::Type ) const
+Qgis::WkbType QgsMinimumEnclosingCircleAlgorithm::outputWkbType( Qgis::WkbType ) const
 {
-  return QgsWkbTypes::Type::Polygon;
+  return Qgis::WkbType::Polygon;
 }
 
 void QgsMinimumEnclosingCircleAlgorithm::initParameters( const QVariantMap & )
 {
-  addParameter( new QgsProcessingParameterNumber( QStringLiteral( "SEGMENTS" ), QObject::tr( "Number of segments in circles" ), QgsProcessingParameterNumber::Integer,
+  addParameter( new QgsProcessingParameterNumber( QStringLiteral( "SEGMENTS" ), QObject::tr( "Number of segments in circles" ), Qgis::ProcessingNumberParameterType::Integer,
                 72, false, 8, 100000 ) );
 }
 

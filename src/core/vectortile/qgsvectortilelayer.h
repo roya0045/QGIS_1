@@ -18,13 +18,16 @@
 
 #include "qgis_core.h"
 #include "qgis_sip.h"
-
 #include "qgsmaplayer.h"
+#include "qgsvectortilematrixset.h"
+#include "qgsfeatureid.h"
 
-class QgsVectorTileLabeling;
 class QgsVectorTileRenderer;
-
-class QgsTileXYZ;
+class QgsVectorTileLabeling;
+class QgsFeature;
+class QgsGeometry;
+class QgsSelectionContext;
+class QgsVectorTileRawData;
 
 /**
  * \ingroup core
@@ -85,8 +88,29 @@ class CORE_EXPORT QgsVectorTileLayer : public QgsMapLayer
     Q_OBJECT
 
   public:
+
+
+    /**
+     * Setting options for loading vector tile layers.
+     *
+     * \since QGIS 3.22
+     */
+    struct LayerOptions
+    {
+
+      /**
+       * Constructor for LayerOptions with optional \a transformContext.
+       */
+      explicit LayerOptions( const QgsCoordinateTransformContext &transformContext = QgsCoordinateTransformContext( ) )
+        : transformContext( transformContext )
+      {}
+
+      //! Coordinate transform context
+      QgsCoordinateTransformContext transformContext;
+    };
+
     //! Constructs a new vector tile layer
-    explicit QgsVectorTileLayer( const QString &path = QString(), const QString &baseName = QString() );
+    explicit QgsVectorTileLayer( const QString &path = QString(), const QString &baseName = QString(), const QgsVectorTileLayer::LayerOptions &options = QgsVectorTileLayer::LayerOptions() );
     ~QgsVectorTileLayer() override;
 
 #ifdef SIP_RUN
@@ -100,21 +124,18 @@ class CORE_EXPORT QgsVectorTileLayer : public QgsMapLayer
     // implementation of virtual functions from QgsMapLayer
 
     QgsVectorTileLayer *clone() const override SIP_FACTORY;
-
+    QgsDataProvider *dataProvider() override;
+    const QgsDataProvider *dataProvider() const override SIP_SKIP;
     QgsMapLayerRenderer *createMapRenderer( QgsRenderContext &rendererContext ) override SIP_FACTORY;
-
     bool readXml( const QDomNode &layerNode, QgsReadWriteContext &context ) override;
-
     bool writeXml( QDomNode &layerNode, QDomDocument &doc, const QgsReadWriteContext &context ) const override;
-
     bool readSymbology( const QDomNode &node, QString &errorMessage,
                         QgsReadWriteContext &context, StyleCategories categories = AllStyleCategories ) override;
-
     bool writeSymbology( QDomNode &node, QDomDocument &doc, QString &errorMessage, const QgsReadWriteContext &context,
                          StyleCategories categories = AllStyleCategories ) const override;
-
     void setTransformContext( const QgsCoordinateTransformContext &transformContext ) override;
     QString loadDefaultStyle( bool &resultFlag SIP_OUT ) override;
+    Qgis::MapLayerProperties properties() const override;
 
     /**
      * Loads the default style for the layer, and returns TRUE if the style was
@@ -129,6 +150,22 @@ class CORE_EXPORT QgsVectorTileLayer : public QgsMapLayer
      */
     bool loadDefaultStyle( QString &error, QStringList &warnings ) SIP_SKIP;
 
+    /**
+     * Loads the default style for the layer, and returns TRUE if the style was
+     * successfully loaded. Also loads any sub layers (such as raster terrain layers) associated
+     * with the layer's default style.
+     *
+     * The \a error string will be filled with a translated error message if an error
+     * occurs during the style load. The \a warnings list will be populated with any
+     * warning messages generated during the style load (e.g. default style properties
+     * which could not be converted).
+     *
+     * Ownership of the \a subLayers is transferrred to the caller.
+     *
+     * \since QGIS 3.28
+     */
+    bool loadDefaultStyleAndSubLayers( QString &error, QStringList &warnings, QList< QgsMapLayer * > &subLayers SIP_OUT SIP_TRANSFERBACK );
+
     QString loadDefaultMetadata( bool &resultFlag SIP_OUT ) override;
 
     QString encodedSource( const QString &source, const QgsReadWriteContext &context ) const FINAL;
@@ -137,15 +174,22 @@ class CORE_EXPORT QgsVectorTileLayer : public QgsMapLayer
 
     // new methods
 
+    /**
+     * Returns the vector tile matrix set.
+     *
+     * \since QGIS 3.22.6
+     */
+    QgsVectorTileMatrixSet &tileMatrixSet() { return mMatrixSet; }
+
     //! Returns type of the data source
     QString sourceType() const { return mSourceType; }
     //! Returns URL/path of the data source (syntax different to each data source type)
-    QString sourcePath() const { return mSourcePath; }
+    QString sourcePath() const;
 
     //! Returns minimum zoom level at which source has any valid tiles (negative = unconstrained)
-    int sourceMinZoom() const { return mSourceMinZoom; }
+    int sourceMinZoom() const { return mMatrixSet.minimumZoom(); }
     //! Returns maximum zoom level at which source has any valid tiles (negative = unconstrained)
-    int sourceMaxZoom() const { return mSourceMaxZoom; }
+    int sourceMaxZoom() const { return mMatrixSet.maximumZoom(); }
 
     /**
      * Fetches raw tile data for the give tile coordinates. If failed to fetch tile data,
@@ -154,7 +198,7 @@ class CORE_EXPORT QgsVectorTileLayer : public QgsMapLayer
      * \note This call may issue a network request (depending on the source type) and will block
      * the caller until the request is finished.
      */
-    QByteArray getRawTile( QgsTileXYZ tileID ) SIP_SKIP;
+    QgsVectorTileRawData getRawTile( QgsTileXYZ tileID ) SIP_SKIP;
 
     /**
      * Sets renderer for the map layer.
@@ -172,10 +216,90 @@ class CORE_EXPORT QgsVectorTileLayer : public QgsMapLayer
     //! Returns currently assigned labeling
     QgsVectorTileLabeling *labeling() const;
 
+    /**
+     * Returns whether the layer contains labels which are enabled and should be drawn.
+     * \returns TRUE if layer contains enabled labels
+     *
+     * \see setLabelsEnabled()
+     * \since QGIS 3.34
+     */
+    bool labelsEnabled() const;
+
+    /**
+     * Sets whether labels should be \a enabled for the layer.
+     *
+     * \note Labels will only be rendered if labelsEnabled() is TRUE and a labeling
+     * object is returned by labeling().
+     *
+     * \see labelsEnabled()
+     * \see labeling()
+     * \since QGIS 3.34
+     */
+    void setLabelsEnabled( bool enabled );
+
     //! Sets whether to render also borders of tiles (useful for debugging)
     void setTileBorderRenderingEnabled( bool enabled ) { mTileBorderRendering = enabled; }
     //! Returns whether to render also borders of tiles (useful for debugging)
     bool isTileBorderRenderingEnabled() const { return mTileBorderRendering; }
+
+    /**
+     * Returns the list of features currently selected in the layer.
+     *
+     * \see selectedFeatureCount()
+     * \see selectByGeometry()
+     * \see removeSelection()
+     * \see selectionChanged()
+     * \since QGIS 3.28
+     */
+    QList< QgsFeature > selectedFeatures() const;
+
+    /**
+     * Returns the number of features that are selected in this layer.
+     *
+     * \see selectedFeatures()
+     * \see selectByGeometry()
+     * \see removeSelection()
+     * \see selectionChanged()
+     * \since QGIS 3.28
+     */
+    int selectedFeatureCount() const;
+
+    /**
+     * Selects features found within the search \a geometry (in layer's coordinates).
+     *
+     * A render context can optionally be specified in order to avoid selecting features which are
+     * not currently rendered.
+     *
+     * \see selectedFeatures()
+     * \see removeSelection()
+     * \see selectionChanged()
+     * \since QGIS 3.28
+     */
+    void selectByGeometry( const QgsGeometry &geometry, const QgsSelectionContext &context,
+                           Qgis::SelectBehavior behavior = Qgis::SelectBehavior::SetSelection,
+                           Qgis::SelectGeometryRelationship relationship = Qgis::SelectGeometryRelationship::Intersect,
+                           Qgis::SelectionFlags flags = Qgis::SelectionFlags(),
+                           QgsRenderContext *renderContext = nullptr );
+
+  public slots:
+
+    /**
+     * Clear selection
+     *
+     * \see selectByGeometry()
+     * \see selectionChanged()
+     * \since QGIS 3.28
+     */
+    void removeSelection();
+
+  signals:
+
+    /**
+     * Emitted whenever the selected features in the layer are changed.
+     *
+     * \since QGIS 3.28
+     */
+    void selectionChanged();
 
   private:
     bool loadDataSource();
@@ -183,24 +307,29 @@ class CORE_EXPORT QgsVectorTileLayer : public QgsMapLayer
   private:
     //! Type of the data source
     QString mSourceType;
-    //! URL/Path of the data source
-    QString mSourcePath;
-    //! Minimum zoom level at which source has any valid tiles (negative = unconstrained)
-    int mSourceMinZoom = -1;
-    //! Maximum zoom level at which source has any valid tiles (negative = unconstrained)
-    int mSourceMaxZoom = -1;
+
+    QgsVectorTileMatrixSet mMatrixSet;
 
     //! Renderer assigned to the layer to draw map
     std::unique_ptr<QgsVectorTileRenderer> mRenderer;
     //! Labeling assigned to the layer to produce labels
     std::unique_ptr<QgsVectorTileLabeling> mLabeling;
+    //! True if labels are enabled
+    bool mLabelsEnabled = true;
     //! Whether we draw borders of tiles
     bool mTileBorderRendering = false;
 
-    QVariantMap mArcgisLayerConfiguration;
+    QgsCoordinateTransformContext mTransformContext;
 
-    bool setupArcgisVectorTileServiceConnection( const QString &uri, const QgsDataSourceUri &dataSourceUri );
+    std::unique_ptr< QgsDataProvider > mDataProvider;
+
+    QHash< QgsFeatureId, QgsFeature > mSelectedFeatures;
+
+    void setDataSourcePrivate( const QString &dataSource, const QString &baseName, const QString &provider,
+                               const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags ) override;
+
+    bool loadDefaultStyleAndSubLayersPrivate( QString &error, QStringList &warnings, QList< QgsMapLayer * > *subLayers );
+
 };
-
 
 #endif // QGSVECTORTILELAYER_H

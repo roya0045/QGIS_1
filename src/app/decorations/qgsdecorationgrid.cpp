@@ -61,31 +61,22 @@ QgsDecorationGrid::QgsDecorationGrid( QObject *parent )
   setDisplayName( tr( "Grid" ) );
   mConfigurationName = QStringLiteral( "Grid" );
 
-
-  mLineSymbol = nullptr;
-  mMarkerSymbol = nullptr;
   projectRead();
 
   connect( QgisApp::instance()->mapCanvas(), &QgsMapCanvas::destinationCrsChanged,
            this, &QgsDecorationGrid::checkMapUnitsChanged );
 }
 
-QgsDecorationGrid::~QgsDecorationGrid()
-{
-  delete mLineSymbol;
-  delete mMarkerSymbol;
-}
+QgsDecorationGrid::~QgsDecorationGrid() = default;
 
 void QgsDecorationGrid::setLineSymbol( QgsLineSymbol *symbol )
 {
-  delete mLineSymbol;
-  mLineSymbol = symbol;
+  mLineSymbol.reset( symbol );
 }
 
 void QgsDecorationGrid::setMarkerSymbol( QgsMarkerSymbol *symbol )
 {
-  delete mMarkerSymbol;
-  mMarkerSymbol = symbol;
+  mMarkerSymbol.reset( symbol );
 }
 
 void QgsDecorationGrid::projectRead()
@@ -93,8 +84,8 @@ void QgsDecorationGrid::projectRead()
   QgsDecorationItem::projectRead();
 
   mEnabled = QgsProject::instance()->readBoolEntry( mConfigurationName, QStringLiteral( "/Enabled" ), false );
-  mMapUnits = static_cast< QgsUnitTypes::DistanceUnit >( QgsProject::instance()->readNumEntry( mConfigurationName, QStringLiteral( "/MapUnits" ),
-              QgsUnitTypes::DistanceUnknownUnit ) );
+  mMapUnits = static_cast< Qgis::DistanceUnit >( QgsProject::instance()->readNumEntry( mConfigurationName, QStringLiteral( "/MapUnits" ),
+              static_cast< int >( Qgis::DistanceUnit::Unknown ) ) );
   mGridStyle = static_cast< GridStyle >( QgsProject::instance()->readNumEntry( mConfigurationName, QStringLiteral( "/Style" ),
                                          QgsDecorationGrid::Line ) );
   mGridIntervalX = QgsProject::instance()->readDoubleEntry( mConfigurationName, QStringLiteral( "/IntervalX" ), 10 );
@@ -132,10 +123,10 @@ void QgsDecorationGrid::projectRead()
   {
     doc.setContent( xml );
     elem = doc.documentElement();
-    mLineSymbol = QgsSymbolLayerUtils::loadSymbol<QgsLineSymbol>( elem, rwContext );
+    mLineSymbol.reset( QgsSymbolLayerUtils::loadSymbol<QgsLineSymbol>( elem, rwContext ) );
   }
   if ( ! mLineSymbol )
-    mLineSymbol = new QgsLineSymbol();
+    mLineSymbol = std::make_unique< QgsLineSymbol >();
 
   if ( mMarkerSymbol )
     setMarkerSymbol( nullptr );
@@ -144,15 +135,14 @@ void QgsDecorationGrid::projectRead()
   {
     doc.setContent( xml );
     elem = doc.documentElement();
-    mMarkerSymbol = QgsSymbolLayerUtils::loadSymbol<QgsMarkerSymbol>( elem, rwContext );
+    mMarkerSymbol.reset( QgsSymbolLayerUtils::loadSymbol<QgsMarkerSymbol>( elem, rwContext ) );
   }
   if ( ! mMarkerSymbol )
   {
     // set default symbol : cross with width=3
     QgsSymbolLayerList symbolList;
-    symbolList << new QgsSimpleMarkerSymbolLayer( QgsSimpleMarkerSymbolLayerBase::Cross, 3, 0 );
-    mMarkerSymbol = new QgsMarkerSymbol( symbolList );
-    // mMarkerSymbol = new QgsMarkerSymbol();
+    symbolList << new QgsSimpleMarkerSymbolLayer( Qgis::MarkerShape::Cross, 3, 0 );
+    mMarkerSymbol = std::make_unique< QgsMarkerSymbol >( symbolList );
   }
 }
 
@@ -185,7 +175,7 @@ void QgsDecorationGrid::saveToProject()
   rwContext.setPathResolver( QgsProject::instance()->pathResolver() );
   if ( mLineSymbol )
   {
-    elem = QgsSymbolLayerUtils::saveSymbol( QStringLiteral( "line symbol" ), mLineSymbol, doc, rwContext );
+    elem = QgsSymbolLayerUtils::saveSymbol( QStringLiteral( "line symbol" ), mLineSymbol.get(), doc, rwContext );
     doc.appendChild( elem );
     // FIXME this works, but XML will not be valid as < is replaced by &lt;
     QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/LineSymbol" ), doc.toString() );
@@ -193,7 +183,7 @@ void QgsDecorationGrid::saveToProject()
   if ( mMarkerSymbol )
   {
     doc.setContent( QString() );
-    elem = QgsSymbolLayerUtils::saveSymbol( QStringLiteral( "marker symbol" ), mMarkerSymbol, doc, rwContext );
+    elem = QgsSymbolLayerUtils::saveSymbol( QStringLiteral( "marker symbol" ), mMarkerSymbol.get(), doc, rwContext );
     doc.appendChild( elem );
     QgsProject::instance()->writeEntry( mConfigurationName, QStringLiteral( "/MarkerSymbol" ), doc.toString() );
   }
@@ -269,11 +259,7 @@ void QgsDecorationGrid::render( const QgsMapSettings &mapSettings, QgsRenderCont
         hIt = horizontalLines.constBegin();
         for ( ; hIt != horizontalLines.constEnd(); ++hIt )
         {
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-          if ( hIt->second.intersect( vIt->second, &intersectionPoint ) == QLineF::BoundedIntersection )
-#else
           if ( hIt->second.intersects( vIt->second, &intersectionPoint ) == QLineF::BoundedIntersection )
-#endif
           {
             mMarkerSymbol->renderPoint( intersectionPoint, nullptr, context );
           }
@@ -318,7 +304,7 @@ void QgsDecorationGrid::drawCoordinateAnnotation( QgsRenderContext &context, QPo
   const QFontMetricsF textMetrics = QgsTextRenderer::fontMetrics( context, mTextFormat );
   const double textDescent = textMetrics.descent();
   const double textWidth = QgsTextRenderer::textWidth( context, mTextFormat, annotationStringList );
-  const double textHeight = QgsTextRenderer::textHeight( context, mTextFormat, annotationStringList, QgsTextRenderer::Point );
+  const double textHeight = QgsTextRenderer::textHeight( context, mTextFormat, annotationStringList, Qgis::TextLayoutMode::Point );
 
   double xpos = pos.x();
   double ypos = pos.y();
@@ -363,7 +349,7 @@ void QgsDecorationGrid::drawCoordinateAnnotation( QgsRenderContext &context, QPo
       else //Vertical
       {
         xpos -= textDescent;
-        ypos -= textWidth - mAnnotationFrameDistance;
+        ypos -= textWidth + mAnnotationFrameDistance;
         rotation = 4.71239;
       }
       break;
@@ -382,16 +368,10 @@ void QgsDecorationGrid::drawCoordinateAnnotation( QgsRenderContext &context, QPo
       }
   }
 
-  QgsTextRenderer::drawText( QPointF( xpos, ypos ), rotation, QgsTextRenderer::AlignLeft, annotationStringList, context, mTextFormat );
+  QgsTextRenderer::drawText( QPointF( xpos, ypos ), rotation, Qgis::TextHorizontalAlignment::Left, annotationStringList, context, mTextFormat );
 }
 
-QPolygonF canvasPolygon( const QgsMapSettings &mapSettings )
-{
-  const QPolygonF poly;
-  return mapSettings.visiblePolygon();
-}
-
-bool clipByRect( QLineF &line, const QPolygonF &rect )
+static bool clipByRect( QLineF &line, const QPolygonF &rect )
 {
   QVector<QLineF> borderLines;
   borderLines << QLineF( rect.at( 0 ), rect.at( 1 ) );
@@ -404,11 +384,7 @@ bool clipByRect( QLineF &line, const QPolygonF &rect )
   for ( ; it != borderLines.constEnd(); ++it )
   {
     QPointF intersectionPoint;
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    if ( it->intersect( line, &intersectionPoint ) == QLineF::BoundedIntersection )
-#else
     if ( it->intersects( line, &intersectionPoint ) == QLineF::BoundedIntersection )
-#endif
     {
       intersectionList.push_back( intersectionPoint );
       if ( intersectionList.size() >= 2 )
@@ -423,7 +399,7 @@ bool clipByRect( QLineF &line, const QPolygonF &rect )
   return true;
 }
 
-QPolygonF canvasExtent( const QgsMapSettings &mapSettings )
+static QPolygonF canvasExtent( const QgsMapSettings &mapSettings )
 {
   QPolygonF poly;
   const QgsRectangle extent = mapSettings.visibleExtent();
@@ -445,15 +421,15 @@ int QgsDecorationGrid::xGridLines( const QgsMapSettings &mapSettings, QList< QPa
 
   const QgsMapToPixel &m2p = mapSettings.mapToPixel();
 
-  // draw nothing if the distance between grid lines would be less than 1px
+  // draw nothing if the distance between grid lines would be less than 5px
   // otherwise the grid lines would completely cover the whole map
   //if ( mapBoundingRect.height() / mGridIntervalY >= p->device()->height() )
-  if ( mGridIntervalY / mapSettings.mapUnitsPerPixel() < 1 )
+  if ( mGridIntervalY / mapSettings.mapUnitsPerPixel() < 5 )
     return 1;
 
-  const QPolygonF &canvasPoly = canvasPolygon( mapSettings );
-  const QPolygonF &mapPolygon = canvasExtent( mapSettings );
-  const QRectF &mapBoundingRect = mapPolygon.boundingRect();
+  const QPolygonF canvasPoly = mapSettings.visiblePolygon();
+  const QPolygonF mapPolygon = canvasExtent( mapSettings );
+  const QRectF mapBoundingRect = mapPolygon.boundingRect();
   const QLineF lineEast( mapPolygon[2], mapPolygon[1] );
   const QLineF lineWest( mapPolygon[3], mapPolygon[0] );
 
@@ -490,21 +466,21 @@ int QgsDecorationGrid::yGridLines( const QgsMapSettings &mapSettings, QList< QPa
 
   const QgsMapToPixel &m2p = mapSettings.mapToPixel();
 
-  // draw nothing if the distance between grid lines would be less than 1px
-  // otherwise the grid lines would completely cover the whole map
+  // draw nothing if the distance between grid lines would be less than 5px
+  // otherwise the grid lines would render the whole map illegible
   //if ( mapBoundingRect.height() / mGridIntervalY >= p->device()->height() )
-  if ( mGridIntervalX / mapSettings.mapUnitsPerPixel() < 1 )
+  if ( mGridIntervalX / mapSettings.mapUnitsPerPixel() < 5 )
     return 1;
 
-  const QPolygonF &canvasPoly = canvasPolygon( mapSettings );
-  const QPolygonF &mapPolygon = canvasExtent( mapSettings );
+  const QPolygonF canvasPoly = mapSettings.visiblePolygon();
+  const QPolygonF mapPolygon = canvasExtent( mapSettings );
   const QLineF lineSouth( mapPolygon[3], mapPolygon[2] );
   const QLineF lineNorth( mapPolygon[0], mapPolygon[1] );
 
   const double len = lineSouth.length();
   Q_ASSERT( std::fabs( len - lineNorth.length() ) < 1e-6 ); // no shear
 
-  const QRectF &mapBoundingRect = mapPolygon.boundingRect();
+  const QRectF mapBoundingRect = mapPolygon.boundingRect();
   const double roundCorrection = mapBoundingRect.left() > 0 ? 1.0 : 0.0;
   double dist = static_cast< int >( ( mapBoundingRect.left() - mGridOffsetX ) / mGridIntervalX + roundCorrection ) * mGridIntervalX + mGridOffsetX;
   dist = dist - mapBoundingRect.left();
@@ -523,7 +499,7 @@ int QgsDecorationGrid::yGridLines( const QgsMapSettings &mapSettings, QList< QPa
   return 0;
 }
 
-QgsDecorationGrid::Border QgsDecorationGrid::borderForLineCoord( QPointF point, QPainter *p ) const
+QgsDecorationGrid::Border QgsDecorationGrid::borderForLineCoord( QPointF point, const QPainter *p ) const
 {
   if ( point.x() <= mGridPen.widthF() )
   {
@@ -549,11 +525,11 @@ void QgsDecorationGrid::checkMapUnitsChanged()
   // this is to avoid problems when CRS changes to/from geographic and projected
   // a better solution would be to change the grid interval, but this is a little tricky
   // note: we could be less picky (e.g. from degrees to DMS)
-  const QgsUnitTypes::DistanceUnit mapUnits = QgisApp::instance()->mapCanvas()->mapSettings().mapUnits();
+  const Qgis::DistanceUnit mapUnits = QgisApp::instance()->mapCanvas()->mapSettings().mapUnits();
   if ( mEnabled && ( mMapUnits != mapUnits ) )
   {
     mEnabled = false;
-    mMapUnits = QgsUnitTypes::DistanceUnknownUnit; // make sure isDirty() returns true
+    mMapUnits = Qgis::DistanceUnit::Unknown; // make sure isDirty() returns true
     if ( ! QgisApp::instance()->mapCanvas()->isFrozen() )
     {
       update();
@@ -565,7 +541,7 @@ bool QgsDecorationGrid::isDirty()
 {
   // checks if stored map units is undefined or different from canvas map units
   // or if interval is 0
-  return mMapUnits == QgsUnitTypes::DistanceUnknownUnit ||
+  return mMapUnits == Qgis::DistanceUnit::Unknown ||
          mMapUnits != QgisApp::instance()->mapCanvas()->mapSettings().mapUnits() ||
          qgsDoubleNear( mGridIntervalX, 0.0 ) || qgsDoubleNear( mGridIntervalY, 0.0 );
 }
@@ -574,7 +550,7 @@ void QgsDecorationGrid::setDirty( bool dirty )
 {
   if ( dirty )
   {
-    mMapUnits = QgsUnitTypes::DistanceUnknownUnit;
+    mMapUnits = Qgis::DistanceUnit::Unknown;
   }
   else
   {
@@ -582,7 +558,7 @@ void QgsDecorationGrid::setDirty( bool dirty )
   }
 }
 
-bool QgsDecorationGrid::getIntervalFromExtent( double *values, bool useXAxis )
+bool QgsDecorationGrid::getIntervalFromExtent( double *values, bool useXAxis ) const
 {
   // get default interval from current extents
   // calculate a default interval that is approx (extent width)/5, adjusted so that it is a rounded number
@@ -593,7 +569,7 @@ bool QgsDecorationGrid::getIntervalFromExtent( double *values, bool useXAxis )
     interval = ( extent.xMaximum() - extent.xMinimum() ) / 5;
   else
     interval = ( extent.yMaximum() - extent.yMinimum() ) / 5;
-  QgsDebugMsg( QStringLiteral( "interval: %1" ).arg( interval ) );
+  QgsDebugMsgLevel( QStringLiteral( "interval: %1" ).arg( interval ), 2 );
   if ( !qgsDoubleNear( interval, 0.0 ) )
   {
     double interval2 = 0;
@@ -601,7 +577,7 @@ bool QgsDecorationGrid::getIntervalFromExtent( double *values, bool useXAxis )
     if ( factor != 0 )
     {
       interval2 = std::round( interval / factor ) * factor;
-      QgsDebugMsg( QStringLiteral( "interval2: %1" ).arg( interval2 ) );
+      QgsDebugMsgLevel( QStringLiteral( "interval2: %1" ).arg( interval2 ), 2 );
       if ( !qgsDoubleNear( interval2, 0.0 ) )
         interval = interval2;
     }
@@ -611,7 +587,7 @@ bool QgsDecorationGrid::getIntervalFromExtent( double *values, bool useXAxis )
   return true;
 }
 
-bool QgsDecorationGrid::getIntervalFromCurrentLayer( double *values )
+bool QgsDecorationGrid::getIntervalFromCurrentLayer( double *values ) const
 {
   // get current layer and make sure it is a raster layer and CRSs match
   QgsMapLayer *layer = QgisApp::instance()->mapCanvas()->currentLayer();
@@ -620,7 +596,7 @@ bool QgsDecorationGrid::getIntervalFromCurrentLayer( double *values )
     QMessageBox::warning( nullptr, tr( "Get Interval from Layer" ), tr( "No active layer" ) );
     return false;
   }
-  if ( layer->type() != QgsMapLayerType::RasterLayer )
+  if ( layer->type() != Qgis::LayerType::Raster )
   {
     QMessageBox::warning( nullptr, tr( "Get Interval from Layer" ), tr( "Please select a raster layer." ) );
     return false;
@@ -656,10 +632,10 @@ bool QgsDecorationGrid::getIntervalFromCurrentLayer( double *values )
   ratio = extent.yMinimum() / values[1];
   values[3] = ( ratio - std::floor( ratio ) ) * values[1];
 
-  QgsDebugMsg( QStringLiteral( "xmax: %1 xmin: %2 width: %3 xInterval: %4 xOffset: %5" ).arg(
-                 extent.xMaximum() ).arg( extent.xMinimum() ).arg( rlayer->width() ).arg( values[0] ).arg( values[2] ) );
-  QgsDebugMsg( QStringLiteral( "ymax: %1 ymin: %2 height: %3 yInterval: %4 yOffset: %5" ).arg(
-                 extent.yMaximum() ).arg( extent.yMinimum() ).arg( rlayer->height() ).arg( values[1] ).arg( values[3] ) );
+  QgsDebugMsgLevel( QStringLiteral( "xmax: %1 xmin: %2 width: %3 xInterval: %4 xOffset: %5" ).arg(
+                      extent.xMaximum() ).arg( extent.xMinimum() ).arg( rlayer->width() ).arg( values[0] ).arg( values[2] ), 2 );
+  QgsDebugMsgLevel( QStringLiteral( "ymax: %1 ymin: %2 height: %3 yInterval: %4 yOffset: %5" ).arg(
+                      extent.yMaximum() ).arg( extent.yMinimum() ).arg( rlayer->height() ).arg( values[1] ).arg( values[3] ), 2 );
 
   return true;
 }

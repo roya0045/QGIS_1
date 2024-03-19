@@ -37,7 +37,6 @@ class QgsRuleBasedLabelProvider;
  * \ingroup core
  * \class QgsRuleBasedLabeling
  * \brief Rule based labeling for a vector layer.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
 {
@@ -50,7 +49,6 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
      * \ingroup core
      * \class QgsRuleBasedLabeling::Rule
      * \brief A child rule for QgsRuleBasedLabeling.
-     * \since QGIS 3.0
      */
     class CORE_EXPORT Rule
     {
@@ -90,7 +88,6 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          * A scale of 0 indicates no maximum scale visibility.
          * \see minimumScale()
          * \see setMaximumScale()
-         * \since QGIS 3.0
          */
         double maximumScale() const { return mMaximumScale; }
 
@@ -100,7 +97,6 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          * A scale of 0 indicates no minimum scale visibility.
          * \see maximumScale()
          * \see setMinimumScale()
-         * \since QGIS 3.0
          */
         double minimumScale() const { return mMinimumScale; }
 
@@ -241,7 +237,6 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          *
          * \returns The rule or NULLPTR if not found
          *
-         * \since QGIS 3.0
          */
         QgsRuleBasedLabeling::Rule *findRuleByKey( const QString &key ) SIP_SKIP;
 
@@ -254,9 +249,10 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          * Create a rule from an XML definition
          * \param ruleElem  The XML rule element
          * \param context reading context
+         * \param reuseId set to TRUE to create an exact copy of the original symbol or FALSE to create a new rule with the same parameters as the original but a new unique ruleKey(). (Since QGIS 3.30)
          * \returns A new rule
          */
-        static QgsRuleBasedLabeling::Rule *create( const QDomElement &ruleElem, const QgsReadWriteContext &context ) SIP_FACTORY;
+        static QgsRuleBasedLabeling::Rule *create( const QDomElement &ruleElem, const QgsReadWriteContext &context, bool reuseId = true ) SIP_FACTORY;
 
         //! store labeling info to XML element
         QDomElement save( QDomDocument &doc, const QgsReadWriteContext &context ) const;
@@ -388,14 +384,17 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
      * \param settings Pal layer settings
      * \param providerId The id of the provider
      *
-     * \since QGIS 3.0
      */
     void setSettings( QgsPalLayerSettings *settings SIP_TRANSFER, const QString &providerId = QString() ) override;
     bool requiresAdvancedEffects() const override;
     void toSld( QDomNode &parent, const QVariantMap &props ) const override;
+    void multiplyOpacity( double opacityFactor ) override;
+
 
   protected:
     std::unique_ptr<Rule> mRootRule;
+
+
 };
 
 #ifndef SIP_RUN

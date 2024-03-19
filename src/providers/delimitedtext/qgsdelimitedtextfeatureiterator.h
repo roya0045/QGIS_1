@@ -19,6 +19,7 @@
 #include "qgsfeatureiterator.h"
 #include "qgsfeature.h"
 #include "qgsexpressioncontext.h"
+#include "qgscoordinatetransform.h"
 
 #include "qgsdelimitedtextprovider.h"
 
@@ -33,7 +34,7 @@ class QgsDelimitedTextFeatureSource final: public QgsAbstractFeatureSource
     QgsDelimitedTextProvider::GeomRepresentationType mGeomRep;
     std::unique_ptr< QgsExpression > mSubsetExpression;
     QgsExpressionContext mExpressionContext;
-    QgsRectangle mExtent;
+    QgsBox3D mExtent;
     bool mUseSpatialIndex;
     std::unique_ptr< QgsSpatialIndex > mSpatialIndex;
     bool mUseSubsetIndex;
@@ -47,11 +48,12 @@ class QgsDelimitedTextFeatureSource final: public QgsAbstractFeatureSource
     int mMFieldIndex;
     int mWktFieldIndex;
     bool mWktHasPrefix;
-    QgsWkbTypes::GeometryType mGeometryType;
+    Qgis::GeometryType mGeometryType;
     QString mDecimalPoint;
     bool mXyDms;
     QList<int> attributeColumns;
     QgsCoordinateReferenceSystem mCrs;
+    QMap<int, QPair<QString, QString>> mFieldBooleanLiterals;
 
     friend class QgsDelimitedTextFeatureIterator;
 };

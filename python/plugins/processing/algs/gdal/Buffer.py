@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     Buffer.py
@@ -57,13 +55,12 @@ class Buffer(GdalAlgorithm):
         self.addParameter(QgsProcessingParameterDistance(self.DISTANCE,
                                                          self.tr('Buffer distance'),
                                                          parentParameterName=self.INPUT,
-                                                         minValue=0.0,
                                                          defaultValue=10.0))
         self.addParameter(QgsProcessingParameterField(self.FIELD,
                                                       self.tr('Dissolve by attribute'),
                                                       None,
                                                       self.INPUT,
-                                                      QgsProcessingParameterField.Any,
+                                                      QgsProcessingParameterField.DataType.Any,
                                                       optional=True))
         self.addParameter(QgsProcessingParameterBoolean(self.DISSOLVE,
                                                         self.tr('Dissolve all results'),
@@ -76,12 +73,12 @@ class Buffer(GdalAlgorithm):
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(options_param)
 
         self.addParameter(QgsProcessingParameterVectorDestination(self.OUTPUT,
                                                                   self.tr('Buffer'),
-                                                                  QgsProcessing.TypeVectorPolygon))
+                                                                  QgsProcessing.SourceType.TypeVectorPolygon))
 
     def name(self):
         return 'buffervectors'
@@ -130,12 +127,12 @@ class Buffer(GdalAlgorithm):
         ]
 
         if dissolve or fieldName:
-            sql = 'SELECT ST_Union(ST_Buffer({}, {})) AS {}{} FROM "{}"'.format(geometry, distance, geometry, other_fields, layerName)
+            sql = f'SELECT ST_Union(ST_Buffer({geometry}, {distance})) AS {geometry}{other_fields} FROM "{layerName}"'
         else:
-            sql = 'SELECT ST_Buffer({}, {}) AS {}{} FROM "{}"'.format(geometry, distance, geometry, other_fields, layerName)
+            sql = f'SELECT ST_Buffer({geometry}, {distance}) AS {geometry}{other_fields} FROM "{layerName}"'
 
         if fieldName:
-            sql = '{} GROUP BY "{}"'.format(sql, fieldName)
+            sql = f'{sql} GROUP BY "{fieldName}"'
 
         arguments.append(sql)
 
@@ -146,6 +143,6 @@ class Buffer(GdalAlgorithm):
             arguments.append(options)
 
         if outputFormat:
-            arguments.append('-f {}'.format(outputFormat))
+            arguments.append(f'-f {outputFormat}')
 
         return [self.commandName(), GdalUtils.escapeAndJoin(arguments)]

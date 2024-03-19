@@ -36,7 +36,6 @@ class ScrollAreaFilter;
  * All QGIS code and plugins should use QgsScrollArea in place
  * of QScrollArea.
  *
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsScrollArea : public QScrollArea
 {
@@ -60,6 +59,13 @@ class GUI_EXPORT QgsScrollArea : public QScrollArea
      * the QScrollArea or its child viewport()
      */
     bool hasScrolled() const;
+
+    /**
+     * Resets the hasScrolled() flag.
+     *
+     * \since QGIS 3.24
+     */
+    void resetHasScrolled() SIP_SKIP;
 
     /**
      * Sets whether the scroll area only applies vertical.
@@ -105,6 +111,8 @@ class ScrollAreaFilter : public QObject
   private:
     QgsScrollArea *mScrollAreaWidget = nullptr;
     QWidget *mViewPort = nullptr;
+    QPoint mPreviousViewportCursorPos;
+    int mMoveDistanceThreshold = 0;
 
     void addChild( QObject *child );
     void removeChild( QObject *child );

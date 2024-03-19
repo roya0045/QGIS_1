@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsImageSourceLineEdit
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,19 +9,19 @@ __author__ = 'Nyall Dawson'
 __date__ = '5/12/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
 import os
-from qgis.gui import QgsImageSourceLineEdit
 
 from qgis.PyQt.QtTest import QSignalSpy
-from qgis.testing import start_app, unittest
-from utilities import unitTestDataPath
+from qgis.gui import QgsImageSourceLineEdit
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
+from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsImageSourceLineEdit(unittest.TestCase):
+class TestQgsImageSourceLineEdit(QgisTestCase):
 
     def testGettersSetters(self):
         """ test widget getters/setters """

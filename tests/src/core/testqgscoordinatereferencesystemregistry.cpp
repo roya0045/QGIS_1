@@ -35,6 +35,9 @@ class TestQgsCoordinateReferenceSystemRegistry: public QObject
     void changeUserCrs();
     void removeUserCrs();
     void projOperations();
+    void authorities();
+    void crsDbRecords();
+    void testRecent();
 
   private:
 
@@ -64,7 +67,7 @@ void TestQgsCoordinateReferenceSystemRegistry::initTestCase()
 
   QSettings().clear();
 
-  QgsDebugMsg( QStringLiteral( "Custom srs database: %1" ).arg( QgsApplication::qgisUserDatabaseFilePath() ) );
+  QgsDebugMsgLevel( QStringLiteral( "Custom srs database: %1" ).arg( QgsApplication::qgisUserDatabaseFilePath() ), 1 );
 }
 
 void TestQgsCoordinateReferenceSystemRegistry::cleanupTestCase()
@@ -115,7 +118,7 @@ void TestQgsCoordinateReferenceSystemRegistry::addUserCrs()
   QCOMPARE( registry->userCrsList().at( 0 ).crs, userCrs );
 
   // try adding again, should be assigned a new ID because we are calling the "add" method
-  res = registry->addUserCrs( userCrs, QStringLiteral( "test2" ), QgsCoordinateReferenceSystem::FormatProj );
+  res = registry->addUserCrs( userCrs, QStringLiteral( "test2" ), Qgis::CrsDefinitionFormat::Proj );
   QCOMPARE( res, 100001L );
   QCOMPARE( spyAdded.length(), 2 );
   QCOMPARE( spyAdded.at( 1 ).at( 0 ).toString(), QStringLiteral( "USER:100001" ) );
@@ -216,7 +219,7 @@ void TestQgsCoordinateReferenceSystemRegistry::changeUserCrs()
 
   // with proj native format
   QObject::disconnect( conn1 );
-  QVERIFY( registry->updateUserCrs( id, crs2, QStringLiteral( "test 2" ), QgsCoordinateReferenceSystem::FormatProj ) );
+  QVERIFY( registry->updateUserCrs( id, crs2, QStringLiteral( "test 2" ), Qgis::CrsDefinitionFormat::Proj ) );
 
   QCOMPARE( spyAdded.length(), 1 );
   QCOMPARE( spyChanged.length(), 2 );
@@ -314,6 +317,115 @@ void TestQgsCoordinateReferenceSystemRegistry::projOperations()
   QCOMPARE( operations.value( QStringLiteral( "lcc" ) ).id(), QStringLiteral( "lcc" ) );
   QCOMPARE( operations.value( QStringLiteral( "lcc" ) ).description(), QStringLiteral( "Lambert Conformal Conic" ) );
   QVERIFY( operations.value( QStringLiteral( "lcc" ) ).details().contains( QStringLiteral( "Conic" ) ) );
+}
+
+void TestQgsCoordinateReferenceSystemRegistry::authorities()
+{
+  const QSet< QString > authorities = QgsApplication::coordinateReferenceSystemRegistry()->authorities();
+
+  QVERIFY( authorities.contains( QStringLiteral( "epsg" ) ) );
+  QVERIFY( authorities.contains( QStringLiteral( "proj" ) ) );
+  QVERIFY( authorities.contains( QStringLiteral( "esri" ) ) );
+}
+
+void TestQgsCoordinateReferenceSystemRegistry::crsDbRecords()
+{
+  const QList< QgsCrsDbRecord > records = QgsApplication::coordinateReferenceSystemRegistry()->crsDbRecords();
+  QVERIFY( !records.isEmpty() );
+
+  auto it = std::find_if( records.begin(), records.end(),
+  []( const QgsCrsDbRecord & record ) { return record.authName == QLatin1String( "EPSG" ) && record.authId == QLatin1String( "3111" );} );
+  QVERIFY( it != records.end() );
+  QCOMPARE( it->description, QStringLiteral( "GDA94 / Vicgrid" ) );
+  QCOMPARE( it->type, Qgis::CrsType::Projected );
+
+  // check that database includes vertical CRS
+  it = std::find_if( records.begin(), records.end(),
+  []( const QgsCrsDbRecord & record ) { return record.type == Qgis::CrsType::Vertical;} );
+  QVERIFY( it != records.end() );
+
+  // check that database includes compound CRS
+  it = std::find_if( records.begin(), records.end(),
+  []( const QgsCrsDbRecord & record ) { return record.type == Qgis::CrsType::Compound;} );
+  QVERIFY( it != records.end() );
+
+}
+
+void TestQgsCoordinateReferenceSystemRegistry::testRecent()
+{
+  QList< QgsCoordinateReferenceSystem > recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QVERIFY( recent.isEmpty() );
+
+  QSignalSpy pushSpy( QgsApplication::coordinateReferenceSystemRegistry(), &QgsCoordinateReferenceSystemRegistry::recentCrsPushed );
+
+  QgsApplication::coordinateReferenceSystemRegistry()->pushRecent( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3111" ) ) );
+  recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QCOMPARE( recent.size(), 1 );
+  QCOMPARE( recent.at( 0 ).authid(), QStringLiteral( "EPSG:3111" ) );
+  QCOMPARE( pushSpy.size(), 1 );
+  QCOMPARE( pushSpy.at( 0 ).at( 0 ).value<QgsCoordinateReferenceSystem>().authid(), QStringLiteral( "EPSG:3111" ) );
+
+  QgsApplication::coordinateReferenceSystemRegistry()->pushRecent( QgsCoordinateReferenceSystem::fromProj( geoProj4() ) );
+  recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QCOMPARE( recent.size(), 2 );
+  QCOMPARE( recent.at( 0 ).authid(), QStringLiteral( "EPSG:4326" ) );
+  QCOMPARE( recent.at( 1 ).authid(), QStringLiteral( "EPSG:3111" ) );
+  QCOMPARE( pushSpy.size(), 2 );
+  QCOMPARE( pushSpy.at( 1 ).at( 0 ).value<QgsCoordinateReferenceSystem>().authid(), QStringLiteral( "EPSG:4326" ) );
+
+  // push back to top of list
+  QgsApplication::coordinateReferenceSystemRegistry()->pushRecent( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:3111" ) ) );
+  recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QCOMPARE( recent.size(), 2 );
+  QCOMPARE( recent.at( 0 ).authid(), QStringLiteral( "EPSG:3111" ) );
+  QCOMPARE( recent.at( 1 ).authid(), QStringLiteral( "EPSG:4326" ) );
+  QCOMPARE( pushSpy.size(), 3 );
+  QCOMPARE( pushSpy.at( 2 ).at( 0 ).value<QgsCoordinateReferenceSystem>().authid(), QStringLiteral( "EPSG:3111" ) );
+
+  // no invalid CRSes in list:
+  QgsApplication::coordinateReferenceSystemRegistry()->pushRecent( QgsCoordinateReferenceSystem() );
+  recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QCOMPARE( recent.size(), 2 );
+  QCOMPARE( recent.at( 0 ).authid(), QStringLiteral( "EPSG:3111" ) );
+  QCOMPARE( recent.at( 1 ).authid(), QStringLiteral( "EPSG:4326" ) );
+  QCOMPARE( pushSpy.size(), 3 );
+
+  // no custom CRSes in list:
+  QgsApplication::coordinateReferenceSystemRegistry()->pushRecent( QgsCoordinateReferenceSystem::fromProj( QStringLiteral( "+proj=sterea +lat_0=47.9860018439082 +lon_0=19.0491441390302 +k=1 +x_0=500000 +y_0=500000 +ellps=bessel +towgs84=595.75,121.09,515.50,8.2270,-1.5193,5.5971,-2.6729 +units=m +vunits=m +no_defs" ) ) );
+  recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QCOMPARE( recent.size(), 2 );
+  QCOMPARE( recent.at( 0 ).authid(), QStringLiteral( "EPSG:3111" ) );
+  QCOMPARE( recent.at( 1 ).authid(), QStringLiteral( "EPSG:4326" ) );
+  QCOMPARE( pushSpy.size(), 3 );
+
+  // user CRSes ARE allowed
+  QgsApplication::coordinateReferenceSystemRegistry()->pushRecent( QgsCoordinateReferenceSystem( QStringLiteral( "USER:100001" ) ) );
+  recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QCOMPARE( recent.size(), 3 );
+  QCOMPARE( recent.at( 0 ).authid(), QStringLiteral( "USER:100001" ) );
+  QCOMPARE( recent.at( 1 ).authid(), QStringLiteral( "EPSG:3111" ) );
+  QCOMPARE( recent.at( 2 ).authid(), QStringLiteral( "EPSG:4326" ) );
+  QCOMPARE( pushSpy.size(), 4 );
+  QCOMPARE( pushSpy.at( 3 ).at( 0 ).value<QgsCoordinateReferenceSystem>().authid(), QStringLiteral( "USER:100001" ) );
+
+  // list should be truncated after 30 entries
+  for ( int i = 32510; i < 32550; ++i )
+  {
+    QgsApplication::coordinateReferenceSystemRegistry()->pushRecent( QgsCoordinateReferenceSystem( QStringLiteral( "EPSG:%1" ).arg( i ) ) );
+  }
+  recent = QgsApplication::coordinateReferenceSystemRegistry()->recentCrs();
+  QCOMPARE( recent.size(), 30 );
+  QCOMPARE( recent.at( 0 ).authid(), QStringLiteral( "EPSG:32549" ) );
+  QCOMPARE( recent.at( 1 ).authid(), QStringLiteral( "EPSG:32548" ) );
+  QCOMPARE( recent.at( 2 ).authid(), QStringLiteral( "EPSG:32547" ) );
+  QCOMPARE( recent.at( 3 ).authid(), QStringLiteral( "EPSG:32546" ) );
+  QCOMPARE( recent.at( 4 ).authid(), QStringLiteral( "EPSG:32545" ) );
+  QCOMPARE( recent.at( 5 ).authid(), QStringLiteral( "EPSG:32544" ) );
+  QCOMPARE( recent.at( 6 ).authid(), QStringLiteral( "EPSG:32543" ) );
+  QCOMPARE( recent.at( 7 ).authid(), QStringLiteral( "EPSG:32542" ) );
+  QCOMPARE( recent.at( 8 ).authid(), QStringLiteral( "EPSG:32541" ) );
+  QCOMPARE( recent.at( 9 ).authid(), QStringLiteral( "EPSG:32540" ) );
+  QCOMPARE( recent.constLast().authid(), QStringLiteral( "EPSG:32520" ) );
 }
 
 QGSTEST_MAIN( TestQgsCoordinateReferenceSystemRegistry )

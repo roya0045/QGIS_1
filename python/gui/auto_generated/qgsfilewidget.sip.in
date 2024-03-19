@@ -74,7 +74,7 @@ Sets the current file ``path``.
 .. seealso:: :py:func:`filePath`
 %End
 
-    void setReadOnly( bool readOnly );
+    virtual void setReadOnly( bool readOnly );
 %Docstring
 Sets whether the widget should be read only.
 %End
@@ -250,8 +250,6 @@ Sets whether the relative path is with respect to the project path or the defaul
 %Docstring
 Returns a pointer to the widget's line edit, which can be used to customize
 the appearance and behavior of the line edit portion of the widget.
-
-.. versionadded:: 3.0
 %End
 
   signals:
@@ -294,6 +292,10 @@ returns a HTML code with a link to the given file path
 %Docstring
 Returns a filePath with relative path options applied (or not) !
 %End
+
+  public:
+    virtual QSize minimumSizeHint() const;
+
 
 };
 

@@ -49,7 +49,6 @@ typedef QList< QgsTask * > QgsTaskList;
  * has been canceled via some external event. If this flag is TRUE then the task should
  * clean up and terminate at the earliest possible convenience.
  *
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsTask : public QObject
 {
@@ -69,10 +68,12 @@ class CORE_EXPORT QgsTask : public QObject
     Q_ENUM( TaskStatus )
 
     //! Task flags
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
       CanCancel = 1 << 1, //!< Task can be canceled
       CancelWithoutPrompt = 1 << 2, //!< Task can be canceled without any users prompts, e.g. when closing a project or QGIS.
+      Hidden = 1 << 3, //!< Hide task from GUI (since QGIS 3.26)
+      Silent = 1 << 4, //!< Don't show task updates (such as completion/failure messages) as operating-system level notifications (since QGIS 3.26)
       AllFlags = CanCancel, //!< Task supports all flags
     };
     Q_DECLARE_FLAGS( Flags, Flag )
@@ -385,7 +386,6 @@ Q_DECLARE_OPERATORS_FOR_FLAGS( QgsTask::Flags )
  * \class QgsTaskManager
  * \brief Task manager for managing a set of long-running QgsTask tasks. This class can be created directly,
  * or accessed via QgsApplication::taskManager().
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsTaskManager : public QObject
 {
@@ -427,6 +427,13 @@ class CORE_EXPORT QgsTaskManager : public QObject
       QgsTaskList dependentTasks;
 
     };
+
+    /**
+     * Returns the threadpool utilized by the task manager.
+     *
+     * \since QGIS 3.34
+     */
+    QThreadPool *threadPool();
 
     /**
      * Adds a task to the manager. Ownership of the task is transferred
@@ -509,10 +516,13 @@ class CORE_EXPORT QgsTaskManager : public QObject
 
     /**
      * Returns the number of active (queued or running) tasks.
+     *
+     * The \a includeHidden argument dictates whether hidden tasks should be shown.
+     *
      * \see activeTasks()
      * \see countActiveTasksChanged()
      */
-    int countActiveTasks() const;
+    int countActiveTasks( bool includeHidden = true ) const;
 
   public slots:
 
@@ -595,13 +605,11 @@ class CORE_EXPORT QgsTaskManager : public QObject
       QgsTaskRunnableWrapper *runnable = nullptr;
     };
 
+    QThreadPool *mThreadPool = nullptr;
+
     bool mInitialized = false;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    mutable QMutex *mTaskMutex;
-#else
     mutable QRecursiveMutex *mTaskMutex;
-#endif
 
     QMap< long, TaskInfo > mTasks;
     QMap< long, QgsTaskList > mTaskDependencies;

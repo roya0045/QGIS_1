@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsDatabaseTableComboBox
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,23 +9,21 @@ __author__ = 'Nyall Dawson'
 __date__ = '8/03/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
 import os
 
-from qgis.core import (
-    QgsProviderRegistry,
-    QgsFields,
-    QgsField,
-    QgsWkbTypes,
-    QgsCoordinateReferenceSystem
-)
-from qgis.gui import QgsDatabaseTableComboBox
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtTest import QSignalSpy
-
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsField,
+    QgsFields,
+    QgsProviderRegistry,
+    QgsWkbTypes,
+)
+from qgis.gui import QgsDatabaseTableComboBox
 from qgis.testing import unittest
-from utilities import unitTestDataPath, start_app
+
+from utilities import start_app, unitTestDataPath
 
 start_app()
 
@@ -38,6 +35,7 @@ class TestQgsDatabaseTableComboBox(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(cls.__name__)
@@ -93,7 +91,7 @@ class TestQgsDatabaseTableComboBox(unittest.TestCase):
 
         fields = QgsFields()
         fields.append(QgsField('test', QVariant.String))
-        conn.createVectorTable('qgis_test', 'myNewTable', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem('EPSG:3857'), False, {})
+        conn.createVectorTable('qgis_test', 'myNewTable', fields, QgsWkbTypes.Type.Point, QgsCoordinateReferenceSystem('EPSG:3857'), False, {})
 
         text2 = [m.comboBox().itemText(i) for i in range(m.comboBox().count())]
         # tables are not automatically refreshed
@@ -169,7 +167,7 @@ class TestQgsDatabaseTableComboBox(unittest.TestCase):
 
         fields = QgsFields()
         fields.append(QgsField('test', QVariant.String))
-        conn.createVectorTable('qgis_test', 'myNewTable', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem('EPSG:3857'), False, {})
+        conn.createVectorTable('qgis_test', 'myNewTable', fields, QgsWkbTypes.Type.Point, QgsCoordinateReferenceSystem('EPSG:3857'), False, {})
 
         text2 = [m.comboBox().itemText(i) for i in range(m.comboBox().count())]
         # tables are not automatically refreshed
@@ -263,7 +261,7 @@ class TestQgsDatabaseTableComboBox(unittest.TestCase):
 
         fields = QgsFields()
         fields.append(QgsField('test', QVariant.String))
-        conn.createVectorTable('qgis_test', 'myNewTable', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem('EPSG:3857'), False, {})
+        conn.createVectorTable('qgis_test', 'myNewTable', fields, QgsWkbTypes.Type.Point, QgsCoordinateReferenceSystem('EPSG:3857'), False, {})
 
         text2 = [m.comboBox().itemText(i) for i in range(m.comboBox().count())]
         # tables are not automatically refreshed

@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include "qgsvectorfieldsymbollayer.h"
-#include "qgsvectorlayer.h"
 #include "qgsunittypes.h"
 #include "qgssymbollayerutils.h"
 #include "qgslinesymbol.h"
@@ -28,19 +27,21 @@ QgsVectorFieldSymbolLayer::QgsVectorFieldSymbolLayer()
 
 QgsVectorFieldSymbolLayer::~QgsVectorFieldSymbolLayer() = default;
 
-void QgsVectorFieldSymbolLayer::setOutputUnit( QgsUnitTypes::RenderUnit unit )
+void QgsVectorFieldSymbolLayer::setOutputUnit( Qgis::RenderUnit unit )
 {
   QgsMarkerSymbolLayer::setOutputUnit( unit );
   mDistanceUnit = unit;
+  if ( mLineSymbol )
+    mLineSymbol->setOutputUnit( unit );
 }
 
-QgsUnitTypes::RenderUnit QgsVectorFieldSymbolLayer::outputUnit() const
+Qgis::RenderUnit QgsVectorFieldSymbolLayer::outputUnit() const
 {
   if ( QgsMarkerSymbolLayer::outputUnit() == mDistanceUnit )
   {
     return mDistanceUnit;
   }
-  return QgsUnitTypes::RenderUnknownUnit;
+  return Qgis::RenderUnit::Unknown;
 }
 
 void QgsVectorFieldSymbolLayer::setMapUnitScale( const QgsMapUnitScale &scale )
@@ -144,6 +145,9 @@ void QgsVectorFieldSymbolLayer::renderPoint( QPointF point, QgsSymbolRenderConte
 
   const QgsRenderContext &ctx = context.renderContext();
 
+  const bool prevIsSubsymbol = context.renderContext().flags() & Qgis::RenderContextFlag::RenderingSubSymbol;
+  context.renderContext().setFlag( Qgis::RenderContextFlag::RenderingSubSymbol );
+
   if ( !context.feature() )
   {
     //preview
@@ -151,6 +155,7 @@ void QgsVectorFieldSymbolLayer::renderPoint( QPointF point, QgsSymbolRenderConte
     line << QPointF( 0, 50 );
     line << QPointF( 100, 50 );
     mLineSymbol->renderPolyline( line, nullptr, context.renderContext() );
+    context.renderContext().setFlag( Qgis::RenderContextFlag::RenderingSubSymbol, prevIsSubsymbol );
     return;
   }
 
@@ -209,7 +214,9 @@ void QgsVectorFieldSymbolLayer::renderPoint( QPointF point, QgsSymbolRenderConte
   }
 
   line << destPoint;
+
   mLineSymbol->renderPolyline( line, &f, context.renderContext() );
+  context.renderContext().setFlag( Qgis::RenderContextFlag::RenderingSubSymbol, prevIsSubsymbol );
 }
 
 void QgsVectorFieldSymbolLayer::startRender( QgsSymbolRenderContext &context )
@@ -272,9 +279,9 @@ QVariantMap QgsVectorFieldSymbolLayer::properties() const
 
 bool QgsVectorFieldSymbolLayer::usesMapUnits() const
 {
-  return mDistanceUnit == QgsUnitTypes::RenderMapUnits || mDistanceUnit == QgsUnitTypes::RenderMetersInMapUnits
-         || mOffsetUnit == QgsUnitTypes::RenderMapUnits || mOffsetUnit == QgsUnitTypes::RenderMetersInMapUnits
-         || mSizeUnit == QgsUnitTypes::RenderMapUnits || mSizeUnit == QgsUnitTypes::RenderMetersInMapUnits;
+  return mDistanceUnit == Qgis::RenderUnit::MapUnits || mDistanceUnit == Qgis::RenderUnit::MetersInMapUnits
+         || mOffsetUnit == Qgis::RenderUnit::MapUnits || mOffsetUnit == Qgis::RenderUnit::MetersInMapUnits
+         || mSizeUnit == Qgis::RenderUnit::MapUnits || mSizeUnit == Qgis::RenderUnit::MetersInMapUnits;
 }
 
 void QgsVectorFieldSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, const QVariantMap &props ) const

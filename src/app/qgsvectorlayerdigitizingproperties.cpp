@@ -24,6 +24,7 @@
 #include "qgsgeometryoptions.h"
 #include "qgsmaplayercombobox.h"
 #include "qgsproject.h"
+#include "qgsunittypes.h"
 
 #include <QFormLayout>
 
@@ -31,6 +32,7 @@ QgsVectorLayerDigitizingPropertiesPage::QgsVectorLayerDigitizingPropertiesPage( 
   : QgsMapLayerConfigWidget( layer, canvas, parent )
 {
   setupUi( this );
+  setObjectName( QStringLiteral( "mOptsPage_Digitizing" ) );
 
   QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( mLayer );
 
@@ -70,7 +72,7 @@ QgsVectorLayerDigitizingPropertiesPage::QgsVectorLayerDigitizingPropertiesPage( 
     mPrecisionUnitsLabel->setText( QStringLiteral( "[%1]" ).arg( QgsUnitTypes::toAbbreviatedString( vlayer->crs().mapUnits() ) ) );
 
     QLayout *geometryCheckLayout = new QVBoxLayout();
-    const QList<QgsGeometryCheckFactory *> geometryCheckFactories = QgsAnalysis::instance()->geometryCheckRegistry()->geometryCheckFactories( vlayer, QgsGeometryCheck::FeatureNodeCheck, QgsGeometryCheck::Flag::AvailableInValidation );
+    const QList<QgsGeometryCheckFactory *> geometryCheckFactories = QgsAnalysis::geometryCheckRegistry()->geometryCheckFactories( vlayer, QgsGeometryCheck::FeatureNodeCheck, QgsGeometryCheck::Flag::AvailableInValidation );
     const QStringList activeChecks = vlayer->geometryOptions()->geometryChecks();
     for ( const QgsGeometryCheckFactory *factory : geometryCheckFactories )
     {
@@ -83,7 +85,7 @@ QgsVectorLayerDigitizingPropertiesPage::QgsVectorLayerDigitizingPropertiesPage( 
     mGeometryValidationGroupBox->setVisible( !geometryCheckFactories.isEmpty() );
 
     QLayout *topologyCheckLayout = new QVBoxLayout();
-    const QList<QgsGeometryCheckFactory *> topologyCheckFactories = QgsAnalysis::instance()->geometryCheckRegistry()->geometryCheckFactories( vlayer, QgsGeometryCheck::LayerCheck, QgsGeometryCheck::Flag::AvailableInValidation );
+    const QList<QgsGeometryCheckFactory *> topologyCheckFactories = QgsAnalysis::geometryCheckRegistry()->geometryCheckFactories( vlayer, QgsGeometryCheck::LayerCheck, QgsGeometryCheck::Flag::AvailableInValidation );
 
     for ( const QgsGeometryCheckFactory *factory : topologyCheckFactories )
     {
@@ -102,7 +104,7 @@ QgsVectorLayerDigitizingPropertiesPage::QgsVectorLayerDigitizingPropertiesPage( 
         mGapCheckAllowExceptionsActivatedCheckBox->setLayout( layout );
         topologyCheckLayout->addWidget( mGapCheckAllowExceptionsActivatedCheckBox );
         mGapCheckAllowExceptionsLayerComboBox = new QgsMapLayerComboBox();
-        mGapCheckAllowExceptionsLayerComboBox->setFilters( QgsMapLayerProxyModel::PolygonLayer );
+        mGapCheckAllowExceptionsLayerComboBox->setFilters( Qgis::LayerFilter::PolygonLayer );
         mGapCheckAllowExceptionsLayerComboBox->setExceptedLayerList( QList<QgsMapLayer *> { vlayer } );
         mGapCheckAllowExceptionsLayerComboBox->setLayer( QgsProject::instance()->mapLayer( gapCheckConfig.value( QStringLiteral( "allowedGapsLayer" ) ).toString() ) );
         layout->addWidget( new QLabel( tr( "Layer" ) ), 0, 0 );
@@ -180,5 +182,5 @@ QgsMapLayerConfigWidget *QgsVectorLayerDigitizingPropertiesFactory::createWidget
 
 bool QgsVectorLayerDigitizingPropertiesFactory::supportsLayer( QgsMapLayer *layer ) const
 {
-  return layer->type() == QgsMapLayerType::VectorLayer;
+  return layer->type() == Qgis::LayerType::Vector;
 }

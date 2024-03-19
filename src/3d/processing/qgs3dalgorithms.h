@@ -20,13 +20,12 @@
 
 #include "qgis_3d.h"
 #include "qgis.h"
-#include "processing/qgsprocessingprovider.h"
+#include "qgsprocessingprovider.h"
 
 /**
  * \ingroup analysis
  * \class Qgs3DAlgorithms
  * \brief QGIS 3D processing algorithm provider.
- * \since QGIS 3.0
  */
 class _3D_EXPORT Qgs3DAlgorithms: public QgsProcessingProvider
 {

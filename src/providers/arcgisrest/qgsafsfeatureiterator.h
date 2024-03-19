@@ -17,6 +17,7 @@
 
 #include "qgsfeatureiterator.h"
 #include "qgsafsshareddata.h"
+#include "qgscoordinatetransform.h"
 #include <memory>
 
 class QgsSpatialIndex;
@@ -29,6 +30,7 @@ class QgsAfsFeatureSource : public QgsAbstractFeatureSource
   public:
     QgsAfsFeatureSource( const std::shared_ptr<QgsAfsSharedData> &sharedData );
     QgsFeatureIterator getFeatures( const QgsFeatureRequest &request ) override;
+
     QgsAfsSharedData *sharedData() const;
 
   protected:

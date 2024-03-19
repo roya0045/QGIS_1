@@ -23,7 +23,6 @@
 #include "qgspalettedrasterrenderer.h"
 #include "qgscolorschemelist.h"
 #include "qgsrasterlayer.h"
-#include "qgsrasterdataprovider.h"
 #include "ui_qgspalettedrendererwidgetbase.h"
 #include "qgis_gui.h"
 
@@ -45,13 +44,7 @@ class QgsPalettedRendererClassGatherer: public QThread
     Q_OBJECT
 
   public:
-    QgsPalettedRendererClassGatherer( QgsRasterLayer *layer, int bandNumber, const QgsPalettedRasterRenderer::ClassData &existingClasses, QgsColorRamp *ramp = nullptr )
-      : mLayer( layer )
-      , mBandNumber( bandNumber )
-      , mRamp( ramp )
-      , mClasses( existingClasses )
-      , mWasCanceled( false )
-    {}
+    QgsPalettedRendererClassGatherer( QgsRasterLayer *layer, int bandNumber, const QgsPalettedRasterRenderer::ClassData &existingClasses, QgsColorRamp *ramp = nullptr );
 
     void run() override;
 
@@ -87,7 +80,7 @@ class QgsPalettedRendererClassGatherer: public QThread
 
   private:
 
-    QgsRasterLayer *mLayer = nullptr;
+    std::unique_ptr< QgsRasterDataProvider > mProvider;
     int mBandNumber;
     std::unique_ptr< QgsColorRamp > mRamp;
     QString mSubstring;
@@ -193,8 +186,11 @@ class GUI_EXPORT QgsPalettedRendererWidget: public QgsRasterRendererWidget, priv
     ~QgsPalettedRendererWidget() override;
     static QgsRasterRendererWidget *create( QgsRasterLayer *layer, const QgsRectangle &extent ) SIP_FACTORY { return new QgsPalettedRendererWidget( layer, extent ); }
 
-    QgsRasterRenderer *renderer() override;
+    QgsRasterRenderer *renderer() SIP_FACTORY override;
 
+    /**
+     * Sets the widget state from the specified renderer.
+     */
     void setFromRenderer( const QgsRasterRenderer *r );
 
   private:

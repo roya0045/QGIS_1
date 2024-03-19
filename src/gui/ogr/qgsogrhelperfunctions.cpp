@@ -213,7 +213,7 @@ QString createDatabaseURI( const QString &connectionType, const QString &host, c
       }
     }
   }
-  QgsDebugMsg( "Connection type is=" + connectionType + " and uri=" + uri );
+  QgsDebugMsgLevel( "Connection type is=" + connectionType + " and uri=" + uri, 2 );
   return uri;
 }
 
@@ -246,6 +246,11 @@ QString createProtocolURI( const QString &type, const QString &url, const QStrin
     uri = url;
     uri.prepend( QStringLiteral( "/vsiaz/" ) );
   }
+  else if ( type == QLatin1String( "Microsoft Azure Data Lake Storage" ) )
+  {
+    uri = url;
+    uri.prepend( QStringLiteral( "/vsiadls/" ) );
+  }
   else if ( type == QLatin1String( "Alibaba Cloud OSS" ) )
   {
     uri = url;
@@ -274,7 +279,7 @@ QString createProtocolURI( const QString &type, const QString &url, const QStrin
   {
     uri = QStringLiteral( "WFS3:%1" ).arg( url );
   }
-  QgsDebugMsg( "Connection type is=" + type + " and uri=" + uri );
+  QgsDebugMsgLevel( "Connection type is=" + type + " and uri=" + uri, 2 );
   // Update URI with authentication information
   if ( ! configId.isEmpty() )
   {

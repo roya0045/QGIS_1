@@ -18,6 +18,7 @@
 
 #include "qgspropertyassistantwidget.h"
 #include "qgsproject.h"
+#include "qgsprojectstylesettings.h"
 #include "qgsmapsettings.h"
 #include "qgsvectorlayer.h"
 #include "qgslayertreelayer.h"
@@ -26,6 +27,8 @@
 #include "qgsstyle.h"
 #include "qgsmarkersymbol.h"
 #include "qgslinesymbol.h"
+#include "qgsstringutils.h"
+#include "qgsgui.h"
 
 QgsPropertyAssistantWidget::QgsPropertyAssistantWidget( QWidget *parent,
     const QgsPropertyDefinition &definition, const QgsProperty &initialState,
@@ -38,7 +41,7 @@ QgsPropertyAssistantWidget::QgsPropertyAssistantWidget( QWidget *parent,
 
   layout()->setContentsMargins( 0, 0, 0, 0 );
 
-  setPanelTitle( mDefinition.description() );
+  setPanelTitle( ( QgsGui::higFlags() & QgsGui::HigDialogTitleIsTitleCase ) ? QgsStringUtils::capitalize( mDefinition.description(), Qgis::Capitalization::TitleCase ) : mDefinition.description() );
 
   mLegendPreview->hide();
 
@@ -48,7 +51,7 @@ QgsPropertyAssistantWidget::QgsPropertyAssistantWidget( QWidget *parent,
   // TODO expression widget shouldn't require a non-const layer
   mExpressionWidget->setLayer( const_cast< QgsVectorLayer * >( mLayer ) );
   mExpressionWidget->setFilters( QgsFieldProxyModel::Numeric );
-  mExpressionWidget->setField( initialState.propertyType() == QgsProperty::ExpressionBasedProperty ? initialState.expressionString() : initialState.field() );
+  mExpressionWidget->setField( initialState.propertyType() == Qgis::PropertyType::Expression ? initialState.expressionString() : initialState.field() );
 
   if ( auto *lTransformer = initialState.transformer() )
   {
@@ -134,6 +137,7 @@ QgsPropertyAssistantWidget::QgsPropertyAssistantWidget( QWidget *parent,
   connect( minValueSpinBox, static_cast < void ( QgsDoubleSpinBox::* )( double ) > ( &QgsDoubleSpinBox::valueChanged ), this, &QgsPropertyAssistantWidget::widgetChanged );
   connect( maxValueSpinBox, static_cast < void ( QgsDoubleSpinBox::* )( double ) > ( &QgsDoubleSpinBox::valueChanged ), this, &QgsPropertyAssistantWidget::widgetChanged );
   connect( mExpressionWidget, static_cast < void ( QgsFieldExpressionWidget::* )( const QString & ) > ( &QgsFieldExpressionWidget::fieldChanged ), this, &QgsPropertyAssistantWidget::widgetChanged );
+  connect( mTransformCurveCheckBox, &QgsCollapsibleGroupBox::toggled, this, &QgsPropertyAssistantWidget::widgetChanged );
   connect( mCurveEditor, &QgsCurveEditorWidget::changed, this, &QgsPropertyAssistantWidget::widgetChanged );
   connect( this, &QgsPropertyAssistantWidget::widgetChanged, this, &QgsPropertyAssistantWidget::updatePreview );
   updatePreview();
@@ -274,8 +278,8 @@ bool QgsPropertyAssistantWidget::computeValuesFromExpression( const QString &exp
 
   QgsFeatureIterator fit = mLayer->getFeatures(
                              QgsFeatureRequest().setFlags( e.needsGeometry()
-                                 ? QgsFeatureRequest::NoFlags
-                                 : QgsFeatureRequest::NoGeometry )
+                                 ? Qgis::FeatureRequestFlag::NoFlags
+                                 : Qgis::FeatureRequestFlag::NoGeometry )
                              .setSubsetOfAttributes( referencedCols, mLayer->fields() ) );
 
   // create list of non-null attribute values
@@ -478,10 +482,13 @@ QgsPropertyColorAssistantWidget::QgsPropertyColorAssistantWidget( QWidget *paren
   if ( !mColorRampButton->colorRamp() )
   {
     // set a default ramp
-    const QString defaultRampName = QgsProject::instance()->readEntry( QStringLiteral( "DefaultStyles" ), QStringLiteral( "/ColorRamp" ), QString() );
-    const std::unique_ptr< QgsColorRamp > defaultRamp( QgsStyle::defaultStyle()->colorRamp( !defaultRampName.isEmpty() ? defaultRampName : QStringLiteral( "Blues" ) ) );
-    if ( defaultRamp )
-      mColorRampButton->setColorRamp( defaultRamp.get() );
+    std::unique_ptr< QgsColorRamp > colorRamp( QgsProject::instance()->styleSettings()->defaultColorRamp() );
+    if ( !colorRamp )
+    {
+      colorRamp.reset( QgsStyle::defaultStyle()->colorRamp( QStringLiteral( "Blues" ) ) );
+    }
+    if ( colorRamp )
+      mColorRampButton->setColorRamp( colorRamp.get() );
   }
 }
 
@@ -491,7 +498,8 @@ QgsColorRampTransformer *QgsPropertyColorAssistantWidget::createTransformer( dou
     minValue,
     maxValue,
     mColorRampButton->colorRamp(),
-    mNullColorButton->color() );
+    mNullColorButton->color(),
+    mColorRampButton->colorRampName() );
   return transformer;
 }
 
@@ -574,6 +582,39 @@ QgsPropertyGenericNumericAssistantWidget::QgsPropertyGenericNumericAssistantWidg
       mLabelNullOutput->setText( tr( "Opacity when NULL" ) );
       break;
     }
+
+    case QgsPropertyDefinition::DoublePositive:
+    case QgsPropertyDefinition::IntegerPositive:
+      minOutputSpinBox->setMinimum( 0 );
+      maxOutputSpinBox->setMinimum( 0 );
+      minOutputSpinBox->setShowClearButton( false );
+      maxOutputSpinBox->setShowClearButton( false );
+      break;
+
+    case QgsPropertyDefinition::IntegerPositiveGreaterZero:
+      minOutputSpinBox->setMinimum( 1 );
+      maxOutputSpinBox->setMinimum( 1 );
+      minOutputSpinBox->setShowClearButton( false );
+      maxOutputSpinBox->setShowClearButton( false );
+      break;
+
+    case QgsPropertyDefinition::Double0To1:
+      minOutputSpinBox->setMinimum( 0 );
+      maxOutputSpinBox->setMinimum( 0 );
+      minOutputSpinBox->setMaximum( 1 );
+      maxOutputSpinBox->setMaximum( 1 );
+      minOutputSpinBox->setShowClearButton( false );
+      maxOutputSpinBox->setShowClearButton( false );
+      break;
+
+    case QgsPropertyDefinition::Double:
+      minOutputSpinBox->setMinimum( -99999999.000000 );
+      maxOutputSpinBox->setMinimum( -99999999.000000 );
+      minOutputSpinBox->setMaximum( 99999999.000000 );
+      maxOutputSpinBox->setMaximum( 99999999.000000 );
+      minOutputSpinBox->setShowClearButton( false );
+      maxOutputSpinBox->setShowClearButton( false );
+      break;
 
     default:
     {

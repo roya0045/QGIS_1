@@ -18,8 +18,9 @@
 
 #include "qgis_core.h"
 #include "qgis.h"
-#include "qgsrendercontext.h"
 #include "qgspropertycollection.h"
+#include "qgsrendercontext.h"
+#include "qgsscreenproperties.h"
 
 class QgsSymbolLayer;
 class QgsLegendPatchShape;
@@ -27,6 +28,61 @@ class QgsSymbolRenderContext;
 class QgsLineSymbolLayer;
 
 typedef QList<QgsSymbolLayer *> QgsSymbolLayerList;
+
+/**
+ * \ingroup core
+ * \class QgsSymbolAnimationSettings
+ *
+ * \brief Contains settings relating to symbol animation.
+ *
+ * \since QGIS 3.26
+ */
+class CORE_EXPORT QgsSymbolAnimationSettings
+{
+  public:
+
+    /**
+     * Sets whether the symbol is animated.
+     *
+     * This is a user-facing setting for symbols, which allows users to define whether a
+     * symbol is animated, and allows for creation of animated symbols via data
+     * defined properties.
+     *
+     * \see isAnimated()
+     */
+    void setIsAnimated( bool animated ) { mIsAnimated = animated; }
+
+    /**
+     * Returns TRUE if the symbol is animated.
+     *
+     * This is a user-facing setting for symbols, which allows users to define whether a
+     * symbol is animated, and allows for creation of animated symbols via data
+     * defined properties.
+     *
+     * \see setIsAnimated()
+     */
+    bool isAnimated() const { return mIsAnimated; }
+
+    /**
+     * Sets the symbol animation frame \a rate (in frames per second).
+     *
+     * \see frameRate()
+     */
+    void setFrameRate( double rate ) { mFrameRate = rate; }
+
+    /**
+     * Returns the symbol animation frame rate (in frames per second).
+     *
+     * \see setFrameRate()
+     */
+    double frameRate() const { return mFrameRate; }
+
+  private:
+
+    bool mIsAnimated = false;
+    double mFrameRate = 10;
+
+};
 
 /**
  * \ingroup core
@@ -65,16 +121,19 @@ class CORE_EXPORT QgsSymbol
      *
      * \since QGIS 3.20
      */
-    static Qgis::SymbolType symbolTypeForGeometryType( QgsWkbTypes::GeometryType type );
+    static Qgis::SymbolType symbolTypeForGeometryType( Qgis::GeometryType type );
+
+    // *INDENT-OFF*
 
     /**
      * Data definable properties.
      * \since QGIS 3.18
      */
-    enum Property
+    enum class Property SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsSymbol, Property ) : int
     {
-      PropertyOpacity, //!< Opacity
+      Opacity SIP_MONKEYPATCH_COMPAT_NAME( PropertyOpacity ), //!< Opacity
     };
+    // *INDENT-ON*
 
     /**
      * Returns the symbol property definitions.
@@ -89,7 +148,7 @@ class CORE_EXPORT QgsSymbol
      *
      * The caller takes ownership of the returned object.
      */
-    static QgsSymbol *defaultSymbol( QgsWkbTypes::GeometryType geomType ) SIP_FACTORY;
+    static QgsSymbol *defaultSymbol( Qgis::GeometryType geomType ) SIP_FACTORY;
 
     /**
      * Returns the symbol's type.
@@ -103,9 +162,8 @@ class CORE_EXPORT QgsSymbol
      * \returns symbol layers list
      * \see symbolLayer
      * \see symbolLayerCount
-     * \since QGIS 2.7
      */
-    QgsSymbolLayerList symbolLayers() { return mLayers; }
+    QgsSymbolLayerList symbolLayers() const { return mLayers; }
 
 #ifndef SIP_RUN
 
@@ -113,7 +171,6 @@ class CORE_EXPORT QgsSymbol
      * Returns the symbol layer at the specified index
      * \see symbolLayers
      * \see symbolLayerCount
-     * \since QGIS 2.7
      */
     QgsSymbolLayer *symbolLayer( int layer );
 
@@ -133,7 +190,6 @@ class CORE_EXPORT QgsSymbol
      *
      * \see symbolLayers
      * \see symbolLayerCount
-     * \since QGIS 2.7
      */
     SIP_PYOBJECT symbolLayer( int layer ) SIP_TYPEHINT( QgsSymbolLayer );
     % MethodCode
@@ -155,7 +211,6 @@ class CORE_EXPORT QgsSymbol
      * \returns count of symbol layers
      * \see symbolLayers
      * \see symbolLayer
-     * \since QGIS 2.7
      */
     int symbolLayerCount() const { return mLayers.count(); }
 
@@ -296,7 +351,7 @@ class CORE_EXPORT QgsSymbol
      *
      * \see color()
      */
-    void setColor( const QColor &color );
+    void setColor( const QColor &color ) const;
 
     /**
      * Returns the symbol's color.
@@ -316,17 +371,16 @@ class CORE_EXPORT QgsSymbol
      * \param painter destination painter
      * \param size size of the icon
      * \param customContext the context in which the rendering happens
-     * \param selected set to TRUE to render the symbol in a selected state
+     * \param selected set to TRUE to render the symbol in a selected state (since QGIS 3.10)
      * \param expressionContext optional custom expression context
      * \param patchShape optional patch shape to use for symbol preview. If not specified a default shape will be used instead.
+     * \param screen can be used to specify the destination screen properties for the icon. This allows the icon to be generated using the correct DPI and device pixel ratio for the target screen (since QGIS 3.32)
      *
      * \see exportImage()
      * \see asImage()
-     * \note Parameter selected added in QGIS 3.10
-     * \since QGIS 2.6
      */
     void drawPreviewIcon( QPainter *painter, QSize size, QgsRenderContext *customContext = nullptr, bool selected = false, const QgsExpressionContext *expressionContext = nullptr,
-                          const QgsLegendPatchShape *patchShape = nullptr );
+                          const QgsLegendPatchShape *patchShape = nullptr, const QgsScreenProperties &screen = QgsScreenProperties() );
 
     /**
      * Export the symbol as an image format, to the specified \a path and with the given \a size.
@@ -356,11 +410,12 @@ class CORE_EXPORT QgsSymbol
      * \param expressionContext optional expression context, for evaluation of
      * data defined symbol properties
      * \param flags optional flags to control how preview image is generated
+     * \param screen can be used to specify the destination screen properties for the icon. This allows the icon to be generated using the correct DPI and device pixel ratio for a target screen (since QGIS 3.32)
      *
      * \see asImage()
      * \see drawPreviewIcon()
      */
-    QImage bigSymbolPreviewImage( QgsExpressionContext *expressionContext = nullptr, Qgis::SymbolPreviewFlags flags = Qgis::SymbolPreviewFlag::FlagIncludeCrosshairsForMarkerSymbols ) SIP_PYNAME( bigSymbolPreviewImageV2 );
+    QImage bigSymbolPreviewImage( QgsExpressionContext *expressionContext = nullptr, Qgis::SymbolPreviewFlags flags = Qgis::SymbolPreviewFlag::FlagIncludeCrosshairsForMarkerSymbols, const QgsScreenProperties &screen = QgsScreenProperties() ) SIP_PYNAME( bigSymbolPreviewImageV2 );
 
     /**
      * \deprecated use bigSymbolPreviewImageV2 instead.
@@ -392,7 +447,7 @@ class CORE_EXPORT QgsSymbol
      * \returns output unit, or QgsUnitTypes::RenderUnknownUnit if the symbol contains mixed units
      * \see setOutputUnit()
      */
-    QgsUnitTypes::RenderUnit outputUnit() const;
+    Qgis::RenderUnit outputUnit() const;
 
     /**
      * Returns TRUE if the symbol has any components which use map unit based sizes.
@@ -409,7 +464,7 @@ class CORE_EXPORT QgsSymbol
      * \param unit output units
      * \see outputUnit()
      */
-    void setOutputUnit( QgsUnitTypes::RenderUnit unit );
+    void setOutputUnit( Qgis::RenderUnit unit ) const;
 
     /**
      * Returns the map unit scale for the symbol.
@@ -430,7 +485,7 @@ class CORE_EXPORT QgsSymbol
      *
      * \see mapUnitScale()
      */
-    void setMapUnitScale( const QgsMapUnitScale &scale );
+    void setMapUnitScale( const QgsMapUnitScale &scale ) const;
 
     /**
      * Returns the opacity for the symbol.
@@ -481,7 +536,6 @@ class CORE_EXPORT QgsSymbol
      * side effects for certain symbol types.
      * \param clipFeaturesToExtent set to TRUE to enable clipping (defaults to TRUE)
      * \see clipFeaturesToExtent
-     * \since QGIS 2.9
      */
     void setClipFeaturesToExtent( bool clipFeaturesToExtent ) { mClipFeaturesToExtent = clipFeaturesToExtent; }
 
@@ -492,7 +546,6 @@ class CORE_EXPORT QgsSymbol
      * side effects for certain symbol types.
      * \returns TRUE if features will be clipped
      * \see setClipFeaturesToExtent
-     * \since QGIS 2.9
      */
     bool clipFeaturesToExtent() const { return mClipFeaturesToExtent; }
 
@@ -517,6 +570,30 @@ class CORE_EXPORT QgsSymbol
      * \since QGIS 3.6
      */
     bool forceRHR() const { return mForceRHR; }
+
+    /**
+     * Returns a reference to the symbol animation settings.
+     *
+     * \see setAnimationSettings()
+     * \since QGIS 3.26
+     */
+    QgsSymbolAnimationSettings &animationSettings();
+
+    /**
+     * Returns a reference to the symbol animation settings.
+     *
+     * \see setAnimationSettings()
+     * \since QGIS 3.26
+     */
+    const QgsSymbolAnimationSettings &animationSettings() const SIP_SKIP;
+
+    /**
+     * Sets a the symbol animation \a settings.
+     *
+     * \see animationSettings()
+     * \since QGIS 3.26
+     */
+    void setAnimationSettings( const QgsSymbolAnimationSettings &settings );
 
     /**
      * Returns a list of attributes required to render this feature.
@@ -559,7 +636,6 @@ class CORE_EXPORT QgsSymbol
 
     /**
      * Returns whether the symbol utilizes any data defined properties.
-     * \since QGIS 2.12
      */
     bool hasDataDefinedProperties() const;
 
@@ -691,12 +767,14 @@ class CORE_EXPORT QgsSymbol
      * geometry passed to the layer will be empty.
      * This is required for layers that generate their own geometry from other
      * information in the rendering context.
+     *
+     * Since QGIS 3.22, the optional \a geometryType, \a points and \a rings arguments can specify the original
+     * geometry type, points and rings in which are being rendered by the parent symbol.
      */
-    void renderUsingLayer( QgsSymbolLayer *layer, QgsSymbolRenderContext &context );
+    void renderUsingLayer( QgsSymbolLayer *layer, QgsSymbolRenderContext &context, Qgis::GeometryType geometryType = Qgis::GeometryType::Unknown, const QPolygonF *points = nullptr, const QVector<QPolygonF> *rings = nullptr );
 
     /**
      * Render editing vertex marker at specified point
-     * \since QGIS 2.16
      */
     void renderVertexMarker( QPointF pt, QgsRenderContext &context, Qgis::VertexMarkerType currentVertexMarkerType, double currentVertexMarkerSize );
 
@@ -717,6 +795,8 @@ class CORE_EXPORT QgsSymbol
 
     bool mClipFeaturesToExtent = true;
     bool mForceRHR = false;
+
+    QgsSymbolAnimationSettings mAnimationSettings;
 
     Q_DECL_DEPRECATED const QgsVectorLayer *mLayer = nullptr; //current vectorlayer
 
@@ -741,9 +821,34 @@ class CORE_EXPORT QgsSymbol
 
     QgsPropertyCollection mDataDefinedProperties;
 
+    /**
+     * Creates a line string in screen coordinates from a QgsCurve in map coordinates
+     */
+    static QPolygonF _getLineString2d( QgsRenderContext &context, const QgsCurve &curve, bool clipToExtent = true );
+
+    /**
+     * Creates a line string in screen coordinates from a QgsCurve in map coordinates
+     */
+    static QPolygonF _getLineString3d( QgsRenderContext &context, const QgsCurve &curve, bool clipToExtent = true );
+
+    /**
+     * Creates a polygon ring in screen coordinates from a QgsCurve in map coordinates.
+     *
+     * If \a correctRingOrientation is TRUE then the ring will be oriented to match standard ring orientation, e.g.
+     * clockwise for exterior rings and counter-clockwise for interior rings.
+     */
+    static QPolygonF _getPolygonRing2d( QgsRenderContext &context, const QgsCurve &curve, bool clipToExtent, bool isExteriorRing = false, bool correctRingOrientation = false );
+
+    /**
+     * Creates a polygon ring in screen coordinates from a QgsCurve in map coordinates.
+     *
+     * If \a correctRingOrientation is TRUE then the ring will be oriented to match standard ring orientation, e.g.
+     * clockwise for exterior rings and counter-clockwise for interior rings.
+     */
+    static QPolygonF _getPolygonRing3d( QgsRenderContext &context, const QgsCurve &curve, bool clipToExtent, bool isExteriorRing = false, bool correctRingOrientation = false );
+
     Q_DISABLE_COPY( QgsSymbol )
 
 };
 
 #endif
-

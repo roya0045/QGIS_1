@@ -26,49 +26,25 @@
 #include "qgsmaprenderersequentialjob.h"
 #include "qgsrenderchecker.h"
 
-class TestQgsPalLabeling: public QObject
+class TestQgsPalLabeling: public QgsTest
 {
     Q_OBJECT
 
+  public:
+
+    TestQgsPalLabeling() : QgsTest( QStringLiteral( "PAL labeling Tests" ) ) {}
+
   private slots:
-    void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init();// will be called before each testfunction is executed.
-    void cleanup();// will be called after every testfunction.
     void wrapChar();//test wrapping text lines
     void graphemes(); //test splitting strings to graphemes
     bool imageCheck( const QString &testName, QImage &image, int mismatchCount );
     void testGeometryGenerator();
-
-  private:
-    QString mReport;
 };
-
-void TestQgsPalLabeling::initTestCase()
-{
-}
 
 void TestQgsPalLabeling::cleanupTestCase()
 {
   QgsApplication::exitQgis();
-  const QString myReportFile = QDir::tempPath() + "/qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-  }
-}
-
-void TestQgsPalLabeling::init()
-{
-
-}
-
-void TestQgsPalLabeling::cleanup()
-{
-
 }
 
 void TestQgsPalLabeling::wrapChar()
@@ -85,7 +61,10 @@ void TestQgsPalLabeling::wrapChar()
   QCOMPARE( QgsPalLabeling::splitToLines( "with auto wrap", QString(), 6, false ), QStringList() << "with auto" << "wrap" );
 
   // manual wrap character should take precedence
-  QCOMPARE( QgsPalLabeling::splitToLines( QStringLiteral( "with auto-wrap and manual-wrap" ), QStringLiteral( "-" ), 12, true ), QStringList() << "with" << "auto" << "wrap and" << "manual" << "wrap" );
+  QCOMPARE( QgsPalLabeling::splitToLines( QStringLiteral( "with auto-wrap and manual-wrap" ), QStringLiteral( "-" ), 12, true ), QStringList() << "with auto" << "wrap and" << "manual" << "wrap" );
+  QCOMPARE( QgsPalLabeling::splitToLines( QStringLiteral( "with automatic-wrap and manual-wrap" ), QStringLiteral( "-" ), 12, true ), QStringList() << "with" << "automatic" << "wrap and" << "manual" << "wrap" );
+  QCOMPARE( QgsPalLabeling::splitToLines( QStringLiteral( "with automatic-wrap and manual-wrap" ), QStringLiteral( "-" ), 6, true ), QStringList() << "with" << "automatic" << "wrap" << "and" << "manual" << "wrap" );
+  QCOMPARE( QgsPalLabeling::splitToLines( QStringLiteral( "with auto-wrap and manual-wrap" ), QStringLiteral( "-" ), 12, false ), QStringList() << "with auto" << "wrap and manual" << "wrap" );
   QCOMPARE( QgsPalLabeling::splitToLines( QStringLiteral( "with auto-wrap and manual-wrap" ), QStringLiteral( "-" ), 6, false ), QStringList() << "with auto" << "wrap and" << "manual" << "wrap" );
 }
 
@@ -204,7 +183,6 @@ bool TestQgsPalLabeling::imageCheck( const QString &testName, QImage &image, int
   painter.drawImage( 0, 0, image );
   painter.end();
 
-  mReport += "<h2>" + testName + "</h2>\n";
   const QString tempDir = QDir::tempPath() + '/';
   const QString fileName = tempDir + testName + ".png";
   imageWithBackground.save( fileName, "PNG" );
@@ -233,9 +211,9 @@ void TestQgsPalLabeling::testGeometryGenerator()
   settings.fieldName = QStringLiteral( "'X'" );
   settings.isExpression = true;
 
-  settings.placement = QgsPalLayerSettings::OverPoint;
+  settings.placement = Qgis::LabelPlacement::OverPoint;
   settings.geometryGeneratorEnabled = true;
-  settings.geometryGeneratorType = QgsWkbTypes::PointGeometry;
+  settings.geometryGeneratorType = Qgis::GeometryType::Point;
   settings.geometryGenerator = "translate($geometry, 1, 0)";
 
   std::unique_ptr< QgsVectorLayer> vl2( new QgsVectorLayer( QStringLiteral( "Point?crs=epsg:4326&field=id:integer" ), QStringLiteral( "vl" ), QStringLiteral( "memory" ) ) );

@@ -9,18 +9,20 @@
 
 
 
+
 class QgsLayoutExporter
 {
 %Docstring(signature="appended")
 Handles rendering and exports of layouts to various formats.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
 #include "qgslayoutexporter.h"
 %End
   public:
+
+
+
 
     struct PageExportDetails
     {
@@ -192,7 +194,7 @@ Constructor for PdfExportSettings
 
       QgsLayoutRenderContext::Flags flags;
 
-      QgsRenderContext::TextRenderFormat textRenderFormat;
+      Qgis::TextRenderFormat textRenderFormat;
 
       bool simplifyGeometries;
 
@@ -209,7 +211,6 @@ Constructor for PdfExportSettings
       QStringList exportThemes;
 
       QVector<qreal> predefinedMapScales;
-
     };
 
     ExportResult exportToPdf( const QString &filePath, const QgsLayoutExporter::PdfExportSettings &settings );
@@ -269,6 +270,8 @@ Constructor for PrintExportSettings
 
     };
 
+%If (HAVE_QTPRINTER)
+
     ExportResult print( QPrinter &printer, const QgsLayoutExporter::PrintExportSettings &settings );
 %Docstring
 Prints the layout to a ``printer``, using the specified export ``settings``.
@@ -288,6 +291,7 @@ error was encountered. If an error was obtained then ``error`` will be set
 to the error description.
 %End
 
+%End
 
     struct SvgExportSettings
     {
@@ -312,7 +316,7 @@ Constructor for SvgExportSettings
 
       QgsLayoutRenderContext::Flags flags;
 
-      QgsRenderContext::TextRenderFormat textRenderFormat;
+      Qgis::TextRenderFormat textRenderFormat;
 
       bool simplifyGeometries;
 
@@ -422,7 +426,6 @@ Subclasses can override this method to customize page file naming.
 %End
 
 };
-
 
 
 

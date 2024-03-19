@@ -35,7 +35,7 @@
 QgsDataSourceSelectWidget::QgsDataSourceSelectWidget(
   QgsBrowserGuiModel *browserModel,
   bool setFilterByLayerType,
-  QgsMapLayerType layerType,
+  Qgis::LayerType layerType,
   QWidget *parent )
   : QgsPanelWidget( parent )
 {
@@ -63,6 +63,7 @@ QgsDataSourceSelectWidget::QgsDataSourceSelectWidget(
   else
   {
     mBrowserTreeView->setModel( &mBrowserProxyModel );
+    mBrowserTreeView->setBrowserModel( mBrowserModel );
     setValid( false );
   }
 
@@ -128,7 +129,7 @@ void QgsDataSourceSelectWidget::showEvent( QShowEvent *e )
   {
     const QModelIndexList items = mBrowserProxyModel.match(
                                     mBrowserProxyModel.index( 0, 0 ),
-                                    QgsBrowserGuiModel::PathRole,
+                                    static_cast< int >( QgsBrowserModel::CustomRole::Path ),
                                     QVariant::fromValue( lastSelectedPath ),
                                     1,
                                     Qt::MatchRecursive );
@@ -174,7 +175,7 @@ void QgsDataSourceSelectWidget::setDescription( const QString &description )
         const QUrl url( link );
         const QFileInfo file( url.toLocalFile() );
         if ( file.exists() && !file.isDir() )
-          QgsGui::instance()->nativePlatformInterface()->openFileExplorerAndSelectFile( url.toLocalFile() );
+          QgsGui::nativePlatformInterface()->openFileExplorerAndSelectFile( url.toLocalFile() );
         else
           QDesktopServices::openUrl( url );
       } );
@@ -191,6 +192,11 @@ void QgsDataSourceSelectWidget::setDescription( const QString &description )
       mDescriptionLabel = nullptr;
     }
   }
+}
+
+void QgsDataSourceSelectWidget::expandPath( const QString &path )
+{
+  mBrowserTreeView->expandPath( path );
 }
 
 void QgsDataSourceSelectWidget::setFilter()
@@ -210,7 +216,7 @@ void QgsDataSourceSelectWidget::refreshModel( const QModelIndex &index )
   }
   else
   {
-    QgsDebugMsg( QStringLiteral( "invalid item" ) );
+    QgsDebugMsgLevel( QStringLiteral( "invalid item" ), 2 );
   }
 
   if ( item && ( item->capabilities2() & Qgis::BrowserItemCapability::Fertile ) )
@@ -262,12 +268,13 @@ void QgsDataSourceSelectWidget::setCaseSensitive( bool caseSensitive )
   mBrowserProxyModel.setFilterCaseSensitivity( caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive );
 }
 
-void QgsDataSourceSelectWidget::setLayerTypeFilter( QgsMapLayerType layerType )
+void QgsDataSourceSelectWidget::setLayerTypeFilter( Qgis::LayerType layerType )
 {
   mBrowserProxyModel.setFilterByLayerType( true );
   mBrowserProxyModel.setLayerType( layerType );
   // reset model and button
   mBrowserTreeView->setModel( &mBrowserProxyModel );
+  mBrowserTreeView->setBrowserModel( mBrowserModel );
   setValid( false );
 }
 
@@ -292,7 +299,7 @@ void QgsDataSourceSelectWidget::onLayerSelected( const QModelIndex &index )
         isLayerCompatible = true;
         mUri = layerItem->mimeUris().isEmpty() ? QgsMimeDataUtils::Uri() : layerItem->mimeUris().first();
         // Store last viewed item
-        QgsSettings().setValue( QStringLiteral( "datasourceSelectLastSelectedItem" ),  mBrowserProxyModel.data( index, QgsBrowserGuiModel::PathRole ).toString(), QgsSettings::Section::Gui );
+        QgsSettings().setValue( QStringLiteral( "datasourceSelectLastSelectedItem" ),  mBrowserProxyModel.data( index, static_cast< int >( QgsBrowserModel::CustomRole::Path ) ).toString(), QgsSettings::Section::Gui );
       }
     }
   }
@@ -311,7 +318,7 @@ void QgsDataSourceSelectWidget::itemDoubleClicked( const QModelIndex &index )
 // QgsDataSourceSelectDialog
 //
 
-QgsDataSourceSelectDialog::QgsDataSourceSelectDialog( QgsBrowserGuiModel *browserModel, bool setFilterByLayerType, QgsMapLayerType layerType, QWidget *parent )
+QgsDataSourceSelectDialog::QgsDataSourceSelectDialog( QgsBrowserGuiModel *browserModel, bool setFilterByLayerType, Qgis::LayerType layerType, QWidget *parent )
   : QDialog( parent )
 {
   setWindowTitle( tr( "Select a Data Source" ) );
@@ -337,7 +344,7 @@ QgsDataSourceSelectDialog::QgsDataSourceSelectDialog( QgsBrowserGuiModel *browse
   setLayout( vl );
 }
 
-void QgsDataSourceSelectDialog::setLayerTypeFilter( QgsMapLayerType layerType )
+void QgsDataSourceSelectDialog::setLayerTypeFilter( Qgis::LayerType layerType )
 {
   mWidget->setLayerTypeFilter( layerType );
 }
@@ -345,6 +352,11 @@ void QgsDataSourceSelectDialog::setLayerTypeFilter( QgsMapLayerType layerType )
 void QgsDataSourceSelectDialog::setDescription( const QString &description )
 {
   mWidget->setDescription( description );
+}
+
+void QgsDataSourceSelectDialog::expandPath( const QString &path )
+{
+  mWidget->expandPath( path );
 }
 
 QgsMimeDataUtils::Uri QgsDataSourceSelectDialog::uri() const

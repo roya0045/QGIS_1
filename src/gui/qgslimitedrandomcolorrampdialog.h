@@ -19,7 +19,7 @@
 #include <QDialog>
 #include "qgis_sip.h"
 #include "qgspanelwidget.h"
-#include "qgscolorramp.h"
+#include "qgscolorrampimpl.h"
 #include "ui_qgslimitedrandomcolorrampwidgetbase.h"
 #include "qgis_gui.h"
 
@@ -29,7 +29,6 @@ class QDialogButtonBox;
  * \ingroup gui
  * \class QgsLimitedRandomColorRampWidget
  * \brief A widget which allows users to modify the properties of a QgsLimitedRandomColorRamp.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLimitedRandomColorRampWidget : public QgsPanelWidget, private Ui::QgsLimitedRandomColorRampWidgetBase
 {
@@ -93,7 +92,6 @@ class GUI_EXPORT QgsLimitedRandomColorRampWidget : public QgsPanelWidget, privat
  * \ingroup gui
  * \class QgsLimitedRandomColorRampDialog
  * \brief A dialog which allows users to modify the properties of a QgsLimitedRandomColorRamp.
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLimitedRandomColorRampDialog : public QDialog
 {

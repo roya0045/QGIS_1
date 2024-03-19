@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     QgisAlgorithmProvider.py
@@ -27,16 +25,14 @@ from qgis.core import (QgsApplication,
                        QgsProcessingProvider,
                        QgsRuntimeProfiler)
 
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 
 from .BarPlot import BarPlot
 from .BasicStatistics import BasicStatisticsForField
 from .BoxPlot import BoxPlot
 from .CheckValidity import CheckValidity
 from .Climb import Climb
-from .ConcaveHull import ConcaveHull
 from .DefineProjection import DefineProjection
-from .Delaunay import Delaunay
 from .EliminateSelection import EliminateSelection
 from .ExecuteSQL import ExecuteSQL
 from .ExportGeometryInfo import ExportGeometryInfo
@@ -48,9 +44,7 @@ from .HubDistanceLines import HubDistanceLines
 from .HubDistancePoints import HubDistancePoints
 from .HypsometricCurves import HypsometricCurves
 from .IdwInterpolation import IdwInterpolation
-from .ImportIntoPostGIS import ImportIntoPostGIS
 from .ImportIntoSpatialite import ImportIntoSpatialite
-from .KeepNBiggestParts import KeepNBiggestParts
 from .KNearestConcaveHull import KNearestConcaveHull
 from .LinesToPolygons import LinesToPolygons
 from .MeanAndStdDevPlot import MeanAndStdDevPlot
@@ -75,10 +69,8 @@ from .SelectByAttribute import SelectByAttribute
 from .SelectByExpression import SelectByExpression
 from .SetRasterStyle import SetRasterStyle
 from .SetVectorStyle import SetVectorStyle
-from .SpatialJoinSummary import SpatialJoinSummary
 from .StatisticsByCategories import StatisticsByCategories
 from .TextToFloat import TextToFloat
-from .TilesXYZ import TilesXYZAlgorithmDirectory, TilesXYZAlgorithmMBTiles
 from .TinInterpolation import TinInterpolation
 from .TopoColors import TopoColor
 from .UniqueValues import UniqueValues
@@ -86,7 +78,6 @@ from .VariableDistanceBuffer import VariableDistanceBuffer
 from .VectorLayerHistogram import VectorLayerHistogram
 from .VectorLayerScatterplot import VectorLayerScatterplot
 from .VectorLayerScatterplot3D import VectorLayerScatterplot3D
-from .VoronoiPolygons import VoronoiPolygons
 
 
 class QgisAlgorithmProvider(QgsProcessingProvider):
@@ -102,9 +93,7 @@ class QgisAlgorithmProvider(QgsProcessingProvider):
                 BoxPlot(),
                 CheckValidity(),
                 Climb(),
-                ConcaveHull(),
                 DefineProjection(),
-                Delaunay(),
                 EliminateSelection(),
                 ExecuteSQL(),
                 ExportGeometryInfo(),
@@ -116,9 +105,7 @@ class QgisAlgorithmProvider(QgsProcessingProvider):
                 HubDistancePoints(),
                 HypsometricCurves(),
                 IdwInterpolation(),
-                ImportIntoPostGIS(),
                 ImportIntoSpatialite(),
-                KeepNBiggestParts(),
                 KNearestConcaveHull(),
                 LinesToPolygons(),
                 MeanAndStdDevPlot(),
@@ -143,11 +130,8 @@ class QgisAlgorithmProvider(QgsProcessingProvider):
                 SelectByExpression(),
                 SetRasterStyle(),
                 SetVectorStyle(),
-                SpatialJoinSummary(),
                 StatisticsByCategories(),
                 TextToFloat(),
-                TilesXYZAlgorithmDirectory(),
-                TilesXYZAlgorithmMBTiles(),
                 TinInterpolation(),
                 TopoColor(),
                 UniqueValues(),
@@ -155,7 +139,6 @@ class QgisAlgorithmProvider(QgsProcessingProvider):
                 VectorLayerHistogram(),
                 VectorLayerScatterplot(),
                 VectorLayerScatterplot3D(),
-                VoronoiPolygons(),
                 ]
 
         return algs
@@ -190,3 +173,6 @@ class QgisAlgorithmProvider(QgsProcessingProvider):
 
     def supportsNonFileBasedOutput(self):
         return True
+
+    def flags(self):
+        return QgsProcessingProvider.Flag.FlagCompatibleWithVirtualRaster

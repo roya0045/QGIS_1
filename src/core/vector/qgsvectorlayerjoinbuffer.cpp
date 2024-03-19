@@ -76,12 +76,6 @@ bool QgsVectorLayerJoinBuffer::addJoin( const QgsVectorLayerJoinInfo &joinInfo )
     return false;
   }
 
-  //cache joined layer to virtual memory if specified by user
-  if ( joinInfo.isUsingMemoryCache() )
-  {
-    cacheJoinLayer( mVectorJoins.last() );
-  }
-
   // Wait for notifications about changed fields in joined layer to propagate them.
   // During project load the joined layers possibly do not exist yet so the connection will not be created,
   // but then QgsProject makes sure to call createJoinCaches() which will do the connection.
@@ -92,8 +86,17 @@ bool QgsVectorLayerJoinBuffer::addJoin( const QgsVectorLayerJoinInfo &joinInfo )
   }
 
   locker.unlock();
+  mLayer->updateFields();
+  locker.relock();
 
-  emit joinedFieldsChanged();
+  //cache joined layer to virtual memory if specified by user
+  if ( joinInfo.isUsingMemoryCache() )
+  {
+    cacheJoinLayer( mVectorJoins.last() );
+  }
+
+  locker.unlock();
+
   return true;
 }
 
@@ -141,7 +144,7 @@ void QgsVectorLayerJoinBuffer::cacheJoinLayer( QgsVectorLayerJoinInfo &joinInfo 
     joinInfo.cachedAttributes.clear();
 
     QgsFeatureRequest request;
-    request.setFlags( QgsFeatureRequest::NoGeometry );
+    request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
     // maybe user requested just a subset of layer's attributes
     // so we do not have to cache everything
     QVector<int> subsetIndices;
@@ -172,9 +175,28 @@ void QgsVectorLayerJoinBuffer::cacheJoinLayer( QgsVectorLayerJoinInfo &joinInfo 
       }
       else
       {
-        QgsAttributes attrs2 = attrs;
-        attrs2.remove( joinFieldIndex );  // skip the join field to avoid double field names (fields often have the same name)
-        joinInfo.cachedAttributes.insert( key, attrs2 );
+        QgsAttributes attributesCache;
+        for ( int i = 0; i < attrs.size(); i++ )
+        {
+          if ( i == joinFieldIndex )
+            continue;
+
+          QString joinInfoPrefix = joinInfo.prefix();
+          if ( joinInfoPrefix.isNull() ) // Default prefix 'layerName_' used
+            joinInfoPrefix = QString( "%1_" ).arg( cacheLayer->name() );
+
+          // Joined field name
+          const QString joinFieldName = joinInfoPrefix + cacheLayer->fields().names().at( i );
+
+          // Check for name collisions
+          int fieldIndex = mLayer->fields().indexFromName( joinFieldName );
+          if ( fieldIndex >= 0
+               && mLayer->fields().fieldOrigin( fieldIndex ) != QgsFields::OriginJoin )
+            continue;
+
+          attributesCache.append( attrs.at( i ) );
+        }
+        joinInfo.cachedAttributes.insert( key, attributesCache );
       }
     }
     joinInfo.cacheDirty = false;
@@ -200,7 +222,7 @@ QVector<int> QgsVectorLayerJoinBuffer::joinSubsetIndices( const QgsFields &joinL
     }
     else
     {
-      QgsDebugMsg( "Join layer subset field not found: " + joinedFieldName );
+      QgsDebugError( "Join layer subset field not found: " + joinedFieldName );
     }
   }
 
@@ -559,7 +581,7 @@ bool QgsVectorLayerJoinBuffer::addFeatures( QgsFeatureList &features, QgsFeature
         const QString filter = QgsExpression::createFieldEqualityExpression( info.joinFieldName(), idFieldValue.toString() );
 
         QgsFeatureRequest request;
-        request.setFlags( QgsFeatureRequest::NoGeometry );
+        request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
         request.setNoAttributes();
         request.setFilterExpression( filter );
         request.setLimit( 1 );
@@ -602,7 +624,7 @@ bool QgsVectorLayerJoinBuffer::addFeatures( QgsFeatureList &features, QgsFeature
             if ( field.name() == info.joinFieldName() )
               continue;
 
-            if ( !joinFeature.attribute( field.name() ).isNull() )
+            if ( !QgsVariantUtils::isNull( joinFeature.attribute( field.name() ) ) )
             {
               notNullFields = true;
               break;

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsProjectUtils.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -11,24 +10,25 @@ __date__ = '2021-07'
 __copyright__ = 'Copyright 2021, The QGIS Project'
 
 
-import qgis  # NOQA
-
-from qgis.testing import unittest
 from qgis.core import (
-    QgsProjectUtils,
-    QgsCoordinateReferenceSystem,
     QgsCoordinateTransformContext,
-    QgsVectorLayer,
+    QgsGroupLayer,
+    QgsLayerTreeGroup,
+    QgsLayerTreeLayer,
+    QgsProject,
+    QgsProjectUtils,
     QgsRasterLayer,
-    QgsProject
+    QgsVectorLayer,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 start_app()
 
 
-class TestQgsProjectUtils(unittest.TestCase):
+class TestQgsProjectUtils(QgisTestCase):
 
     def test_layersMatchingPath(self):
         """
@@ -118,6 +118,72 @@ class TestQgsProjectUtils(unittest.TestCase):
         # should return false if we call again, no more matching paths
         self.assertFalse(QgsProjectUtils.updateLayerPath(p, unitTestDataPath() + '/mixed_layers.gpkg',
                                                          unitTestDataPath() + '/mixed_layers22.gpkg'))
+
+    def test_layer_is_contained_in_group_layer(self):
+        p = QgsProject()
+        layer = QgsVectorLayer("Point?field=fldtxt:string",
+                               "layer1", "memory")
+        p.addMapLayer(layer)
+        layer2 = QgsVectorLayer("Point?field=fldtxt:string",
+                                "layer2", "memory")
+        p.addMapLayer(layer2)
+        layer3 = QgsVectorLayer("Point?field=fldtxt:string",
+                                "layer3", "memory")
+        p.addMapLayer(layer3)
+        layer4 = QgsVectorLayer("Point?field=fldtxt:string",
+                                "layer4", "memory")
+        p.addMapLayer(layer4)
+
+        options = QgsGroupLayer.LayerOptions(QgsCoordinateTransformContext())
+        group_layer = QgsGroupLayer('group', options)
+        group_layer.setChildLayers([layer, layer4])
+        p.addMapLayer(group_layer)
+
+        options = QgsGroupLayer.LayerOptions(QgsCoordinateTransformContext())
+        group_layer2 = QgsGroupLayer('group2', options)
+        group_layer2.setChildLayers([group_layer, layer3])
+        p.addMapLayer(group_layer2)
+
+        self.assertTrue(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer))
+        self.assertFalse(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer2))
+        self.assertTrue(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer3))
+        self.assertTrue(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer4))
+
+        # catch alternative situation -- group layer nodes which are unchecked
+        layer_tree_root = p.layerTreeRoot()
+
+        tree_group1 = layer_tree_root.addGroup('group 1')
+
+        tree_group2 = layer_tree_root.addGroup('group 2')
+
+        layer5 = QgsVectorLayer("Point?field=fldtxt:string",
+                                "layer1", "memory")
+        p.addMapLayer(layer5)
+        node1 = tree_group1.addLayer(layer5)
+        node1.setItemVisibilityChecked(False)
+
+        layer6 = QgsVectorLayer("Point?field=fldtxt:string",
+                                "layer2", "memory")
+        p.addMapLayer(layer6)
+        tree_group1a = tree_group1.addGroup('group 1a')
+        node2 = tree_group1a.addLayer(layer6)
+        node2.setItemVisibilityChecked(False)
+
+        layer7 = QgsVectorLayer("Point?field=fldtxt:string",
+                                "layer3", "memory")
+        p.addMapLayer(layer7)
+        node3 = tree_group2.addLayer(layer7)
+        node3.setItemVisibilityChecked(False)
+
+        self.assertFalse(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer5))
+        self.assertFalse(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer6))
+        self.assertFalse(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer7))
+
+        group_layer_from_tree = tree_group1.convertToGroupLayer(QgsGroupLayer.LayerOptions(QgsCoordinateTransformContext()))
+
+        self.assertTrue(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer5))
+        self.assertTrue(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer6))
+        self.assertFalse(QgsProjectUtils.layerIsContainedInGroupLayer(p, layer7))
 
 
 if __name__ == '__main__':

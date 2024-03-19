@@ -33,7 +33,6 @@ class QgsLayoutGuide;
  * current zoom and position of the visible layout and for interacting
  * with guides in a layout.
  *
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsLayoutRuler: public QWidget
 {
@@ -120,6 +119,7 @@ class GUI_EXPORT QgsLayoutRuler: public QWidget
 
     int mDragGuideTolerance = 0;
     QgsLayoutGuide *mDraggingGuide = nullptr;
+    double mDraggingGuideOldPosition = 0.0;
     QgsLayoutGuide *mHoverGuide = nullptr;
 
     bool mCreatingGuide = false;

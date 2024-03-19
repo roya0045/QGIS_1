@@ -27,9 +27,16 @@ using namespace SpatialIndex;
 
 ///@cond PRIVATE
 
-static Region faceToRegion( const QgsMesh &mesh, int id )
+static Region faceToRegion( const QgsMesh &mesh, int id, bool &ok )
 {
   const QgsMeshFace face = mesh.face( id );
+
+  if ( face.isEmpty() )
+  {
+    ok = false;
+    return Region();
+  }
+
   const QVector<QgsMeshVertex> &vertices = mesh.vertices;
 
   double xMinimum = vertices[face[0]].x();
@@ -47,10 +54,12 @@ static Region faceToRegion( const QgsMesh &mesh, int id )
 
   double pt1[2] = { xMinimum, yMinimum };
   double pt2[2] = { xMaximum, yMaximum };
+
+  ok = true;
   return SpatialIndex::Region( pt1, pt2, 2 );
 }
 
-static Region edgeToRegion( const QgsMesh &mesh, int id )
+static Region edgeToRegion( const QgsMesh &mesh, int id, bool &ok )
 {
   const QgsMeshEdge edge = mesh.edge( id );
   const QgsMeshVertex firstVertex = mesh.vertices[edge.first];
@@ -61,6 +70,7 @@ static Region edgeToRegion( const QgsMesh &mesh, int id )
   const double yMaximum = std::max( firstVertex.y(), secondVertex.y() );
   double pt1[2] = { xMinimum, yMinimum };
   double pt2[2] = { xMaximum, yMaximum };
+  ok = true;
   return SpatialIndex::Region( pt1, pt2, 2 );
 }
 
@@ -141,7 +151,7 @@ class QgsMeshIteratorDataStream : public IDataStream
     //! constructor - needs to load all data to a vector for later access when bulk loading
     explicit QgsMeshIteratorDataStream( const QgsMesh &mesh,
                                         int featuresCount,
-                                        std::function<Region( const QgsMesh &mesh, int id )> featureToRegionFunction,
+                                        std::function<Region( const QgsMesh &mesh, int id, bool &ok )> featureToRegionFunction,
                                         QgsFeedback *feedback = nullptr )
       : mMesh( mesh )
       , mFeaturesCount( featuresCount )
@@ -190,15 +200,21 @@ class QgsMeshIteratorDataStream : public IDataStream
     void readNextEntry()
     {
       SpatialIndex::Region r;
-      if ( mIterator < mFeaturesCount )
+      while ( mIterator < mFeaturesCount )
       {
-        r = mFeatureToRegionFunction( mMesh, mIterator );
-        mNextData = new RTree::Data(
-          0,
-          nullptr,
-          r,
-          mIterator );
-        ++mIterator;
+        bool ok = false;
+        r = mFeatureToRegionFunction( mMesh, mIterator, ok );
+        if ( ok )
+        {
+          mNextData = new RTree::Data( 0, nullptr, r, mIterator );
+          ++mIterator;
+          return;
+        }
+        else
+        {
+          ++mIterator;
+          continue;
+        }
       }
     }
 
@@ -206,7 +222,7 @@ class QgsMeshIteratorDataStream : public IDataStream
     int mIterator = 0;
     const QgsMesh &mMesh;
     int mFeaturesCount = 0;
-    std::function<Region( const QgsMesh &mesh, int id )> mFeatureToRegionFunction;
+    std::function<Region( const QgsMesh &mesh, int id, bool &ok )> mFeatureToRegionFunction;
     RTree::Data *mNextData = nullptr;
     QgsFeedback *mFeedback = nullptr;
 };
@@ -338,7 +354,8 @@ QgsMeshSpatialIndex::QgsMeshSpatialIndex( const QgsMesh &mesh, QgsFeedback *feed
 }
 
 QgsMeshSpatialIndex::QgsMeshSpatialIndex( const QgsMeshSpatialIndex &other ) //NOLINT
-  : d( other.d )
+  : mElementType( other.mElementType )
+  , d( other.d )
 {
 }
 
@@ -347,7 +364,10 @@ QgsMeshSpatialIndex:: ~QgsMeshSpatialIndex() = default; //NOLINT
 QgsMeshSpatialIndex &QgsMeshSpatialIndex::operator=( const QgsMeshSpatialIndex &other )
 {
   if ( this != &other )
+  {
+    mElementType = other.mElementType;
     d = other.d;
+  }
   return *this;
 }
 
@@ -387,27 +407,31 @@ void QgsMeshSpatialIndex::addFace( int faceIndex, const QgsMesh &mesh )
 {
   if ( mesh.face( faceIndex ).isEmpty() )
     return;
-  const SpatialIndex::Region r( faceToRegion( mesh, faceIndex ) );
 
-  const QMutexLocker locker( &d->mMutex );
+  bool ok = false;
+  const SpatialIndex::Region r( faceToRegion( mesh, faceIndex, ok ) );
+  if ( !ok )
+    return;
+
+  const QMutexLocker locker( &d.constData()->mMutex );
 
   try
   {
-    d->mRTree->insertData( 0, nullptr, r, faceIndex );
+    d.constData()->mRTree->insertData( 0, nullptr, r, faceIndex );
   }
   catch ( Tools::Exception &e )
   {
     Q_UNUSED( e )
-    QgsDebugMsg( QStringLiteral( "Tools::Exception caught: " ).arg( e.what().c_str() ) );
+    QgsDebugError( QStringLiteral( "Tools::Exception caught: " ).arg( e.what().c_str() ) );
   }
   catch ( const std::exception &e )
   {
     Q_UNUSED( e )
-    QgsDebugMsg( QStringLiteral( "std::exception caught: " ).arg( e.what() ) );
+    QgsDebugError( QStringLiteral( "std::exception caught: " ).arg( e.what() ) );
   }
   catch ( ... )
   {
-    QgsDebugMsg( QStringLiteral( "unknown spatial index exception caught" ) );
+    QgsDebugError( QStringLiteral( "unknown spatial index exception caught" ) );
   }
 }
 
@@ -415,7 +439,7 @@ void QgsMeshSpatialIndex::removeFace( int faceIndex, const QgsMesh &mesh )
 {
   if ( mesh.face( faceIndex ).isEmpty() )
     return;
-  const QMutexLocker locker( &d->mMutex );
-
-  d->mRTree->deleteData( faceToRegion( mesh, faceIndex ), faceIndex );
+  const QMutexLocker locker( &d.constData()->mMutex );
+  bool ok = false;
+  d.constData()->mRTree->deleteData( faceToRegion( mesh, faceIndex, ok ), faceIndex );
 }

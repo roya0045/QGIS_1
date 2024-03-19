@@ -40,6 +40,10 @@
 #include "qgsmapcanvas.h"
 #include "qgsproject.h"
 #include "qgsapplication.h"
+#include "qgsvectortilelayer.h"
+#include "qgsvectorlayerutils.h"
+
+#include <nlohmann/json.hpp>
 
 QgsClipboard::QgsClipboard()
 {
@@ -55,21 +59,62 @@ void QgsClipboard::replaceWithCopyOf( QgsVectorLayer *src )
   mFeatureFields = src->fields();
   mFeatureClipboard = src->selectedFeatures();
   mCRS = src->crs();
-  mSrcLayer = src;
-  QgsDebugMsg( QStringLiteral( "replaced QGIS clipboard." ) );
+  mFeatureLayer = src;
+  QgsDebugMsgLevel( QStringLiteral( "replaced QGIS clipboard." ), 2 );
 
   setSystemClipboard();
   mUseSystemClipboard = false;
   emit changed();
 }
 
-void QgsClipboard::replaceWithCopyOf( QgsFeatureStore &featureStore )
+void QgsClipboard::replaceWithCopyOf( QgsVectorTileLayer *src )
 {
-  QgsDebugMsg( QStringLiteral( "features count = %1" ).arg( featureStore.features().size() ) );
+  if ( !src )
+    return;
+
+  // things are a bit tricky for vector tile features, as each will have different fields
+  // so we build a "super set" of fields first, and then make sure each feature has that superset present
+
+  const QList< QgsFeature > selectedFeatures = src->selectedFeatures();
+  QgsFields supersetFields;
+  for ( const QgsFeature &feature : selectedFeatures )
+  {
+    const QgsFields fields = feature.fields();
+    for ( const QgsField &field : fields )
+    {
+      if ( supersetFields.lookupField( field.name() ) == -1 )
+      {
+        supersetFields.append( field );
+      }
+    }
+  }
+
+  mFeatureFields = supersetFields;
+
+  mFeatureClipboard.clear();
+  for ( const QgsFeature &feature : selectedFeatures )
+  {
+    QgsFeature superSetFeature = feature;
+    QgsVectorLayerUtils::matchAttributesToFields( superSetFeature, mFeatureFields );
+    mFeatureClipboard.append( superSetFeature );
+  }
+
+  mCRS = src->crs();
+  mFeatureLayer = src;
+  QgsDebugMsgLevel( QStringLiteral( "replaced QGIS clipboard." ), 2 );
+
+  setSystemClipboard();
+  mUseSystemClipboard = false;
+  emit changed();
+}
+
+void QgsClipboard::replaceWithCopyOf( QgsFeatureStore &featureStore, QgsVectorLayer *src )
+{
+  QgsDebugMsgLevel( QStringLiteral( "features count = %1" ).arg( featureStore.features().size() ), 2 );
   mFeatureFields = featureStore.fields();
   mFeatureClipboard = featureStore.features();
   mCRS = featureStore.crs();
-  mSrcLayer = nullptr;
+  mFeatureLayer = src;
   setSystemClipboard();
   mUseSystemClipboard = false;
   emit changed();
@@ -93,17 +138,22 @@ void QgsClipboard::generateClipboardText( QString &textContent, QString &htmlCon
       // first do the field names
       if ( format == AttributesWithWKT )
       {
-        textFields += QLatin1String( "wkt_geom" );
+        // only include the "wkt_geom" field IF we have other fields -- otherwise it's redundant and we should just set the clipboard to WKT text directly
+        if ( !mFeatureFields.isEmpty() )
+          textFields += QLatin1String( "wkt_geom" );
+
         htmlFields += QLatin1String( "<td>wkt_geom</td>" );
       }
 
-      const auto constMFeatureFields = mFeatureFields;
-      for ( const QgsField &field : constMFeatureFields )
+      textFields.reserve( mFeatureFields.size() );
+      htmlFields.reserve( mFeatureFields.size() );
+      for ( const QgsField &field : mFeatureFields )
       {
         textFields += field.name();
         htmlFields += QStringLiteral( "<td>%1</td>" ).arg( field.name() );
       }
-      textLines += textFields.join( QLatin1Char( '\t' ) );
+      if ( !textFields.empty() )
+        textLines += textFields.join( QLatin1Char( '\t' ) );
       htmlLines += htmlFields.join( QString() );
       textFields.clear();
       htmlFields.clear();
@@ -131,14 +181,33 @@ void QgsClipboard::generateClipboardText( QString &textContent, QString &htmlCon
 
         for ( int idx = 0; idx < attributes.count(); ++idx )
         {
-          QString value = attributes.at( idx ).toString();
+          QString value;
+          QVariant variant = attributes.at( idx );
+          const bool useJSONFromVariant = variant.type() == QVariant::StringList || variant.type() == QVariant::List || variant.type() == QVariant::Map;
+
+          if ( useJSONFromVariant )
+          {
+            value = QString::fromStdString( QgsJsonUtils::jsonFromVariant( attributes.at( idx ) ).dump() );
+          }
+          else
+          {
+            value = attributes.at( idx ).toString();
+          }
+
           if ( value.contains( '\n' ) || value.contains( '\t' ) )
             textFields += '"' + value.replace( '"', QLatin1String( "\"\"" ) ) + '\"';
           else
           {
             textFields += value;
           }
-          value = attributes.at( idx ).toString();
+          if ( useJSONFromVariant )
+          {
+            value = QString::fromStdString( QgsJsonUtils::jsonFromVariant( attributes.at( idx ) ).dump() );
+          }
+          else
+          {
+            value = attributes.at( idx ).toString();
+          }
           value.replace( '\n', QLatin1String( "<br>" ) ).replace( '\t', QLatin1String( "&emsp;" ) );
           htmlFields += QStringLiteral( "<td>%1</td>" ).arg( value );
         }
@@ -206,48 +275,95 @@ QgsFeatureList QgsClipboard::stringToFeatureList( const QString &string, const Q
     return features;
 
   // otherwise try to read in as WKT
-  const QStringList values = string.split( '\n' );
-  if ( values.isEmpty() || string.isEmpty() )
+  if ( string.isEmpty() || string.split( '\n' ).count() == 0 )
     return features;
 
-  const QgsFields sourceFields = retrieveFields();
+  // Poor man's csv parser
+  bool isInsideQuotes {false};
+  QgsAttributes attrs;
+  QgsGeometry geom;
+  QString attrVal;
+  bool isFirstLine {string.startsWith( QLatin1String( "wkt_geom" ) )};
+  // it seems there is no other way to check for header
+  const bool hasHeader{string.startsWith( QLatin1String( "wkt_geom" ) )};
+  QgsGeometry geometry;
+  bool setFields {fields.isEmpty()};
+  QgsFields fieldsFromClipboard;
 
-  const auto constValues = values;
-  for ( const QString &row : constValues )
+  auto parseFunc = [ & ]( const QChar & c )
   {
-    // Assume that it's just WKT for now. because GeoJSON is managed by
-    // previous QgsOgrUtils::stringToFeatureList call
-    // Get the first value of a \t separated list. WKT clipboard pasted
-    // feature has first element the WKT geom.
-    // This split is to fix the following issue: https://github.com/qgis/QGIS/issues/24769
-    // Value separators are set in generateClipboardText
-    QStringList fieldValues = row.split( '\t' );
-    if ( fieldValues.isEmpty() )
-      continue;
 
-    QgsFeature feature;
-    feature.setFields( sourceFields );
-    feature.initAttributes( fieldValues.size() - 1 );
-
-    //skip header line
-    if ( fieldValues.at( 0 ) == QLatin1String( "wkt_geom" ) )
+    // parse geom only if it wasn't successfully set before
+    if ( geometry.isNull() )
     {
-      continue;
+      geometry = QgsGeometry::fromWkt( attrVal );
     }
 
-    for ( int i = 1; i < fieldValues.size(); ++i )
+    if ( isFirstLine ) // ... name
     {
-      feature.setAttribute( i - 1, fieldValues.at( i ) );
+      if ( attrVal != QLatin1String( "wkt_geom" ) ) // ignore this one
+      {
+        fieldsFromClipboard.append( QgsField{attrVal, QVariant::String } );
+      }
+    }
+    else // ... or value
+    {
+      attrs.append( attrVal );
     }
 
-    const QgsGeometry geometry = QgsGeometry::fromWkt( fieldValues[0] );
-    if ( !geometry.isNull() )
+    // end of record, create a new feature if it's not the header
+    if ( c == QChar( '\n' ) )
     {
-      feature.setGeometry( geometry );
+      if ( isFirstLine )
+      {
+        isFirstLine = false;
+      }
+      else
+      {
+        QgsFeature feature{setFields ? fieldsFromClipboard : fields};
+        feature.setGeometry( geometry );
+        if ( hasHeader || !geometry.isNull() )
+        {
+          attrs.pop_front();
+        }
+        feature.setAttributes( attrs );
+        features.append( feature );
+        geometry = QgsGeometry();
+        attrs.clear();
+      }
     }
+    attrVal.clear();
+  };
 
-    features.append( feature );
+  for ( auto c = string.constBegin(); c < string.constEnd(); ++c )
+  {
+    if ( *c == QChar( '\n' ) || *c == QChar( '\t' ) )
+    {
+      if ( isInsideQuotes )
+      {
+        attrVal.append( *c );
+      }
+      else
+      {
+        parseFunc( *c );
+      }
+    }
+    else if ( *c == QChar( '\"' ) )
+    {
+      isInsideQuotes = !isInsideQuotes;
+    }
+    else
+    {
+      attrVal.append( *c );
+    }
   }
+
+  // handle missing newline
+  if ( !string.endsWith( QChar( '\n' ) ) )
+  {
+    parseFunc( QChar( '\n' ) );
+  }
+
   return features;
 }
 
@@ -297,7 +413,7 @@ QgsFields QgsClipboard::retrieveFields() const
 
 QgsFeatureList QgsClipboard::copyOf( const QgsFields &fields ) const
 {
-  QgsDebugMsg( QStringLiteral( "returning clipboard." ) );
+  QgsDebugMsgLevel( QStringLiteral( "returning clipboard." ), 2 );
   if ( !mUseSystemClipboard )
     return mFeatureClipboard;
 
@@ -326,7 +442,7 @@ void QgsClipboard::clear()
 {
   mFeatureClipboard.clear();
 
-  QgsDebugMsg( QStringLiteral( "cleared clipboard." ) );
+  QgsDebugMsgLevel( QStringLiteral( "cleared clipboard." ), 2 );
   emit changed();
 }
 
@@ -357,7 +473,7 @@ QgsFeatureList QgsClipboard::transformedCopyOf( const QgsCoordinateReferenceSyst
   QgisApp::instance()->askUserForDatumTransform( crs(), destCRS );
   const QgsCoordinateTransform ct = QgsCoordinateTransform( crs(), destCRS, QgsProject::instance() );
 
-  QgsDebugMsg( QStringLiteral( "transforming clipboard." ) );
+  QgsDebugMsgLevel( QStringLiteral( "transforming clipboard." ), 2 );
   for ( QgsFeatureList::iterator iter = featureList.begin(); iter != featureList.end(); ++iter )
   {
     QgsGeometry g = iter->geometry();
@@ -413,6 +529,14 @@ QgsFields QgsClipboard::fields() const
     return mFeatureFields;
   else
     return retrieveFields();
+}
+
+QgsMapLayer *QgsClipboard::layer() const
+{
+  if ( !mUseSystemClipboard )
+    return mFeatureLayer.data();
+  else
+    return nullptr;
 }
 
 void QgsClipboard::systemClipboardChanged()

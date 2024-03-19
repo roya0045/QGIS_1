@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for auth manager Basic configuration update proxy
 
@@ -11,15 +10,19 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 """
 import os
-import re
-import string
-import sys
-from shutil import rmtree
-import tempfile
 import random
+import string
+import tempfile
+from shutil import rmtree
 
-from qgis.core import QgsAuthManager, QgsAuthMethodConfig, QgsNetworkAccessManager, QgsSettings, QgsApplication
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsApplication,
+    QgsAuthMethodConfig,
+    QgsNetworkAccessManager,
+    QgsSettings,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 __author__ = 'Alessandro Pasotti'
 __date__ = '27/09/2017'
@@ -32,12 +35,13 @@ os.environ['QGIS_AUTH_DB_DIR_PATH'] = QGIS_AUTH_DB_DIR_PATH
 qgis_app = start_app()
 
 
-class TestAuthManager(unittest.TestCase):
+class TestAuthManager(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests:
         Creates an auth configuration"""
+        super().setUpClass()
         # Enable auth
         # os.environ['QGIS_AUTH_PASSWORD_FILE'] = QGIS_AUTH_PASSWORD_FILE
         authm = QgsApplication.authManager()
@@ -54,6 +58,7 @@ class TestAuthManager(unittest.TestCase):
     def tearDownClass(cls):
         """Run after all tests"""
         rmtree(QGIS_AUTH_DB_DIR_PATH)
+        super().tearDownClass()
 
     def setUp(self):
         """Run before each test."""

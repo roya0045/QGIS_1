@@ -24,10 +24,12 @@
 #include <QtSql/QSqlDatabase>
 #include <QtSql/QSqlQuery>
 #include <QtSql/QSqlError>
+#include "qgscoordinatetransform.h"
 
 #include "qgsmssqlprovider.h"
 
 class QgsMssqlProvider;
+class QgsMssqlQuery;
 
 class QgsMssqlFeatureSource final: public QgsAbstractFeatureSource
 {
@@ -35,6 +37,8 @@ class QgsMssqlFeatureSource final: public QgsAbstractFeatureSource
     explicit QgsMssqlFeatureSource( const QgsMssqlProvider *p );
 
     QgsFeatureIterator getFeatures( const QgsFeatureRequest &request ) override;
+
+    const QString &connInfo() const;
 
   private:
     QgsFields mFields;
@@ -69,8 +73,13 @@ class QgsMssqlFeatureSource final: public QgsAbstractFeatureSource
 
     QgsCoordinateReferenceSystem mCrs;
 
+    std::shared_ptr<QgsMssqlDatabase> mTransactionConn;
+
     // Return True if this feature source has spatial attributes.
     bool isSpatial() { return !mGeometryColName.isEmpty() || !mGeometryColType.isEmpty(); }
+
+    // Uri information for query logger
+    QString mConnInfo;
 
     friend class QgsMssqlFeatureIterator;
     friend class QgsMssqlExpressionCompiler;
@@ -102,10 +111,10 @@ class QgsMssqlFeatureIterator final: public QgsAbstractFeatureIteratorFromSource
     double validLon( double longitude ) const;
 
     // The current database
-    QSqlDatabase mDatabase;
+    std::shared_ptr< QgsMssqlDatabase > mDatabase;
 
     // The current sql query
-    std::unique_ptr< QSqlQuery > mQuery;
+    std::unique_ptr< QgsMssqlQuery > mQuery;
 
     // The current sql statement
     QString mStatement;

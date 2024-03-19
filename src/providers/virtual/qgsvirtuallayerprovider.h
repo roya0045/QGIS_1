@@ -1,5 +1,5 @@
 /***************************************************************************
-           qgsvirtuallayerprovider.cpp Virtual layer data provider
+           qgsvirtuallayerprovider.h Virtual layer data provider
 begin                : Jan, 2015
 copyright            : (C) 2015 Hugo Mercier, Oslandia
 email                : hugo dot mercier at oslandia dot com
@@ -18,15 +18,13 @@ email                : hugo dot mercier at oslandia dot com
 #define QGSVIRTUAL_LAYER_PROVIDER_H
 
 #include "qgsvectordataprovider.h"
+#include "qgsconfig.h"
 
 #include "qgscoordinatereferencesystem.h"
 #include "qgsvirtuallayerdefinition.h"
 #include "qgsvirtuallayersqlitehelper.h"
 
 #include "qgsprovidermetadata.h"
-#ifdef HAVE_GUI
-#include "qgsproviderguimetadata.h"
-#endif
 
 class QgsVirtualLayerFeatureIterator;
 
@@ -34,6 +32,10 @@ class QgsVirtualLayerProvider final: public QgsVectorDataProvider
 {
     Q_OBJECT
   public:
+
+    static const QString VIRTUAL_LAYER_KEY;
+    static const QString VIRTUAL_LAYER_DESCRIPTION;
+    static const QString VIRTUAL_LAYER_QUERY_VIEW;
 
     /**
      * Constructor of the vector provider
@@ -46,7 +48,7 @@ class QgsVirtualLayerProvider final: public QgsVectorDataProvider
     QString storageType() const override;
     QgsCoordinateReferenceSystem crs() const override;
     QgsFeatureIterator getFeatures( const QgsFeatureRequest &request ) const override;
-    QgsWkbTypes::Type wkbType() const override;
+    Qgis::WkbType wkbType() const override;
     long long featureCount() const override;
     QgsRectangle extent() const override;
     QString subsetString() const override;
@@ -60,6 +62,8 @@ class QgsVirtualLayerProvider final: public QgsVectorDataProvider
     QgsAttributeList pkAttributeIndexes() const override;
     QSet<QgsMapLayerDependency> dependencies() const override;
     bool cancelReload() override;
+
+    static QString providerKey();
 
   private:
 
@@ -131,19 +135,15 @@ class QgsVirtualLayerProvider final: public QgsVectorDataProvider
 
 class QgsVirtualLayerProviderMetadata final: public QgsProviderMetadata
 {
+    Q_OBJECT
   public:
     QgsVirtualLayerProviderMetadata();
+    QIcon icon() const override;
     QgsVirtualLayerProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() ) override;
+    QString absoluteToRelativeUri( const QString &uri, const QgsReadWriteContext &context ) const override;
+    QString relativeToAbsoluteUri( const QString &uri, const QgsReadWriteContext &context ) const override;
+    QList< Qgis::LayerType > supportedLayerTypes() const override;
 };
-
-#ifdef HAVE_GUI
-class QgsVirtualLayerProviderGuiMetadata final: public QgsProviderGuiMetadata
-{
-  public:
-    QgsVirtualLayerProviderGuiMetadata();
-    QList<QgsSourceSelectProvider *> sourceSelectProviders() override;
-};
-#endif
 
 // clazy:excludeall=qstring-allocations
 

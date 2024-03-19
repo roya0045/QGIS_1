@@ -116,7 +116,7 @@ class GUI_EXPORT QgsFileWidget : public QWidget
     /**
      * Sets whether the widget should be read only.
      */
-    void setReadOnly( bool readOnly );
+    virtual void setReadOnly( bool readOnly );
 
     /**
      * Returns the open file dialog title.
@@ -283,7 +283,6 @@ class GUI_EXPORT QgsFileWidget : public QWidget
     /**
      * Returns a pointer to the widget's line edit, which can be used to customize
      * the appearance and behavior of the line edit portion of the widget.
-     * \since QGIS 3.0
      */
     QgsFilterLineEdit *lineEdit();
 
@@ -298,6 +297,7 @@ class GUI_EXPORT QgsFileWidget : public QWidget
     void openFileDialog();
     void textEdited( const QString &path );
     void editLink();
+    void fileDropped( const QString &filePath );
 
   protected:
 
@@ -348,6 +348,10 @@ class GUI_EXPORT QgsFileWidget : public QWidget
     //! Returns a filePath with relative path options applied (or not) !
     QString relativePath( const QString &filePath, bool removeRelative ) const;
 
+    // QWidget interface
+  public:
+    QSize minimumSizeHint() const override;
+
     friend class TestQgsFileWidget;
     friend class TestQgsExternalStorageFileWidget;
     friend class TestQgsExternalResourceWidgetWrapper;
@@ -379,7 +383,20 @@ class GUI_EXPORT QgsFileDropEdit: public QgsHighlightableLineEdit
 
     void setFilters( const QString &filters );
 
+    //! Returns file names if object meets drop criteria.
+    QStringList acceptableFilePaths( QDropEvent *event ) const;
+
+  signals:
+
+    /**
+     * Emitted when the file \a filePath is droppen onto the line edit.
+     */
+    void fileDropped( const QString &filePath );
+
   protected:
+
+    //! Returns file name if object meets drop criteria.
+    QString acceptableFilePath( QDropEvent *event ) const;
 
     void dragEnterEvent( QDragEnterEvent *event ) override;
     void dragLeaveEvent( QDragLeaveEvent *event ) override;
@@ -387,8 +404,6 @@ class GUI_EXPORT QgsFileDropEdit: public QgsHighlightableLineEdit
 
   private:
 
-    //! Returns file name if object meets drop criteria.
-    QString acceptableFilePath( QDropEvent *event ) const;
 
     QStringList mAcceptableExtensions;
     QgsFileWidget::StorageMode mStorageMode = QgsFileWidget::GetFile;

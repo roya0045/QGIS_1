@@ -78,6 +78,9 @@ tests:
         compare:
           geometry:
             ignore_part_order: True
+            normalize: True
+          fields:
+            fid: skip
 
   - name: Aggregate using field
     algorithm: qgis:aggregate
@@ -127,6 +130,9 @@ tests:
         compare:
           geometry:
             ignore_part_order: True
+            normalize: True
+          fields:
+            fid: skip
 
   - algorithm: qgis:aggregate
     name: Aggregate using two fields
@@ -176,6 +182,9 @@ tests:
         compare:
           geometry:
             ignore_part_order: True
+            normalize: True
+          fields:
+            fid: skip
 
   - name: Aggregate points
     algorithm: qgis:aggregate
@@ -214,6 +223,9 @@ tests:
       OUTPUT:
         name: expected/aggregate_points.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - name: Aggregate lines
     algorithm: qgis:aggregate
@@ -237,6 +249,64 @@ tests:
         name: expected/aggregate_lines.gml
         type: vector
         compare:
+          geometry:
+            ignore_part_order: True
+          fields:
+            fid: skip
+
+  - name: Aggregate with a quoted delimiter
+    algorithm: qgis:aggregate
+    params:
+      INPUT:
+        name: lines.gml
+        type: vector
+      GROUP_BY: 'NULL'
+      AGGREGATES:
+        [{
+          input: 'fid',
+          aggregate: 'concatenate',
+          delimiter: '"'',''"',
+          name: 'fids',
+          type: 10,
+          length: 255,
+          precision: 0
+        }]
+    results:
+      OUTPUT:
+        name: expected/aggregate_quoted_delim.gml
+        type: vector
+        compare:
+          geometry:
+            ignore_part_order: True
+          fields:
+            fid: skip
+
+  - name: Aggregate to array field
+    algorithm: qgis:aggregate
+    params:
+      INPUT:
+        name: lines.gml
+        type: vector
+      GROUP_BY: 'NULL'
+      AGGREGATES:
+        [{
+          input: 'fid',
+          aggregate: 'array_agg',
+          delimiter: '"'',''"',
+          name: 'fids',
+          type: 11,
+          type_name: 'stringlist',
+          length: 0,
+          precision: 0,
+          sub_type: 10
+        }]
+    results:
+      OUTPUT:
+        name: expected/aggregate_to_array.gml
+        type: vector
+        compare:
+          fields:
+            gml_id: skip
           geometry:
             ignore_part_order: True
 
@@ -264,8 +334,12 @@ tests:
         name: expected/clip_lines_by_polygon.gml
         type: vector
 
+
   - algorithm: native:clip
-    name: Clip lines by multipolygon
+    name: Clip lines by multipolygon (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       INPUT:
         name: lines.gml
@@ -277,6 +351,29 @@ tests:
       OUTPUT:
         name: expected/clip_lines_by_multipolygon.gml
         type: vector
+        compare:
+          geometry:
+            normalize: True
+
+  - algorithm: native:clip
+    name: Clip lines by multipolygon (GEOS > 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      INPUT:
+        name: lines.gml|layername=lines
+        type: vector
+      OVERLAY:
+        name: multipolys.gml|layername=multipolys
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/geos39/clip_lines_by_multipolygon.gml
+        type: vector
+        compare:
+          geometry:
+            normalize: True
 
   - algorithm: native:clip
     name: Clip polygons by multipolygons
@@ -291,6 +388,10 @@ tests:
       OUTPUT:
         name: expected/clip_polys_by_multipolygon.gml
         type: vector
+        compare:
+          geometry:
+            normalize: True
+        pk: fid
 
   - algorithm: native:clip
     name: Clip multipolygons by polygons
@@ -305,6 +406,10 @@ tests:
       OUTPUT:
         name: expected/clip_multipolygons_by_polygons.gml
         type: vector
+        compare:
+          geometry:
+            normalize: True
+        pk: fid
 
   - algorithm: native:clip
     name: Clip points by polygons
@@ -319,6 +424,7 @@ tests:
       OUTPUT:
         name: expected/clip_points_by_polygons.gml
         type: vector
+        pk: fid
 
   - algorithm: native:clip
     name: Clip points by multipolygons
@@ -333,6 +439,7 @@ tests:
       OUTPUT:
         name: expected/clip_points_by_multipolygons.gml
         type: vector
+        pk: fid
 
 #  # These datasets should produce a geometry collection and not a polygon only
 #  # dataset. If the algorithm is fixed, a new test should be introduced to
@@ -352,6 +459,9 @@ tests:
       OUTPUT:
         name: expected/intersection_collection_fallback.shp
         type: vector
+        compare:
+          geometry:
+            normalize: True
 
   - name: Densify geometries
     algorithm: native:densifygeometries
@@ -453,6 +563,9 @@ tests:
         type: vector
         pk:
         - id2
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: qgis:listuniquevalues
     name: Unique values (multiple fields)
@@ -526,6 +639,10 @@ tests:
       OUTPUT:
         name: expected/autoincrement_grouped.gml
         type: vector
+        pk:
+        - intval
+        - name
+        - AUTO
 
   - algorithm: native:addautoincrementalfield
     name: Add incremental field (with sorting)
@@ -542,6 +659,7 @@ tests:
       OUTPUT:
         name: expected/autoincrement_sort.gml
         type: vector
+        pk: AUTO
 
   - algorithm: native:addautoincrementalfield
     name: Add incremental field (with modulus)
@@ -631,7 +749,10 @@ tests:
         type: vector
 
   - algorithm: native:dissolve
-    name: Dissolve using field
+    name: Dissolve using field (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       FIELD: name
       INPUT:
@@ -645,9 +766,38 @@ tests:
           geometry:
             precision: 4
             ignore_part_order: True
+            normalize: True
 
   - algorithm: native:dissolve
-    name: Dissolve using two fields
+    name: Dissolve using field (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      FIELD: name
+      INPUT:
+        name: dissolve_polys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/geos39/dissolve_field.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 4
+            ignore_part_order: True
+            normalize: True
+          fields:
+            gml_id: skip
+        pk:
+        - name
+        - floatval
+
+  - algorithm: native:dissolve
+    name: Dissolve using two fields (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       FIELD: intval;name
       INPUT:
@@ -661,6 +811,32 @@ tests:
           geometry:
             precision: 4
             ignore_part_order: True
+            normalize: True
+
+  - algorithm: native:dissolve
+    name: Dissolve using two fields (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      FIELD: intval;name
+      INPUT:
+        name: dissolve_polys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/geos39/dissolve_two_fields.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 4
+            ignore_part_order: True
+            normalize: True
+          fields:
+            gml_id: skip
+        pk:
+        - name
+        - intval
 
   - name: Dissolve with geometries reported as valid but as invalid with isGeosValid
     algorithm: native:dissolve
@@ -675,6 +851,7 @@ tests:
         compare:
           geometry:
             precision: 0
+            normalize: True
 
   - name: Dissolve with NULL geometries
     algorithm: native:dissolve
@@ -689,6 +866,7 @@ tests:
         compare:
           geometry:
             precision: 7
+            normalize: True
 
   - name: Dissolve with invalid geometries
     algorithm: native:dissolve
@@ -704,9 +882,61 @@ tests:
         compare:
           geometry:
             precision: 7
+            normalize: True
+
+  - algorithm: native:dissolve
+    name: Dissolve separate disjoint
+    params:
+      INPUT:
+        name: custom/overlapping_polys.geojson
+        type: vector
+      SEPARATE_DISJOINT: true
+    results:
+      OUTPUT:
+        name: expected/dissolve_disjoint.geojson
+        type: vector
+        compare:
+          geometry:
+            normalize: True
+
+  - algorithm: native:dissolve
+    name: Dissolve separate disjoint with geopackage input and output
+    params:
+      INPUT:
+        name: custom/pol.gpkg|layername=pol1
+        type: vector
+      SEPARATE_DISJOINT: true
+    results:
+      OUTPUT:
+        name: expected/dissolve_pol.gpkg
+        type: vector
+        compare:
+          geometry:
+            normalize: True
+
+  - algorithm: native:dissolve
+    name: Dissolve separate disjoint with classes
+    params:
+      FIELD:
+      - class
+      INPUT:
+        name: custom/overlapping_polys.geojson
+        type: vector
+      SEPARATE_DISJOINT: true
+    results:
+      OUTPUT:
+        name: expected/dissolve_disjoint_by_class.geojson
+        type: vector
+        compare:
+          unordered: True
+          geometry:
+            normalize: True
 
   - algorithm: native:buffer
-    name: Basic polygon buffer
+    name: Basic polygon buffer (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       DISSOLVE: 'False'
       DISTANCE: 0.5
@@ -723,7 +953,30 @@ tests:
             precision: 7
 
   - algorithm: native:buffer
-    name: Polygon buffer with dissolve
+    name: Basic polygon buffer (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      DISSOLVE: 'False'
+      DISTANCE: 0.5
+      INPUT:
+        name: polys.gml
+        type: vector
+      SEGMENTS: 5
+    results:
+      OUTPUT:
+        name: expected/geos39/buffer_polys.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+
+  - algorithm: native:buffer
+    name: Polygon buffer with dissolve (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       DISSOLVE: 'True'
       DISTANCE: 0.5
@@ -738,6 +991,33 @@ tests:
         compare:
           geometry:
             precision: 7
+            normalize: True
+          fields:
+            fid: skip
+            name: skip
+            intval: skip
+            floatval: skip
+
+  - algorithm: native:buffer
+    name: Polygon buffer with dissolve (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      DISSOLVE: 'True'
+      DISTANCE: 0.5
+      INPUT:
+        name: polys.gml
+        type: vector
+      SEGMENTS: 5
+    results:
+      OUTPUT:
+        name: expected/geos39/buffer_polys_dissolve.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+            normalize: True
           fields:
             fid: skip
             name: skip
@@ -775,7 +1055,10 @@ tests:
         type: vector
 
   - algorithm: native:mergevectorlayers
-    name: Merge points
+    name: Merge points (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       LAYERS:
         params:
@@ -794,7 +1077,32 @@ tests:
             path: skip
 
   - algorithm: native:mergevectorlayers
-    name: Merge points with mixed attribute types
+    name: Merge points (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      LAYERS:
+        params:
+        - name: custom/points.shp
+          type: vector
+        - name: custom/pointszm.shp
+          type: vector
+        type: multi
+    results:
+      OUTPUT:
+        name: expected/geos39/merged_points.gml
+        type: vector
+        compare:
+          fields:
+            fid: skip
+            path: skip
+
+  - algorithm: native:mergevectorlayers
+    name: Merge points with mixed attribute types (GDAL < 3.4)
+    condition:
+      gdal:
+        less_than: 3040000
     params:
       LAYERS:
         params:
@@ -806,6 +1114,28 @@ tests:
     results:
       OUTPUT:
         name: expected/merged_points_mixed.gml
+        type: vector
+        compare:
+          fields:
+            fid: skip
+            path: skip
+
+  - algorithm: native:mergevectorlayers
+    name: Merge points with mixed attribute types (GDAL >= 3.4)
+    condition:
+      gdal:
+        at_least: 3040000
+    params:
+      LAYERS:
+        params:
+        - name: custom/points.shp
+          type: vector
+        - name: custom/points_alt.shp
+          type: vector
+        type: multi
+    results:
+      OUTPUT:
+        name: expected/gdal34/merged_points_mixed.gml
         type: vector
         compare:
           fields:
@@ -832,7 +1162,10 @@ tests:
             path: skip
 
   - algorithm: native:mergevectorlayers
-    name: Merge polygons with CRS
+    name: Merge polygons with CRS (GDAL < 3.4)
+    condition:
+      gdal:
+        less_than: 3040000
     params:
       CRS: EPSG:3785
       LAYERS:
@@ -845,6 +1178,32 @@ tests:
     results:
       OUTPUT:
         name: expected/merged_polys_crs.gml
+        type: vector
+        compare:
+          fields:
+            fid: skip
+            layer: skip
+            path: skip
+          geometry:
+            precision: 0
+
+  - algorithm: native:mergevectorlayers
+    name: Merge polygons with CRS (GDAL >= 3.4)
+    condition:
+      gdal:
+        at_least: 3040000
+    params:
+      CRS: EPSG:3857
+      LAYERS:
+        params:
+        - name: multipolys.gml
+          type: vector
+        - name: polys.gml
+          type: vector
+        type: multi
+    results:
+      OUTPUT:
+        name: expected/gdal34/merged_polys_crs.gml
         type: vector
         compare:
           fields:
@@ -921,7 +1280,10 @@ tests:
         type: vector
 
   - algorithm: native:boundingboxes
-    name: Bounding boxes for multipoints
+    name: Bounding boxes for multipoints (GDAL < 3.4)
+    condition:
+      gdal:
+        less_than: 3040000
     params:
       INPUT:
         name: multipoints.gml
@@ -929,6 +1291,20 @@ tests:
     results:
       OUTPUT:
         name: expected/multipoint_bounds.gml
+        type: vector
+
+  - algorithm: native:boundingboxes
+    name: Bounding boxes for multipoints (GDAL >= 3.4)
+    condition:
+      gdal:
+        at_least: 3040000
+    params:
+      INPUT:
+        name: multipoints.gml|geometrytype=Point
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/gdal34/multipoint_bounds.gml
         type: vector
 
   - algorithm: native:boundary
@@ -1088,7 +1464,10 @@ tests:
         type: vector
 
   - algorithm: qgis:pointonsurface
-    name: Point on multipoint surface
+    name: Point on multipoint surface (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       INPUT:
         name: multipoints.gml
@@ -1096,6 +1475,20 @@ tests:
     results:
       OUTPUT:
         name: expected/point_on_multipoint.gml
+        type: vector
+
+  - algorithm: qgis:pointonsurface
+    name: Point on multipoint surface (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      INPUT:
+        name: multipoints.gml|layername=multipoints|geometrytype=Point
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/geos39/point_on_multipoint.gml
         type: vector
 
   - algorithm: qgis:pointonsurface
@@ -1153,7 +1546,10 @@ tests:
             precision: 7
 
   - algorithm: native:offsetline
-    name: Offset line negative
+    name: Offset line negative (GEOS < 3.11)
+    condition:
+      geos:
+        less_than: 31100
     params:
       DISTANCE: -1.0
       INPUT:
@@ -1165,6 +1561,27 @@ tests:
     results:
       OUTPUT:
         name: expected/line_offset_round_negative.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+
+  - algorithm: native:offsetline
+    name: Offset line negative (GEOS >= 3.11)
+    condition:
+      geos:
+        at_least: 31100
+    params:
+      DISTANCE: -1.0
+      INPUT:
+        name: lines.gml
+        type: vector
+      JOIN_STYLE: '0'
+      MITER_LIMIT: 2
+      SEGMENTS: 8
+    results:
+      OUTPUT:
+        name: expected/geos311/line_offset_round_negative.gml
         type: vector
         compare:
           geometry:
@@ -1242,7 +1659,10 @@ tests:
         type: vector
 
   - algorithm: native:buffer
-    name: Buffer polygons using miter
+    name: Buffer polygons using miter (GEOS < 3.11)
+    condition:
+      geos:
+        less_than: 31100
     params:
       DISSOLVE: false
       DISTANCE: 1.0
@@ -1262,7 +1682,33 @@ tests:
             precision: 5
 
   - algorithm: native:buffer
-    name: Buffer lines
+    name: Buffer polygons using miter (GEOS >= 3.11)
+    condition:
+      geos:
+        at_least: 31100
+    params:
+      DISSOLVE: false
+      DISTANCE: 1.0
+      END_CAP_STYLE: '0'
+      INPUT:
+        name: polys.gml
+        type: vector
+      JOIN_STYLE: '1'
+      MITER_LIMIT: 2
+      SEGMENTS: 5
+    results:
+      OUTPUT:
+        name: expected/geos311/buffer_polys_miter.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 5
+
+  - algorithm: native:buffer
+    name: Buffer lines (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       DISSOLVE: false
       DISTANCE: 1.0
@@ -1282,7 +1728,33 @@ tests:
             precision: 7
 
   - algorithm: native:buffer
-    name: Buffer lines (flat)
+    name: Buffer lines (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      DISSOLVE: false
+      DISTANCE: 1.0
+      END_CAP_STYLE: '0'
+      INPUT:
+        name: lines.gml
+        type: vector
+      JOIN_STYLE: '0'
+      MITER_LIMIT: 2
+      SEGMENTS: 5
+    results:
+      OUTPUT:
+        name: expected/geos39/buffer_lines.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+
+  - algorithm: native:buffer
+    name: Buffer lines (flat) (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       DISSOLVE: false
       DISTANCE: 1.0
@@ -1302,7 +1774,33 @@ tests:
             precision: 7
 
   - algorithm: native:buffer
-    name: Buffer lines (square)
+    name: Buffer lines (flat) (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      DISSOLVE: false
+      DISTANCE: 1.0
+      END_CAP_STYLE: '1'
+      INPUT:
+        name: lines.gml
+        type: vector
+      JOIN_STYLE: '0'
+      MITER_LIMIT: 2
+      SEGMENTS: 5
+    results:
+      OUTPUT:
+        name: expected/geos39/buffer_lines_flat.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+
+  - algorithm: native:buffer
+    name: Buffer lines (square) (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       DISSOLVE: false
       DISTANCE: 1.0
@@ -1319,7 +1817,30 @@ tests:
         type: vector
         compare:
           geometry:
-            precision: 7
+            precision: 3
+
+  - algorithm: native:buffer
+    name: Buffer lines (square) (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      DISSOLVE: false
+      DISTANCE: 1.0
+      END_CAP_STYLE: '2'
+      INPUT:
+        name: lines.gml
+        type: vector
+      JOIN_STYLE: '0'
+      MITER_LIMIT: 2
+      SEGMENTS: 5
+    results:
+      OUTPUT:
+        name: expected/geos39/buffer_lines_square.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 3
 
   - algorithm: native:centroids
     name: Centroid (lines)
@@ -1350,7 +1871,10 @@ tests:
             precision: 7
 
   - algorithm: native:centroids
-    name: Centroid (multipoints)
+    name: Centroid (multipoints) (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       INPUT:
         name: multipoints.gml
@@ -1358,6 +1882,23 @@ tests:
     results:
       OUTPUT:
         name: expected/centroid_multipoint.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+
+  - algorithm: native:centroids
+    name: Centroid (multipoints) (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      INPUT:
+        name: multipoints.gml|geometrytype=Point
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/geos39/centroid_multipoint.gml
         type: vector
         compare:
           geometry:
@@ -1592,7 +2133,10 @@ tests:
         type: vector
 
   - algorithm: native:simplifygeometries
-    name: Simplify (visval)
+    name: Simplify (visval)  (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       INPUT:
         name: simplify_lines.gml
@@ -1608,7 +2152,29 @@ tests:
             precision: 7
 
   - algorithm: native:simplifygeometries
-    name: Simplify (grid)
+    name: Simplify (visval)  (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      INPUT:
+        name: simplify_lines.gml
+        type: vector
+      METHOD: '2'
+      TOLERANCE: 1.0
+    results:
+      OUTPUT:
+        name: expected/geos39/simplify_vis_lines.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+
+  - algorithm: native:simplifygeometries
+    name: Simplify (grid) (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       INPUT:
         name: simplify_lines.gml
@@ -1618,6 +2184,25 @@ tests:
     results:
       OUTPUT:
         name: expected/simplify_grid_lines.gml
+        type: vector
+        compare:
+          geometry:
+            precision: 7
+
+  - algorithm: native:simplifygeometries
+    name: Simplify (grid) (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      INPUT:
+        name: simplify_lines.gml
+        type: vector
+      METHOD: '1'
+      TOLERANCE: 5.0
+    results:
+      OUTPUT:
+        name: expected/geos39/simplify_grid_lines.gml
         type: vector
         compare:
           geometry:
@@ -1688,7 +2273,10 @@ tests:
         type: vector
 
   - algorithm: qgis:exportaddgeometrycolumns
-    name: Export multipoint info
+    name: Export multipoint info (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       CALC_METHOD: 0
       INPUT:
@@ -1697,6 +2285,21 @@ tests:
     results:
       OUTPUT:
         name: expected/add_geometry_info_multipoint.gml
+        type: vector
+
+  - algorithm: qgis:exportaddgeometrycolumns
+    name: Export multipoint info (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      CALC_METHOD: 0
+      INPUT:
+        name: multipoints.gml|layername=multipoints|geometrytype=Point
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/geos39/add_geometry_info_multipoint.gml
         type: vector
 
   - algorithm: qgis:texttofloat
@@ -1886,7 +2489,10 @@ tests:
             fid: skip
 
   - algorithm: native:lineintersections
-    name: Line intersections with geometry collection
+    name: Line intersections with geometry collection (GEOS < 3.9)
+    condition:
+      geos:
+        less_than: 30900
     params:
       INPUT:
         name: custom/line_intersection_collection1.gml
@@ -1898,6 +2504,26 @@ tests:
       OUTPUT:
         name: expected/line_intersection_collection.gml
         type: vector
+
+  - algorithm: native:lineintersections
+    name: Line intersections with geometry collection (GEOS >= 3.9)
+    condition:
+      geos:
+        at_least: 30900
+    params:
+      INPUT:
+        name: custom/line_intersection_collection1.gml|layername=line_intersection_collection1
+        type: vector
+      INTERSECT:
+        name: custom/line_intersection_collection2.gml|layername=line_intersection_collection2
+        type: vector
+      INTERSECT_FIELDS_PREFIX: ''
+    results:
+      OUTPUT:
+        name: expected/geos39/line_intersection_collection.gml
+        type: vector
+        compare:
+          ignore_crs_check: true
 
   - algorithm: native:sumlinelengths
     name: Sum line lengths
@@ -1933,8 +2559,10 @@ tests:
         compare:
           geometry:
             precision: 3
+          fields:
+            fid: skip
 
-  - algorithm: qgis:delaunaytriangulation
+  - algorithm: native:delaunaytriangulation
     name: Delaunay triangulation (multipoint data)
     params:
       INPUT:
@@ -1944,6 +2572,13 @@ tests:
       OUTPUT:
         name: expected/multipoint_delaunay.gml
         type: vector
+        compare:
+          geometry:
+            precision: 3
+            normalize: true
+          unordered: true
+          fields:
+            gml_id: skip
 
   - algorithm: native:polygonfromlayerextent
     name: Polygon from layer extent rounded to 0
@@ -1957,6 +2592,9 @@ tests:
       OUTPUT:
         name: expected/polygon_from_extent.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: native:polygonfromlayerextent
     name: Polygon from layer extent rounded to 2
@@ -1970,6 +2608,9 @@ tests:
       OUTPUT:
         name: expected/polygon_from_extent_rounded_2.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: native:pointtolayer
     name: Test (native:pointtolayer)
@@ -1979,6 +2620,9 @@ tests:
       OUTPUT:
         name: expected/point_to_layer.gml
         type: vector
+        compare:
+          fields:
+            fid: skip
 
   - algorithm: qgis:climbalongline
     name: Climb line layer with DTM

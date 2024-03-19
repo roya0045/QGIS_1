@@ -30,7 +30,6 @@
 /**
  * \ingroup core
  * \brief Class for parsing SQL statements.
- * \since QGIS 2.16
  */
 class CORE_EXPORT QgsSQLStatement
 {
@@ -629,8 +628,21 @@ class CORE_EXPORT QgsSQLStatement
         //! Constructor with table name and alias
         NodeTableDef( const QString &name, const QString &alias ) : mName( name ), mAlias( alias ) {}
 
+        /**
+         * Constructor with schema, table name and alias
+         * \since QGIS 3.28
+         */
+        NodeTableDef( const QString &schema, const QString &name, const QString &alias ) : mName( name ), mSchema( schema ), mAlias( alias ) {}
+
         //! Table name
         QString name() const { return mName; }
+
+        /**
+         * Returns the schema name.
+         *
+         * \since QGIS 3.28
+         */
+        QString schema() const { return mSchema; }
 
         //! Table alias
         QString alias() const { return mAlias; }
@@ -645,6 +657,7 @@ class CORE_EXPORT QgsSQLStatement
 
       protected:
         QString mName;
+        QString mSchema;
         QString mAlias;
     };
 

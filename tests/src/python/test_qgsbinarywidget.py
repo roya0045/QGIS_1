@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for binary editor widgets.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,20 +9,20 @@ __author__ = 'Nyall Dawson'
 __date__ = '11/11/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
-
 from qgis.PyQt.QtCore import QByteArray
-from qgis.core import QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer, NULL
+from qgis.core import NULL, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 from qgis.gui import QgsGui
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsBinaryWidget(unittest.TestCase):
+class TestQgsBinaryWidget(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         QgsGui.editorWidgetRegistry().initEditors()
 
     def setUp(self):
@@ -58,10 +57,10 @@ class TestQgsBinaryWidget(unittest.TestCase):
         bin_2 = b'yyy'
         bin_val2 = QByteArray(bin_2)
 
-        widget.setValue(bin_val2)
+        widget.setValues(bin_val2, [])
         self.assertEqual(widget.value(), bin_val2)
 
-        widget.setValue(NULL)
+        widget.setValues(NULL, [])
         self.assertEqual(widget.value(), QByteArray())
 
 

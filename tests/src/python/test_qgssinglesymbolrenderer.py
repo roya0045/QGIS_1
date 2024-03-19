@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     test_qgssinglesymbolrenderer.py
@@ -24,29 +22,29 @@ __author__ = 'Matthias Kuhn'
 __date__ = 'December 2015'
 __copyright__ = '(C) 2015, Matthias Kuhn'
 
-import qgis  # NOQA
-
 import os
 
 from qgis.PyQt.QtCore import QSize
-
-from qgis.core import (QgsVectorLayer,
-                       QgsProject,
-                       QgsRectangle,
-                       QgsMultiRenderChecker,
-                       QgsSingleSymbolRenderer,
-                       QgsFillSymbol,
-                       QgsFeatureRequest,
-                       QgsRenderContext
-                       )
-from qgis.testing import unittest
+from qgis.core import (
+    QgsFeatureRequest,
+    QgsFillSymbol,
+    QgsProject,
+    QgsRectangle,
+    QgsRenderContext,
+    QgsSingleSymbolRenderer,
+    QgsVectorLayer,
+)
+from qgis.testing import unittest, QgisTestCase
 from qgis.testing.mocked import get_iface
-from utilities import unitTestDataPath
+
+from utilities import unitTestDataPath, start_app
 
 TEST_DATA_DIR = unitTestDataPath()
 
+start_app()
 
-class TestQgsSingleSymbolRenderer(unittest.TestCase):
+
+class TestQgsSingleSymbolRenderer(QgisTestCase):
 
     def setUp(self):
         self.iface = get_iface()
@@ -72,19 +70,43 @@ class TestQgsSingleSymbolRenderer(unittest.TestCase):
         self.renderer.setOrderByEnabled(True)
 
         # Setup rendering check
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(self.mapsettings)
-        renderchecker.setControlName('expected_singlesymbol_orderby')
-        self.assertTrue(renderchecker.runTest('singlesymbol_orderby'))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'singlesymbol_orderby',
+                'singlesymbol_orderby',
+                self.mapsettings)
+        )
 
         # disable order by and retest
         self.renderer.setOrderByEnabled(False)
-        self.assertTrue(renderchecker.runTest('single'))
+        self.assertTrue(
+            self.render_map_settings_check(
+                'singlesymbol_noorderby',
+                'singlesymbol_noorderby',
+                self.mapsettings)
+        )
 
     def testUsedAttributes(self):
         ctx = QgsRenderContext.fromMapSettings(self.mapsettings)
 
         self.assertCountEqual(self.renderer.usedAttributes(ctx), {})
+
+    def test_legend_keys(self):
+        sym1 = QgsFillSymbol.createSimple({'color': '#fdbf6f', 'outline_color': 'black'})
+        renderer = QgsSingleSymbolRenderer(sym1)
+
+        self.assertEqual(renderer.legendKeys(), {'0'})
+
+    def test_legend_key_to_expression(self):
+        sym1 = QgsFillSymbol.createSimple({'color': '#fdbf6f', 'outline_color': 'black'})
+        renderer = QgsSingleSymbolRenderer(sym1)
+
+        exp, ok = renderer.legendKeyToExpression('0', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, 'TRUE')
+
+        exp, ok = renderer.legendKeyToExpression('xxxx', None)
+        self.assertFalse(ok)
 
 
 if __name__ == '__main__':

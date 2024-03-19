@@ -19,6 +19,7 @@
 #define QGSRASTERRENDERERWIDGET_H
 
 #include "qgsrectangle.h"
+#include "qgscontrastenhancement.h"
 #include "qgis.h"
 
 #include <QWidget>
@@ -32,6 +33,8 @@ class QgsRasterMinMaxWidget;
 /**
  * \ingroup gui
  * \class QgsRasterRendererWidget
+ *
+ * \brief Abstract base class for widgets which configure a QgsRasterRenderer.
  */
 class GUI_EXPORT QgsRasterRendererWidget: public QWidget
 {
@@ -45,9 +48,25 @@ class GUI_EXPORT QgsRasterRendererWidget: public QWidget
       , mExtent( extent )
     {}
 
+    /**
+     * Creates a new renderer, using the properties defined in the widget.
+     *
+     * The caller takes ownership of the returned renderer.
+     */
     virtual QgsRasterRenderer *renderer() = 0 SIP_FACTORY;
 
+    /**
+     * Sets the raster \a layer associated with the widget.
+     *
+     * \see rasterLayer()
+     */
     void setRasterLayer( QgsRasterLayer *layer ) { mRasterLayer = layer; }
+
+    /**
+     * Returns the raster layer associated with the widget.
+     *
+     * \see setRasterLayer()
+     */
     const QgsRasterLayer *rasterLayer() const { return mRasterLayer; }
 
     /**
@@ -55,14 +74,12 @@ class GUI_EXPORT QgsRasterRendererWidget: public QWidget
      * map extent and other properties from the canvas.
      * \param canvas map canvas
      * \see mapCanvas()
-     * \since QGIS 2.16
      */
     virtual void setMapCanvas( QgsMapCanvas *canvas );
 
     /**
      * Returns the map canvas associated with the widget.
      * \see setMapCanvas()
-     * \since QGIS 2.16
      */
     QgsMapCanvas *mapCanvas();
 
@@ -75,10 +92,22 @@ class GUI_EXPORT QgsRasterRendererWidget: public QWidget
     virtual int selectedBand( int index = 0 ) { Q_UNUSED( index ) return -1; }
 
     //! Load programmatically with current values
-    virtual void doComputations() { }
+    virtual void doComputations() {}
 
     //! Returns min/max widget when it exists.
     virtual QgsRasterMinMaxWidget *minMaxWidget() { return nullptr; }
+
+    /**
+     * Returns the contrast enhancement \a algorithm to be used by the raster renderer.
+     * \since QGIS 3.26
+     */
+    virtual QgsContrastEnhancement::ContrastEnhancementAlgorithm contrastEnhancementAlgorithm() const { return QgsContrastEnhancement::NoEnhancement; }
+
+    /**
+     * Sets the contrast enhancement \a algorithm to be used by the raster renderer.
+     * \since QGIS 3.26
+     */
+    virtual void setContrastEnhancementAlgorithm( QgsContrastEnhancement::ContrastEnhancementAlgorithm algorithm ) { Q_UNUSED( algorithm ) return; }
 
   signals:
 

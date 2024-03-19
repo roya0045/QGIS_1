@@ -23,7 +23,7 @@
 #include <algorithm>
 
 QgsWFSNewConnection::QgsWFSNewConnection( QWidget *parent, const QString &connName ):
-  QgsNewHttpConnection( parent, QgsNewHttpConnection::ConnectionWfs, QgsWFSConstants::CONNECTIONS_WFS, connName )
+  QgsNewHttpConnection( parent, QgsNewHttpConnection::ConnectionWfs, QStringLiteral( "WFS" ), connName )
 {
   connect( wfsVersionDetectButton(), &QPushButton::clicked, this, &QgsWFSNewConnection::versionDetectButton );
 }
@@ -41,9 +41,15 @@ QgsDataSourceUri QgsWFSNewConnection::createUri()
   // Honor any defined authentication settings
   QgsDataSourceUri uri;
   uri.setParam( QStringLiteral( "url" ), urlTrimmed().toString() );
-  uri.setUsername( authSettingsWidget()->username() );
-  uri.setPassword( authSettingsWidget()->password() );
-  uri.setAuthConfigId( authSettingsWidget()->configId() );
+  if ( authSettingsWidget()->configurationTabIsSelected() )
+  {
+    uri.setAuthConfigId( authSettingsWidget()->configId() );
+  }
+  else
+  {
+    uri.setUsername( authSettingsWidget()->username() );
+    uri.setPassword( authSettingsWidget()->password() );
+  }
   return uri;
 }
 
@@ -100,7 +106,11 @@ void QgsWFSNewConnection::capabilitiesReplyFinished()
     wfsPageSizeLineEdit()->setText( QString::number( caps.maxFeatures ) );
   }
   wfsVersionComboBox()->setCurrentIndex( versionIdx );
-  wfsPagingEnabledCheckBox()->setChecked( caps.supportsPaging );
+
+  wfsPagingComboBox()->setCurrentIndex(
+    static_cast<int>( caps.supportsPaging ?
+                      QgsNewHttpConnection::WfsFeaturePagingIndex::ENABLED :
+                      QgsNewHttpConnection::WfsFeaturePagingIndex::DISABLED ) );
 
   mCapabilities.reset();
 }
@@ -153,7 +163,7 @@ void QgsWFSNewConnection::oapifLandingPageReplyFinished()
   }
 
   wfsVersionComboBox()->setCurrentIndex( WFS_VERSION_API_FEATURES_1_0 );
-  wfsPagingEnabledCheckBox()->setChecked( true );
+  wfsPagingComboBox()->setCurrentIndex( static_cast<int>( QgsNewHttpConnection::WfsFeaturePagingIndex::ENABLED ) );
 
   mCapabilities.reset();
 

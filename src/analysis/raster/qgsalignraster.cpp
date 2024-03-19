@@ -48,7 +48,6 @@ static double fmod_with_tolerance( double num, double denom )
   return num - floor_with_tolerance( num / denom ) * denom;
 }
 
-
 static QgsRectangle transform_to_extent( const double *geotransform, double xSize, double ySize )
 {
   QgsRectangle r( geotransform[0],
@@ -58,7 +57,6 @@ static QgsRectangle transform_to_extent( const double *geotransform, double xSiz
   r.normalize();
   return r;
 }
-
 
 static int CPL_STDCALL _progress( double dfComplete, const char *pszMessage, void *pProgressArg )
 {
@@ -70,7 +68,6 @@ static int CPL_STDCALL _progress( double dfComplete, const char *pszMessage, voi
   else
     return true;
 }
-
 
 static CPLErr rescalePreWarpChunkProcessor( void *pKern, void *pArg )
 {
@@ -91,7 +88,6 @@ static CPLErr rescalePreWarpChunkProcessor( void *pKern, void *pArg )
   }
   return CE_None;
 }
-
 
 static CPLErr rescalePostWarpChunkProcessor( void *pKern, void *pArg )
 {
@@ -397,7 +393,7 @@ int QgsAlignRaster::suggestedReferenceLayer() const
   // would be a better a choice to more accurately compute areas?
   // (Why earth is not flat???)
   const QgsCoordinateReferenceSystem destCRS( QStringLiteral( "EPSG:4326" ) );
-  const QString destWkt = destCRS.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL );
+  const QString destWkt = destCRS.toWkt( Qgis::CrsWktVariant::PreferredGdal );
 
   const auto constMRasters = mRasters;
   for ( const Item &raster : constMRasters )
@@ -428,7 +424,7 @@ bool QgsAlignRaster::createAndWarp( const Item &raster )
   }
 
   // Open the source file.
-  const gdal::dataset_unique_ptr hSrcDS( GDALOpen( raster.inputFilename.toLocal8Bit().constData(), GA_ReadOnly ) );
+  const gdal::dataset_unique_ptr hSrcDS( GDALOpen( raster.inputFilename.toUtf8().constData(), GA_ReadOnly ) );
   if ( !hSrcDS )
   {
     mErrorMessage = QObject::tr( "Unable to open input file: %1" ).arg( raster.inputFilename );
@@ -441,7 +437,7 @@ bool QgsAlignRaster::createAndWarp( const Item &raster )
   const GDALDataType eDT = GDALGetRasterDataType( GDALGetRasterBand( hSrcDS.get(), 1 ) );
 
   // Create the output file.
-  const gdal::dataset_unique_ptr hDstDS( GDALCreate( hDriver, raster.outputFilename.toLocal8Bit().constData(), mXSize, mYSize,
+  const gdal::dataset_unique_ptr hDstDS( GDALCreate( hDriver, raster.outputFilename.toUtf8().constData(), mXSize, mYSize,
                                          bandCount, eDT, nullptr ) );
   if ( !hDstDS )
   {
@@ -550,7 +546,7 @@ bool QgsAlignRaster::suggestedWarpOutput( const QgsAlignRaster::RasterInfo &info
 
 QgsAlignRaster::RasterInfo::RasterInfo( const QString &layerpath )
 {
-  mDataset.reset( GDALOpen( layerpath.toLocal8Bit().constData(), GA_ReadOnly ) );
+  mDataset.reset( GDALOpen( layerpath.toUtf8().constData(), GA_ReadOnly ) );
   if ( !mDataset )
     return;
 

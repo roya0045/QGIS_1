@@ -28,6 +28,7 @@ QgsMeshLayer3DRendererWidget::QgsMeshLayer3DRendererWidget( QgsMeshLayer *layer,
   : QgsMapLayerConfigWidget( layer, canvas, parent )
 {
   setPanelTitle( tr( "3D View" ) );
+  setObjectName( QStringLiteral( "mOptsPage_3DView" ) );
 
   QgsVScrollArea *scrollArea = new QgsVScrollArea( this );
   scrollArea->setFrameShape( QFrame::NoFrame );
@@ -46,12 +47,14 @@ QgsMeshLayer3DRendererWidget::QgsMeshLayer3DRendererWidget( QgsMeshLayer *layer,
   mChkEnabled = new QCheckBox( tr( "Enable 3D Renderer" ), this );
   layout->addWidget( mChkEnabled );
 
-  mWidgetMesh = new QgsMesh3dSymbolWidget( layer, this );
+  mWidgetMesh = new QgsMesh3DSymbolWidget( layer, this );
   mWidgetMesh->configureForDataset();
   layout->addWidget( mWidgetMesh );
 
   connect( mChkEnabled, &QCheckBox::clicked, this, &QgsMeshLayer3DRendererWidget::onEnabledClicked );
-  connect( mWidgetMesh, &QgsMesh3dSymbolWidget::changed, this, &QgsMeshLayer3DRendererWidget::widgetChanged );
+  connect( mWidgetMesh, &QgsMesh3DSymbolWidget::changed, this, &QgsMeshLayer3DRendererWidget::widgetChanged );
+
+  setProperty( "helpPage", QStringLiteral( "working_with_mesh/mesh_properties.html#d-view-properties" ) );
 }
 
 void QgsMeshLayer3DRendererWidget::setRenderer( const QgsMeshLayer3DRenderer *renderer )
@@ -123,7 +126,7 @@ bool QgsMeshLayer3DRendererWidgetFactory::supportLayerPropertiesDialog() const
 
 bool QgsMeshLayer3DRendererWidgetFactory::supportsLayer( QgsMapLayer *layer ) const
 {
-  return layer->type() == QgsMapLayerType::MeshLayer;
+  return layer->type() == Qgis::LayerType::Mesh;
 }
 
 QString QgsMeshLayer3DRendererWidgetFactory::layerPropertiesPagePositionHint() const

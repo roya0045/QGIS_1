@@ -17,7 +17,6 @@
 
 
 #include <QScreen>
-#include <QDesktopWidget>
 #include <QMessageBox>
 
 #include "qgsgui.h"
@@ -25,9 +24,8 @@
 #include "qgslayertreeembeddedwidgetregistry.h"
 #include "qgsmaplayeractionregistry.h"
 #include "qgssourceselectproviderregistry.h"
-#include "qgslayoutitemregistry.h"
 #include "qgslayoutitemguiregistry.h"
-#include "qgslayoutviewrubberband.h"
+#include "qgsannotationitemguiregistry.h"
 #ifdef Q_OS_MACX
 #include "qgsmacnative.h"
 #elif defined (Q_OS_WIN)
@@ -49,9 +47,6 @@
 #include "qgswindowmanagerinterface.h"
 #include "qgssettings.h"
 #include "qgsdataitemguiproviderregistry.h"
-#include "qgsgdalguiprovider.h"
-#include "qgsogrguiprovider.h"
-#include "qgsproviderregistry.h"
 #include "qgsproviderguiregistry.h"
 #include "qgsprojectstorageguiregistry.h"
 #include "qgsmessagebar.h"
@@ -61,7 +56,19 @@
 #include "qgssubsetstringeditorproviderregistry.h"
 #include "qgsprovidersourcewidgetproviderregistry.h"
 #include "qgsrelationwidgetregistry.h"
+#include "qgsmaptoolshaperegistry.h"
 #include "qgssettingsregistrygui.h"
+#include "qgshistoryproviderregistry.h"
+#include "qgslayermetadatasourceselectprovider.h"
+#include "qgsinputcontrollermanager.h"
+#include "qgssensorguiregistry.h"
+#include "qgshistoryentry.h"
+
+#include "qgssettingseditorwidgetregistry.h"
+
+
+#include <QPushButton>
+#include <QToolButton>
 
 QgsGui *QgsGui::instance()
 {
@@ -87,6 +94,11 @@ QgsEditorWidgetRegistry *QgsGui::editorWidgetRegistry()
 QgsRelationWidgetRegistry *QgsGui::relationWidgetRegistry()
 {
   return instance()->mRelationEditorRegistry;
+}
+
+QgsMapToolShapeRegistry *QgsGui::mapToolShapeRegistry()
+{
+  return instance()->mShapeMapToolRegistry;
 }
 
 QgsSourceSelectProviderRegistry *QgsGui::sourceSelectProviderRegistry()
@@ -124,6 +136,11 @@ QgsLayoutItemGuiRegistry *QgsGui::layoutItemGuiRegistry()
   return instance()->mLayoutItemGuiRegistry;
 }
 
+QgsAnnotationItemGuiRegistry *QgsGui::annotationItemGuiRegistry()
+{
+  return instance()->mAnnotationItemGuiRegistry;
+}
+
 QgsProcessingGuiRegistry *QgsGui::processingGuiRegistry()
 {
   return instance()->mProcessingGuiRegistry;
@@ -159,11 +176,26 @@ QgsProviderGuiRegistry *QgsGui::providerGuiRegistry()
   return instance()->mProviderGuiRegistry;
 }
 
+QgsSensorGuiRegistry *QgsGui::sensorGuiRegistry()
+{
+  return instance()->mSensorGuiRegistry;
+}
+
+QgsHistoryProviderRegistry *QgsGui::historyProviderRegistry()
+{
+  return instance()->mHistoryProviderRegistry;
+}
+
+QgsSettingsEditorWidgetRegistry *QgsGui::settingsEditorWidgetRegistry()
+{
+  return instance()->mSettingsEditorRegistry;
+}
+
 void QgsGui::enableAutoGeometryRestore( QWidget *widget, const QString &key )
 {
   if ( widget->objectName().isEmpty() )
   {
-    QgsDebugMsg( QStringLiteral( "WARNING: No object name set. Best for it to be set objectName when using QgsGui::enableAutoGeometryRestore" ) );
+    QgsDebugError( QStringLiteral( "WARNING: No object name set. Best for it to be set objectName when using QgsGui::enableAutoGeometryRestore" ) );
   }
   instance()->mWidgetStateHelper->registerWidget( widget, key );
 }
@@ -173,6 +205,11 @@ QgsWindowManagerInterface *QgsGui::windowManager()
   return instance()->mWindowManager.get();
 }
 
+QgsInputControllerManager *QgsGui::inputControllerManager()
+{
+  return instance()->mInputControllerManager;
+}
+
 void QgsGui::setWindowManager( QgsWindowManagerInterface *manager )
 {
   instance()->mWindowManager.reset( manager );
@@ -180,7 +217,7 @@ void QgsGui::setWindowManager( QgsWindowManagerInterface *manager )
 
 QgsGui::HigFlags QgsGui::higFlags()
 {
-  if ( QgsApplication::settingsLocaleUserLocale.value().startsWith( QLatin1String( "en" ) ) )
+  if ( QgsApplication::settingsLocaleUserLocale->value().startsWith( QLatin1String( "en" ) ) )
   {
     return HigMenuTextIsTitleCase | HigDialogTitleIsTitleCase;
   }
@@ -196,10 +233,12 @@ QgsGui::~QgsGui()
   delete mDataItemGuiProviderRegistry;
   delete mProcessingRecentAlgorithmLog;
   delete mLayoutItemGuiRegistry;
+  delete mAnnotationItemGuiRegistry;
   delete mLayerTreeEmbeddedWidgetRegistry;
   delete mEditorWidgetRegistry;
   delete mMapLayerActionRegistry;
   delete mSourceSelectProviderRegistry;
+  delete mHistoryProviderRegistry;
   delete mShortcutsManager;
   delete mNative;
   delete mNumericFormatGuiRegistry;
@@ -209,8 +248,12 @@ QgsGui::~QgsGui()
   delete mCodeEditorColorSchemeRegistry;
   delete mSubsetStringEditorProviderRegistry;
   delete mProviderSourceWidgetProviderRegistry;
+  delete mShapeMapToolRegistry;
   delete mRelationEditorRegistry;
+  delete mInputControllerManager;
   delete mSettingsRegistryGui;
+  delete mSensorGuiRegistry;
+  delete mSettingsEditorRegistry;
 }
 
 QColor QgsGui::sampleColor( QPoint point )
@@ -220,7 +263,10 @@ QColor QgsGui::sampleColor( QPoint point )
   {
     return QColor();
   }
-  const QPixmap snappedPixmap = screen->grabWindow( QApplication::desktop()->winId(), point.x(), point.y(), 1, 1 );
+
+  const int x = point.x() - screen->geometry().left();
+  const int y = point.y() - screen->geometry().top();
+  const QPixmap snappedPixmap = screen->grabWindow( 0, x, y, 1, 1 );
   const QImage snappedImage = snappedPixmap.toImage();
   return snappedImage.pixel( 0, 0 );
 }
@@ -258,9 +304,19 @@ QgsGui::QgsGui()
 
   mSettingsRegistryGui = new QgsSettingsRegistryGui();
 
+  mSettingsEditorRegistry = new QgsSettingsEditorWidgetRegistry();
+
   mCodeEditorColorSchemeRegistry = new QgsCodeEditorColorSchemeRegistry();
 
   // provider gui registry initialize QgsProviderRegistry too
+  mSensorGuiRegistry = new QgsSensorGuiRegistry();
+  mSensorGuiRegistry->populate();
+
+  mHistoryProviderRegistry = new QgsHistoryProviderRegistry();
+  mHistoryProviderRegistry->addDefaultProviders();
+
+  mInputControllerManager = new QgsInputControllerManager();
+
   mProviderGuiRegistry = new QgsProviderGuiRegistry( QgsApplication::pluginPath() );
   mProjectStorageGuiRegistry = new QgsProjectStorageGuiRegistry();
   mDataItemGuiProviderRegistry = new QgsDataItemGuiProviderRegistry();
@@ -272,18 +328,26 @@ QgsGui::QgsGui()
   mProjectStorageGuiRegistry->initializeFromProviderGuiRegistry( mProviderGuiRegistry );
   mDataItemGuiProviderRegistry->initializeFromProviderGuiRegistry( mProviderGuiRegistry );
   mSourceSelectProviderRegistry->initializeFromProviderGuiRegistry( mProviderGuiRegistry );
+  mSourceSelectProviderRegistry->addProvider( new QgsLayerMetadataSourceSelectProvider() );
   mSubsetStringEditorProviderRegistry->initializeFromProviderGuiRegistry( mProviderGuiRegistry );
   mProviderSourceWidgetProviderRegistry->initializeFromProviderGuiRegistry( mProviderGuiRegistry );
 
   mEditorWidgetRegistry = new QgsEditorWidgetRegistry();
   mRelationEditorRegistry = new QgsRelationWidgetRegistry();
+  mShapeMapToolRegistry = new QgsMapToolShapeRegistry();
   mShortcutsManager = new QgsShortcutsManager();
   mLayerTreeEmbeddedWidgetRegistry = new QgsLayerTreeEmbeddedWidgetRegistry();
   mMapLayerActionRegistry = new QgsMapLayerActionRegistry();
   mLayoutItemGuiRegistry = new QgsLayoutItemGuiRegistry();
+
+  mAnnotationItemGuiRegistry = new QgsAnnotationItemGuiRegistry();
+  mAnnotationItemGuiRegistry->addDefaultItems();
+
   mWidgetStateHelper = new QgsWidgetStateHelper();
   mProcessingRecentAlgorithmLog = new QgsProcessingRecentAlgorithmLog();
   mProcessingGuiRegistry = new QgsProcessingGuiRegistry();
+
+  qRegisterMetaType< QgsHistoryEntry >( "QgsHistoryEntry" );
 }
 
 bool QgsGui::pythonMacroAllowed( void ( *lambda )(), QgsMessageBar *messageBar )
@@ -311,7 +375,7 @@ bool QgsGui::pythonMacroAllowed( void ( *lambda )(), QgsMessageBar *messageBar )
       {
         QMessageBox msgBox( QMessageBox::Information, tr( "Python Macros" ),
                             tr( "Python macros are currently disabled. Do you allow this macro to run?" ) );
-        QAbstractButton *stopSessionButton = msgBox.addButton( tr( "Don't Ask Anymore" ), QMessageBox::DestructiveRole );
+        QAbstractButton *stopSessionButton = msgBox.addButton( tr( "Disable for this Session" ), QMessageBox::DestructiveRole );
         msgBox.addButton( tr( "No" ), QMessageBox::NoRole );
         QAbstractButton *yesButton = msgBox.addButton( tr( "Yes" ), QMessageBox::YesRole );
         msgBox.exec();

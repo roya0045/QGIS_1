@@ -18,6 +18,7 @@
 #include "qgsmapcanvasitem.h"
 #include "qgis_sip.h"
 #include "qgsgeometry.h"
+#include "qgscoordinatereferencesystem.h"
 
 #include <QBrush>
 #include <QVector>
@@ -28,7 +29,9 @@
 
 #include "qgis_gui.h"
 
+class QgsMapLayer;
 class QgsVectorLayer;
+class QgsMapLayer;
 class QPaintEvent;
 class QgsSymbol;
 
@@ -58,7 +61,13 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
 #ifdef SIP_RUN
     SIP_CONVERT_TO_SUBCLASS_CODE
     if ( dynamic_cast<QgsRubberBand *>( sipCpp ) )
+    {
       sipType = sipType_QgsRubberBand;
+      // We need to tweak the pointer as sip believes it is single inheritance
+      // from QgsMapCanvasItem, but the raw address of QgsRubberBand (sipCpp)
+      // is actually a QObject
+      *sipCppRet = dynamic_cast<QgsRubberBand *>( sipCpp );
+    }
     else
       sipType = nullptr;
     SIP_END
@@ -107,13 +116,11 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
 
       /**
        * A diamond is used to highlight points (◇)
-       * \since QGIS 3.0
        */
       ICON_DIAMOND,
 
       /**
        * A diamond is used to highlight points (◆)
-       * \since QGIS 3.0
        */
       ICON_FULL_DIAMOND,
 
@@ -130,9 +137,9 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
      *         Its CRS will be used to map points onto screen coordinates.
      * The ownership is transferred to this canvas.
      *  \param geometryType Defines how the data should be drawn onto the screen.
-     *         QgsWkbTypes::LineGeometry, QgsWkbTypes::PolygonGeometry or QgsWkbTypes::PointGeometry
+     *         Qgis::GeometryType::Line, Qgis::GeometryType::Polygon or Qgis::GeometryType::Point
      */
-    QgsRubberBand( QgsMapCanvas *mapCanvas SIP_TRANSFERTHIS, QgsWkbTypes::GeometryType geometryType = QgsWkbTypes::LineGeometry );
+    QgsRubberBand( QgsMapCanvas *mapCanvas SIP_TRANSFERTHIS, Qgis::GeometryType geometryType = Qgis::GeometryType::Line );
     ~QgsRubberBand() override;
 
     /**
@@ -145,7 +152,6 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
     /**
      * Sets the fill color for the rubberband
      *  \param color  The color used to render this rubberband
-     *  \since QGIS 2.6
      */
     void setFillColor( const QColor &color );
 
@@ -157,7 +163,6 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
     /**
      * Sets the stroke color for the rubberband
      *  \param color  The color used to render this rubberband
-     *  \since QGIS 2.6
      */
     void setStrokeColor( const QColor &color );
 
@@ -170,7 +175,6 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
      * Sets a secondary stroke color for the rubberband which will be drawn under the main stroke color.
      * Set to an invalid color to avoid drawing the secondary stroke.
      *  \param color  The color used to render a secondary stroke color to this rubberband
-     *  \since QGIS 3.0
      */
     void setSecondaryStrokeColor( const QColor &color );
 
@@ -236,7 +240,7 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
      * Sets the representation type according to geometryType.
      *  \param geometryType Defines how the data should be drawn onto the screen. (Use Qgis::Line, Qgis::Polygon or Qgis::Point)
      */
-    void reset( QgsWkbTypes::GeometryType geometryType = QgsWkbTypes::LineGeometry );
+    void reset( Qgis::GeometryType geometryType = Qgis::GeometryType::Line );
 
     /**
      * Adds a vertex to the rubberband and update canvas.
@@ -255,7 +259,6 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
      * \param doUpdate set to TRUE to update the map canvas immediately
      * \param geometryIndex The index of the feature part (in case of multipart geometries)
      * \param ringIndex     The index of the polygon ring (in case of polygons with holes)
-     * \since QGIS 2.16
      */
     void closePoints( bool doUpdate = true, int geometryIndex = 0, int ringIndex = 0 );
 
@@ -320,6 +323,13 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
     void setToCanvasRectangle( QRect rect );
 
     /**
+     * Copies the points from another rubber band.
+     *
+     * \since QGIS 3.22
+     */
+    void copyPointsFrom( const QgsRubberBand *other );
+
+    /**
      * Adds the geometry of an existing feature to a rubberband
      * This is useful for multi feature highlighting.
      * As of 2.0, this method does not change the GeometryType any more. You need to set the GeometryType
@@ -330,11 +340,10 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
      * After adding the final geometry updatePosition() should be called.
      *
      *  \param geometry the geometry object. Will be treated as a collection of vertices.
-     *  \param layer the layer containing the feature, used for coord transformation to map
-     *               crs. If \a layer is NULLPTR, the coordinates are not going to be transformed.
+     *  \param layer the layer associated with the geometry. This is used for transforming the geometry from the layer's CRS to the map crs. If \a layer is NULLPTR no coordinate transformation will occur.
      *  \param doUpdate set to FALSE to defer updates of the rubber band.
      */
-    void addGeometry( const QgsGeometry &geometry, QgsVectorLayer *layer, bool doUpdate = true );
+    void addGeometry( const QgsGeometry &geometry, QgsMapLayer *layer, bool doUpdate = true );
 
     /**
      * Adds a \a geometry to the rubberband.
@@ -345,7 +354,6 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
      * If additional geometries are to be added then set \a doUpdate to FALSE to defer costly repaint and bounding rectangle calculations for better performance.
      * After adding the final geometry updatePosition() should be called.
      *
-     * \since QGIS 3.0
      */
     void addGeometry( const QgsGeometry &geometry, const QgsCoordinateReferenceSystem &crs = QgsCoordinateReferenceSystem(), bool doUpdate = true );
 
@@ -454,7 +462,7 @@ class GUI_EXPORT QgsRubberBand : public QgsMapCanvasItem
      * Nested lists used for multitypes
      */
     QVector< QVector< QVector <QgsPointXY> > > mPoints;
-    QgsWkbTypes::GeometryType mGeometryType = QgsWkbTypes::PolygonGeometry;
+    Qgis::GeometryType mGeometryType = Qgis::GeometryType::Polygon;
     double mTranslationOffsetX = 0.0;
     double mTranslationOffsetY = 0.0;
 

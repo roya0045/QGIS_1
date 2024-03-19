@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsMapCanvas
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,44 +9,48 @@ __author__ = 'Nyall Dawson'
 __date__ = '24/1/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (QgsMapSettings,
-                       QgsCoordinateReferenceSystem,
-                       QgsRectangle,
-                       QgsVectorLayer,
-                       QgsFeature,
-                       QgsGeometry,
-                       QgsMultiRenderChecker,
-                       QgsFillSymbol,
-                       QgsSingleSymbolRenderer,
-                       QgsMapThemeCollection,
-                       QgsProject, QgsAnnotationPolygonItem,
-                       QgsPolygon,
-                       QgsLineString,
-                       QgsPoint,
-                       QgsPointXY,
-                       QgsApplication)
-from qgis.gui import (QgsMapCanvas)
-
-from qgis.PyQt.QtCore import (Qt,
-                              QDir)
-from qgis.PyQt.QtXml import (QDomDocument, QDomElement)
 import time
-from qgis.testing import start_app, unittest
+import os
+import tempfile
+
+from qgis.PyQt.QtCore import QDate, QDateTime, QTime, Qt
+from qgis.PyQt.QtGui import QImage
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import (
+    QgsAnnotationLayer,
+    QgsAnnotationLineItem,
+    QgsAnnotationMarkerItem,
+    QgsAnnotationPolygonItem,
+    QgsCoordinateReferenceSystem,
+    QgsDateTimeRange,
+    QgsFeature,
+    QgsFillSymbol,
+    QgsGeometry,
+    QgsInterval,
+    QgsLineString,
+    QgsMapThemeCollection,
+    QgsPoint,
+    QgsPointXY,
+    QgsPolygon,
+    QgsProject,
+    QgsRectangle,
+    QgsSingleSymbolRenderer,
+    QgsTemporalController,
+    QgsTemporalNavigationObject,
+    QgsVectorLayer
+)
+from qgis.gui import QgsMapCanvas, QgsMapToolPan, QgsMapToolZoom, QgsMapToolEmitPoint
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 app = start_app()
 
 
-class TestQgsMapCanvas(unittest.TestCase):
+class TestQgsMapCanvas(QgisTestCase):
 
-    def setUp(self):
-        self.report = "<h1>Python QgsMapCanvas Tests</h1>\n"
-
-    def tearDown(self):
-        report_file_path = "%s/qgistest.html" % QDir.tempPath()
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(self.report)
+    @classmethod
+    def control_path_prefix(cls):
+        return "mapcanvas"
 
     def testGettersSetters(self):
         canvas = QgsMapCanvas()
@@ -60,7 +63,7 @@ class TestQgsMapCanvas(unittest.TestCase):
     def testDeferredUpdate(self):
         """ test that map canvas doesn't auto refresh on deferred layer update """
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
         self.assertEqual(canvas.width(), 600)
@@ -76,7 +79,12 @@ class TestQgsMapCanvas(unittest.TestCase):
         while not canvas.isDrawing():
             app.processEvents()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('empty_canvas', 'empty_canvas', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('empty_canvas', 'empty_canvas', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # add polygon to layer
         f = QgsFeature()
@@ -90,19 +98,30 @@ class TestQgsMapCanvas(unittest.TestCase):
             # messy, but only way to check that canvas redraw doesn't occur
             self.assertFalse(canvas.isDrawing())
         # canvas should still be empty
-        self.assertTrue(self.canvasImageCheck('empty_canvas', 'empty_canvas', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('empty_canvas', 'empty_canvas', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # refresh canvas
         canvas.refresh()
         canvas.waitWhileRendering()
 
         # now we expect the canvas check to fail (since they'll be a new polygon rendered over it)
-        self.assertFalse(self.canvasImageCheck('empty_canvas', 'empty_canvas', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertFalse(
+            self.image_check('empty_canvas', 'empty_canvas', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20,
+                             expect_fail=True)
+        )
 
     def testRefreshOnTimer(self):
         """ test that map canvas refreshes with auto refreshing layers """
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
         self.assertEqual(canvas.width(), 600)
@@ -119,7 +138,12 @@ class TestQgsMapCanvas(unittest.TestCase):
         while not canvas.isDrawing():
             app.processEvents()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('empty_canvas', 'empty_canvas', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('empty_canvas', 'empty_canvas', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # add polygon to layer
         f = QgsFeature()
@@ -134,10 +158,10 @@ class TestQgsMapCanvas(unittest.TestCase):
         # expect canvas to auto refresh...
         while not canvas.isDrawing():
             app.processEvents()
-            self.assertTrue(time.time() < timeout)
+            self.assertLess(time.time(), timeout)
         while canvas.isDrawing():
             app.processEvents()
-            self.assertTrue(time.time() < timeout)
+            self.assertLess(time.time(), timeout)
 
         # add a polygon to layer
         f = QgsFeature()
@@ -146,13 +170,19 @@ class TestQgsMapCanvas(unittest.TestCase):
         # wait for canvas auto refresh
         while not canvas.isDrawing():
             app.processEvents()
-            self.assertTrue(time.time() < timeout)
+            self.assertLess(time.time(), timeout)
         while canvas.isDrawing():
             app.processEvents()
-            self.assertTrue(time.time() < timeout)
+            self.assertLess(time.time(), timeout)
 
         # now canvas should look different...
-        self.assertFalse(self.canvasImageCheck('empty_canvas', 'empty_canvas', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertFalse(
+            self.image_check('empty_canvas', 'empty_canvas', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20,
+                             expect_fail=True)
+        )
 
         # switch off auto refresh
         layer.setAutoRefreshEnabled(False)
@@ -164,7 +194,7 @@ class TestQgsMapCanvas(unittest.TestCase):
     def testCancelAndDestroy(self):
         """ test that nothing goes wrong if we destroy a canvas while a job is canceling """
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
 
@@ -191,7 +221,7 @@ class TestQgsMapCanvas(unittest.TestCase):
 
     def testMapTheme(self):
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
         self.assertEqual(canvas.width(), 600)
@@ -217,7 +247,12 @@ class TestQgsMapCanvas(unittest.TestCase):
         while not canvas.isDrawing():
             app.processEvents()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme1', 'theme1', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme1', 'theme1', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # add some styles
         layer.styleManager().addStyleFromLayer('style1')
@@ -228,12 +263,22 @@ class TestQgsMapCanvas(unittest.TestCase):
 
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme2', 'theme2', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme2', 'theme2', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         layer.styleManager().setCurrentStyle('style1')
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme1', 'theme1', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme1', 'theme1', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # OK, so all good with setting/rendering map styles
         # try setting canvas to a particular theme
@@ -257,12 +302,22 @@ class TestQgsMapCanvas(unittest.TestCase):
         canvas.setTheme('theme2')
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme2', 'theme2', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme2', 'theme2', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         canvas.setTheme('theme1')
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme1', 'theme1', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme1', 'theme1', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # add another layer
         layer2 = QgsVectorLayer("Polygon?crs=epsg:4326&field=fldtxt:string",
@@ -279,11 +334,21 @@ class TestQgsMapCanvas(unittest.TestCase):
         # rerender canvas - should NOT show new layer
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme1', 'theme1', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme1', 'theme1', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
         # test again - this time refresh all layers
         canvas.refreshAllLayers()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme1', 'theme1', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme1', 'theme1', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # add layer 2 to theme1
         record3 = QgsMapThemeCollection.MapThemeLayerRecord(layer2)
@@ -292,7 +357,12 @@ class TestQgsMapCanvas(unittest.TestCase):
 
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme3', 'theme3', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme3', 'theme3', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # change the appearance of an active style
         layer2.styleManager().addStyleFromLayer('original')
@@ -304,14 +374,24 @@ class TestQgsMapCanvas(unittest.TestCase):
 
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme3', 'theme3', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme3', 'theme3', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         layer2.styleManager().setCurrentStyle('style4')
         sym3 = QgsFillSymbol.createSimple({'color': '#b200b2'})
         layer2.renderer().setSymbol(sym3)
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme4', 'theme4', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme4', 'theme4', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # try setting layers while a theme is in place
         canvas.setLayers([layer])
@@ -319,21 +399,37 @@ class TestQgsMapCanvas(unittest.TestCase):
 
         # should be no change... setLayers should be ignored if canvas is following a theme!
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme4', 'theme4', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme4', 'theme4', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # setLayerStyleOverrides while theme is in place
         canvas.setLayerStyleOverrides({layer2.id(): 'original'})
         # should be no change... setLayerStyleOverrides should be ignored if canvas is following a theme!
         canvas.refresh()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('theme4', 'theme4', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('theme4', 'theme4', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # clear theme
         canvas.setTheme('')
         canvas.refresh()
         canvas.waitWhileRendering()
         # should be different - we should now render project layers
-        self.assertFalse(self.canvasImageCheck('theme4', 'theme4', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertFalse(
+            self.image_check('theme4', 'theme4', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20,
+                             expect_fail=True)
+        )
 
         # set canvas to theme1
         canvas.setTheme('theme1')
@@ -356,7 +452,7 @@ class TestQgsMapCanvas(unittest.TestCase):
     def testMainAnnotationLayerRendered(self):
         """ test that main annotation layer is rendered above all other layers """
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
         self.assertEqual(canvas.width(), 600)
@@ -374,7 +470,12 @@ class TestQgsMapCanvas(unittest.TestCase):
         while not canvas.isDrawing():
             app.processEvents()
         canvas.waitWhileRendering()
-        self.assertTrue(self.canvasImageCheck('empty_canvas', 'empty_canvas', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('empty_canvas', 'empty_canvas', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
 
         # add polygon to layer
         f = QgsFeature()
@@ -386,10 +487,16 @@ class TestQgsMapCanvas(unittest.TestCase):
         canvas.waitWhileRendering()
 
         # no annotation yet...
-        self.assertFalse(self.canvasImageCheck('main_annotation_layer', 'main_annotation_layer', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertFalse(
+            self.image_check('main_annotation_layer', 'main_annotation_layer', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20,
+                             expect_fail=True)
+        )
 
         annotation_layer = QgsProject.instance().mainAnnotationLayer()
-        annotation_layer.setCrs(QgsCoordinateReferenceSystem(4326))
+        annotation_layer.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         annotation_geom = QgsGeometry.fromRect(QgsRectangle(12, 30, 18, 33))
         annotation = QgsAnnotationPolygonItem(annotation_geom.constGet().clone())
         sym3 = QgsFillSymbol.createSimple({'color': '#ff0000', 'outline_style': 'no'})
@@ -401,24 +508,23 @@ class TestQgsMapCanvas(unittest.TestCase):
         canvas.waitWhileRendering()
 
         # annotation must be rendered over other layers
-        self.assertTrue(self.canvasImageCheck('main_annotation_layer', 'main_annotation_layer', canvas))
+        rendered_image = self.canvas_to_image(canvas)
+        self.assertTrue(
+            self.image_check('main_annotation_layer', 'main_annotation_layer', rendered_image,
+                             color_tolerance=2,
+                             allowed_mismatch=20)
+        )
         annotation_layer.clear()
 
-    def canvasImageCheck(self, name, reference_image, canvas):
-        self.report += "<h2>Render {}</h2>\n".format(name)
-        temp_dir = QDir.tempPath() + '/'
-        file_name = temp_dir + 'mapcanvas_' + name + ".png"
-        print(file_name)
-        canvas.saveAsImage(file_name)
-        checker = QgsMultiRenderChecker()
-        checker.setControlPathPrefix("mapcanvas")
-        checker.setControlName("expected_" + reference_image)
-        checker.setRenderedImage(file_name)
-        checker.setColorTolerance(2)
-        result = checker.runTest(name, 20)
-        self.report += checker.report()
-        print((self.report))
-        return result
+    def canvas_to_image(self, canvas: QgsMapCanvas) -> QImage:
+        """
+        Returns a QImage from a canvas
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmpfile = os.path.join(temp_dir, 'test_image.png')
+            canvas.saveAsImage(tmpfile)
+            im = QImage(tmpfile)
+        return im
 
     def testSaveCanvasVariablesToProject(self):
         """
@@ -517,7 +623,7 @@ class TestQgsMapCanvas(unittest.TestCase):
         c.zoomByFactor(0.5, QgsPointXY(6.5, 46.5), False)
         self.assertEqual(c.center().x(), 6.5)
         self.assertEqual(c.center().y(), 46.5)
-        self.assertTrue(c.magnificationFactor() > 7 / dpr)
+        self.assertGreater(c.magnificationFactor(), 7 / dpr)
         self.assertEqual(round(c.scale()), 2500000)
 
         # Test zoom with center
@@ -532,7 +638,7 @@ class TestQgsMapCanvas(unittest.TestCase):
         self.assertEqual(round(c.center().x(), 1), 6.5)
         self.assertEqual(round(c.center().y(), 1), 46.6)
         self.assertEqual(round(c.scale()), 2500000)
-        self.assertTrue(c.magnificationFactor() > 7 / dpr)
+        self.assertGreater(c.magnificationFactor(), 7 / dpr)
 
         # Test setExtent with different ratio
         c2 = QgsMapCanvas()
@@ -564,6 +670,271 @@ class TestQgsMapCanvas(unittest.TestCase):
         self.assertEqual(c2.center().x(), 8.0)
         self.assertEqual(c2.center().y(), 46.25)
         self.assertAlmostEqual(c2.magnificationFactor(), 4 / dpr, 0)
+
+    def test_rendered_items(self):
+        canvas = QgsMapCanvas()
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        canvas.setFrameStyle(0)
+        canvas.resize(600, 400)
+        canvas.setCachingEnabled(True)
+        self.assertEqual(canvas.width(), 600)
+        self.assertEqual(canvas.height(), 400)
+
+        layer = QgsAnnotationLayer('test', QgsAnnotationLayer.LayerOptions(QgsProject.instance().transformContext()))
+        self.assertTrue(layer.isValid())
+        layer2 = QgsAnnotationLayer('test', QgsAnnotationLayer.LayerOptions(QgsProject.instance().transformContext()))
+        self.assertTrue(layer2.isValid())
+
+        item = QgsAnnotationPolygonItem(
+            QgsPolygon(QgsLineString([QgsPoint(11.5, 13), QgsPoint(12, 13), QgsPoint(12, 13.5), QgsPoint(11.5, 13)])))
+        item.setSymbol(
+            QgsFillSymbol.createSimple({'color': '200,100,100', 'outline_color': 'black', 'outline_width': '2'}))
+        item.setZIndex(1)
+        i1_id = layer.addItem(item)
+
+        item = QgsAnnotationLineItem(QgsLineString([QgsPoint(11, 13), QgsPoint(12, 13), QgsPoint(12, 15)]))
+        item.setZIndex(2)
+        i2_id = layer.addItem(item)
+
+        item = QgsAnnotationMarkerItem(QgsPoint(12, 13))
+        item.setZIndex(3)
+        i3_id = layer2.addItem(item)
+
+        layer.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        layer2.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+
+        canvas.setLayers([layer, layer2])
+        canvas.setExtent(QgsRectangle(10, 10, 18, 18))
+        canvas.show()
+
+        # need to wait until first redraw can occur (note that we first need to wait till drawing starts!)
+        while not canvas.isDrawing():
+            app.processEvents()
+        canvas.waitWhileRendering()
+
+        results = canvas.renderedItemResults()
+        self.assertCountEqual([i.itemId() for i in results.renderedItems()], [i1_id, i2_id, i3_id])
+
+        # turn off a layer -- the other layer will be rendered direct from the cached version
+        canvas.setLayers([layer2])
+        while not canvas.isDrawing():
+            app.processEvents()
+        canvas.waitWhileRendering()
+
+        results = canvas.renderedItemResults()
+        # only layer2 items should be present in results -- but these MUST be present while layer2 is visible in the canvas,
+        # even though the most recent canvas redraw used a cached version of layer2 and didn't actually have to redraw the layer
+        self.assertEqual([i.itemId() for i in results.renderedItems()], [i3_id])
+
+        # turn layer 1 back on
+        canvas.setLayers([layer, layer2])
+        while not canvas.isDrawing():
+            app.processEvents()
+        canvas.waitWhileRendering()
+
+        results = canvas.renderedItemResults()
+        # both layer1 and layer2 items should be present in results -- even though NEITHER of these layers were re-rendered,
+        # and instead we used precached renders of both layers
+        self.assertCountEqual([i.itemId() for i in results.renderedItems()], [i1_id, i2_id, i3_id])
+
+    def test_rendered_item_results_remove_outdated(self):
+        """
+        Test that outdated results are removed from rendered item result caches
+        """
+        canvas = QgsMapCanvas()
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        canvas.setFrameStyle(0)
+        canvas.resize(600, 400)
+        canvas.setCachingEnabled(True)
+        self.assertEqual(canvas.width(), 600)
+        self.assertEqual(canvas.height(), 400)
+
+        layer = QgsAnnotationLayer('test', QgsAnnotationLayer.LayerOptions(QgsProject.instance().transformContext()))
+        self.assertTrue(layer.isValid())
+        layer2 = QgsAnnotationLayer('test', QgsAnnotationLayer.LayerOptions(QgsProject.instance().transformContext()))
+        self.assertTrue(layer2.isValid())
+
+        item = QgsAnnotationPolygonItem(
+            QgsPolygon(QgsLineString([QgsPoint(11.5, 13), QgsPoint(12, 13), QgsPoint(12, 13.5), QgsPoint(11.5, 13)])))
+        item.setSymbol(
+            QgsFillSymbol.createSimple({'color': '200,100,100', 'outline_color': 'black', 'outline_width': '2'}))
+        item.setZIndex(1)
+        i1_id = layer.addItem(item)
+
+        item = QgsAnnotationLineItem(QgsLineString([QgsPoint(11, 13), QgsPoint(12, 13), QgsPoint(12, 15)]))
+        item.setZIndex(2)
+        i2_id = layer.addItem(item)
+
+        item = QgsAnnotationMarkerItem(QgsPoint(12, 13))
+        item.setZIndex(3)
+        i3_id = layer2.addItem(item)
+
+        layer.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        layer2.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+
+        canvas.setLayers([layer, layer2])
+        canvas.setExtent(QgsRectangle(10, 10, 18, 18))
+        canvas.show()
+
+        # need to wait until first redraw can occur (note that we first need to wait till drawing starts!)
+        while not canvas.isDrawing():
+            app.processEvents()
+        canvas.waitWhileRendering()
+
+        results = canvas.renderedItemResults()
+        self.assertCountEqual([i.itemId() for i in results.renderedItems()], [i1_id, i2_id, i3_id])
+
+        # now try modifying an annotation in the layer -- it will redraw, and we don't want to reuse any previously
+        # cached rendered item results for this layer!
+
+        item = QgsAnnotationPolygonItem(
+            QgsPolygon(QgsLineString([QgsPoint(11.5, 13), QgsPoint(12.5, 13), QgsPoint(12.5, 13.5), QgsPoint(11.5, 13)])))
+        item.setZIndex(1)
+        layer.replaceItem(i1_id, item)
+        while not canvas.isDrawing():
+            app.processEvents()
+        canvas.waitWhileRendering()
+
+        item = QgsAnnotationMarkerItem(QgsPoint(17, 18))
+        item.setZIndex(3)
+        layer2.replaceItem(i3_id, item)
+        while not canvas.isDrawing():
+            app.processEvents()
+        canvas.waitWhileRendering()
+
+        results = canvas.renderedItemResults()
+        items_in_bounds = results.renderedAnnotationItemsInBounds(QgsRectangle(10, 10, 15, 15))
+        self.assertCountEqual([i.itemId() for i in items_in_bounds], [i1_id, i2_id])
+
+        items_in_bounds = results.renderedAnnotationItemsInBounds(QgsRectangle(15, 15, 20, 20))
+        self.assertCountEqual([i.itemId() for i in items_in_bounds], [i3_id])
+
+    def test_temporal_animation(self):
+        """
+        Test temporal animation logic
+        """
+        canvas = QgsMapCanvas()
+        self.assertEqual(canvas.mapSettings().frameRate(), -1)
+        self.assertEqual(canvas.mapSettings().currentFrame(), -1)
+
+        controller = QgsTemporalController()
+        canvas.setTemporalController(controller)
+        controller.updateTemporalRange.emit(QgsDateTimeRange(QDateTime(QDate(2020, 1, 2), QTime(1, 2, 3)),
+                                                             QDateTime(QDate(2020, 1, 4), QTime(1, 2, 3))))
+        # should be no change
+        self.assertEqual(canvas.mapSettings().frameRate(), -1)
+        self.assertEqual(canvas.mapSettings().currentFrame(), -1)
+
+        temporal_no = QgsTemporalNavigationObject()
+        temporal_no.setTemporalExtents(QgsDateTimeRange(QDateTime(QDate(2020, 1, 2), QTime(1, 2, 3)),
+                                                        QDateTime(QDate(2020, 1, 4), QTime(1, 2, 3))))
+        temporal_no.setFrameDuration(QgsInterval(0, 0, 0, 0, 1, 0, 0))
+
+        canvas.setTemporalController(temporal_no)
+        controller.updateTemporalRange.emit(QgsDateTimeRange(QDateTime(QDate(2020, 1, 2), QTime(1, 2, 3)),
+                                                             QDateTime(QDate(2020, 1, 4), QTime(1, 2, 3))))
+        # should be no change
+        self.assertEqual(canvas.mapSettings().frameRate(), -1)
+        self.assertEqual(canvas.mapSettings().currentFrame(), -1)
+
+        temporal_no.setFramesPerSecond(30)
+        temporal_no.pause()
+        temporal_no.setCurrentFrameNumber(6)
+        canvas.refresh()
+
+        # should be no change - temporal controller is not in animation mode
+        self.assertEqual(canvas.mapSettings().frameRate(), -1)
+        self.assertEqual(canvas.mapSettings().currentFrame(), -1)
+
+        temporal_no.setNavigationMode(QgsTemporalNavigationObject.NavigationMode.Animated)
+        self.assertEqual(canvas.mapSettings().frameRate(), 30)
+        self.assertEqual(canvas.mapSettings().currentFrame(), 6)
+
+        temporal_no.setCurrentFrameNumber(7)
+        self.assertEqual(canvas.mapSettings().frameRate(), 30)
+        self.assertEqual(canvas.mapSettings().currentFrame(), 6)
+
+        # switch off animation mode
+        temporal_no.setNavigationMode(QgsTemporalNavigationObject.NavigationMode.FixedRange)
+        self.assertEqual(canvas.mapSettings().frameRate(), -1)
+        self.assertEqual(canvas.mapSettings().currentFrame(), -1)
+
+        temporal_no.setNavigationMode(QgsTemporalNavigationObject.NavigationMode.Animated)
+        self.assertEqual(canvas.mapSettings().frameRate(), 30)
+        self.assertEqual(canvas.mapSettings().currentFrame(), 7)
+
+        temporal_no.setNavigationMode(QgsTemporalNavigationObject.NavigationMode.NavigationOff)
+        self.assertEqual(canvas.mapSettings().frameRate(), -1)
+        self.assertEqual(canvas.mapSettings().currentFrame(), -1)
+
+    def test_crs_change_signals(self):
+        """
+        Test behavior of signals when crs is changed
+        """
+        canvas = QgsMapCanvas()
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        canvas.setFrameStyle(0)
+        canvas.resize(600, 400)
+        self.assertEqual(canvas.width(), 600)
+        self.assertEqual(canvas.height(), 400)
+        canvas.setExtent(QgsRectangle(10, 30, 20, 35))
+
+        def on_extent_changed():
+            TestQgsMapCanvas.new_extent = canvas.extent()
+            TestQgsMapCanvas.new_crs = canvas.mapSettings().destinationCrs()
+
+        canvas.extentsChanged.connect(on_extent_changed)
+
+        TestQgsMapCanvas.new_extent = None
+        TestQgsMapCanvas.new_crs = None
+
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:3857'))
+
+        self.assertAlmostEqual(TestQgsMapCanvas.new_extent.xMinimum(), 1008988, places=-3)
+
+        self.assertEqual(TestQgsMapCanvas.new_crs, QgsCoordinateReferenceSystem('EPSG:3857'))
+
+    def test_set_map_tool(self):
+
+        canvas = QgsMapCanvas()
+        moveTool = QgsMapToolPan(canvas)
+        zoomTool = QgsMapToolZoom(canvas, True)
+        emitTool = QgsMapToolEmitPoint(canvas)
+
+        counter = {}
+
+        def increment(tool, section):
+            counter[tool][section] += 1
+
+        # Keep track of how many times each tool is activated, deactivated, and reactivated
+        for tool in [moveTool, zoomTool, emitTool]:
+            counter[tool] = {"activated": 0, "deactivated": 0, "reactivated": 0}
+            tool.activated.connect(lambda tool=tool: increment(tool, "activated"), Qt.ConnectionType.DirectConnection)
+            tool.deactivated.connect(lambda tool=tool: increment(tool, "deactivated"), Qt.ConnectionType.DirectConnection)
+            tool.reactivated.connect(lambda tool=tool: increment(tool, "reactivated"), Qt.ConnectionType.DirectConnection)
+
+        canvas.setMapTool(moveTool)
+        canvas.setMapTool(zoomTool)
+        canvas.setMapTool(zoomTool)
+        canvas.setMapTool(emitTool)
+
+        # Check that the correct number of activations and deactivations occurred
+        self.assertEqual(counter[moveTool]["activated"], 1)
+        self.assertEqual(counter[moveTool]["deactivated"], 1)
+        self.assertEqual(counter[moveTool]["reactivated"], 0)
+
+        self.assertEqual(counter[zoomTool]["activated"], 1)
+        self.assertEqual(counter[zoomTool]["deactivated"], 1)
+        self.assertEqual(counter[zoomTool]["reactivated"], 1)
+
+        self.assertEqual(counter[emitTool]["activated"], 1)
+        self.assertEqual(counter[emitTool]["deactivated"], 0)
+        self.assertEqual(counter[emitTool]["reactivated"], 0)
+
+        canvas.setMapTool(emitTool)
+        self.assertEqual(counter[emitTool]["activated"], 1)
+        self.assertEqual(counter[emitTool]["deactivated"], 0)
+        self.assertEqual(counter[emitTool]["reactivated"], 1)
 
 
 if __name__ == '__main__':

@@ -47,7 +47,7 @@ class TestItem : public QgsAnnotationItem
     {
     }
 
-    TestItem *clone() override
+    TestItem *clone() const override
     {
       return new TestItem();
     }
@@ -85,10 +85,12 @@ class TestQgsAnnotationItemRegistry: public QObject
 
 void TestQgsAnnotationItemRegistry::initTestCase()
 {
+  QgsApplication::initQgis();
 }
 
 void TestQgsAnnotationItemRegistry::cleanupTestCase()
 {
+  QgsApplication::exitQgis();
 }
 
 void TestQgsAnnotationItemRegistry::init()
@@ -110,7 +112,6 @@ void TestQgsAnnotationItemRegistry::metadata()
   QCOMPARE( metadata.visibleName(), QString( "display name" ) );
 
   //test creating item from metadata
-  const QVariantMap map;
   const std::unique_ptr< QgsAnnotationItem > item( metadata.createItem() );
   QVERIFY( item );
   TestItem *dummyItem = dynamic_cast<TestItem *>( item.get() );

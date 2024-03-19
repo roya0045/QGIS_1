@@ -20,7 +20,6 @@
 
 #include "qgsterraingenerator.h"
 #include "qgsterraintileloader_p.h"
-#include "qgsrectangle.h"
 #include <Qt3DExtras/QPlaneGeometry>
 
 #define SIP_NO_FILE
@@ -48,7 +47,6 @@ class FlatTerrainChunkLoader : public QgsTerrainTileLoader
  * \ingroup 3d
  * \brief Terrain generator that creates a simple square flat area.
  *
- * \since QGIS 3.0
  */
 class _3D_EXPORT QgsFlatTerrainGenerator : public QgsTerrainGenerator
 {
@@ -61,7 +59,7 @@ class _3D_EXPORT QgsFlatTerrainGenerator : public QgsTerrainGenerator
 
     QgsTerrainGenerator *clone() const override SIP_FACTORY;
     Type type() const override;
-    QgsRectangle extent() const override;
+    QgsRectangle rootChunkExtent() const override;
     void setExtent( const QgsRectangle &extent ) override;
     void rootChunkHeightRange( float &hMin, float &hMax ) const override;
     void writeXml( QDomElement &elem ) const override;
@@ -76,7 +74,6 @@ class _3D_EXPORT QgsFlatTerrainGenerator : public QgsTerrainGenerator
 
     void updateTilingScheme();
 
-    QgsRectangle mExtent;
     QgsCoordinateReferenceSystem mCrs;
 };
 

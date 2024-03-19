@@ -22,7 +22,6 @@
 #include <QImage>
 #include <QList>
 #include <QPainter>
-#include <QPrinter>
 #include <QSpinBox>
 #include <QUrl>
 
@@ -65,6 +64,7 @@ QgsMapSaveDialog::QgsMapSaveDialog( QWidget *parent, QgsMapCanvas *mapCanvas, co
   mExtent = ms.visibleExtent();
   mDpi = ms.outputDpi();
   mSize = ms.outputSize();
+  mDevicePixelRatio = ms.devicePixelRatio();
 
   mResolutionSpinBox->setValue( static_cast< int >( std::round( mDpi ) ) );
 
@@ -111,8 +111,8 @@ QgsMapSaveDialog::QgsMapSaveDialog( QWidget *parent, QgsMapCanvas *mapCanvas, co
 
       this->setWindowTitle( tr( "Save Map as PDF" ) );
 
-      mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Paths (Recommended)" ), QgsRenderContext::TextFormatAlwaysOutlines );
-      mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Text Objects" ), QgsRenderContext::TextFormatAlwaysText );
+      mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Paths (Recommended)" ), static_cast< int>( Qgis::TextRenderFormat::AlwaysOutlines ) );
+      mTextRenderFormatComboBox->addItem( tr( "Always Export Text as Text Objects" ), static_cast< int >( Qgis::TextRenderFormat::AlwaysText ) );
 
       const bool geoPdfAvailable = QgsAbstractGeoPdfExporter::geoPDFCreationAvailable();
       mGeoPDFGroupBox->setEnabled( geoPdfAvailable );
@@ -162,6 +162,7 @@ void QgsMapSaveDialog::updateDpi( int dpi )
   mDpi = dpi;
 
   updateOutputSize();
+  checkOutputSize();
 }
 
 void QgsMapSaveDialog::updateOutputWidth( int width )
@@ -188,6 +189,8 @@ void QgsMapSaveDialog::updateOutputWidth( int width )
   }
 
   whileBlocking( mExtentGroupBox )->setOutputExtentFromUser( mExtent, mExtentGroupBox->currentCrs() );
+
+  checkOutputSize();
 }
 
 void QgsMapSaveDialog::updateOutputHeight( int height )
@@ -214,6 +217,8 @@ void QgsMapSaveDialog::updateOutputHeight( int height )
   }
 
   whileBlocking( mExtentGroupBox )->setOutputExtentFromUser( mExtent, mExtentGroupBox->currentCrs() );
+
+  checkOutputSize();
 }
 
 void QgsMapSaveDialog::updateExtent( const QgsRectangle &extent )
@@ -245,6 +250,7 @@ void QgsMapSaveDialog::updateExtent( const QgsRectangle &extent )
     mSize.setHeight( mSize.height() * extent.height() / mExtent.height() );
   }
   updateOutputSize();
+  checkOutputSize();
 
   mExtent = extent;
   if ( mLockAspectRatio->locked() )
@@ -269,6 +275,15 @@ void QgsMapSaveDialog::updateOutputSize()
 {
   whileBlocking( mOutputWidthSpinBox )->setValue( mSize.width() );
   whileBlocking( mOutputHeightSpinBox )->setValue( mSize.height() );
+}
+
+void QgsMapSaveDialog::checkOutputSize()
+{
+  // check if image size does not exceed QPainter limitation https://doc.qt.io/qt-5/qpainter.html#limitations
+  if ( mSize.width() > 32768 || mSize.height() > 32768 )
+  {
+    mMessageBar->pushWarning( QString(), tr( "Output will be truncated, as image width or height is larger than 32768 pixels." ) );
+  }
 }
 
 QgsRectangle QgsMapSaveDialog::extent() const
@@ -318,21 +333,25 @@ void QgsMapSaveDialog::applyMapSettings( QgsMapSettings &mapSettings )
   switch ( mDialogType )
   {
     case Pdf:
-      mapSettings.setFlag( QgsMapSettings::Antialiasing, true ); // hardcode antialiasing when saving as PDF
+      mapSettings.setFlag( Qgis::MapSettingsFlag::Antialiasing, true ); // hardcode antialiasing when saving as PDF
+      mapSettings.setFlag( Qgis::MapSettingsFlag::HighQualityImageTransforms, true ); // hardcode antialiasing when saving as PDF
       break;
 
     case Image:
-      mapSettings.setFlag( QgsMapSettings::Antialiasing, settings.value( QStringLiteral( "qgis/enable_anti_aliasing" ), true ).toBool() );
+      mapSettings.setFlag( Qgis::MapSettingsFlag::Antialiasing, settings.value( QStringLiteral( "qgis/enable_anti_aliasing" ), true ).toBool() );
+      mapSettings.setFlag( Qgis::MapSettingsFlag::HighQualityImageTransforms, settings.value( QStringLiteral( "qgis/enable_anti_aliasing" ), true ).toBool() );
       break;
   }
-  mapSettings.setFlag( QgsMapSettings::ForceVectorOutput, true ); // force vector output (no caching of marker images etc.)
-  mapSettings.setFlag( QgsMapSettings::DrawEditingInfo, false );
-  mapSettings.setFlag( QgsMapSettings::DrawSelection, true );
+
+  mapSettings.setFlag( Qgis::MapSettingsFlag::ForceVectorOutput, true ); // force vector output (no caching of marker images etc.)
+  mapSettings.setFlag( Qgis::MapSettingsFlag::DrawEditingInfo, false );
+  mapSettings.setFlag( Qgis::MapSettingsFlag::DrawSelection, true );
   mapSettings.setSelectionColor( mMapCanvas->mapSettings().selectionColor() );
   mapSettings.setDestinationCrs( mMapCanvas->mapSettings().destinationCrs() );
   mapSettings.setExtent( extent() );
   mapSettings.setOutputSize( size() );
   mapSettings.setOutputDpi( dpi() );
+  mapSettings.setDevicePixelRatio( mDevicePixelRatio );
   mapSettings.setBackgroundColor( mMapCanvas->canvasColor() );
   mapSettings.setRotation( mMapCanvas->rotation() );
   mapSettings.setEllipsoid( QgsProject::instance()->ellipsoid() );
@@ -348,7 +367,8 @@ void QgsMapSaveDialog::applyMapSettings( QgsMapSettings &mapSettings )
   mapSettings.setPathResolver( QgsProject::instance()->pathResolver() );
   mapSettings.setTemporalRange( mMapCanvas->mapSettings().temporalRange() );
   mapSettings.setIsTemporal( mMapCanvas->mapSettings().isTemporal() );
-
+  mapSettings.setZRange( mMapCanvas->mapSettings().zRange() );
+  mapSettings.setElevationShadingRenderer( mMapCanvas->mapSettings().elevationShadingRenderer() );
 
   //build the expression context
   QgsExpressionContext expressionContext;
@@ -357,6 +377,8 @@ void QgsMapSaveDialog::applyMapSettings( QgsMapSettings &mapSettings )
                     << QgsExpressionContextUtils::mapSettingsScope( mapSettings );
 
   mapSettings.setExpressionContext( expressionContext );
+
+  mapSettings.setRendererUsage( Qgis::RendererUsage::Export );
 }
 
 void QgsMapSaveDialog::lockChanged( const bool locked )
@@ -379,13 +401,14 @@ void QgsMapSaveDialog::copyToClipboard()
   QPainter *p = nullptr;
   QImage *img = nullptr;
 
-  img = new QImage( ms.outputSize(), QImage::Format_ARGB32 );
+  img = new QImage( ms.outputSize() * ms.devicePixelRatio(), QImage::Format_ARGB32 );
   if ( img->isNull() )
   {
     QgisApp::instance()->messageBar()->pushWarning( tr( "Save as image" ), tr( "Could not allocate required memory for image" ) );
     return;
   }
 
+  img->setDevicePixelRatio( ms.devicePixelRatio() );
   img->setDotsPerMeterX( 1000 * ms.outputDpi() / 25.4 );
   img->setDotsPerMeterY( 1000 * ms.outputDpi() / 25.4 );
 
@@ -487,6 +510,9 @@ void QgsMapSaveDialog::onAccepted()
       QgsSettings settings;
       const QString lastUsedDir = settings.value( QStringLiteral( "UI/lastSaveAsImageDir" ), QDir::homePath() ).toString();
       QString fileName = QFileDialog::getSaveFileName( QgisApp::instance(), tr( "Save Map As" ), lastUsedDir, tr( "PDF Format" ) + " (*.pdf *.PDF)" );
+      // return dialog focus on Mac
+      activateWindow();
+      raise();
       if ( !fileName.isEmpty() )
       {
         fileName = QgsFileUtils::ensureFileNameHasExtension( fileName, QStringList() << QStringLiteral( "pdf" ) );
@@ -507,7 +533,7 @@ void QgsMapSaveDialog::onAccepted()
           ms.setSimplifyMethod( simplifyMethod );
         }
 
-        ms.setTextRenderFormat( static_cast< QgsRenderContext::TextRenderFormat >( mTextRenderFormatComboBox->currentData().toInt() ) );
+        ms.setTextRenderFormat( static_cast< Qgis::TextRenderFormat >( mTextRenderFormatComboBox->currentData().toInt() ) );
 
         QgsAbstractGeoPdfExporter::ExportDetails geoPdfExportDetails;
         if ( mExportMetadataCheckBox->isChecked() )
@@ -537,7 +563,7 @@ void QgsMapSaveDialog::onAccepted()
 
           geoPdfExportDetails.includeFeatures = mExportGeoPdfFeaturesCheckBox->isChecked();
         }
-        QgsMapRendererTask *mapRendererTask = new QgsMapRendererTask( ms, fileName, QStringLiteral( "PDF" ), saveAsRaster(), mGeoPDFGroupBox->isChecked(), geoPdfExportDetails );
+        QgsMapRendererTask *mapRendererTask = new QgsMapRendererTask( ms, fileName, QStringLiteral( "PDF" ), saveAsRaster(), QgsTask::CanCancel, mGeoPDFGroupBox->isChecked(), geoPdfExportDetails );
 
         if ( drawAnnotations() )
         {
@@ -592,5 +618,5 @@ void QgsMapSaveDialog::updatePdfExportWarning()
 
 void QgsMapSaveDialog::showHelp()
 {
-  QgsHelp::openHelp( QStringLiteral( "introduction/qgis_gui.html#exporting-the-map-view" ) );
+  QgsHelp::openHelp( QStringLiteral( "map_views/map_view.html#exportingmapcanvas" ) );
 }

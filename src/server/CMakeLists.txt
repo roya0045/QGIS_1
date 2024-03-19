@@ -35,11 +35,11 @@ set(QGIS_SERVER_SRCS
   qgsserverparameters.cpp
   qgsserverexception.cpp
   qgsserverfilter.cpp
+  qgsserverfeatureid.cpp
   qgsserverinterface.cpp
   qgsserverinterfaceimpl.cpp
   qgsserverlogger.cpp
   qgsserverprojectutils.cpp
-  qgsserverfeatureid.cpp
   qgsserverrequest.cpp
   qgsserverresponse.cpp
   qgsserversettings.cpp
@@ -47,6 +47,7 @@ set(QGIS_SERVER_SRCS
   qgsservicenativeloader.cpp
   qgsserviceregistry.cpp
   qgsfeaturefilterprovidergroup.cpp
+  qgsdimensionfilter.cpp
   qgsfeaturefilter.cpp
   qgsstorebadlayerinfo.cpp
   qgsserverquerystringparameter.cpp
@@ -63,6 +64,7 @@ set (QGIS_SERVER_HDRS
   qgsserverogcapihandler.h
   qgsserverstatichandler.h
   qgsserverparameters.h
+  qgsserverfeatureid.h
   qgsserverquerystringparameter.h
   qgsserversettings.h
   qgsservicemodule.h
@@ -82,16 +84,12 @@ if (WITH_SERVER_PLUGINS)
   )
 endif()
 
-
-include_directories(
-)
-
 add_library(qgis_server SHARED ${QGIS_SERVER_SRCS} ${QGIS_SERVER_HDRS})
 
 # require c++17
 target_compile_features(qgis_server PRIVATE cxx_std_17)
 
-target_include_directories(qgis_server SYSTEM PRIVATE
+target_include_directories(qgis_server SYSTEM PUBLIC
   ${FCGI_INCLUDE_DIR}
 )
 
@@ -115,10 +113,8 @@ endif()
 
 target_link_libraries(qgis_server
   qgis_core
-  ${PROJ_LIBRARY}
   ${FCGI_LIBRARY}
   ${POSTGRES_LIBRARY}
-  ${GDAL_LIBRARY}
   ${QCA_LIBRARY}
 )
 
@@ -183,8 +179,6 @@ install(TARGETS
 )
 
 install(FILES
-  admin.sld
-  wms_metadata.xml
   DESTINATION ${QGIS_CGIBIN_DIR}
 )
 add_custom_target(qgis_server_full

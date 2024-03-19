@@ -22,15 +22,16 @@
 #include "qgsabstractdatabaseproviderconnection.h"
 #include "qgsprovidermetadata.h"
 #include "qgsproviderregistry.h"
-#include "qgsreferencedgeometry.h"
 #include "qgslogger.h"
 #include "qgsmaplayer.h"
+#include "qgscoordinatetransform.h"
+#include <QRegularExpression>
 
 QgsRectangle QgsMapLayerUtils::combinedExtent( const QList<QgsMapLayer *> &layers, const QgsCoordinateReferenceSystem &crs, const QgsCoordinateTransformContext &transformContext )
 {
   // We can't use a constructor since QgsRectangle normalizes the rectangle upon construction
   QgsRectangle fullExtent;
-  fullExtent.setMinimal();
+  fullExtent.setNull();
 
   // iterate through the map layers and test each layers extent
   // against the current min and max values
@@ -56,7 +57,7 @@ QgsRectangle QgsMapLayerUtils::combinedExtent( const QList<QgsMapLayer *> &layer
     }
     catch ( QgsCsException & )
     {
-      QgsDebugMsg( QStringLiteral( "Could not reproject layer extent" ) );
+      QgsDebugError( QStringLiteral( "Could not reproject layer extent" ) );
     }
   }
 
@@ -108,7 +109,7 @@ QgsAbstractDatabaseProviderConnection *QgsMapLayerUtils::databaseConnection( con
   }
   catch ( const QgsProviderConnectionException &ex )
   {
-    QgsDebugMsg( QStringLiteral( "Error retrieving database connection for layer %1: %2" ).arg( layer->name(), ex.what() ) );
+    QgsDebugError( QStringLiteral( "Error retrieving database connection for layer %1: %2" ).arg( layer->name(), ex.what() ) );
     return nullptr;
   }
 }
@@ -135,4 +136,33 @@ bool QgsMapLayerUtils::updateLayerSourcePath( QgsMapLayer *layer, const QString 
   const QString newUri = QgsProviderRegistry::instance()->encodeUri( layer->providerType(), parts );
   layer->setDataSource( newUri, layer->name(), layer->providerType() );
   return true;
+}
+
+QList<QgsMapLayer *> QgsMapLayerUtils::sortLayersByType( const QList<QgsMapLayer *> &layers, const QList<Qgis::LayerType> &order )
+{
+  QList< QgsMapLayer * > res = layers;
+  std::sort( res.begin(), res.end(), [&order]( const QgsMapLayer * a, const QgsMapLayer * b ) -> bool
+  {
+    for ( Qgis::LayerType type : order )
+    {
+      if ( a->type() == type && b->type() != type )
+        return true;
+      else if ( b->type() == type )
+        return false;
+    }
+    return false;
+  } );
+  return res;
+}
+
+QString QgsMapLayerUtils::launderLayerName( const QString &name )
+{
+  QString laundered = name.toLower();
+  const thread_local QRegularExpression sRxSwapChars( QStringLiteral( "\\s" ) );
+  laundered.replace( sRxSwapChars, QStringLiteral( "_" ) );
+
+  const thread_local QRegularExpression sRxRemoveChars( QStringLiteral( "[^a-zA-Z0-9_]" ) );
+  laundered.replace( sRxRemoveChars, QString() );
+
+  return laundered;
 }

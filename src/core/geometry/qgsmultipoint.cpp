@@ -26,7 +26,86 @@ email                : marco.hugentobler at sourcepole dot com
 
 QgsMultiPoint::QgsMultiPoint()
 {
-  mWkbType = QgsWkbTypes::MultiPoint;
+  mWkbType = Qgis::WkbType::MultiPoint;
+}
+
+QgsMultiPoint::QgsMultiPoint( const QVector<QgsPoint> &points )
+{
+  if ( points.isEmpty() )
+  {
+    mWkbType = Qgis::WkbType::MultiPoint;
+    return;
+  }
+
+  const Qgis::WkbType ptType = points.at( 0 ).wkbType();
+  mWkbType = QgsWkbTypes::zmType( Qgis::WkbType::MultiPoint, QgsWkbTypes::hasZ( ptType ), QgsWkbTypes::hasM( ptType ) );
+  const int pointCount = points.size();
+  mGeometries.resize( pointCount );
+
+  const QgsPoint *pointIn = points.data();
+  for ( int i = 0; i < pointCount; ++i, ++pointIn )
+  {
+    mGeometries[ i ] = pointIn->clone();
+  }
+}
+
+QgsMultiPoint::QgsMultiPoint( const QVector<QgsPoint *> &points )
+{
+  if ( points.isEmpty() )
+  {
+    mWkbType = Qgis::WkbType::MultiPoint;
+    return;
+  }
+
+  const Qgis::WkbType ptType = points.at( 0 )->wkbType();
+  mWkbType = QgsWkbTypes::zmType( Qgis::WkbType::MultiPoint, QgsWkbTypes::hasZ( ptType ), QgsWkbTypes::hasM( ptType ) );
+  const int pointCount = points.size();
+  mGeometries.resize( pointCount );
+
+  for ( int i = 0; i < pointCount; ++i )
+  {
+    mGeometries[ i ] = points[i];
+  }
+}
+
+QgsMultiPoint::QgsMultiPoint( const QVector<QgsPointXY> &points )
+{
+  mWkbType = Qgis::WkbType::MultiPoint;
+  const int pointCount = points.size();
+  mGeometries.resize( pointCount );
+
+  const QgsPointXY *pointIn = points.data();
+  for ( int i = 0; i < pointCount; ++i, ++pointIn )
+  {
+    mGeometries[ i ] = new QgsPoint( pointIn->x(), pointIn->y() );
+  }
+}
+
+QgsMultiPoint::QgsMultiPoint( const QVector<double> &x, const QVector<double> &y, const QVector<double> &z, const QVector<double> &m )
+{
+  mWkbType = Qgis::WkbType::MultiPoint;
+  const int pointCount = std::min( x.size(), y.size() );
+  mGeometries.resize( pointCount );
+
+  const double *xIn = x.data();
+  const double *yIn = y.data();
+  const double *zIn = nullptr;
+  const double *mIn = nullptr;
+  if ( !z.isEmpty() && z.count() >= pointCount )
+  {
+    mWkbType = Qgis::WkbType::MultiPointZ;
+    zIn = z.data();
+  }
+  if ( !m.isEmpty() && m.count() >= pointCount )
+  {
+    mWkbType = QgsWkbTypes::addM( mWkbType );
+    mIn = m.data();
+  }
+
+  for ( int i = 0; i < pointCount; ++i )
+  {
+    mGeometries[ i ] = new QgsPoint( *xIn++, *yIn++, zIn ? *zIn++ : std::numeric_limits< double >::quiet_NaN(), mIn ? *mIn++ : std::numeric_limits< double >::quiet_NaN() );
+  }
 }
 
 QgsPoint *QgsMultiPoint::pointN( int index )
@@ -79,7 +158,7 @@ bool QgsMultiPoint::fromWkt( const QString &wkt )
 void QgsMultiPoint::clear()
 {
   QgsGeometryCollection::clear();
-  mWkbType = QgsWkbTypes::MultiPoint;
+  mWkbType = Qgis::WkbType::MultiPoint;
 }
 
 QDomElement QgsMultiPoint::asGml2( QDomDocument &doc, int precision, const QString &ns, const AxisOrder axisOrder ) const
@@ -155,7 +234,7 @@ bool QgsMultiPoint::addGeometry( QgsAbstractGeometry *g )
   }
   if ( mGeometries.empty() )
   {
-    setZMTypeFromSubGeometry( g, QgsWkbTypes::MultiPoint );
+    setZMTypeFromSubGeometry( g, Qgis::WkbType::MultiPoint );
   }
   if ( is3D() && !g->is3D() )
     g->addZValue();
@@ -171,7 +250,7 @@ bool QgsMultiPoint::addGeometry( QgsAbstractGeometry *g )
 
 bool QgsMultiPoint::insertGeometry( QgsAbstractGeometry *g, int index )
 {
-  if ( !g || QgsWkbTypes::flatType( g->wkbType() ) != QgsWkbTypes::Point )
+  if ( !g || QgsWkbTypes::flatType( g->wkbType() ) != Qgis::WkbType::Point )
   {
     delete g;
     return false;

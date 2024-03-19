@@ -20,7 +20,6 @@
 #include "qgsmaplayer.h"
 #include "qgsfeatureiterator.h"
 #include "qgsvectordataprovider.h"
-#include "qgslogger.h"
 #include "qgsproject.h"
 #include "qgsvectorlayer.h"
 
@@ -131,7 +130,7 @@ void QgsAttributeTypeLoadDialog::createPreview( int fieldIndex, bool full )
   attributeList.append( idx );
   attributeList.append( idx2 );
 
-  QgsFeatureIterator fit = vLayer->getFeatures( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setSubsetOfAttributes( attributeList ) );
+  QgsFeatureIterator fit = vLayer->getFeatures( QgsFeatureRequest().setFlags( Qgis::FeatureRequestFlag::NoGeometry ).setSubsetOfAttributes( attributeList ) );
 
   QgsFeature f;
   QMap<QString, QVariant> valueMap;
@@ -139,8 +138,8 @@ void QgsAttributeTypeLoadDialog::createPreview( int fieldIndex, bool full )
   {
     const QVariant val1 = f.attribute( idx );
     const QVariant val2 = f.attribute( idx2 );
-    if ( val1.isValid() && !val1.isNull() && !val1.toString().isEmpty()
-         && val2.isValid() && !val2.isNull() && !val2.toString().isEmpty() )
+    if ( val1.isValid() && !QgsVariantUtils::isNull( val1 ) && !val1.toString().isEmpty()
+         && val2.isValid() && !QgsVariantUtils::isNull( val2 ) && !val2.toString().isEmpty() )
     {
       valueMap.insert( val1.toString(), val2.toString() );
     }
@@ -180,13 +179,13 @@ void QgsAttributeTypeLoadDialog::loadDataToValueMap()
   attributeList.append( idx );
   attributeList.append( idx2 );
 
-  QgsFeatureIterator fit = vLayer->getFeatures( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setSubsetOfAttributes( attributeList ) );
+  QgsFeatureIterator fit = vLayer->getFeatures( QgsFeatureRequest().setFlags( Qgis::FeatureRequestFlag::NoGeometry ).setSubsetOfAttributes( attributeList ) );
 
   QgsFeature f;
   while ( fit.nextFeature( f ) )
   {
     const QVariant val = f.attribute( idx );
-    if ( val.isValid() && !val.isNull() && !val.toString().isEmpty() )
+    if ( val.isValid() && !QgsVariantUtils::isNull( val ) && !val.toString().isEmpty() )
     {
       mValueMap.insert( f.attribute( idx2 ).toString(), val );
     }

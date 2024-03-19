@@ -16,7 +16,6 @@
 #include "qgsgeometrycheckcontext.h"
 #include "qgsgeometryengine.h"
 #include "qgsgeometrygapcheck.h"
-#include "qgsgeometrycollection.h"
 #include "qgsfeaturepool.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectorlayerutils.h"
@@ -26,7 +25,6 @@
 #include "qgsexpressioncontextutils.h"
 #include "qgspolygon.h"
 #include "qgscurve.h"
-#include "qgssnappingutils.h"
 
 QgsGeometryGapCheck::QgsGeometryGapCheck( const QgsGeometryCheckContext *context, const QVariantMap &configuration )
   : QgsGeometryCheck( context, configuration )
@@ -315,7 +313,7 @@ bool QgsGeometryGapCheck::mergeWithNeighbor( const QMap<QString, QgsFeaturePool 
     QgsFeaturePool *featurePool = featurePools.value( layerId );
     std::unique_ptr<QgsAbstractGeometry> errLayerGeom( errGeometry->clone() );
     const QgsCoordinateTransform ct( featurePool->crs(), mContext->mapCrs, mContext->transformContext );
-    errLayerGeom->transform( ct, QgsCoordinateTransform::ReverseTransform );
+    errLayerGeom->transform( ct, Qgis::TransformDirection::Reverse );
 
     const auto featureIds = err->neighbors().value( layerId );
 
@@ -406,7 +404,7 @@ bool QgsGeometryGapCheck::mergeWithNeighbor( const QMap<QString, QgsFeaturePool 
   QgsFeaturePool *featurePool = featurePools[ mergeLayerId ];
   std::unique_ptr<QgsAbstractGeometry> errLayerGeom( snappedErrGeom->clone() );
   const QgsCoordinateTransform ct( featurePool->crs(), mContext->mapCrs, mContext->transformContext );
-  errLayerGeom->transform( ct, QgsCoordinateTransform::ReverseTransform );
+  errLayerGeom->transform( ct, Qgis::TransformDirection::Reverse );
   const QgsGeometry mergeFeatureGeom = mergeFeature.geometry();
   const QgsAbstractGeometry *mergeGeom = mergeFeatureGeom.constGet();
   std::unique_ptr< QgsGeometryEngine > geomEngine = QgsGeometryCheckerUtils::createGeomEngine( errLayerGeom.get(), 0 );
@@ -482,9 +480,9 @@ QgsGeometryCheck::Flags QgsGeometryGapCheck::factoryFlags()
   return QgsGeometryCheck::AvailableInValidation;
 }
 
-QList<QgsWkbTypes::GeometryType> QgsGeometryGapCheck::factoryCompatibleGeometryTypes()
+QList<Qgis::GeometryType> QgsGeometryGapCheck::factoryCompatibleGeometryTypes()
 {
-  return {QgsWkbTypes::PolygonGeometry};
+  return {Qgis::GeometryType::Polygon};
 }
 
 bool QgsGeometryGapCheck::factoryIsCompatible( QgsVectorLayer *layer ) SIP_SKIP
@@ -506,7 +504,7 @@ QgsRectangle QgsGeometryGapCheckError::contextBoundingBox() const
 bool QgsGeometryGapCheckError::isEqual( QgsGeometryCheckError *other ) const
 {
   QgsGeometryGapCheckError *err = dynamic_cast<QgsGeometryGapCheckError *>( other );
-  return err && QgsGeometryCheckerUtils::pointsFuzzyEqual( err->location(), location(), mCheck->context()->reducedTolerance ) && err->neighbors() == neighbors();
+  return err &&  err->location().distanceCompare( location(), mCheck->context()->reducedTolerance ) && err->neighbors() == neighbors();
 }
 
 bool QgsGeometryGapCheckError::closeMatch( QgsGeometryCheckError *other ) const

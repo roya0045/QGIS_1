@@ -28,15 +28,15 @@ class QgsManageConnectionsDialog : QDialog
       PostGIS,
       WFS,
       MSSQL,
-      DB2,
       WCS,
       Oracle,
       HANA,
-      GeoNode,
       XyzTiles,
       ArcgisMapServer,
       ArcgisFeatureServer,
-      VectorTile
+      VectorTile,
+      TiledScene,
+      SensorThings,
     };
 
     QgsManageConnectionsDialog( QWidget *parent /TransferThis/ = 0, Mode mode = Export, Type type = WMS, const QString &fileName = QString() );

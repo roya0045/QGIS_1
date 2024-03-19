@@ -16,13 +16,10 @@
  ***************************************************************************/
 #ifndef QGSSPATIALITESOURCESELECT_H
 #define QGSSPATIALITESOURCESELECT_H
-#include "ui_qgsdbsourceselectbase.h"
+
 #include "qgsguiutils.h"
-#include "qgsdbfilterproxymodel.h"
-#include "qgsspatialitetablemodel.h"
-#include "qgshelp.h"
 #include "qgsproviderregistry.h"
-#include "qgsabstractdatasourcewidget.h"
+#include "qgsabstractdbsourceselect.h"
 
 #include <QThread>
 #include <QMap>
@@ -31,7 +28,7 @@
 #include <QIcon>
 #include <QFileDialog>
 
-class QStringList;
+class QgsSpatiaLiteTableModel;
 class QTableWidgetItem;
 class QPushButton;
 
@@ -43,7 +40,7 @@ class QPushButton;
  * for SpatiaLite/SQLite databases. The user can then connect and add
  * tables from the database to the map canvas.
  */
-class QgsSpatiaLiteSourceSelect: public QgsAbstractDataSourceWidget, private Ui::QgsDbSourceSelectBase
+class QgsSpatiaLiteSourceSelect:  public QgsAbstractDbSourceSelect
 {
     Q_OBJECT
 
@@ -75,28 +72,24 @@ class QgsSpatiaLiteSourceSelect: public QgsAbstractDataSourceWidget, private Ui:
      * Once connected, available layers are displayed.
      */
     void btnConnect_clicked();
-    void buildQuery();
     void addButtonClicked() override;
     void updateStatistics();
     //! Opens the create connection dialog to build a new connection
     void btnNew_clicked();
     //! Deletes the selected connection
     void btnDelete_clicked();
-    void mSearchGroupBox_toggled( bool );
-    void mSearchTableEdit_textChanged( const QString &text );
-    void mSearchColumnComboBox_currentIndexChanged( const QString &text );
-    void mSearchModeComboBox_currentIndexChanged( const QString &text );
     void cbxAllowGeometrylessTables_stateChanged( int );
-    void setSql( const QModelIndex &index );
     void cmbConnections_activated( int );
     void setLayerType( const QString &table, const QString &column, const QString &type );
-    void mTablesTreeView_clicked( const QModelIndex &index );
-    void mTablesTreeView_doubleClicked( const QModelIndex &index );
     void treeWidgetSelectionChanged( const QItemSelection &selected, const QItemSelection &deselected );
     //!Sets a new regular expression to the model
     void setSearchExpression( const QString &regexp );
-
     void showHelp();
+    bool configureFromUri( const QString &uri ) override;
+
+  protected slots:
+    void setSql( const QModelIndex &index ) override;
+    void treeviewDoubleClicked( const QModelIndex &index ) override;
 
   private:
     enum Columns
@@ -123,12 +116,11 @@ class QgsSpatiaLiteSourceSelect: public QgsAbstractDataSourceWidget, private Ui:
     // Storage for the range of layer type icons
     QMap < QString, QPair < QString, QIcon > >mLayerIcons;
     //! Model that acts as datasource for mTableTreeWidget
-    QgsSpatiaLiteTableModel mTableModel;
-    QgsDatabaseFilterProxyModel mProxyModel;
+    QgsSpatiaLiteTableModel *mTableModel;
 
     QString layerURI( const QModelIndex &index );
-    QPushButton *mBuildQueryButton = nullptr;
     QPushButton *mStatsButton = nullptr;
+
 };
 
 #endif // QGSSPATIALITESOURCESELECT_H

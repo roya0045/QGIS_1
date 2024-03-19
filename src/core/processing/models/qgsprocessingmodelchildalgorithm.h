@@ -35,7 +35,6 @@ class QgsProcessingAlgorithm;
 /**
  * \brief Child algorithm representing a single component of a QgsProcessingModelAlgorithm.
  * \ingroup core
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsProcessingModelChildAlgorithm : public QgsProcessingModelComponent
 {
@@ -297,7 +296,7 @@ class CORE_EXPORT QgsProcessingModelChildAlgorithm : public QgsProcessingModelCo
 
     QgsProcessingModelComment mComment;
 
-    friend class TestQgsProcessing;
+    friend class TestQgsProcessingModelAlgorithm;
 
 };
 

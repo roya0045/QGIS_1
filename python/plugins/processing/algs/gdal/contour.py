@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     contour.py
@@ -66,7 +64,7 @@ class contour(GdalAlgorithm):
                                                      parentLayerParameterName=self.INPUT))
         self.addParameter(QgsProcessingParameterNumber(self.INTERVAL,
                                                        self.tr('Interval between contour lines'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        minValue=0.0,
                                                        defaultValue=10.0))
         self.addParameter(QgsProcessingParameterString(self.FIELD_NAME,
@@ -77,36 +75,36 @@ class contour(GdalAlgorithm):
         create_3d_param = QgsProcessingParameterBoolean(self.CREATE_3D,
                                                         self.tr('Produce 3D vector'),
                                                         defaultValue=False)
-        create_3d_param.setFlags(create_3d_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        create_3d_param.setFlags(create_3d_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(create_3d_param)
 
         ignore_nodata_param = QgsProcessingParameterBoolean(self.IGNORE_NODATA,
                                                             self.tr('Treat all raster values as valid'),
                                                             defaultValue=False)
-        ignore_nodata_param.setFlags(ignore_nodata_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        ignore_nodata_param.setFlags(ignore_nodata_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(ignore_nodata_param)
 
         nodata_param = QgsProcessingParameterNumber(self.NODATA,
-                                                    self.tr('Input pixel value to treat as "nodata"'),
-                                                    type=QgsProcessingParameterNumber.Double,
+                                                    self.tr('Input pixel value to treat as NoData'),
+                                                    type=QgsProcessingParameterNumber.Type.Double,
                                                     defaultValue=None,
                                                     optional=True)
-        nodata_param.setFlags(nodata_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        nodata_param.setFlags(nodata_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(nodata_param)
 
         offset_param = QgsProcessingParameterNumber(self.OFFSET,
                                                     self.tr('Offset from zero relative to which to interpret intervals'),
-                                                    type=QgsProcessingParameterNumber.Double,
+                                                    type=QgsProcessingParameterNumber.Type.Double,
                                                     defaultValue=0.0,
                                                     optional=True)
-        nodata_param.setFlags(offset_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        nodata_param.setFlags(offset_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(offset_param)
 
         extra_param = QgsProcessingParameterString(self.EXTRA,
                                                    self.tr('Additional command-line parameters'),
                                                    defaultValue=None,
                                                    optional=True)
-        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        extra_param.setFlags(extra_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(extra_param)
 
         # TODO: remove in QGIS 4
@@ -114,11 +112,11 @@ class contour(GdalAlgorithm):
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagHidden)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagHidden)
         self.addParameter(options_param)
 
         self.addParameter(QgsProcessingParameterVectorDestination(
-            self.OUTPUT, self.tr('Contours'), QgsProcessing.TypeVectorLine))
+            self.OUTPUT, self.tr('Contours'), QgsProcessing.SourceType.TypeVectorLine))
 
     def name(self):
         return 'contour'
@@ -172,13 +170,13 @@ class contour(GdalAlgorithm):
             arguments.append('-inodata')
 
         if nodata is not None:
-            arguments.append('-snodata {}'.format(nodata))
+            arguments.append(f'-snodata {nodata}')
 
         if offset:
-            arguments.append('-off {}'.format(offset))
+            arguments.append(f'-off {offset}')
 
         if outFormat:
-            arguments.append('-f {}'.format(outFormat))
+            arguments.append(f'-f {outFormat}')
 
         if self.EXTRA in parameters and parameters[self.EXTRA] not in (None, ''):
             extra = self.parameterAsString(parameters, self.EXTRA, context)
@@ -223,7 +221,7 @@ class contour_polygon(contour):
         # Need to replace the output parameter, as we are producing a different type of output
         self.removeParameter(contour.OUTPUT)
         self.addParameter(QgsProcessingParameterVectorDestination(
-            contour.OUTPUT, self.tr('Contours'), QgsProcessing.TypeVectorPolygon))
+            contour.OUTPUT, self.tr('Contours'), QgsProcessing.SourceType.TypeVectorPolygon))
 
     def name(self):
         return 'contour_polygon'

@@ -15,7 +15,10 @@
  ***************************************************************************/
 
 #include "qgslayout.h"
+#include "qgslayoutframe.h"
 #include "qgslayoutitem.h"
+#include "qgslayoutitemhtml.h"
+#include "qgslayoutitemlabel.h"
 #include "qgslayoutmodel.h"
 #include "qgslayoutpagecollection.h"
 #include "qgslayoutguidecollection.h"
@@ -28,10 +31,16 @@
 #include "qgslayoutitemmap.h"
 #include "qgslayoutundostack.h"
 #include "qgscompositionconverter.h"
-#include "qgsvectorlayer.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgsstyleentityvisitor.h"
 #include "qgsruntimeprofiler.h"
+#include "qgssettingsentryimpl.h"
+#include "qgssettingstree.h"
+#include "qgslayoutrendercontext.h"
+#include "qgslayoutreportcontext.h"
+#include "qgsunittypes.h"
+
+const QgsSettingsEntryStringList *QgsLayout::settingsSearchPathForTemplates = new QgsSettingsEntryStringList( QStringLiteral( "search-paths-for-templates" ), QgsSettingsTree::sTreeLayout, QStringList(), QObject::tr( "Search path for templates" ) );
 
 QgsLayout::QgsLayout( QgsProject *project )
   : mProject( project )
@@ -103,7 +112,7 @@ void QgsLayout::initializeDefaults()
 {
   // default to a A4 landscape page
   QgsLayoutItemPage *page = new QgsLayoutItemPage( this );
-  page->setPageSize( QgsLayoutSize( 297, 210, QgsUnitTypes::LayoutMillimeters ) );
+  page->setPageSize( QgsLayoutSize( 297, 210, Qgis::LayoutUnit::Millimeters ) );
   mPageCollection->addPage( page );
   mUndoStack->stack()->clear();
 }
@@ -290,18 +299,26 @@ QgsLayoutMultiFrame *QgsLayout::multiFrameByUuid( const QString &uuid, bool incl
   return nullptr;
 }
 
-QgsLayoutItem *QgsLayout::layoutItemAt( QPointF position, const bool ignoreLocked ) const
+QgsLayoutItem *QgsLayout::layoutItemAt( QPointF position, const bool ignoreLocked, double searchTolerance ) const
 {
-  return layoutItemAt( position, nullptr, ignoreLocked );
+  return layoutItemAt( position, nullptr, ignoreLocked, searchTolerance );
 }
 
-QgsLayoutItem *QgsLayout::layoutItemAt( QPointF position, const QgsLayoutItem *belowItem, const bool ignoreLocked ) const
+QgsLayoutItem *QgsLayout::layoutItemAt( QPointF position, const QgsLayoutItem *belowItem, const bool ignoreLocked, double searchTolerance ) const
 {
   //get a list of items which intersect the specified position, in descending z order
-  const QList<QGraphicsItem *> itemList = items( position, Qt::IntersectsItemShape, Qt::DescendingOrder );
+  QList<QGraphicsItem *> itemList;
+  if ( searchTolerance == 0 )
+  {
+    itemList = items( position, Qt::IntersectsItemShape, Qt::DescendingOrder );
+  }
+  else
+  {
+    itemList = items( QRectF( position.x() - searchTolerance, position.y() - searchTolerance, 2 * searchTolerance, 2 * searchTolerance ), Qt::IntersectsItemShape, Qt::DescendingOrder );
+  }
 
   bool foundBelowItem = false;
-  for ( QGraphicsItem *graphicsItem : itemList )
+  for ( QGraphicsItem *graphicsItem : std::as_const( itemList ) )
   {
     QgsLayoutItem *layoutItem = dynamic_cast<QgsLayoutItem *>( graphicsItem );
     QgsLayoutItemPage *paperItem = dynamic_cast<QgsLayoutItemPage *>( layoutItem );
@@ -341,17 +358,17 @@ QPointF QgsLayout::convertToLayoutUnits( const QgsLayoutPoint &point ) const
   return mRenderContext->measurementConverter().convert( point, mUnits ).toQPointF();
 }
 
-QgsLayoutMeasurement QgsLayout::convertFromLayoutUnits( const double length, const QgsUnitTypes::LayoutUnit unit ) const
+QgsLayoutMeasurement QgsLayout::convertFromLayoutUnits( const double length, const Qgis::LayoutUnit unit ) const
 {
   return mRenderContext->measurementConverter().convert( QgsLayoutMeasurement( length, mUnits ), unit );
 }
 
-QgsLayoutSize QgsLayout::convertFromLayoutUnits( QSizeF size, const QgsUnitTypes::LayoutUnit unit ) const
+QgsLayoutSize QgsLayout::convertFromLayoutUnits( QSizeF size, const Qgis::LayoutUnit unit ) const
 {
   return mRenderContext->measurementConverter().convert( QgsLayoutSize( size.width(), size.height(), mUnits ), unit );
 }
 
-QgsLayoutPoint QgsLayout::convertFromLayoutUnits( QPointF point, const QgsUnitTypes::LayoutUnit unit ) const
+QgsLayoutPoint QgsLayout::convertFromLayoutUnits( QPointF point, const Qgis::LayoutUnit unit ) const
 {
   return mRenderContext->measurementConverter().convert( QgsLayoutPoint( point.x(), point.y(), mUnits ), unit );
 }
@@ -758,6 +775,7 @@ QgsLayoutItemGroup *QgsLayout::groupItems( const QList<QgsLayoutItem *> &items )
 
   mUndoStack->endMacro();
 
+  // cppcheck-suppress returnDanglingLifetime
   return returnGroup;
 }
 
@@ -1096,6 +1114,40 @@ QList< QgsLayoutItem * > QgsLayout::addItemsFromXml( const QDomElement &parentEl
       else
       {
         item->attemptMoveBy( pasteShiftPos.x(), pasteShiftPos.y() );
+      }
+    }
+
+    // When restoring items on project load saved with QGIS < 3.32, convert HTML-enabled labels into HTML items
+    if ( !position && QgsProjectVersion( 3, 31, 0 ) > mProject->lastSaveVersion() )
+    {
+      if ( QgsLayoutItemLabel *label = qobject_cast<QgsLayoutItemLabel *>( item.get() ) )
+      {
+        if ( label->mode() == QgsLayoutItemLabel::ModeHtml )
+        {
+          QgsTextFormat textFormat = label->textFormat();
+          if ( textFormat.lineHeightUnit() == Qgis::RenderUnit::Percentage )
+          {
+            // The line-height property handles height differently in webkit, adjust accordingly
+            textFormat.setLineHeight( textFormat.lineHeight() + 0.22 );
+            label->setTextFormat( textFormat );
+          }
+          QgsLayoutMultiFrame *html = QgsLayoutItemHtml::createFromLabel( label );
+          addMultiFrame( html );
+          if ( item->isGroupMember() )
+          {
+            QgsLayoutItemGroup *group = item->parentGroup();
+            QList<QgsLayoutItem *> groupItems = group->items();
+            groupItems.removeAll( item.get() );
+            group->removeItems();
+            for ( QgsLayoutItem *groupItem : std::as_const( groupItems ) )
+            {
+              group->addItem( groupItem );
+            }
+            group->addItem( html->frame( 0 ) );
+          }
+          newMultiFrames << html;
+          continue;
+        }
       }
     }
 

@@ -33,6 +33,8 @@
 #include "qgscoordinatetransformcontext.h"
 #include "qgscoordinatetransform.h"
 #include "qgsmeshdataprovider.h"
+#include "qgsrendercontext.h"
+#include "qgselevationmap.h"
 
 QgsMeshLayerInterpolator::QgsMeshLayerInterpolator(
   const QgsTriangularMesh &m,
@@ -99,6 +101,8 @@ QgsRasterBlock *QgsMeshLayerInterpolator::block( int, const QgsRectangle &extent
   if ( mDataType == QgsMeshDatasetGroupMetadata::DataType::DataOnVertices )
     Q_ASSERT( mDatasetValues.count() == mTriangularMesh.vertices().count() );
 
+  double pixelRatio = mContext.devicePixelRatio();
+
   for ( int i = 0; i < indexCount; ++i )
   {
     if ( feedback && feedback->isCanceled() )
@@ -132,7 +136,7 @@ QgsRasterBlock *QgsMeshLayerInterpolator::block( int, const QgsRectangle &extent
 
     // Get the BBox of the element in pixels
     int topLim, bottomLim, leftLim, rightLim;
-    QgsMeshLayerUtils::boundingBoxToScreenRectangle( mContext.mapToPixel(), mOutputSize, bbox, leftLim, rightLim, topLim, bottomLim );
+    QgsMeshLayerUtils::boundingBoxToScreenRectangle( mContext.mapToPixel(), mOutputSize, bbox, leftLim, rightLim, topLim, bottomLim, pixelRatio );
 
     double value( 0 ), value1( 0 ), value2( 0 ), value3( 0 );
     const int faceIdx = mTriangularMesh.trianglesToNativeFaces()[triangleIndex];
@@ -153,7 +157,7 @@ QgsRasterBlock *QgsMeshLayerInterpolator::block( int, const QgsRectangle &extent
       for ( int k = leftLim; k <= rightLim; k++ )
       {
         double val;
-        const QgsPointXY p = mContext.mapToPixel().toMapCoordinates( k, j );
+        const QgsPointXY p = mContext.mapToPixel().toMapCoordinates( k / pixelRatio, j / pixelRatio );
         if ( mDataType == QgsMeshDatasetGroupMetadata::DataType::DataOnVertices )
           val = QgsMeshLayerUtils::interpolateFromVerticesData(
                   p1,
@@ -180,13 +184,29 @@ QgsRasterBlock *QgsMeshLayerInterpolator::block( int, const QgsRectangle &extent
         }
       }
     }
+  }
 
+  if ( mRenderElevation )
+  {
+    QgsElevationMap *elevationMap = mContext.elevationMap();
+    if ( elevationMap && elevationMap->isValid() )
+      elevationMap->fillWithRasterBlock( outputBlock.get(), 0, 0, mElevationScale, mElevationOffset );
   }
 
   return outputBlock.release();
 }
 
-void QgsMeshLayerInterpolator::setSpatialIndexActive( bool active ) {mSpatialIndexActive = active;}
+void QgsMeshLayerInterpolator::setSpatialIndexActive( bool active )
+{
+  mSpatialIndexActive = active;
+}
+
+void QgsMeshLayerInterpolator::setElevationMapSettings( bool renderElevationMap, double elevationScale, double elevationOffset )
+{
+  mRenderElevation = renderElevationMap;
+  mElevationScale = elevationScale;
+  mElevationOffset = elevationOffset;
+}
 
 ///@endcond
 
@@ -227,7 +247,7 @@ QgsRasterBlock *QgsMeshUtils::exportRasterBlock(
   std::unique_ptr<QgsTriangularMesh> triangularMesh = std::make_unique<QgsTriangularMesh>();
   triangularMesh->update( nativeMesh.get(), transform );
 
-  const QgsMeshDatasetGroupMetadata metadata = layer.dataProvider()->datasetGroupMetadata( datasetIndex );
+  const QgsMeshDatasetGroupMetadata metadata = layer.datasetGroupMetadata( datasetIndex );
   const QgsMeshDatasetGroupMetadata::DataType scalarDataType = QgsMeshLayerUtils::datasetValuesType( metadata.dataType() );
   const int count =  QgsMeshLayerUtils::datasetValuesCount( nativeMesh.get(), scalarDataType );
   const QgsMeshDataBlock vals = QgsMeshLayerUtils::datasetValues(
@@ -239,7 +259,7 @@ QgsRasterBlock *QgsMeshUtils::exportRasterBlock(
     return nullptr;
 
   const QVector<double> datasetValues = QgsMeshLayerUtils::calculateMagnitudes( vals );
-  const QgsMeshDataBlock activeFaceFlagValues = layer.dataProvider()->areFacesActive(
+  const QgsMeshDataBlock activeFaceFlagValues = layer.areFacesActive(
         datasetIndex,
         0,
         nativeMesh->faces.count() );

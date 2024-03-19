@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     v_rectify.py
@@ -22,7 +20,7 @@ __date__ = 'March 2016'
 __copyright__ = '(C) 2016, Médéric Ribreux'
 
 import os
-from grassprovider.Grass7Utils import Grass7Utils
+from grassprovider.grass_utils import GrassUtils
 from processing.tools.system import getTempFilename
 
 
@@ -40,12 +38,12 @@ def processCommand(alg, parameters, context, feedback):
     inlinePoints = alg.parameterAsString(parameters, 'inline_points', context)
     if inlinePoints:
         # Creates a temporary txt file
-        pointsName = getTempFilename()
+        pointsName = getTempFilename(context=context)
 
         # Inject rules into temporary txt file
         with open(pointsName, "w") as tempPoints:
             tempPoints.write(inlinePoints)
         alg.removeParameter('inline_points')
-        parameters['points'] = tempPoints
+        parameters['points'] = pointsName
 
-    alg.processCommand(parameters, context, feedback, True)
+    alg.processCommand(parameters, context, feedback)

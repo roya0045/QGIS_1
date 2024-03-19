@@ -56,6 +56,16 @@ QgsReferencedGeometry::QgsReferencedGeometry( const QgsGeometry &geom, const Qgs
   , QgsReferencedGeometryBase( crs )
 {}
 
+bool QgsReferencedGeometry::operator==( const QgsReferencedGeometry &other ) const
+{
+  return ( ( this->isNull() && other.isNull() ) || this->equals( other ) ) && crs() == other.crs();
+}
+
+bool QgsReferencedGeometry::operator!=( const QgsReferencedGeometry &other ) const
+{
+  return !( *this == other );
+}
+
 QgsReferencedGeometry QgsReferencedGeometry::fromReferencedPointXY( const QgsReferencedPointXY &point )
 {
   return QgsReferencedGeometry( QgsGeometry::fromPointXY( point ), point.crs() );
@@ -65,4 +75,3 @@ QgsReferencedGeometry QgsReferencedGeometry::fromReferencedRect( const QgsRefere
 {
   return QgsReferencedGeometry( QgsGeometry::fromRect( rectangle ), rectangle.crs() );
 }
-

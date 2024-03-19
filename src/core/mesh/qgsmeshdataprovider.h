@@ -114,6 +114,10 @@ struct CORE_EXPORT QgsMesh
   QVector<QgsMeshFace> faces SIP_SKIP;
 };
 
+// we need to declare metatype so QgsMesh can be passed as QVariant for expressions
+Q_DECLARE_METATYPE( QgsMesh );
+
+
 /**
  * \ingroup core
  *
@@ -293,7 +297,7 @@ class CORE_EXPORT QgsMeshDatasetSourceInterface SIP_ABSTRACT
      *
      * \since QGIS 3.12
      */
-    virtual QgsMesh3dDataBlock dataset3dValues( QgsMeshDatasetIndex index, int faceIndex, int count ) const = 0;
+    virtual QgsMesh3DDataBlock dataset3dValues( QgsMeshDatasetIndex index, int faceIndex, int count ) const = 0;
 
     /**
      * \brief Returns whether the face is active for particular dataset
@@ -387,7 +391,7 @@ class CORE_EXPORT QgsMeshDatasetSourceInterface SIP_ABSTRACT
                                     ) = 0;
 
     /**
-     * Returns the dataset index of the dataset in a specific dataet group at \a time from the \a reference time
+     * Returns the dataset index of the dataset in a specific dataset group at \a time from the \a reference time
      *
      * \param referenceTime the reference time from where to find the dataset
      * \param groupIndex the index of the dataset group
@@ -398,8 +402,25 @@ class CORE_EXPORT QgsMeshDatasetSourceInterface SIP_ABSTRACT
      */
     QgsMeshDatasetIndex datasetIndexAtTime( const QDateTime &referenceTime,
                                             int groupIndex,
-                                            quint64 time,
+                                            qint64 time,
                                             QgsMeshDataProviderTemporalCapabilities::MatchingTemporalDatasetMethod method ) const;
+
+    /**
+     * Returns a list of dataset indexes of the dataset in a specific dataset group that are between \a time1 and \a time2 from the \a reference time
+     *
+     * \param referenceTime the reference time from where to find the dataset
+     * \param groupIndex the index of the dataset group
+     * \param time1 the first relative time of the time intervale from reference time
+     * \param time2 the second relative time of the time intervale from reference time
+     *
+     * \return the dataset index
+     *
+     * \since QGIS 3.22
+     */
+    QList<QgsMeshDatasetIndex> datasetIndexInTimeInterval( const QDateTime &referenceTime,
+        int groupIndex,
+        qint64 time1,
+        qint64 time2 ) const;
 
   protected:
     std::unique_ptr<QgsMeshDataProviderTemporalCapabilities> mTemporalCapabilities;
@@ -435,7 +456,7 @@ class CORE_EXPORT QgsMeshDataProvider: public QgsDataProvider, public QgsMeshDat
      *
      * \since QGIS 3.14
      */
-    void setTemporalUnit( QgsUnitTypes::TemporalUnit unit );
+    void setTemporalUnit( Qgis::TemporalUnit unit );
 
 
     /**

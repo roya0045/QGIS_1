@@ -39,7 +39,7 @@ QgsSymbolWidgetContext QgsLabelSettingsWidgetBase::context() const
   return mContext;
 }
 
-void QgsLabelSettingsWidgetBase::setGeometryType( QgsWkbTypes::GeometryType )
+void QgsLabelSettingsWidgetBase::setGeometryType( Qgis::GeometryType )
 {
 
 }
@@ -84,7 +84,7 @@ void QgsLabelSettingsWidgetBase::createAuxiliaryField()
 
   QgsPropertyOverrideButton *button = qobject_cast<QgsPropertyOverrideButton *>( sender() );
   const QgsPalLayerSettings::Property key = static_cast<  QgsPalLayerSettings::Property >( button->propertyKey() );
-  QgsPropertyDefinition def = QgsPalLayerSettings::propertyDefinitions()[key];
+  QgsPropertyDefinition def = QgsPalLayerSettings::propertyDefinitions()[static_cast< int >( key )];
 
   // create property in auxiliary storage if necessary
   if ( !mVectorLayer->auxiliaryLayer()->exists( def ) )
@@ -144,7 +144,7 @@ void QgsLabelSettingsWidgetBase::updateDataDefinedProperties( QgsPropertyCollect
 
 void QgsLabelSettingsWidgetBase::registerDataDefinedButton( QgsPropertyOverrideButton *button, QgsPalLayerSettings::Property key )
 {
-  button->init( key, mDataDefinedProperties, QgsPalLayerSettings::propertyDefinitions(), mVectorLayer, true );
+  button->init( static_cast< int >( key ), mDataDefinedProperties, QgsPalLayerSettings::propertyDefinitions(), mVectorLayer, true );
   connect( button, &QgsPropertyOverrideButton::changed, this, &QgsLabelSettingsWidgetBase::updateDataDefinedProperty );
   connect( button, &QgsPropertyOverrideButton::createAuxiliaryField, this, &QgsLabelSettingsWidgetBase::createAuxiliaryField );
 
@@ -169,7 +169,7 @@ QgsLabelSettingsWidgetDialog::QgsLabelSettingsWidgetDialog( QgsLabelSettingsWidg
   setLayout( vLayout );
 
   setObjectName( QStringLiteral( "QgsLabelSettingsWidgetDialog" ) );
-  QgsGui::instance()->enableAutoGeometryRestore( this );
+  QgsGui::enableAutoGeometryRestore( this );
 }
 
 QDialogButtonBox *QgsLabelSettingsWidgetDialog::buttonBox()

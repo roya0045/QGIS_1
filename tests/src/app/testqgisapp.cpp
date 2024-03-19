@@ -42,6 +42,8 @@ class TestQgisApp : public QObject
     void addVectorLayerGeopackageSingleLayer();
     void addVectorLayerGeopackageSingleLayerAlreadyLayername();
     void addVectorLayerInvalid();
+    void addEmbeddedGroup();
+    void pasteFeature();
 
   private:
     QgisApp *mQgisApp = nullptr;
@@ -136,6 +138,54 @@ void TestQgisApp::addVectorLayerInvalid()
   layer = mQgisApp->addVectorLayer( "/vsimem/test.gpkg|layername=invalid_layer_name", "test", QStringLiteral( "ogr" ) );
   QVERIFY( !layer );
 }
+
+void TestQgisApp::addEmbeddedGroup()
+{
+  const QString projectPath = QString( TEST_DATA_DIR ) + QStringLiteral( "/embedded_groups/joins1.qgs" );
+
+  QCOMPARE( QgsProject::instance()->layers<QgsVectorLayer *>().count(), 0 );
+
+  mQgisApp->addEmbeddedItems( projectPath, QStringList() << QStringLiteral( "GROUP" ), QStringList() );
+
+  QgsVectorLayer *vl = QgsProject::instance()->mapLayer<QgsVectorLayer *>( QStringLiteral( "polys_with_id_32002f94_eebe_40a5_a182_44198ba1bc5a" ) );
+  QCOMPARE( vl->fields().count(), 5 );
+
+  // cleanup
+  QgsProject::instance()->clear();
+}
+
+void TestQgisApp::pasteFeature()
+{
+  QgsVectorLayer *vl = new QgsVectorLayer( QStringLiteral( "Polygon?crs=EPSG:4326" ), QStringLiteral( "polygons" ), QStringLiteral( "memory" ) );
+
+  QgsFeature f;
+  f.setGeometry( QgsGeometry::fromWkt( QStringLiteral( "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))" ) ) );
+  vl->startEditing();
+  vl->addFeature( f );
+  vl->commitChanges();
+
+  QgsProject::instance()->addMapLayer( vl );
+  QgsProject::instance()->setAvoidIntersectionsMode( Qgis::AvoidIntersectionsMode::AvoidIntersectionsCurrentLayer );
+
+  vl->selectByIds( QgsFeatureIds() << 1 );
+
+  // Copy feature with the initial polygon
+  mQgisApp->copySelectionToClipboard( vl );
+
+  vl->startEditing();
+  QgsGeometry geom = QgsGeometry::fromWkt( QStringLiteral( "POLYGON((5 0, 10 0, 10 10, 5 10, 5 0))" ) );
+  vl->changeGeometry( 1, geom );
+  vl->commitChanges();
+
+  vl->startEditing();
+  mQgisApp->pasteFromClipboard( vl );
+  vl->commitChanges();
+
+  f = vl->getFeature( 2 );
+  QCOMPARE( f.geometry().asWkt(), QStringLiteral( "Polygon ((0 0, 0 10, 5 10, 5 0, 0 0))" ) );
+}
+
+
 
 QGSTEST_MAIN( TestQgisApp )
 #include "testqgisapp.moc"

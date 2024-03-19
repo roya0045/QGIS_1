@@ -14,8 +14,6 @@ class QgsScaleBarSettings
 %Docstring(signature="appended")
 The :py:class:`QgsScaleBarSettings` class stores the appearance and layout settings
 for scalebar drawing with :py:class:`QgsScaleBarRenderer`.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -231,14 +229,14 @@ to SegmentSizeFitWidth.
 .. seealso:: :py:func:`setSegmentSizeMode`
 %End
 
-    QgsUnitTypes::DistanceUnit units() const;
+    Qgis::DistanceUnit units() const;
 %Docstring
 Returns the distance units used by the scalebar.
 
 .. seealso:: :py:func:`setUnits`
 %End
 
-    void setUnits( QgsUnitTypes::DistanceUnit units );
+    void setUnits( Qgis::DistanceUnit units );
 %Docstring
 Sets the distance ``units`` used by the scalebar.
 

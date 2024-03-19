@@ -168,7 +168,7 @@ void QgsColorButton::unlink()
 
 bool QgsColorButton::event( QEvent *e )
 {
-  if ( e->type() == QEvent::ToolTip )
+  if ( e->type() == QEvent::ToolTip && isEnabled() )
   {
     QColor c = linkedProjectColor();
     const bool isProjectColor = c.isValid();
@@ -417,6 +417,25 @@ void QgsColorButton::dropEvent( QDropEvent *e )
     e->acceptProposedAction();
     setColor( mimeColor );
     addRecentColor( mimeColor );
+  }
+}
+
+void QgsColorButton::wheelEvent( QWheelEvent *event )
+{
+  if ( mAllowOpacity && isEnabled() && !isNull() )
+  {
+    const double increment = ( ( event->modifiers() & Qt::ControlModifier ) ? 0.01 : 0.1 ) *
+                             ( event->angleDelta().y() > 0 ? 1 : -1 );
+    const double alpha = std::min( std::max( 0.0, mColor.alphaF() + increment ), 1.0 );
+    mColor.setAlphaF( alpha );
+
+    setButtonBackground();
+    emit colorChanged( mColor );
+    event->accept();
+  }
+  else
+  {
+    QToolButton::wheelEvent( event );
   }
 }
 
@@ -715,12 +734,16 @@ void QgsColorButton::setButtonBackground( const QColor &color )
   }
 
   //create an icon pixmap
-  QPixmap pixmap( currentIconSize );
+  const double pixelRatio = devicePixelRatioF();
+  QPixmap pixmap( currentIconSize * pixelRatio );
+  pixmap.setDevicePixelRatio( pixelRatio );
   pixmap.fill( Qt::transparent );
 
   if ( backgroundColor.isValid() )
   {
-    const QRect rect( 0, 0, currentIconSize.width(), currentIconSize.height() );
+    const QRectF rect( 0, 0,
+                       currentIconSize.width(),
+                       currentIconSize.height() );
     QPainter p;
     p.begin( &pixmap );
     p.setRenderHint( QPainter::Antialiasing );

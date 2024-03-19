@@ -64,14 +64,14 @@ class TestQgsMesh3dAveraging: public QObject
     void testMeshElevationAveragingMethodVariableMesh();
 
   private:
-    void compare( const QgsMesh3dAveragingMethod *method, double expected, bool valid );
+    void compare( const QgsMesh3DAveragingMethod *method, double expected, bool valid );
 
     QString mTestDataDir;
-    QgsMesh3dDataBlock scalarBlock;
-    QgsMesh3dDataBlock vectorBlock;
+    QgsMesh3DDataBlock scalarBlock;
+    QgsMesh3DDataBlock vectorBlock;
 };
 
-void TestQgsMesh3dAveraging::compare( const QgsMesh3dAveragingMethod *method, double expected, bool valid )
+void TestQgsMesh3dAveraging::compare( const QgsMesh3DAveragingMethod *method, double expected, bool valid )
 {
   const QgsMeshDataBlock block = method->calculate( scalarBlock );
   if ( !valid )
@@ -117,7 +117,7 @@ void TestQgsMesh3dAveraging::initTestCase()
 
   const QVector<int> verticalLevelsCount = { 4, 4 };
 
-  scalarBlock = QgsMesh3dDataBlock( 2, false );
+  scalarBlock = QgsMesh3DDataBlock( 2, false );
   const QVector<double> values = { 1, 2, std::numeric_limits<double>::quiet_NaN(), 4,
                                    1, 2, std::numeric_limits<double>::quiet_NaN(), 4
                                  };
@@ -128,7 +128,7 @@ void TestQgsMesh3dAveraging::initTestCase()
   scalarBlock.setValues( values );
   scalarBlock.setValid( true );
 
-  vectorBlock = QgsMesh3dDataBlock( 2, true );
+  vectorBlock = QgsMesh3DDataBlock( 2, true );
   const QVector<double> valuesVec = { 1, 1, 2, 2, std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN(), 4, 4,
                                       1, 1, 2, 2, std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN(), 4, 4
                                     };
@@ -163,6 +163,25 @@ void TestQgsMesh3dAveraging::testMeshSingleLevelFromTopAveragingMethod()
 
   QgsMeshMultiLevelsAveragingMethod method( level, true );
   compare( &method, expected, level >= 1 );
+
+  // Same test but with some vertical height equal to 0
+  QVector<double> verticalLevels = { -1.0, -2.0, -4.0, -4.0, -5.0,
+                                     -2.0, -2.0, -2.5, -4.0, -5.0
+                                   };
+
+  scalarBlock.setVerticalLevels( verticalLevels );
+  vectorBlock.setVerticalLevels( verticalLevels );
+
+  compare( &method, expected, level >= 1 );
+
+  verticalLevels = { -1.0, -2.0, -2.5, -4.0, -5.0,
+                     -1.0, -2.0, -2.5, -4.0, -5.0
+                   };
+
+  // Reset vertical levels
+  scalarBlock.setVerticalLevels( verticalLevels );
+  vectorBlock.setVerticalLevels( verticalLevels );
+
 }
 
 void TestQgsMesh3dAveraging::testMeshSingleLevelFromBottomAveragingMethod_data()
@@ -185,6 +204,24 @@ void TestQgsMesh3dAveraging::testMeshSingleLevelFromBottomAveragingMethod()
 
   QgsMeshMultiLevelsAveragingMethod method( level, false );
   compare( &method, expected, level >= 1 );
+
+  // Same test but with some vertical height equal to 0
+  QVector<double> verticalLevels = { -1.0, -2.0, -4.0, -4.0, -5.0,
+                                     -2.0, -2.0, -2.5, -4.0, -5.0
+                                   };
+
+  scalarBlock.setVerticalLevels( verticalLevels );
+  vectorBlock.setVerticalLevels( verticalLevels );
+
+  compare( &method, expected, level >= 1 );
+
+  verticalLevels = { -1.0, -2.0, -2.5, -4.0, -5.0,
+                     -1.0, -2.0, -2.5, -4.0, -5.0
+                   };
+
+  // Reset vertical levels
+  scalarBlock.setVerticalLevels( verticalLevels );
+  vectorBlock.setVerticalLevels( verticalLevels );
 }
 
 void TestQgsMesh3dAveraging::testMeshMultiLevelsFromTopAveragingMethod_data()
@@ -342,7 +379,7 @@ void TestQgsMesh3dAveraging::testMeshElevationAveragingMethodVariableMesh()
 
   const QVector<int> verticalLevelsCount = { 4, 3, 5 };
 
-  QgsMesh3dDataBlock scalarBlock2( 3, false );
+  QgsMesh3DDataBlock scalarBlock2( 3, false );
   const QVector<double> values = { 1, 2, 3, 4,
                                    0, 0, 0,
                                    100, 200, 300, 400, 500

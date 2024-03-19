@@ -20,6 +20,10 @@
 
 #define SIP_NO_FILE
 
+#include <QtGlobal>
+#if QT_CONFIG(process)
+
+
 #include "qgis_sip.h"
 #include "qgis_analysis.h"
 #include "qgsprocessingalgorithm.h"
@@ -74,7 +78,7 @@ class ANALYSIS_EXPORT QgsConvertGpxFeatureTypeAlgorithm : public QgsProcessingAl
       QStringList &logArgs
     );
 
-    friend class TestQgsProcessingAlgs;
+    friend class TestQgsProcessingAlgsPt2;
 
 };
 
@@ -174,10 +178,9 @@ class ANALYSIS_EXPORT QgsUploadGpsDataAlgorithm : public QgsProcessingAlgorithm
 
 };
 
-
-
 ///@endcond PRIVATE
 
+#endif // process
 #endif // QGSALGORITHMGPSBABELTOOLS_H
 
 

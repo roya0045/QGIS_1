@@ -17,8 +17,6 @@
 
 #include "qgsmeshtriangulation.h"
 #include "qgsdualedgetriangulation.h"
-#include "qgsvectorlayer.h"
-#include "qgscoordinatetransformcontext.h"
 #include "qgscurve.h"
 #include "qgscurvepolygon.h"
 #include "qgsmultisurface.h"
@@ -26,6 +24,8 @@
 #include "qgsfeedback.h"
 #include "qgslogger.h"
 #include "qgsmesheditor.h"
+#include "qgsfeature.h"
+#include "qgsfeatureiterator.h"
 
 QgsMeshTriangulation::QgsMeshTriangulation(): QObject()
 {
@@ -77,14 +77,14 @@ bool QgsMeshTriangulation::addBreakLines( QgsFeatureIterator &lineFeatureIterato
       i++;
     }
 
-    QgsWkbTypes::GeometryType geomType = feat.geometry().type();
+    Qgis::GeometryType geomType = feat.geometry().type();
     switch ( geomType )
     {
-      case QgsWkbTypes::PointGeometry:
+      case Qgis::GeometryType::Point:
         addVerticesFromFeature( feat, valueAttribute, transform, feedback );
         break;
-      case QgsWkbTypes::LineGeometry:
-      case QgsWkbTypes::PolygonGeometry:
+      case Qgis::GeometryType::Line:
+      case Qgis::GeometryType::Polygon:
         addBreakLinesFromFeature( feat, valueAttribute, transform, feedback );
         break;
       default:
@@ -115,7 +115,7 @@ void QgsMeshTriangulation::addVerticesFromFeature( const QgsFeature &feature, in
   QgsGeometry geom = feature.geometry();
   try
   {
-    geom.transform( transform, QgsCoordinateTransform::ForwardTransform, true );
+    geom.transform( transform, Qgis::TransformDirection::Forward, true );
   }
   catch ( QgsCsException &cse )
   {
@@ -138,7 +138,7 @@ void QgsMeshTriangulation::addVerticesFromFeature( const QgsFeature &feature, in
       mTriangulation->addPoint( *vit );
     else
     {
-      mTriangulation->addPoint( QgsPoint( QgsWkbTypes::PointZ, ( *vit ).x(), ( *vit ).y(), value ) );
+      mTriangulation->addPoint( QgsPoint( Qgis::WkbType::PointZ, ( *vit ).x(), ( *vit ).y(), value ) );
     }
     ++vit;
   }
@@ -155,7 +155,7 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
   QgsGeometry geom = feature.geometry();
   try
   {
-    geom.transform( transform, QgsCoordinateTransform::ForwardTransform, true );
+    geom.transform( transform, Qgis::TransformDirection::Forward, true );
   }
   catch ( QgsCsException &cse )
   {
@@ -164,7 +164,7 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
     return;
   }
 
-  if ( QgsWkbTypes::geometryType( geom.wkbType() ) == QgsWkbTypes::PolygonGeometry )
+  if ( QgsWkbTypes::geometryType( geom.wkbType() ) == Qgis::GeometryType::Polygon )
   {
     std::vector< const QgsCurvePolygon * > polygons;
     if ( geom.isMultipart() )
@@ -337,6 +337,11 @@ int QgsMeshZValueDataset::valuesCount() const
 
 QgsMeshEditingDelaunayTriangulation::QgsMeshEditingDelaunayTriangulation() = default;
 
+QString QgsMeshEditingDelaunayTriangulation::text() const
+{
+  return QObject::tr( "Delaunay triangulation" );
+}
+
 QgsTopologicalMesh::Changes QgsMeshEditingDelaunayTriangulation::apply( QgsMeshEditor *meshEditor )
 {
   //use only vertices that are on boundary or free, if boundary
@@ -393,10 +398,10 @@ QgsTopologicalMesh::Changes QgsMeshEditingDelaunayTriangulation::apply( QgsMeshE
     while ( !facesReady && !giveUp )
     {
       QgsMeshEditingError error;
-      topologicFaces = meshEditor->topologicalMesh().createNewTopologicalFaces( destinationFaces, true, error );
+      topologicFaces = QgsTopologicalMesh::createNewTopologicalFaces( destinationFaces, true, error );
 
       if ( error == QgsMeshEditingError() )
-        error = meshEditor->topologicalMesh().canFacesBeAdded( topologicFaces );
+        error = meshEditor->topologicalMesh().facesCanBeAdded( topologicFaces );
 
       switch ( error.errorType )
       {
@@ -430,7 +435,10 @@ QgsTopologicalMesh::Changes QgsMeshEditingDelaunayTriangulation::apply( QgsMeshE
 
   Q_ASSERT( meshEditor->topologicalMesh().checkConsistency() == QgsMeshEditingError() );
 
-  mMessage = QObject::tr( "%1 vertices have not been included in the triangulation" ).arg( removedVerticesFromTriangulation.count() );
+  if ( !removedVerticesFromTriangulation.isEmpty() )
+    mMessage = QObject::tr( "%n vertices have not been included in the triangulation", nullptr, removedVerticesFromTriangulation.count() );
+
+  mIsFinished = true;
 
   if ( triangulationReady && !giveUp )
     return meshEditor->topologicalMesh().addFaces( topologicFaces );

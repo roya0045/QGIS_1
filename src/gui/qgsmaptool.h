@@ -22,7 +22,7 @@
 #include <QCursor>
 #include <QString>
 #include <QObject>
-
+#include <QPointer>
 #include <QGestureEvent>
 #include "qgis_gui.h"
 
@@ -52,6 +52,11 @@ class QMenu;
 #include <qgsmaptoolemitpoint.h>
 #include <qgsmaptoolidentify.h>
 #include <qgsmaptooldigitizefeature.h>
+#include <qgsmaptoolextent.h>
+#include <qgsmaptoolidentifyfeature.h>
+#include <qgsmaptoolcapture.h>
+#include <qgsmaptooladvanceddigitizing.h>
+#include <qgsmaptooledit.h>
 % End
 #endif
 
@@ -73,12 +78,24 @@ class GUI_EXPORT QgsMapTool : public QObject
       sipType = sipType_QgsMapToolPan;
     else if ( dynamic_cast<QgsMapToolEmitPoint *>( sipCpp ) != NULL )
       sipType = sipType_QgsMapToolEmitPoint;
+    else if ( dynamic_cast<QgsMapToolExtent *>( sipCpp ) != NULL )
+      sipType = sipType_QgsMapToolExtent;
+    else if ( dynamic_cast<QgsMapToolIdentifyFeature *>( sipCpp ) != NULL )
+      sipType = sipType_QgsMapToolIdentifyFeature;
     else if ( dynamic_cast<QgsMapToolIdentify *>( sipCpp ) != NULL )
       sipType = sipType_QgsMapToolIdentify;
     else if ( dynamic_cast<QgsMapToolDigitizeFeature *>( sipCpp ) != NULL )
       sipType = sipType_QgsMapToolDigitizeFeature;
+    else if ( dynamic_cast<QgsMapToolCapture *>( sipCpp ) != NULL )
+      sipType = sipType_QgsMapToolCapture;
+    else if ( dynamic_cast<QgsMapToolAdvancedDigitizing *>( sipCpp ) != NULL )
+      sipType = sipType_QgsMapToolAdvancedDigitizing;
+    else if ( dynamic_cast<QgsMapToolEdit *>( sipCpp ) != NULL )
+      sipType = sipType_QgsMapToolEdit;
+    else if ( sipCpp->inherits( "QgsMapTool" ) ) // e.g. map tools from QGIS app library, which aren't exposed to SIP
+      sipType = sipType_QgsMapTool;
     else
-      sipType = NULL;
+      sipType = nullptr;
     SIP_END
 #endif
 
@@ -88,13 +105,10 @@ class GUI_EXPORT QgsMapTool : public QObject
 
     /**
      * Enumeration of flags that adjust the way the map tool operates
-     * \since QGIS 2.16
      */
-    enum Flag
+    enum Flag SIP_ENUM_BASETYPE( IntFlag )
     {
-      Transient = 1 << 1, /*!< Indicates that this map tool performs a transient (one-off) operation.
-                               If it does, the tool can be operated once and then a previous map
-                               tool automatically restored. */
+      Transient = 1 << 1, //!< Deprecated since QGIS 3.36 -- no longer used by QGIS and will be removed in QGIS 4.0
       EditTool = 1 << 2, //!< Map tool is an edit tool, which can only be used when layer is editable
       AllowZoomRect = 1 << 3, //!< Allow zooming by rectangle (by holding shift and dragging) while the tool is active
       ShowContextMenu = 1 << 4, //!< Show a context menu when right-clicking with the tool (since QGIS 3.14). See populateContextMenu().
@@ -103,7 +117,6 @@ class GUI_EXPORT QgsMapTool : public QObject
 
     /**
      * Returns the flags for the map tool.
-     * \since QGIS 2.16
      */
     virtual Flags flags() const { return Flags(); }
 
@@ -175,6 +188,14 @@ class GUI_EXPORT QgsMapTool : public QObject
     //! called when map tool is being deactivated
     virtual void deactivate();
 
+    /**
+     * Called when the map tool is being activated while it is already active.
+     *
+     * The default implementation emits the reactivated () signal.
+     * \since QGIS 3.32
+     */
+    virtual void reactivate();
+
     //! convenient method to clean members
     virtual void clean();
 
@@ -184,7 +205,6 @@ class GUI_EXPORT QgsMapTool : public QObject
     /**
      * Emit map tool changed with the old tool
      * \see setToolName()
-     * \since QGIS 2.3
      */
     QString toolName() { return mToolName; }
 
@@ -192,21 +212,18 @@ class GUI_EXPORT QgsMapTool : public QObject
      * Gets search radius in mm. Used by identify, tip etc.
      *  The values is currently set in identify tool options (move somewhere else?)
      *  and defaults to Qgis::DEFAULT_SEARCH_RADIUS_MM.
-     *  \since QGIS 2.3
     */
     static double searchRadiusMM();
 
     /**
      * Gets search radius in map units for given context. Used by identify, tip etc.
      *  The values is calculated from searchRadiusMM().
-     *  \since QGIS 2.3
     */
     static double searchRadiusMU( const QgsRenderContext &context );
 
     /**
      * Gets search radius in map units for given canvas. Used by identify, tip etc.
      *  The values is calculated from searchRadiusMM().
-     *  \since QGIS 2.3
      */
     static double searchRadiusMU( QgsMapCanvas *canvas );
 
@@ -246,6 +263,9 @@ class GUI_EXPORT QgsMapTool : public QObject
      */
     virtual bool populateContextMenuWithEvent( QMenu *menu, QgsMapMouseEvent *event );
 
+    //! Transforms a \a point from screen coordinates to map coordinates.
+    QgsPointXY toMapCoordinates( QPoint point );
+
   signals:
     //! emit a message
     void messageEmitted( const QString &message, Qgis::MessageLevel = Qgis::MessageLevel::Info );
@@ -259,6 +279,9 @@ class GUI_EXPORT QgsMapTool : public QObject
     //! signal emitted once the map tool is deactivated
     void deactivated();
 
+    //! \since QGIS 3.32 signal emitted when the map tool is activated while it is already active
+    void reactivated();
+
   private slots:
     //! clear pointer when action is destroyed
     void actionDestroyed();
@@ -268,8 +291,11 @@ class GUI_EXPORT QgsMapTool : public QObject
     //! Constructor takes a map canvas as a parameter.
     QgsMapTool( QgsMapCanvas *canvas SIP_TRANSFERTHIS );
 
-    //! Transforms a \a point from screen coordinates to map coordinates.
-    QgsPointXY toMapCoordinates( QPoint point );
+    /**
+     * Transforms a \a point from map coordinates to \a layer coordinates.
+     * \note This method is available in the Python bindings as toLayerCoordinatesV2.
+     */
+    QgsPoint toLayerCoordinates( const QgsMapLayer *layer, const QgsPoint &point ) SIP_PYNAME( toLayerCoordinatesV2 );
 
     //! Transforms a \a point from screen coordinates to \a layer coordinates.
     QgsPointXY toLayerCoordinates( const QgsMapLayer *layer, QPoint point );
@@ -293,6 +319,17 @@ class GUI_EXPORT QgsMapTool : public QObject
     QPoint toCanvasCoordinates( const QgsPointXY &point ) const;
 
     /**
+     * Returns the map layer with the matching ID, or NULLPTR if no layers could be found.
+     *
+     * This method searches both layers associated with the map canvas (see QgsMapCanvas::layers())
+     * and layers from the QgsProject associated with the canvas. It can be used to resolve layer IDs to
+     * layers which may be visible in the canvas, but not associated with a QgsProject.
+     *
+     * \since QGIS 3.22
+     */
+    QgsMapLayer *layer( const QString &id );
+
+    /**
      * Sets the tool's \a name.
      *
      * \see toolName()
@@ -301,7 +338,7 @@ class GUI_EXPORT QgsMapTool : public QObject
     void setToolName( const QString &name );
 
     //! The pointer to the map canvas
-    QgsMapCanvas *mCanvas = nullptr;
+    QPointer< QgsMapCanvas > mCanvas;
 
     //! The cursor used in the map tool
     QCursor mCursor;
@@ -320,6 +357,9 @@ class GUI_EXPORT QgsMapTool : public QObject
 
     //! The translated name of the map tool
     QString mToolName;
+
+    friend class QgsMapCanvas;
+    friend class TestQgsMapToolEdit;
 
 };
 

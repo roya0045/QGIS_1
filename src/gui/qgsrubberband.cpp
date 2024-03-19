@@ -24,10 +24,11 @@
 #include "qgsrendercontext.h"
 #include "qgslinesymbol.h"
 #include "qgsfillsymbol.h"
+#include "qgsguiutils.h"
 
 #include <QPainter>
 
-QgsRubberBand::QgsRubberBand( QgsMapCanvas *mapCanvas, QgsWkbTypes::GeometryType geometryType )
+QgsRubberBand::QgsRubberBand( QgsMapCanvas *mapCanvas, Qgis::GeometryType geometryType )
   : QObject( nullptr )
   , QgsMapCanvasItem( mapCanvas )
   , mGeometryType( geometryType )
@@ -106,7 +107,7 @@ void QgsRubberBand::setBrushStyle( Qt::BrushStyle brushStyle )
   mBrush.setStyle( brushStyle );
 }
 
-void QgsRubberBand::reset( QgsWkbTypes::GeometryType geometryType )
+void QgsRubberBand::reset( Qgis::GeometryType geometryType )
 {
   mPoints.clear();
   mGeometryType = geometryType;
@@ -149,7 +150,8 @@ void QgsRubberBand::addPoint( const QgsPointXY &p, bool doUpdate /* = true */, i
   if ( ringIndex == mPoints.at( geometryIndex ).size() )
   {
     mPoints[geometryIndex].append( QgsPolylineXY() );
-    mPoints[geometryIndex][ringIndex].append( p );
+    if ( mGeometryType != Qgis::GeometryType::Point )
+      mPoints[geometryIndex][ringIndex].append( p );
   }
 
   if ( mPoints.at( geometryIndex ).at( ringIndex ).size() == 2 &&
@@ -283,7 +285,7 @@ void QgsRubberBand::setToGeometry( const QgsGeometry &geom, const QgsCoordinateR
   addGeometry( geom, crs );
 }
 
-void QgsRubberBand::addGeometry( const QgsGeometry &geometry, QgsVectorLayer *layer, bool doUpdate )
+void QgsRubberBand::addGeometry( const QgsGeometry &geometry, QgsMapLayer *layer, bool doUpdate )
 {
   QgsGeometry geom = geometry;
   if ( layer )
@@ -324,29 +326,27 @@ void QgsRubberBand::addGeometry( const QgsGeometry &geometry, const QgsCoordinat
     }
     catch ( QgsCsException & )
     {
-      QgsDebugMsg( QStringLiteral( "Could not transform rubber band geometry to map CRS" ) );
+      QgsDebugError( QStringLiteral( "Could not transform rubber band geometry to map CRS" ) );
       return;
     }
   }
 
-  QgsWkbTypes::Type geomType = geom.wkbType();
-  if ( QgsWkbTypes::geometryType( geomType ) == QgsWkbTypes::PointGeometry && !QgsWkbTypes::isMultiType( geomType ) )
+  Qgis::WkbType geomType = geom.wkbType();
+  if ( QgsWkbTypes::geometryType( geomType ) == Qgis::GeometryType::Point && !QgsWkbTypes::isMultiType( geomType ) )
   {
     QgsPointXY pt = geom.asPoint();
     addPoint( pt, false, idx );
-    removeLastPoint( idx, false );
   }
-  else if ( QgsWkbTypes::geometryType( geomType ) == QgsWkbTypes::PointGeometry && QgsWkbTypes::isMultiType( geomType ) )
+  else if ( QgsWkbTypes::geometryType( geomType ) == Qgis::GeometryType::Point && QgsWkbTypes::isMultiType( geomType ) )
   {
     const QgsMultiPointXY mpt = geom.asMultiPoint();
     for ( const QgsPointXY &pt : mpt )
     {
       addPoint( pt, false, idx );
-      removeLastPoint( idx, false );
       idx++;
     }
   }
-  else if ( QgsWkbTypes::geometryType( geomType ) == QgsWkbTypes::LineGeometry && !QgsWkbTypes::isMultiType( geomType ) )
+  else if ( QgsWkbTypes::geometryType( geomType ) == Qgis::GeometryType::Line && !QgsWkbTypes::isMultiType( geomType ) )
   {
     const QgsPolylineXY line = geom.asPolyline();
     for ( const QgsPointXY &pt : line )
@@ -354,7 +354,7 @@ void QgsRubberBand::addGeometry( const QgsGeometry &geometry, const QgsCoordinat
       addPoint( pt, false, idx );
     }
   }
-  else if ( QgsWkbTypes::geometryType( geomType ) == QgsWkbTypes::LineGeometry && QgsWkbTypes::isMultiType( geomType ) )
+  else if ( QgsWkbTypes::geometryType( geomType ) == Qgis::GeometryType::Line && QgsWkbTypes::isMultiType( geomType ) )
   {
     const QgsMultiPolylineXY mline = geom.asMultiPolyline();
     for ( const QgsPolylineXY &line : mline )
@@ -370,7 +370,7 @@ void QgsRubberBand::addGeometry( const QgsGeometry &geometry, const QgsCoordinat
       idx++;
     }
   }
-  else if ( QgsWkbTypes::geometryType( geomType ) == QgsWkbTypes::PolygonGeometry && !QgsWkbTypes::isMultiType( geomType ) )
+  else if ( QgsWkbTypes::geometryType( geomType ) == Qgis::GeometryType::Polygon && !QgsWkbTypes::isMultiType( geomType ) )
   {
     const QgsPolygonXY poly = geom.asPolygon();
     int ringIdx = 0;
@@ -383,7 +383,7 @@ void QgsRubberBand::addGeometry( const QgsGeometry &geometry, const QgsCoordinat
       ringIdx++;
     }
   }
-  else if ( QgsWkbTypes::geometryType( geomType ) == QgsWkbTypes::PolygonGeometry && QgsWkbTypes::isMultiType( geomType ) )
+  else if ( QgsWkbTypes::geometryType( geomType ) == Qgis::GeometryType::Polygon && QgsWkbTypes::isMultiType( geomType ) )
   {
     const QgsMultiPolygonXY multipoly = geom.asMultiPolygon();
     for ( const QgsPolygonXY &poly : multipoly )
@@ -429,11 +429,19 @@ void QgsRubberBand::setToCanvasRectangle( QRect rect )
   QgsPointXY ul = transform->toMapCoordinates( rect.left(), rect.top() );
   QgsPointXY ur = transform->toMapCoordinates( rect.right(), rect.top() );
 
-  reset( QgsWkbTypes::PolygonGeometry );
+  reset( Qgis::GeometryType::Polygon );
   addPoint( ll, false );
   addPoint( lr, false );
   addPoint( ur, false );
   addPoint( ul, true );
+}
+
+void QgsRubberBand::copyPointsFrom( const QgsRubberBand *other )
+{
+  reset( other->mGeometryType );
+  mPoints = other->mPoints;
+  updateRect();
+  update();
 }
 
 void QgsRubberBand::paint( QPainter *p )
@@ -465,7 +473,7 @@ void QgsRubberBand::paint( QPainter *p )
   if ( QgsLineSymbol *lineSymbol = dynamic_cast< QgsLineSymbol * >( mSymbol.get() ) )
   {
     QgsRenderContext context( QgsRenderContext::fromQPainter( p ) );
-    context.setFlag( QgsRenderContext::Antialiasing, true );
+    context.setFlag( Qgis::RenderContextFlag::Antialiasing, true );
 
     lineSymbol->startRender( context );
     for ( const QVector<QPolygonF> &shape : std::as_const( shapes ) )
@@ -480,7 +488,7 @@ void QgsRubberBand::paint( QPainter *p )
   else if ( QgsFillSymbol *fillSymbol = dynamic_cast< QgsFillSymbol * >( mSymbol.get() ) )
   {
     QgsRenderContext context( QgsRenderContext::fromQPainter( p ) );
-    context.setFlag( QgsRenderContext::Antialiasing, true );
+    context.setFlag( Qgis::RenderContextFlag::Antialiasing, true );
 
     fillSymbol->startRender( context );
     for ( const QVector<QPolygonF> &shape : std::as_const( shapes ) )
@@ -500,7 +508,7 @@ void QgsRubberBand::paint( QPainter *p )
       if ( i == 0 && iterations > 1 )
       {
         // first iteration with multi-pen painting, so use secondary pen
-        mSecondaryPen.setWidth( mPen.width() + 2 );
+        mSecondaryPen.setWidth( mPen.width() + QgsGuiUtils::scaleIconSize( 2 ) );
         p->setBrush( Qt::NoBrush );
         p->setPen( mSecondaryPen );
       }
@@ -540,13 +548,13 @@ void QgsRubberBand::drawShape( QPainter *p, const QVector<QPointF> &pts )
 {
   switch ( mGeometryType )
   {
-    case QgsWkbTypes::PolygonGeometry:
+    case Qgis::GeometryType::Polygon:
     {
       p->drawPolygon( pts );
     }
     break;
 
-    case QgsWkbTypes::PointGeometry:
+    case Qgis::GeometryType::Point:
     {
       const auto constPts = pts;
       for ( QPointF pt : constPts )
@@ -617,7 +625,7 @@ void QgsRubberBand::drawShape( QPainter *p, const QVector<QPointF> &pts )
     }
     break;
 
-    case QgsWkbTypes::LineGeometry:
+    case Qgis::GeometryType::Line:
     default:
     {
       p->drawPolyline( pts );
@@ -741,13 +749,13 @@ QgsGeometry QgsRubberBand::asGeometry() const
 
   switch ( mGeometryType )
   {
-    case QgsWkbTypes::PolygonGeometry:
+    case Qgis::GeometryType::Polygon:
     {
       geom = QgsGeometry::fromMultiPolygonXY( mPoints );
       break;
     }
 
-    case QgsWkbTypes::PointGeometry:
+    case Qgis::GeometryType::Point:
     {
       QgsMultiPointXY multiPoint;
 
@@ -761,7 +769,7 @@ QgsGeometry QgsRubberBand::asGeometry() const
       break;
     }
 
-    case QgsWkbTypes::LineGeometry:
+    case Qgis::GeometryType::Line:
     default:
     {
       if ( !mPoints.isEmpty() )

@@ -26,6 +26,7 @@ class QgsExpressionContextGenerator;
 class QgsMapCanvas;
 class QgsMessageBar;
 class QgsTextFormatPanelWidget;
+class QgsScreenHelper;
 
 
 /**
@@ -42,7 +43,6 @@ class QgsTextFormatPanelWidget;
  * mode (without settings for color) is also available when the resultant font is
  * used only in a QFont object.
  *
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsFontButton : public QToolButton
 {
@@ -307,6 +307,8 @@ class GUI_EXPORT QgsFontButton : public QToolButton
     void addRecentColor( const QColor &color );
 
   private:
+
+    QgsScreenHelper *mScreenHelper = nullptr;
 
     QSize mSizeHint;
 

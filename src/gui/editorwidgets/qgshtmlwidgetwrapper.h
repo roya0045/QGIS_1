@@ -78,6 +78,8 @@ class GUI_EXPORT QgsHtmlWidgetWrapper : public QgsWidgetWrapper
     QgsWebView *mWidget = nullptr;
     QgsFeature mFeature;
     bool mNeedsGeometry = false;
+    QgsFeature mFormFeature;
+    bool mRequiresFormScope = false;
 
     friend class TestQgsHtmlWidgetWrapper;
 };

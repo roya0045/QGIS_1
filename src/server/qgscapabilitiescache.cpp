@@ -25,9 +25,11 @@
 #endif
 
 #include "qgslogger.h"
+#include "qgsserversettings.h"
+#include "qgsmessagelog.h"
 
 
-QgsCapabilitiesCache::QgsCapabilitiesCache()
+QgsCapabilitiesCache::QgsCapabilitiesCache( int size ): mCacheSize( size )
 {
   QObject::connect( &mFileSystemWatcher, &QFileSystemWatcher::fileChanged, this, &QgsCapabilitiesCache::removeChangedEntry );
 
@@ -52,12 +54,14 @@ const QDomDocument *QgsCapabilitiesCache::searchCapabilitiesDocument( const QStr
 
 void QgsCapabilitiesCache::insertCapabilitiesDocument( const QString &configFilePath, const QString &key, const QDomDocument *doc )
 {
-  if ( mCachedCapabilities.size() > 40 )
+  if ( mCachedCapabilities.size() > mCacheSize )
   {
     //remove another cache entry to avoid memory problems
     const QHash<QString, QHash<QString, QDomDocument> >::iterator capIt = mCachedCapabilities.begin();
     mFileSystemWatcher.removePath( capIt.key() );
     mCachedCapabilities.erase( capIt );
+
+    QgsMessageLog::logMessage( QStringLiteral( "Removed cached WMS capabilities document because all %1 cache slots were taken" ).arg( mCacheSize ), QStringLiteral( "Server" ) );
   }
 
   if ( !mCachedCapabilities.contains( configFilePath ) )
@@ -92,17 +96,18 @@ void QgsCapabilitiesCache::removeCapabilitiesDocument( const QString &path )
 
 void QgsCapabilitiesCache::removeChangedEntry( const QString &path )
 {
-  QgsDebugMsg( QStringLiteral( "Remove capabilities cache entry because file changed" ) );
+  QgsDebugMsgLevel( QStringLiteral( "Remove capabilities cache entry because file changed" ), 2 );
   removeCapabilitiesDocument( path );
 }
 
 void QgsCapabilitiesCache::removeOutdatedEntries()
 {
-  QgsDebugMsg( QStringLiteral( "Checking for outdated entries" ) );
-  for ( const QString &configFilePath : mCachedCapabilitiesTimestamps.keys() )
+  QgsDebugMsgLevel( QStringLiteral( "Checking for outdated entries" ), 2 );
+  for ( auto it = mCachedCapabilitiesTimestamps.constBegin(); it != mCachedCapabilitiesTimestamps.constEnd(); it++ )
   {
+    const QString configFilePath = it.key();
     const QFileInfo fi( configFilePath );
-    if ( !fi.exists() || mCachedCapabilitiesTimestamps[ configFilePath ] < fi.lastModified() )
+    if ( !fi.exists() || it.value() < fi.lastModified() )
       removeChangedEntry( configFilePath );
   }
 

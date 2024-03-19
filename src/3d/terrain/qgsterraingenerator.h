@@ -44,7 +44,6 @@ class QgsProject;
  *
  * \note Not available in Python bindings
  *
- * \since QGIS 3.0
  */
 class _3D_EXPORT QgsTerrainGenerator : public QgsQuadtreeChunkLoaderFactory
 {
@@ -69,11 +68,14 @@ class _3D_EXPORT QgsTerrainGenerator : public QgsQuadtreeChunkLoaderFactory
     //! What texture generator implementation is this
     virtual Type type() const = 0;
 
-    //! extent of the terrain in terrain's CRS
-    virtual QgsRectangle extent() const = 0;
+    //! extent of the terrain in terrain's CRS, might be non-square and smaller than rootChunkExtent()
+    virtual QgsRectangle extent() const { return mExtent; }
 
     //! sets the extent of the terrain in terrain's CRS
     virtual void setExtent( const QgsRectangle &extent ) { Q_UNUSED( extent ) }
+
+    //! extent of the terrain's root chunk in terrain's CRS
+    virtual QgsRectangle rootChunkExtent() const = 0;
 
     //! Returns bounding box of the root chunk
     virtual QgsAABB rootChunkBbox( const Qgs3DMapSettings &map ) const;
@@ -110,9 +112,6 @@ class _3D_EXPORT QgsTerrainGenerator : public QgsQuadtreeChunkLoaderFactory
 
   signals:
 
-    //! Emitted when the terrain extent has changed
-    void extentChanged();
-
     //! Emitted when the terrain changed (for example, raster DEM or mesh have data changed)
     void terrainChanged();
 
@@ -120,6 +119,7 @@ class _3D_EXPORT QgsTerrainGenerator : public QgsQuadtreeChunkLoaderFactory
 
     QgsTilingScheme mTerrainTilingScheme;   //!< Tiling scheme of the terrain
     QgsTerrainEntity *mTerrain = nullptr;
+    QgsRectangle mExtent;
 
     bool mIsValid = true;
 

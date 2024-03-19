@@ -67,7 +67,6 @@ class CORE_EXPORT QgsColorRampShader : public QgsRasterShaderFunction
      * \param type interpolation type used
      * \param classificationMode method used to classify the color ramp shader
      * \param colorRamp vector color ramp used to classify the color ramp shader. Ownership is transferred to the shader.
-     * \returns new QgsColorRampShader
      */
     QgsColorRampShader( double minimumValue = 0.0, double maximumValue = 255.0, QgsColorRamp *colorRamp SIP_TRANSFER = nullptr, Type type = Interpolated, ClassificationMode classificationMode = Continuous );
 
@@ -152,7 +151,6 @@ class CORE_EXPORT QgsColorRampShader : public QgsRasterShaderFunction
     /**
      * Returns the source color ramp.
      * \see setSourceColorRamp()
-     * \since QGIS 3.0
      */
     QgsColorRamp *sourceColorRamp() const;
 
@@ -165,7 +163,6 @@ class CORE_EXPORT QgsColorRampShader : public QgsRasterShaderFunction
     /**
      * Set the source color ramp. Ownership is transferred to the shader.
      * \see sourceColorRamp()
-     * \since QGIS 3.0
      */
     void setSourceColorRamp( QgsColorRamp *colorramp SIP_TRANSFER );
 

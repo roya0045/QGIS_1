@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsDatabaseSchemaComboBox
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,22 +9,15 @@ __author__ = 'Nyall Dawson'
 __date__ = '8/03/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
-import tempfile
-import shutil
 import os
 
-from qgis.core import (
-    QgsVectorLayer,
-    QgsProviderRegistry
-)
-from qgis.gui import QgsDatabaseSchemaComboBox
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtTest import QSignalSpy
-
+from qgis.core import QgsProviderRegistry
+from qgis.gui import QgsDatabaseSchemaComboBox
 from qgis.testing import unittest
-from utilities import unitTestDataPath, start_app
+
+from utilities import start_app, unitTestDataPath
 
 start_app()
 
@@ -37,6 +29,7 @@ class TestQgsDatabaseSchemaComboBox(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(cls.__name__)
@@ -57,10 +50,10 @@ class TestQgsDatabaseSchemaComboBox(unittest.TestCase):
         self.assertGreaterEqual(m.comboBox().count(), 3)
 
         text = [m.comboBox().itemText(i) for i in range(m.comboBox().count())]
-        self.assertIn('CamelCaseSchema', text)
+        self.assertIn("CamelCase'singlequote'Schema", text)
         self.assertIn('qgis_test', text)
-        self.assertLess(text.index('CamelCaseSchema'), text.index('qgis_test'))
-        self.assertEqual(m.currentSchema(), 'CamelCaseSchema')
+        self.assertLess(text.index("CamelCase'singlequote'Schema"), text.index('qgis_test'))
+        self.assertEqual(m.currentSchema(), "CamelCase'singlequote'Schema")
 
         m.setSchema('qgis_test')
         self.assertEqual(m.currentSchema(), 'qgis_test')
@@ -131,10 +124,10 @@ class TestQgsDatabaseSchemaComboBox(unittest.TestCase):
 
         text = [m.comboBox().itemText(i) for i in range(m.comboBox().count())]
         self.assertFalse(text[0])
-        self.assertIn('CamelCaseSchema', text)
+        self.assertIn("CamelCase'singlequote'Schema", text)
         self.assertIn('qgis_test', text)
-        self.assertLess(text.index('CamelCaseSchema'), text.index('qgis_test'))
-        self.assertEqual(m.currentSchema(), 'CamelCaseSchema')
+        self.assertLess(text.index("CamelCase'singlequote'Schema"), text.index('qgis_test'))
+        self.assertEqual(m.currentSchema(), "CamelCase'singlequote'Schema")
 
         m.setSchema('qgis_test')
         self.assertEqual(m.currentSchema(), 'qgis_test')

@@ -15,8 +15,6 @@ class QgsGui : QObject
 %Docstring(signature="appended")
 :py:class:`QgsGui` is a singleton class containing various registry and other global members
 related to GUI classes.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -75,6 +73,13 @@ Returns the global map layer action registry, used for registering map layer act
 Returns the global layout item GUI registry, used for registering the GUI behavior of layout items.
 %End
 
+    static QgsAnnotationItemGuiRegistry *annotationItemGuiRegistry() /KeepReference/;
+%Docstring
+Returns the global annotation item GUI registry, used for registering the GUI behavior of annotation items.
+
+.. versionadded:: 3.22
+%End
+
     static QgsProcessingGuiRegistry *processingGuiRegistry() /KeepReference/;
 %Docstring
 Returns the global processing gui registry, used for registering the GUI behavior of processing algorithms.
@@ -125,6 +130,13 @@ Returns the registry of GUI-related components of data providers
 .. versionadded:: 3.10
 %End
 
+    static QgsSensorGuiRegistry *sensorGuiRegistry() /KeepReference/;
+%Docstring
+Returns the registry of GUI-related components for sensors
+
+.. versionadded:: 3.32
+%End
+
     static QgsSubsetStringEditorProviderRegistry *subsetStringEditorProviderRegistry() /KeepReference/;
 %Docstring
 Returns the registry of subset string editors of data providers
@@ -144,6 +156,21 @@ Returns the registry of provider source widget providers.
 Returns the global relation widget registry, used for managing all known relation widget factories.
 
 .. versionadded:: 3.18
+%End
+
+
+    static QgsHistoryProviderRegistry *historyProviderRegistry() /KeepReference/;
+%Docstring
+Returns the global history provider registry, used for tracking history providers.
+
+.. versionadded:: 3.24
+%End
+
+    static QgsSettingsEditorWidgetRegistry *settingsEditorWidgetRegistry() /KeepReference/;
+%Docstring
+Returns the registry of settings editors.
+
+.. versionadded:: 3.32
 %End
 
     static void enableAutoGeometryRestore( QWidget *widget, const QString &key = QString() );
@@ -168,6 +195,13 @@ Sets the global window ``manager``. Ownership is transferred to the QgsGui insta
 .. seealso:: :py:func:`windowManager`
 
 .. versionadded:: 3.4
+%End
+
+    static QgsInputControllerManager *inputControllerManager() /KeepReference/;
+%Docstring
+Returns the global input controller manager.
+
+.. versionadded:: 3.32
 %End
 
     enum HigFlag

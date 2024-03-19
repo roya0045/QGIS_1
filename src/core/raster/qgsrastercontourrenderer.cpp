@@ -15,7 +15,6 @@
 
 #include "qgsrastercontourrenderer.h"
 
-#include "qgslinesymbollayer.h"
 #include "qgsreadwritecontext.h"
 #include "qgssymbollayerutils.h"
 #include "qgslayertreemodellegendnode.h"
@@ -26,7 +25,7 @@
 QgsRasterContourRenderer::QgsRasterContourRenderer( QgsRasterInterface *input )
   : QgsRasterRenderer( input, QStringLiteral( "contour" ) )
 {
-  mContourSymbol.reset( static_cast<QgsLineSymbol *>( QgsLineSymbol::defaultSymbol( QgsWkbTypes::LineGeometry ) ) );
+  mContourSymbol.reset( static_cast<QgsLineSymbol *>( QgsLineSymbol::defaultSymbol( Qgis::GeometryType::Line ) ) );
 }
 
 QgsRasterContourRenderer::~QgsRasterContourRenderer() = default;
@@ -153,7 +152,7 @@ QgsRasterBlock *QgsRasterContourRenderer::block( int bandNo, const QgsRectangle 
   std::unique_ptr< QgsRasterBlock > inputBlock( mInput->block( mInputBand, extent, inputWidth, inputHeight, feedback ) );
   if ( !inputBlock || inputBlock->isEmpty() )
   {
-    QgsDebugMsg( QStringLiteral( "No raster data!" ) );
+    QgsDebugError( QStringLiteral( "No raster data!" ) );
     return outputBlock.release();
   }
 
@@ -231,6 +230,26 @@ QList<QgsLayerTreeModelLegendNode *> QgsRasterContourRenderer::createLegendNodes
   }
 
   return nodes;
+}
+
+int QgsRasterContourRenderer::inputBand() const
+{
+  return mInputBand;
+}
+
+bool QgsRasterContourRenderer::setInputBand( int band )
+{
+  if ( !mInput )
+  {
+    mInputBand = band;
+    return true;
+  }
+  else if ( band > 0 && band <= mInput->bandCount() )
+  {
+    mInputBand = band;
+    return true;
+  }
+  return false;
 }
 
 void QgsRasterContourRenderer::setContourSymbol( QgsLineSymbol *symbol )

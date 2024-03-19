@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include <QItemSelectionModel>
+#include <QApplication>
 
 #include "qgis.h"
 #include "qgsattributetablefiltermodel.h"
@@ -27,8 +28,9 @@
 #include "qgsrenderer.h"
 #include "qgsvectorlayereditbuffer.h"
 #include "qgsexpressioncontextutils.h"
-#include "qgsapplication.h"
 #include "qgsvectorlayercache.h"
+#include "qgsrendercontext.h"
+#include "qgsmapcanvasutils.h"
 
 //////////////////
 // Filter Model //
@@ -40,7 +42,7 @@ QgsAttributeTableFilterModel::QgsAttributeTableFilterModel( QgsMapCanvas *canvas
 {
   setSourceModel( sourceModel );
   setDynamicSortFilter( true );
-  setSortRole( QgsAttributeTableModel::SortRole );
+  setSortRole( static_cast< int >( QgsAttributeTableModel::CustomRole::Sort ) );
   connect( layer(), &QgsVectorLayer::selectionChanged, this, &QgsAttributeTableFilterModel::selectionChanged );
 
   mReloadVisibleTimer.setSingleShot( true );
@@ -72,8 +74,8 @@ bool QgsAttributeTableFilterModel::lessThan( const QModelIndex &left, const QMod
     return false;
   }
 
-  return qgsVariantLessThan( left.data( QgsAttributeTableModel::SortRole ),
-                             right.data( QgsAttributeTableModel::SortRole ) );
+  return qgsVariantLessThan( left.data( static_cast< int >( QgsAttributeTableModel::CustomRole::Sort ) ),
+                             right.data( static_cast< int >( QgsAttributeTableModel::CustomRole::Sort ) ) );
 }
 
 void QgsAttributeTableFilterModel::sort( int column, Qt::SortOrder order )
@@ -97,15 +99,15 @@ QVariant QgsAttributeTableFilterModel::data( const QModelIndex &index, int role 
 {
   if ( mapColumnToSource( index.column() ) == -1 ) // actions
   {
-    if ( role == TypeRole )
+    if ( role == static_cast< int >( CustomRole::Type ) )
       return ColumnTypeActionButton;
-    else if ( role == QgsAttributeTableModel::FeatureIdRole )
+    else if ( role == static_cast< int >( QgsAttributeTableModel::CustomRole::FeatureId ) )
     {
       const QModelIndex fieldIndex = QSortFilterProxyModel::mapToSource( QSortFilterProxyModel::index( index.row(), 0, index.parent() ) );
-      return sourceModel()->data( fieldIndex, QgsAttributeTableModel::FeatureIdRole );
+      return sourceModel()->data( fieldIndex, static_cast< int >( QgsAttributeTableModel::CustomRole::FeatureId ) );
     }
   }
-  else if ( role == TypeRole )
+  else if ( role == static_cast< int >( CustomRole::Type ) )
     return ColumnTypeField;
 
   return QSortFilterProxyModel::data( index, role );
@@ -143,13 +145,13 @@ int QgsAttributeTableFilterModel::columnCount( const QModelIndex &parent ) const
   return mColumnMapping.count();
 }
 
-void QgsAttributeTableFilterModel::setAttributeTableConfig( const QgsAttributeTableConfig &config )
+void QgsAttributeTableFilterModel::setAttributeTableConfig( const QgsAttributeTableConfig &config, bool force )
 {
   const QgsAttributeTableConfig oldConfig = mConfig;
   mConfig = config;
   mConfig.update( layer()->fields() );
 
-  if ( mConfig.hasSameColumns( oldConfig ) )
+  if ( !force && mConfig.hasSameColumns( oldConfig ) )
   {
     return;
   }
@@ -311,7 +313,11 @@ bool QgsAttributeTableFilterModel::selectedOnTop()
 void QgsAttributeTableFilterModel::setFilteredFeatures( const QgsFeatureIds &ids )
 {
   mFilteredFeatures = ids;
-  setFilterMode( ShowFilteredList );
+  if ( mFilterMode != ShowFilteredList &&
+       mFilterMode != ShowInvalid )
+  {
+    setFilterMode( ShowFilteredList );
+  }
   invalidateFilter();
 }
 
@@ -334,7 +340,12 @@ void QgsAttributeTableFilterModel::setFilterMode( FilterMode filterMode )
     disconnectFilterModeConnections();
     connectFilterModeConnections( filterMode );
     mFilterMode = filterMode;
-    invalidateFilter();
+    invalidate();
+
+    if ( mFilterMode == QgsAttributeTableFilterModel::ShowInvalid )
+    {
+      filterFeatures();
+    }
   }
 }
 
@@ -354,6 +365,7 @@ void QgsAttributeTableFilterModel::disconnectFilterModeConnections()
     case ShowSelected:
       break;
     case ShowFilteredList:
+    case ShowInvalid:
       disconnect( layer(), &QgsVectorLayer::featureAdded, this, &QgsAttributeTableFilterModel::startTimedFilterFeatures );
       disconnect( layer(), &QgsVectorLayer::attributeValueChanged, this, &QgsAttributeTableFilterModel::onAttributeValueChanged );
       disconnect( layer(), &QgsVectorLayer::geometryChanged, this, &QgsAttributeTableFilterModel::onGeometryChanged );
@@ -378,6 +390,7 @@ void QgsAttributeTableFilterModel::connectFilterModeConnections( QgsAttributeTab
     case ShowSelected:
       break;
     case ShowFilteredList:
+    case ShowInvalid:
       connect( layer(), &QgsVectorLayer::featureAdded, this, &QgsAttributeTableFilterModel::startTimedFilterFeatures );
       connect( layer(), &QgsVectorLayer::attributeValueChanged, this, &QgsAttributeTableFilterModel::onAttributeValueChanged );
       connect( layer(), &QgsVectorLayer::geometryChanged, this, &QgsAttributeTableFilterModel::onGeometryChanged );
@@ -394,6 +407,7 @@ bool QgsAttributeTableFilterModel::filterAcceptsRow( int sourceRow, const QModel
       return true;
 
     case ShowFilteredList:
+    case ShowInvalid:
       return mFilteredFeatures.contains( masterModel()->rowToId( sourceRow ) );
 
     case ShowSelected:
@@ -447,7 +461,7 @@ void QgsAttributeTableFilterModel::onAttributeValueChanged( QgsFeatureId fid, in
   Q_UNUSED( fid );
   Q_UNUSED( value );
 
-  if ( mFilterExpression.referencedAttributeIndexes( layer()->fields() ).contains( idx ) )
+  if ( mFilterMode == QgsAttributeTableFilterModel::ShowInvalid || mFilterExpression.referencedAttributeIndexes( layer()->fields() ).contains( idx ) )
   {
     startTimedFilterFeatures();
   }
@@ -455,7 +469,7 @@ void QgsAttributeTableFilterModel::onAttributeValueChanged( QgsFeatureId fid, in
 
 void QgsAttributeTableFilterModel::onGeometryChanged()
 {
-  if ( mFilterExpression.needsGeometry() )
+  if ( mFilterMode == QgsAttributeTableFilterModel::ShowInvalid || mFilterExpression.needsGeometry() )
   {
     startTimedFilterFeatures();
   }
@@ -493,12 +507,12 @@ void QgsAttributeTableFilterModel::filterFeatures()
   request.setSubsetOfAttributes( mFilterExpression.referencedColumns(), mTableModel->layer()->fields() );
   if ( !fetchGeom )
   {
-    request.setFlags( QgsFeatureRequest::NoGeometry );
+    request.setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   }
   else
   {
     // force geometry extraction if the filter requests it
-    request.setFlags( request.flags() & ~QgsFeatureRequest::NoGeometry );
+    request.setFlags( request.flags() & ~static_cast<int>( Qgis::FeatureRequestFlag::NoGeometry ) );
   }
   QgsFeatureIterator featIt = mTableModel->layer()->getFeatures( request );
 
@@ -584,7 +598,7 @@ void QgsAttributeTableFilterModel::generateListOfVisibleFeatures()
   mFilteredFeatures.clear();
   if ( !layer()->renderer() )
   {
-    QgsDebugMsg( QStringLiteral( "Cannot get renderer" ) );
+    QgsDebugError( QStringLiteral( "Cannot get renderer" ) );
     return;
   }
 
@@ -593,7 +607,7 @@ void QgsAttributeTableFilterModel::generateListOfVisibleFeatures()
   const QgsMapSettings &ms = mCanvas->mapSettings();
   if ( !layer()->isInScaleRange( ms.scale() ) )
   {
-    QgsDebugMsg( QStringLiteral( "Out of scale limits" ) );
+    QgsDebugMsgLevel( QStringLiteral( "Out of scale limits" ), 2 );
   }
   else
   {
@@ -623,17 +637,11 @@ void QgsAttributeTableFilterModel::generateListOfVisibleFeatures()
     r.setFilterRect( rect );
   }
 
-  if ( mCanvas->mapSettings().isTemporal() )
-  {
-    if ( !layer()->temporalProperties()->isVisibleInTemporalRange( mCanvas->mapSettings().temporalRange() ) )
-      return;
-
-    QgsVectorLayerTemporalContext temporalContext;
-    temporalContext.setLayer( layer() );
-    const QString temporalFilter = qobject_cast< const QgsVectorLayerTemporalProperties * >( layer()->temporalProperties() )->createFilterString( temporalContext, mCanvas->mapSettings().temporalRange() );
-    if ( !temporalFilter.isEmpty() )
-      r.setFilterExpression( temporalFilter );
-  }
+  const QString canvasFilter = QgsMapCanvasUtils::filterForLayer( mCanvas, layer() );
+  if ( canvasFilter == QLatin1String( "FALSE" ) )
+    return;
+  if ( !canvasFilter.isEmpty() )
+    r.setFilterExpression( canvasFilter );
 
   QgsFeatureIterator features = masterModel()->layerCache()->getFeatures( r );
 

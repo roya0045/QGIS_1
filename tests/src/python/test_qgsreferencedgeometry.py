@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsReferencedGeometry.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,21 +9,23 @@ __author__ = 'Nyall Dawson'
 __date__ = '31/08/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (QgsRectangle,
-                       QgsPointXY,
-                       QgsReferencedRectangle,
-                       QgsReferencedPointXY,
-                       QgsCoordinateReferenceSystem)
 from qgis.PyQt.QtCore import QVariant
-from qgis.testing import start_app, unittest
-from utilities import compareWkt
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsPointXY,
+    QgsRectangle,
+    QgsReferencedPointXY,
+    QgsReferencedRectangle,
+    QgsReferencedGeometry,
+    QgsGeometry
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsReferencedGeometry(unittest.TestCase):
+class TestQgsReferencedGeometry(QgisTestCase):
 
     def testRectangle(self):
         rect = QgsReferencedRectangle(QgsRectangle(0.0, 1.0, 20.0, 10.0), QgsCoordinateReferenceSystem('epsg:3111'))
@@ -97,6 +98,27 @@ class TestQgsReferencedGeometry(unittest.TestCase):
         self.assertNotEqual(point, point2)
         point2 = QgsReferencedPointXY(QgsPointXY(1.1, 2.0), QgsCoordinateReferenceSystem('epsg:3111'))
         self.assertNotEqual(point, point2)
+
+    def test_equality(self):
+        self.assertEqual(QgsReferencedGeometry(), QgsReferencedGeometry())
+        self.assertEqual(QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)), QgsCoordinateReferenceSystem('EPSG:3111')),
+                         QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)),
+                                               QgsCoordinateReferenceSystem('EPSG:3111')))
+        self.assertEqual(QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)),
+                                               QgsCoordinateReferenceSystem()),
+                         QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)),
+                                               QgsCoordinateReferenceSystem()))
+        self.assertNotEqual(QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)),
+                                                  QgsCoordinateReferenceSystem('EPSG:3111')),
+                            QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 22)),
+                                                  QgsCoordinateReferenceSystem('EPSG:3111')))
+        self.assertNotEqual(QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)), QgsCoordinateReferenceSystem('EPSG:3111')),
+                            QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)),
+                                                  QgsCoordinateReferenceSystem('EPSG:4326')))
+        self.assertNotEqual(QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 2)),
+                                                  QgsCoordinateReferenceSystem()),
+                            QgsReferencedGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 22)),
+                                                  QgsCoordinateReferenceSystem()))
 
 
 if __name__ == '__main__':

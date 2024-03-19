@@ -17,26 +17,7 @@
 
 #include "qgsdatadefinedsizelegend.h"
 #include "qgsfontutils.h"
-#include "qgsrenderchecker.h"
-#include "qgssymbol.h"
 #include "qgsmarkersymbol.h"
-
-static QString _fileNameForTest( const QString &testName )
-{
-  return QDir::tempPath() + '/' + testName + ".png";
-}
-
-static bool _verifyImage( const QString &testName, QString &report )
-{
-  QgsRenderChecker checker;
-  checker.setControlPathPrefix( QStringLiteral( "data_defined_size_legend" ) );
-  checker.setControlName( "expected_" + testName );
-  checker.setRenderedImage( _fileNameForTest( testName ) );
-  checker.setSizeTolerance( 3, 3 );
-  const bool equal = checker.compareImages( testName, 500 );
-  report += checker.report();
-  return equal;
-}
 
 static QgsRenderContext _createRenderContext( double mupp, double dpi, double scale )
 {
@@ -52,11 +33,13 @@ static QgsRenderContext _createRenderContext( double mupp, double dpi, double sc
  * \ingroup UnitTests
  * This is a unit test for legend rendering when using data-defined size of markers.
  */
-class TestQgsDataDefinedSizeLegend : public QObject
+class TestQgsDataDefinedSizeLegend : public QgsTest
 {
     Q_OBJECT
 
   public:
+
+    TestQgsDataDefinedSizeLegend() : QgsTest( QStringLiteral( "Data Defined Size Legend Tests" ), QStringLiteral( "data_defined_size_legend" ) ) {}
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
@@ -65,8 +48,6 @@ class TestQgsDataDefinedSizeLegend : public QObject
     void testBasic();
     void testCrowded();
 
-  private:
-    QString mReport;
 };
 
 void TestQgsDataDefinedSizeLegend::initTestCase()
@@ -76,21 +57,10 @@ void TestQgsDataDefinedSizeLegend::initTestCase()
   QgsApplication::init();
   QgsApplication::initQgis();
   QgsApplication::showSettings();
-
-  mReport += QLatin1String( "<h1>Data Defined Size Legend Tests</h1>\n" );
 }
 
 void TestQgsDataDefinedSizeLegend::cleanupTestCase()
 {
-  const QString myReportFile = QDir::tempPath() + "/qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-  }
-
   QgsApplication::exitQgis();
 }
 
@@ -116,14 +86,12 @@ void TestQgsDataDefinedSizeLegend::testBasic()
   QgsRenderContext context( _createRenderContext( 100, 96, 100 ) );
 
   const QImage imgBottom = settings.collapsedLegendImage( context, Qt::white, 1 );
-  imgBottom.save( _fileNameForTest( QStringLiteral( "basic_bottom" ) ) );
-  QVERIFY( _verifyImage( "basic_bottom", mReport ) );
+  QGSVERIFYIMAGECHECK( "basic_bottom", "basic_bottom", imgBottom, QString(), 500, QSize( 3, 3 ) );
 
   settings.setVerticalAlignment( QgsDataDefinedSizeLegend::AlignCenter );
 
   const QImage imgCenter = settings.collapsedLegendImage( context, Qt::white, 1 );
-  imgCenter.save( _fileNameForTest( QStringLiteral( "basic_center" ) ) );
-  QVERIFY( _verifyImage( "basic_center", mReport ) );
+  QGSVERIFYIMAGECHECK( "basic_center", "basic_center", imgCenter, QString(), 500, QSize( 3, 3 ) );
 }
 
 void TestQgsDataDefinedSizeLegend::testCrowded()
@@ -151,9 +119,7 @@ void TestQgsDataDefinedSizeLegend::testCrowded()
   QgsRenderContext context( _createRenderContext( 100, 96, 100 ) );
 
   const QImage img = settings.collapsedLegendImage( context, Qt::white, 1 );
-  img.save( _fileNameForTest( QStringLiteral( "crowded" ) ) );
-
-  QVERIFY( _verifyImage( "crowded", mReport ) );
+  QGSVERIFYIMAGECHECK( "crowded", "crowded", img, QString(), 500, QSize( 3, 3 ) );
 }
 
 QGSTEST_MAIN( TestQgsDataDefinedSizeLegend )

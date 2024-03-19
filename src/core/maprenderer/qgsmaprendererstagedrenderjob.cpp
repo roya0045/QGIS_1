@@ -20,7 +20,8 @@
 #include "qgslogger.h"
 #include "qgsproject.h"
 #include "qgsmaplayerrenderer.h"
-#include "qgsmaplayerlistutils.h"
+#include "qgsmaplayerlistutils_p.h"
+#include "qgsrendereditemresults.h"
 
 QgsMapRendererStagedRenderJob::QgsMapRendererStagedRenderJob( const QgsMapSettings &settings, Flags flags )
   : QgsMapRendererAbstractCustomPainterJob( settings )
@@ -47,7 +48,7 @@ void QgsMapRendererStagedRenderJob::startPrivate()
 
   mLabelingEngineV2.reset();
 
-  if ( mSettings.testFlag( QgsMapSettings::DrawLabeling ) )
+  if ( mSettings.testFlag( Qgis::MapSettingsFlag::DrawLabeling ) )
   {
     if ( mFlags & RenderLabelsByMapLayer )
       mLabelingEngineV2.reset( new QgsStagedRenderLabelingEngine() );
@@ -102,6 +103,7 @@ bool QgsMapRendererStagedRenderJob::renderCurrentPart( QPainter *painter )
   if ( mJobIt != mLayerJobs.end() )
   {
     LayerRenderJob &job = *mJobIt;
+    emit layerRenderingStarted( job.layerId );
     job.renderer->renderContext()->setPainter( painter );
 
     if ( job.context()->useAdvancedEffects() )
@@ -109,6 +111,12 @@ bool QgsMapRendererStagedRenderJob::renderCurrentPart( QPainter *painter )
       // Set the QPainter composition mode so that this layer is rendered using
       // the desired blending mode
       painter->setCompositionMode( job.blendMode );
+    }
+
+    if ( job.previewRenderImage && !job.previewRenderImageInitialized )
+    {
+      job.previewRenderImage->fill( 0 );
+      job.previewRenderImageInitialized = true;
     }
 
     if ( job.img )
@@ -127,6 +135,8 @@ bool QgsMapRendererStagedRenderJob::renderCurrentPart( QPainter *painter )
       painter->setOpacity( 1.0 );
     }
     job.context()->setPainter( nullptr );
+
+    emit layerRendered( job.layerId );
   }
   else
   {

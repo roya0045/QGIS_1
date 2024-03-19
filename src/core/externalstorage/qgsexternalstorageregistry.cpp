@@ -17,10 +17,13 @@
 
 #include "qgsexternalstorage.h"
 #include "qgssimplecopyexternalstorage_p.h"
+#include "qgshttpexternalstorage_p.h"
 
 QgsExternalStorageRegistry::QgsExternalStorageRegistry()
 {
   registerExternalStorage( new QgsSimpleCopyExternalStorage() );
+  registerExternalStorage( new QgsWebDavExternalStorage() );
+  registerExternalStorage( new QgsAwsS3ExternalStorage() );
 }
 
 QgsExternalStorageRegistry::~QgsExternalStorageRegistry()
@@ -30,20 +33,30 @@ QgsExternalStorageRegistry::~QgsExternalStorageRegistry()
 
 QgsExternalStorage *QgsExternalStorageRegistry::externalStorageFromType( const QString &type ) const
 {
-  return mBackends.value( type );
+  auto it = std::find_if( mBackends.begin(), mBackends.end(), [ = ]( QgsExternalStorage * storage )
+  {
+    return storage->type() == type;
+  } );
+
+  return it != mBackends.end() ? *it : nullptr;
 }
 
 QList<QgsExternalStorage *> QgsExternalStorageRegistry::externalStorages() const
 {
-  return mBackends.values();
+  return mBackends;
 }
 
 void QgsExternalStorageRegistry::registerExternalStorage( QgsExternalStorage *storage )
 {
-  mBackends.insert( storage->type(), storage );
+  if ( !mBackends.contains( storage ) )
+    mBackends.append( storage );
 }
 
 void QgsExternalStorageRegistry::unregisterExternalStorage( QgsExternalStorage *storage )
 {
-  delete mBackends.take( storage->type() );
+  const int index = mBackends.indexOf( storage );
+  if ( index >= 0 )
+  {
+    delete mBackends.takeAt( index );
+  }
 }

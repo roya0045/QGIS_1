@@ -16,10 +16,6 @@
 #include "qgsinterpolatedlinesymbollayerwidget.h"
 
 #include "qgsvectorlayer.h"
-#include "qgsexpressioncontextutils.h"
-#include "qgsproject.h"
-#include "qgstemporalcontroller.h"
-#include "qgsmapcanvas.h"
 #include "qgsdoublevalidator.h"
 
 
@@ -28,10 +24,10 @@ QgsInterpolatedLineSymbolLayerWidget::QgsInterpolatedLineSymbolLayerWidget( QgsV
 {
   setupUi( this );
 
-  mWidthMethodComboBox->addItem( tr( "Fixed width" ), false );
-  mWidthMethodComboBox->addItem( tr( "Varying width" ), true );
-  mColorMethodComboBox->addItem( tr( "Single color" ), QgsInterpolatedLineColor::SingleColor );
-  mColorMethodComboBox->addItem( tr( "Varying color" ), QgsInterpolatedLineColor::ColorRamp );
+  mWidthMethodComboBox->addItem( tr( "Fixed Width" ), false );
+  mWidthMethodComboBox->addItem( tr( "Varying Width" ), true );
+  mColorMethodComboBox->addItem( tr( "Single Color" ), QgsInterpolatedLineColor::SingleColor );
+  mColorMethodComboBox->addItem( tr( "Varying Color" ), QgsInterpolatedLineColor::ColorRamp );
 
   mWidthStartFieldExpression->setFilters( QgsFieldProxyModel::Numeric );
   mWidthEndFieldExpression->setFilters( QgsFieldProxyModel::Numeric );
@@ -43,21 +39,25 @@ QgsInterpolatedLineSymbolLayerWidget::QgsInterpolatedLineSymbolLayerWidget( QgsV
   mColorStartFieldExpression->setLayer( layer );
   mColorEndFieldExpression->setLayer( layer );
 
-  mWidthUnitSelectionFixed->setUnits( QgsUnitTypes::RenderUnitList()
-                                      << QgsUnitTypes::RenderUnit::RenderInches
-                                      << QgsUnitTypes::RenderUnit::RenderMapUnits
-                                      << QgsUnitTypes::RenderUnit::RenderMetersInMapUnits
-                                      << QgsUnitTypes::RenderUnit::RenderMillimeters
-                                      << QgsUnitTypes::RenderUnit::RenderPixels
-                                      << QgsUnitTypes::RenderUnit::RenderPoints );
+  mWidthUnitSelectionFixed->setUnits(
+  {
+    Qgis::RenderUnit::Inches,
+    Qgis::RenderUnit::MapUnits,
+    Qgis::RenderUnit::MetersInMapUnits,
+    Qgis::RenderUnit::Millimeters,
+    Qgis::RenderUnit::Pixels,
+    Qgis::RenderUnit::Points,
+  } );
 
-  mWidthUnitSelectionVarying->setUnits( QgsUnitTypes::RenderUnitList()
-                                        << QgsUnitTypes::RenderUnit::RenderInches
-                                        << QgsUnitTypes::RenderUnit::RenderMapUnits
-                                        << QgsUnitTypes::RenderUnit::RenderMetersInMapUnits
-                                        << QgsUnitTypes::RenderUnit::RenderMillimeters
-                                        << QgsUnitTypes::RenderUnit::RenderPixels
-                                        << QgsUnitTypes::RenderUnit::RenderPoints );
+  mWidthUnitSelectionVarying->setUnits(
+  {
+    Qgis::RenderUnit::Inches,
+    Qgis::RenderUnit::MapUnits,
+    Qgis::RenderUnit::MetersInMapUnits,
+    Qgis::RenderUnit::Millimeters,
+    Qgis::RenderUnit::Pixels,
+    Qgis::RenderUnit::Points,
+  } );
 
   connect( mWidthMethodComboBox, qOverload<int>( &QComboBox::currentIndexChanged ),
            this, &QgsInterpolatedLineSymbolLayerWidget::updateVisibleWidget );
@@ -127,8 +127,8 @@ void QgsInterpolatedLineSymbolLayerWidget::setSymbolLayer( QgsSymbolLayer *layer
   whileBlocking( mWidthMethodComboBox )->setCurrentIndex( mWidthMethodComboBox->findData( interpolatedWidth.isVariableWidth() ) );
 
   whileBlocking( mDoubleSpinBoxWidth )->setValue( interpolatedWidth.fixedStrokeWidth() );
-  whileBlocking( mWidthStartFieldExpression )->setExpression( mLayer->startValueExpressionForWidth() );
-  whileBlocking( mWidthEndFieldExpression )->setExpression( mLayer->endValueExpressionForWidth() );
+  whileBlocking( mWidthStartFieldExpression )->setExpression( mLayer->dataDefinedProperties().property( QgsSymbolLayer::Property::LineStartWidthValue ).asExpression() );
+  whileBlocking( mWidthEndFieldExpression )->setExpression( mLayer->dataDefinedProperties().property( QgsSymbolLayer::Property::LineEndWidthValue ).asExpression() );
   setLineEditValue( mLineEditWidthMinValue, interpolatedWidth.minimumValue() );
   setLineEditValue( mLineEditWidthMaxValue, interpolatedWidth.maximumValue() );
   whileBlocking( mDoubleSpinBoxMinWidth )->setValue( interpolatedWidth.minimumWidth() );
@@ -136,13 +136,13 @@ void QgsInterpolatedLineSymbolLayerWidget::setSymbolLayer( QgsSymbolLayer *layer
   whileBlocking( mWidthUnitSelectionFixed )->setUnit( mLayer->widthUnit() );
   whileBlocking( mWidthUnitSelectionVarying )->setUnit( mLayer->widthUnit() );
   whileBlocking( mCheckBoxAbsoluteValue )->setChecked( interpolatedWidth.useAbsoluteValue() );
-  whileBlocking( mCheckBoxOutOfrange )->setChecked( interpolatedLineWidth().ignoreOutOfRange() );
+  whileBlocking( mCheckBoxOutOfrange )->setChecked( interpolatedWidth.ignoreOutOfRange() );
 
   const QgsInterpolatedLineColor interpolatedColor = mLayer->interpolatedColor();
   whileBlocking( mColorMethodComboBox )->setCurrentIndex( mColorMethodComboBox->findData( interpolatedColor.coloringMethod() ) );
 
-  whileBlocking( mColorStartFieldExpression )->setExpression( mLayer->startValueExpressionForWidth() );
-  whileBlocking( mColorEndFieldExpression )->setExpression( mLayer->endValueExpressionForWidth() );
+  whileBlocking( mColorStartFieldExpression )->setExpression( mLayer->dataDefinedProperties().property( QgsSymbolLayer::Property::LineStartColorValue ).asExpression() );
+  whileBlocking( mColorEndFieldExpression )->setExpression( mLayer->dataDefinedProperties().property( QgsSymbolLayer::Property::LineEndColorValue ).asExpression() );
   whileBlocking( mColorRampShaderWidget )->setFromShader( interpolatedColor.colorRampShader() );
   setLineEditValue( mLineEditColorMinValue, interpolatedColor.colorRampShader().minimumValue() );
   setLineEditValue( mLineEditColorMaxValue, interpolatedColor.colorRampShader().maximumValue() );
@@ -165,14 +165,23 @@ void QgsInterpolatedLineSymbolLayerWidget::apply()
   if ( !mLayer )
     return;
 
-  mLayer->setExpressionsStringForWidth( mWidthStartFieldExpression->currentField(), mWidthEndFieldExpression->currentField() );
+  bool isExpression = false;
+  QString fieldOrExpression = mWidthStartFieldExpression->currentField( &isExpression );
+  mLayer->setDataDefinedProperty( QgsSymbolLayer::Property::LineStartWidthValue, isExpression ? QgsProperty::fromExpression( fieldOrExpression ) : QgsProperty::fromField( fieldOrExpression ) );
+  fieldOrExpression = mWidthEndFieldExpression->currentField( &isExpression );
+  mLayer->setDataDefinedProperty( QgsSymbolLayer::Property::LineEndWidthValue, isExpression ? QgsProperty::fromExpression( fieldOrExpression ) : QgsProperty::fromField( fieldOrExpression ) );
+
   mLayer->setInterpolatedWidth( interpolatedLineWidth() );
   if ( mWidthMethodComboBox->currentData().toBool() )
     mLayer->setWidthUnit( mWidthUnitSelectionVarying->unit() );
   else
     mLayer->setWidthUnit( mWidthUnitSelectionFixed->unit() );
 
-  mLayer->setExpressionsStringForColor( mColorStartFieldExpression->currentField(), mColorEndFieldExpression->currentField() );
+  fieldOrExpression = mColorStartFieldExpression->currentField( &isExpression );
+  mLayer->setDataDefinedProperty( QgsSymbolLayer::Property::LineStartColorValue, isExpression ? QgsProperty::fromExpression( fieldOrExpression ) : QgsProperty::fromField( fieldOrExpression ) );
+  fieldOrExpression = mColorEndFieldExpression->currentField( &isExpression );
+  mLayer->setDataDefinedProperty( QgsSymbolLayer::Property::LineEndColorValue, isExpression ? QgsProperty::fromExpression( fieldOrExpression ) : QgsProperty::fromField( fieldOrExpression ) );
+
   mLayer->setInterpolatedColor( interpolatedLineColor() );
 
   emit changed();
@@ -223,7 +232,7 @@ void QgsInterpolatedLineSymbolLayerWidget::reloadMinMaxWidthFromLayer()
     return;
   }
 
-  if ( !mLayer )
+  if ( !mLayer || !vectorLayer() )
   {
     apply();
     return;
@@ -287,7 +296,7 @@ void QgsInterpolatedLineSymbolLayerWidget::reloadMinMaxColorFromLayer()
     return;
   }
 
-  if ( !mLayer )
+  if ( !mLayer || !vectorLayer() )
   {
     apply();
     return;

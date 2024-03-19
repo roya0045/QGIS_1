@@ -15,7 +15,7 @@
 
 
 #include "qgstest.h"
-
+#include "qgsconfig.h"
 #include <editorwidgets/qgslistwidgetfactory.h>
 #include <qgslistwidget.h>
 #include <editorwidgets/core/qgseditorwidgetwrapper.h>
@@ -28,21 +28,28 @@ class TestQgsListWidget : public QObject
 {
     Q_OBJECT
   private:
+
+#ifdef ENABLE_PGTEST
     QString dbConn;
+#endif
+
   private slots:
     void initTestCase() // will be called before the first testfunction is executed.
     {
       QgsApplication::init();
       QgsApplication::initQgis();
+#ifdef ENABLE_PGTEST
       dbConn = getenv( "QGIS_PGTEST_DB" );
       if ( dbConn.isEmpty() )
       {
         dbConn = "service=\"qgis_test\"";
       }
+#endif
     }
 
     void cleanupTestCase() // will be called after the last testfunction was executed.
     {
+#ifdef ENABLE_PGTEST
       // delete new features in db from postgres test
       QgsVectorLayer *vl_array_int = new QgsVectorLayer( QStringLiteral( "%1 sslmode=disable key=\"pk\" table=\"qgis_test\".\"array_tbl\" sql=" ).arg( dbConn ), QStringLiteral( "json" ), QStringLiteral( "postgres" ) );
       vl_array_int->startEditing( );
@@ -53,7 +60,9 @@ class TestQgsListWidget : public QObject
       vl_array_str->startEditing( );
       vl_array_str->deleteFeatures( delete_ids );
       vl_array_str->commitChanges( false );
+#endif
       QgsApplication::exitQgis();
+
     }
 
     void testStringUpdate()
@@ -141,10 +150,13 @@ class TestQgsListWidget : public QObject
       QVERIFY( widget->valid() );
     }
 
+#ifdef ENABLE_PGTEST
     void testPostgres()
     {
       //create pg layers
       QgsVectorLayer *vl_array_int = new QgsVectorLayer( QStringLiteral( "%1 sslmode=disable key=\"pk\" table=\"qgis_test\".\"array_tbl\" sql=" ).arg( dbConn ), QStringLiteral( "json" ), QStringLiteral( "postgres" ) );
+
+      connect( vl_array_int, &QgsVectorLayer::raiseError, this, []( const QString & msg ) { qWarning() << msg; } );
       QVERIFY( vl_array_int->isValid( ) );
 
       QgsListWidgetWrapper w_array_int( vl_array_int, vl_array_int->fields().indexOf( QLatin1String( "location" ) ), nullptr, nullptr );
@@ -161,10 +173,8 @@ class TestQgsListWidget : public QObject
       new_rec_997.setAttribute( 0, QVariant( 997 ) );
       vl_array_int->addFeature( new_rec_997, QgsFeatureSink::RollBackOnErrors );
       vl_array_int->commitChanges( false );
-      bool success = vl_array_int->changeAttributeValue( 997, 1, w_array_int.value(), QVariant(), false );
-      QVERIFY( success );
-      success = vl_array_int->commitChanges( false );
-      QVERIFY( success );
+      QVERIFY( vl_array_int->changeAttributeValue( 997, 1, w_array_int.value(), QVariant(), false ) );
+      QVERIFY( vl_array_int->commitChanges( false ) );
 
       w_array_int.setFeature( vl_array_int->getFeature( 997 ) );
       QCOMPARE( widget->list( ), QList<QVariant>( ) << 100 );
@@ -208,10 +218,8 @@ class TestQgsListWidget : public QObject
       new_rec_997_str.setAttribute( 0, QVariant( 997 ) );
       vl_array_str->addFeature( new_rec_997_str, QgsFeatureSink::RollBackOnErrors );
       vl_array_str->commitChanges( false );
-      success = vl_array_str->changeAttributeValue( 997, 1, w_array_str.value(), QVariant(), false );
-      QVERIFY( success );
-      success = vl_array_str->commitChanges( false );
-      QVERIFY( success );
+      QVERIFY( vl_array_str->changeAttributeValue( 997, 1, w_array_str.value(), QVariant(), false ) );
+      QVERIFY( vl_array_str->commitChanges( false ) );
 
       w_array_str.setFeature( vl_array_str->getFeature( 997 ) );
       QCOMPARE( widget->list( ), QList<QVariant>( ) << QStringLiteral( "10\"0" ) );
@@ -236,6 +244,7 @@ class TestQgsListWidget : public QObject
       w_array_str.setFeature( vl_array_str->getFeature( 999 ) );
       QCOMPARE( widget->list( ), QList<QVariant>() << QStringLiteral( "ten" ) << QStringLiteral( "eleven" ) << QStringLiteral( "twelve" ) );
     }
+#endif
 };
 
 QGSTEST_MAIN( TestQgsListWidget )

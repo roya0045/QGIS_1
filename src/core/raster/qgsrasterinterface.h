@@ -26,16 +26,17 @@
 #include <QImage>
 
 #include "qgsfeedback.h"
-#include "qgsrasterbandstats.h"
+#include "qgis.h"
 #include "qgsrasterblock.h"
 #include "qgsrasterhistogram.h"
 #include "qgsrectangle.h"
+#include "qgsrendercontext.h"
+#include "qgsrasterbandstats.h"
 
 /**
  * \ingroup core
  * \brief Feedback object tailored for raster block reading.
  *
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsRasterBlockFeedback : public QgsFeedback
 {
@@ -93,6 +94,22 @@ class CORE_EXPORT QgsRasterBlockFeedback : public QgsFeedback
      */
     QStringList errors() const { return mErrors; }
 
+    /**
+     * Returns the render context of the associated block reading
+     *
+     * \see setRenderContext()
+     * \since QGIS 3.24.0
+     */
+    QgsRenderContext renderContext() const;
+
+    /**
+     * Sets the render context of the associated block reading
+     *
+     * \see renderContext()
+     * \since QGIS 3.24.0
+     */
+    void setRenderContext( const QgsRenderContext &renderContext );
+
   private:
 
     /**
@@ -106,6 +123,8 @@ class CORE_EXPORT QgsRasterBlockFeedback : public QgsFeedback
 
     //! List of errors encountered while retrieving block
     QStringList mErrors;
+
+    QgsRenderContext mRenderContext;
 };
 
 
@@ -132,6 +151,7 @@ class CORE_EXPORT QgsRasterInterface
 #include <qgssinglebandcolordatarenderer.h>
 #include <qgssinglebandgrayrenderer.h>
 #include <qgssinglebandpseudocolorrenderer.h>
+#include <qgsrastercontourrenderer.h>
 #endif
 
 
@@ -166,6 +186,8 @@ class CORE_EXPORT QgsRasterInterface
         sipType = sipType_QgsSingleBandGrayRenderer;
       else if ( dynamic_cast<QgsSingleBandPseudoColorRenderer *>( sipCpp ) )
         sipType = sipType_QgsSingleBandPseudoColorRenderer;
+      else if ( dynamic_cast<QgsRasterContourRenderer *>( sipCpp ) )
+        sipType = sipType_QgsRasterContourRenderer;
       else
         sipType = sipType_QgsRasterRenderer;
     }
@@ -180,7 +202,7 @@ class CORE_EXPORT QgsRasterInterface
 
   public:
     //! If you add to this, please also add to capabilitiesString()
-    enum Capability
+    enum Capability SIP_ENUM_BASETYPE( IntFlag )
     {
       NoCapabilities   = 0,
       Size             = 1 << 1, //!< Original data source size (and thus resolution) is known, it is not always available, for example for WMS
@@ -318,18 +340,38 @@ class CORE_EXPORT QgsRasterInterface
      * \param extent Extent used to calc statistics, if empty, whole raster extent is used.
      * \param sampleSize Approximate number of cells in sample. If 0, all cells (whole raster will be used). If raster does not have exact size (WCS without exact size for example), provider decides size of sample.
      * \param feedback optional feedback object
+     * \deprecated Use Qgis::RasterBandStatistic instead of int for \a stats argument
+     */
+    Q_DECL_DEPRECATED QgsRasterBandStats bandStatistics( int bandNo, int stats, const QgsRectangle &extent = QgsRectangle(), int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) SIP_DEPRECATED;
+
+    /**
+     * Returns the band statistics.
+     * \param bandNo The band (number).
+     * \param stats Requested statistics
+     * \param extent Extent used to calc statistics, if empty, whole raster extent is used.
+     * \param sampleSize Approximate number of cells in sample. If 0, all cells (whole raster will be used). If raster does not have exact size (WCS without exact size for example), provider decides size of sample.
+     * \param feedback optional feedback object
      */
     virtual QgsRasterBandStats bandStatistics( int bandNo,
-        int stats = QgsRasterBandStats::All,
+        Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
         const QgsRectangle &extent = QgsRectangle(),
         int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr );
 
     /**
-     * \brief Returns TRUE if histogram is available (cached, already calculated).     *   The parameters are the same as in bandStatistics()
+     * \brief Returns TRUE if histogram is available (cached, already calculated).
+     * The parameters are the same as in bandStatistics()
+     * \returns TRUE if statistics are available (ready to use)
+     * \deprecated Use Qgis::RasterBandStatistic instead of int for \a stats argument
+     */
+    Q_DECL_DEPRECATED bool hasStatistics( int bandNo, int stats, const QgsRectangle &extent = QgsRectangle(), int sampleSize = 0 ) SIP_DEPRECATED;
+
+    /**
+     * \brief Returns TRUE if histogram is available (cached, already calculated).
+     * The parameters are the same as in bandStatistics()
      * \returns TRUE if statistics are available (ready to use)
      */
     virtual bool hasStatistics( int bandNo,
-                                int stats = QgsRasterBandStats::All,
+                                Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
                                 const QgsRectangle &extent = QgsRectangle(),
                                 int sampleSize = 0 );
 
@@ -540,7 +582,7 @@ class CORE_EXPORT QgsRasterInterface
       maximum = PyFloat_AsDouble( a4 );
     }
 
-#if defined(SIP_PROTECTED_IS_PUBLIC)
+#if defined(SIP_PROTECTED_IS_PUBLIC) || (SIP_VERSION >= 0x050000 && !defined(_MSC_VER))
     sipCpp->initHistogram( *a0, a1, a2, minimum, maximum, *a5, a6, a7 );
 #else
     sipCpp->sipProtect_initHistogram( *a0, a1, a2, minimum, maximum, *a5, a6, a7 );
@@ -548,13 +590,17 @@ class CORE_EXPORT QgsRasterInterface
     % End
 #endif
 
-
+    /**
+     * Fill in statistics defaults if not specified
+     * \deprecated Use Qgis::RasterBandStatistic instead of int for \a stats argument
+     */
+    Q_DECL_DEPRECATED void initStatistics( QgsRasterBandStats &statistics, int bandNo, int stats, const QgsRectangle &boundingBox = QgsRectangle(), int binCount = 0 ) const SIP_DEPRECATED;
 
     //! Fill in statistics defaults if not specified
     void initStatistics( QgsRasterBandStats &statistics, int bandNo,
-                         int stats = QgsRasterBandStats::All,
+                         Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
                          const QgsRectangle &boundingBox = QgsRectangle(),
-                         int binCount = 0 );
+                         int binCount = 0 ) const;
 
   private:
 #ifdef SIP_RUN
@@ -566,5 +612,3 @@ class CORE_EXPORT QgsRasterInterface
 };
 
 #endif
-
-

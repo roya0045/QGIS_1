@@ -61,16 +61,16 @@ HWND FindWindowFromProcessId( DWORD dwProcessId )
 void QgsGrassWin::hideWindow( int pid )
 {
   Q_UNUSED( pid )
-  QgsDebugMsg( QString( "pid = %1" ).arg( pid ) );
+  QgsDebugMsgLevel( QString( "pid = %1" ).arg( pid ), 2 );
 #ifdef Q_OS_WIN
   HWND hWnd = FindWindowFromProcessId( ( DWORD )pid );
   if ( hWnd )
   {
-    QgsDebugMsg( "driver window found -> minimize" );
+    QgsDebugMsgLevel( "driver window found -> minimize", 2 );
   }
   else
   {
-    QgsDebugMsg( "cannot find driver window" );
+    QgsDebugError( "cannot find driver window" );
   }
   // Unfortunately the window opens first for a moment
   ShowWindow( hWnd, SW_HIDE );

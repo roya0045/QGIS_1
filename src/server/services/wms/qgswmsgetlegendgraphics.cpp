@@ -22,14 +22,15 @@
 #include "qgslegendrenderer.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectorlayerfeaturecounter.h"
-#include "qgssymbollayerutils.h"
-#include "qgsmaplayerlegend.h"
+#include "qgslayertreefiltersettings.h"
 
 #include "qgswmsutils.h"
 #include "qgswmsrequest.h"
 #include "qgswmsserviceexception.h"
 #include "qgswmsgetlegendgraphics.h"
 #include "qgswmsrenderer.h"
+#include "qgsserverprojectutils.h"
+#include "qgsmapsettings.h"
 
 #include <QImage>
 #include <QJsonObject>
@@ -53,6 +54,7 @@ namespace QgsWms
     context.setFlag( QgsWmsRenderContext::UseScaleDenominator );
     context.setFlag( QgsWmsRenderContext::UseSrcWidthHeight );
     context.setParameters( parameters );
+    context.setSocketFeedback( response.feedback() );
 
     // get the requested output format
     QgsWmsParameters::Format format = parameters.format();
@@ -77,15 +79,20 @@ namespace QgsWms
     {
       switch ( parseImageFormat( parameters.formatAsString() ) )
       {
-        case PNG:
-        case PNG8:
-        case PNG16:
-        case PNG1:
+        case ImageOutputFormat::PNG:
+        case ImageOutputFormat::PNG8:
+        case ImageOutputFormat::PNG16:
+        case ImageOutputFormat::PNG1:
           format = QgsWmsParameters::Format::PNG;
           imageContentType = "image/png";
           imageSaveFormat = "PNG";
           break;
-        default:
+        case ImageOutputFormat::Unknown:
+          break;
+
+        // not possible
+        case QgsWms::ImageOutputFormat::JPEG:
+        case QgsWms::ImageOutputFormat::WEBP:
           break;
       }
     }
@@ -115,21 +122,34 @@ namespace QgsWms
     QgsRenderer renderer( context );
 
     // retrieve legend settings and model
-    std::unique_ptr<QgsLayerTree> tree( layerTree( context ) );
+    bool addLegendGroups = QgsServerProjectUtils::wmsAddLegendGroupsLegendGraphic( *project ) || parameters.addLayerGroups();
+    std::unique_ptr<QgsLayerTree> tree( addLegendGroups ? layerTreeWithGroups( context, QgsProject::instance()->layerTreeRoot() ) : layerTree( context ) );
     const std::unique_ptr<QgsLayerTreeModel> model( legendModel( context, *tree.get() ) );
 
     // rendering
     if ( format == QgsWmsParameters::Format::JSON )
     {
       QJsonObject result;
+
+      Qgis::LegendJsonRenderFlags jsonFlags;
+
+      if ( parameters.showRuleDetailsAsBool() )
+      {
+        jsonFlags.setFlag( Qgis::LegendJsonRenderFlag::ShowRuleDetails );
+      }
+
       if ( !parameters.rule().isEmpty() )
       {
-        throw QgsBadRequestException( QgsServiceException::QGIS_InvalidParameterValue,
-                                      QStringLiteral( "RULE cannot be used with JSON format" ) );
+        QgsLayerTreeModelLegendNode *node = legendNode( parameters.rule(), *model.get() );
+        if ( ! node )
+        {
+          throw QgsException( QStringLiteral( "Could not get a legend node for the requested RULE" ) );
+        }
+        result = renderer.getLegendGraphicsAsJson( *node, jsonFlags );
       }
       else
       {
-        result = renderer.getLegendGraphicsAsJson( *model.get() );
+        result = renderer.getLegendGraphicsAsJson( *model.get(), jsonFlags );
       }
       tree->clear();
       response.setHeader( QStringLiteral( "Content-Type" ), parameters.formatAsString() );
@@ -264,7 +284,10 @@ namespace QgsWms
       QList<QgsMapLayer *> layers = context.layersToRender();
       renderer.configureLayers( layers, mapSettings.get() );
       mapSettings->setLayers( context.layersToRender() );
-      model->setLegendFilterByMap( mapSettings.get() );
+
+      QgsLayerTreeFilterSettings filterSettings( *mapSettings );
+      filterSettings.setLayerFilterExpressionsFromLayerTree( model->rootGroup() );
+      model->setFilterSettings( &filterSettings );
     }
 
     // if legend is not based on rendering rules
@@ -324,7 +347,7 @@ namespace QgsWms
       const QString property = QStringLiteral( "showFeatureCount" );
       lt->setCustomProperty( property, showFeatureCount );
 
-      if ( ml->type() != QgsMapLayerType::VectorLayer || !showFeatureCount )
+      if ( ml->type() != Qgis::LayerType::Vector || !showFeatureCount )
         continue;
 
       QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( ml );
@@ -338,6 +361,40 @@ namespace QgsWms
     for ( QgsVectorLayerFeatureCounter *counter : counters )
     {
       counter->waitForFinished();
+    }
+
+    return tree.release();
+  }
+
+  QgsLayerTree *layerTreeWithGroups( const QgsWmsRenderContext &context, QgsLayerTree *projectRoot )
+  {
+    if ( !projectRoot )
+    {
+      return 0;
+    }
+
+    std::unique_ptr<QgsLayerTree> tree( new QgsLayerTree() );
+
+    QgsWmsParameters wmsParams = context.parameters();
+    QStringList layerNicknames = wmsParams.allLayersNickname();
+    for ( int i = 0; i < layerNicknames.size(); ++i )
+    {
+      QString nickname = layerNicknames.at( i );
+
+      //single layer
+      QgsMapLayer *layer = context.layer( nickname );
+      if ( layer )
+      {
+        tree->addLayer( layer );
+      }
+      else //nickname refers to a group
+      {
+        QgsLayerTreeGroup *group = projectRoot->findGroup( nickname );
+        if ( group )
+        {
+          tree->insertChildNode( i, group->clone() );
+        }
+      }
     }
 
     return tree.release();

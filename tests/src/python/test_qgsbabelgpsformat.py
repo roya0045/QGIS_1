@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsAbstractBabelFormat and subclasses.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,24 +9,25 @@ __author__ = 'Nyall Dawson'
 __date__ = '2021-07'
 __copyright__ = 'Copyright 2021, The QGIS Project'
 
-import qgis  # NOQA
-
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
-    Qgis, QgsSettings,
-    QgsBabelSimpleImportFormat,
-    QgsBabelGpsDeviceFormat,
+    Qgis,
     QgsApplication,
-    QgsBabelFormatRegistry
+    QgsBabelFormatRegistry,
+    QgsBabelGpsDeviceFormat,
+    QgsBabelSimpleImportFormat,
+    QgsSettings,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
-class TestQgsBabelGpsFormat(unittest.TestCase):
+class TestQgsBabelGpsFormat(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestPyQgsBabelGpsFormat.com")

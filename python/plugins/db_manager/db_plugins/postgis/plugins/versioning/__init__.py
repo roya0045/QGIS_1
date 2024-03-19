@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : Versioning plugin for DB Manager
@@ -48,6 +46,6 @@ def run(item, action, mainwindow):
 
     QApplication.restoreOverrideCursor()
     try:
-        dlg.exec_()
+        dlg.exec()
     finally:
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)

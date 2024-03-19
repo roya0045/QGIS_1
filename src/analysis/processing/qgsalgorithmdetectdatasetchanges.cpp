@@ -17,7 +17,7 @@
 
 #include "qgsalgorithmdetectdatasetchanges.h"
 #include "qgsvectorlayer.h"
-#include "qgsgeometryengine.h"
+#include "qgsspatialindex.h"
 
 ///@cond PRIVATE
 
@@ -53,7 +53,7 @@ void QgsDetectVectorChangesAlgorithm::initAlgorithm( const QVariantMap & )
 
   std::unique_ptr< QgsProcessingParameterField > compareAttributesParam = std::make_unique< QgsProcessingParameterField >( QStringLiteral( "COMPARE_ATTRIBUTES" ),
       QObject::tr( "Attributes to consider for match (or none to compare geometry only)" ), QVariant(),
-      QStringLiteral( "ORIGINAL" ), QgsProcessingParameterField::Any, true, true );
+      QStringLiteral( "ORIGINAL" ), Qgis::ProcessingFieldParameterDataType::Any, true, true );
   compareAttributesParam->setDefaultToAllFields( true );
   addParameter( compareAttributesParam.release() );
 
@@ -62,12 +62,12 @@ void QgsDetectVectorChangesAlgorithm::initAlgorithm( const QVariantMap & )
       QStringList() << QObject::tr( "Exact Match" )
       << QObject::tr( "Tolerant Match (Topological Equality)" ),
       false, 1 );
-  matchTypeParam->setFlags( matchTypeParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  matchTypeParam->setFlags( matchTypeParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( matchTypeParam.release() );
 
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "UNCHANGED" ), QObject::tr( "Unchanged features" ), QgsProcessing::TypeVectorAnyGeometry, QVariant(), true, true ) );
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "ADDED" ), QObject::tr( "Added features" ), QgsProcessing::TypeVectorAnyGeometry, QVariant(), true, true ) );
-  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "DELETED" ), QObject::tr( "Deleted features" ), QgsProcessing::TypeVectorAnyGeometry, QVariant(), true, true ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "UNCHANGED" ), QObject::tr( "Unchanged features" ), Qgis::ProcessingSourceType::VectorAnyGeometry, QVariant(), true, true ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "ADDED" ), QObject::tr( "Added features" ), Qgis::ProcessingSourceType::VectorAnyGeometry, QVariant(), true, true ) );
+  addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "DELETED" ), QObject::tr( "Deleted features" ), Qgis::ProcessingSourceType::VectorAnyGeometry, QVariant(), true, true ) );
 
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "UNCHANGED_COUNT" ), QObject::tr( "Count of unchanged features" ) ) );
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "ADDED_COUNT" ), QObject::tr( "Count of features added in revised layer" ) ) );
@@ -81,7 +81,7 @@ QString QgsDetectVectorChangesAlgorithm::shortHelpString() const
                       "When comparing features, the original and revised feature geometries will be compared against each other. Depending "
                       "on the Geometry Comparison Behavior setting, the comparison will either be made using an exact comparison (where "
                       "geometries must be an exact match for each other, including the order and count of vertices) or a topological "
-                      "comparison only (where are geometries area considered equal if all of their component edges overlap. E.g. "
+                      "comparison only (where geometries are considered equal if all of their component edges overlap. E.g. "
                       "lines with the same vertex locations but opposite direction will be considered equal by this method). If the topological "
                       "comparison is selected then any z or m values present in the geometries will not be compared.\n\n"
                       "By default, the algorithm compares all attributes from the original and revised features. If the Attributes to Consider for Match "
@@ -92,7 +92,7 @@ QString QgsDetectVectorChangesAlgorithm::shortHelpString() const
                       "raised and the resultant outputs may be misleading.\n\n"
                       "The algorithm outputs three layers, one containing all features which are considered to be unchanged between the revisions, "
                       "one containing features deleted from the original layer which are not present in the revised layer, and one containing features "
-                      "add to the revised layer which are not present in the original layer." );
+                      "added to the revised layer which are not present in the original layer." );
 }
 
 QString QgsDetectVectorChangesAlgorithm::shortDescription() const
@@ -137,7 +137,7 @@ bool QgsDetectVectorChangesAlgorithm::prepareAlgorithm( const QVariantMap &param
     feedback->reportError( QObject::tr( "CRS for revised layer (%1) does not match the original layer (%2) - reprojection accuracy may affect geometry matching" ).arg( mOriginal->sourceCrs().userFriendlyIdentifier(),
                            mRevised->sourceCrs().userFriendlyIdentifier() ), false );
 
-  mFieldsToCompare = parameterAsFields( parameters, QStringLiteral( "COMPARE_ATTRIBUTES" ), context );
+  mFieldsToCompare = parameterAsStrings( parameters, QStringLiteral( "COMPARE_ATTRIBUTES" ), context );
   mOriginalFieldsToCompareIndices.reserve( mFieldsToCompare.size() );
   mRevisedFieldsToCompareIndices.reserve( mFieldsToCompare.size() );
   QStringList missingOriginalFields;
@@ -358,7 +358,7 @@ QVariantMap QgsDetectVectorChangesAlgorithm::processAlgorithm( const QVariantMap
   // they are placed into the deleted sink.
   step = mOriginal->featureCount() > 0 ? 100.0 / mOriginal->featureCount() : 0;
 
-  request = QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry );
+  request = QgsFeatureRequest().setFlags( Qgis::FeatureRequestFlag::NoGeometry );
   it = mOriginal->getFeatures( request );
   current = 0;
   long deleted = 0;
@@ -421,9 +421,9 @@ QVariantMap QgsDetectVectorChangesAlgorithm::processAlgorithm( const QVariantMap
   }
   feedback->setProgress( 100 );
 
-  feedback->pushInfo( QObject::tr( "%1 features unchanged" ).arg( unchangedOriginalIds.size() ) );
-  feedback->pushInfo( QObject::tr( "%1 features added" ).arg( addedRevisedIds.size() ) );
-  feedback->pushInfo( QObject::tr( "%1 features deleted" ).arg( deleted ) );
+  feedback->pushInfo( QObject::tr( "%n feature(s) unchanged", nullptr, unchangedOriginalIds.size() ) );
+  feedback->pushInfo( QObject::tr( "%n feature(s) added", nullptr, addedRevisedIds.size() ) );
+  feedback->pushInfo( QObject::tr( "%n feature(s) deleted", nullptr, deleted ) );
 
   QVariantMap outputs;
   outputs.insert( QStringLiteral( "UNCHANGED" ), unchangedDestId );

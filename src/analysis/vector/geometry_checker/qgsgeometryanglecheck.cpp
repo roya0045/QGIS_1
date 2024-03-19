@@ -19,7 +19,7 @@
 #include "qgsfeaturepool.h"
 #include "qgsgeometrycheckerror.h"
 
-QList<QgsWkbTypes::GeometryType> QgsGeometryAngleCheck::compatibleGeometryTypes() const
+QList<Qgis::GeometryType> QgsGeometryAngleCheck::compatibleGeometryTypes() const
 {
   return factoryCompatibleGeometryTypes();
 }
@@ -138,7 +138,7 @@ void QgsGeometryAngleCheck::fixError( const QMap<QString, QgsFeaturePool *> &fea
     {
       changes[error->layerId()][error->featureId()].append( Change( ChangeNode, ChangeRemoved, vidx ) );
       // Avoid duplicate nodes as result of deleting spike vertex
-      if ( QgsGeometryUtils::sqrDistance2D( p1, p3 ) < mContext->tolerance &&
+      if ( QgsGeometryUtils::sqrDistance2D( p1, p3 ) < ( mContext->tolerance * mContext->tolerance ) &&
            QgsGeometryCheckerUtils::canDeleteVertex( geometry, vidx.part, vidx.ring ) &&
            geometry->deleteVertex( error->vidx() ) ) // error->vidx points to p3 after removing p2
       {
@@ -181,9 +181,9 @@ QgsGeometryCheck::CheckType QgsGeometryAngleCheck::checkType() const
   return factoryCheckType();
 }
 
-QList<QgsWkbTypes::GeometryType> QgsGeometryAngleCheck::factoryCompatibleGeometryTypes()
+QList<Qgis::GeometryType> QgsGeometryAngleCheck::factoryCompatibleGeometryTypes()
 {
-  return {QgsWkbTypes::LineGeometry, QgsWkbTypes::PolygonGeometry};
+  return {Qgis::GeometryType::Line, Qgis::GeometryType::Polygon};
 }
 
 bool QgsGeometryAngleCheck::factoryIsCompatible( QgsVectorLayer *layer )

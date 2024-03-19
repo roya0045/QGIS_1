@@ -19,7 +19,7 @@
 
 #include "qgslogger.h"
 #include "qgsmssqlprovider.h"
-#include "qgsmssqlconnection.h"
+#include "qgsmssqldatabase.h"
 
 QgsMssqlGeomColumnTypeThread::QgsMssqlGeomColumnTypeThread( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password, bool useEstimatedMetadata )
   : mService( service )
@@ -61,28 +61,30 @@ void QgsMssqlGeomColumnTypeThread::run()
 
       const QString query = QStringLiteral( "SELECT %3"
                                             " UPPER([%1].STGeometryType()),"
-                                            " [%1].STSrid"
+                                            " [%1].STSrid,"
+                                            " [%1].HasZ,"
+                                            " [%1].HasM"
                                             " FROM %2"
                                             " WHERE [%1] IS NOT NULL %4"
-                                            " GROUP BY [%1].STGeometryType(), [%1].STSrid" )
+                                            " GROUP BY [%1].STGeometryType(), [%1].STSrid, [%1].HasZ, [%1].HasM" )
                             .arg( layerProperty.geometryColName,
                                   table,
                                   mUseEstimatedMetadata ? "TOP 1" : "",
                                   layerProperty.sql.isEmpty() ? QString() : QStringLiteral( " AND %1" ).arg( layerProperty.sql ) );
 
       // issue the sql query
-      QSqlDatabase db = QgsMssqlConnection::getDatabase( mService, mHost, mDatabase, mUsername, mPassword );
-      if ( !QgsMssqlConnection::openDatabase( db ) )
+      std::shared_ptr<QgsMssqlDatabase> db = QgsMssqlDatabase::connectDb( mService, mHost, mDatabase, mUsername, mPassword );
+      if ( !db->isValid() )
       {
-        QgsDebugMsg( db.lastError().text() );
+        QgsDebugError( db->errorText() );
         continue;
       }
 
-      QSqlQuery q = QSqlQuery( db );
+      QSqlQuery q = QSqlQuery( db->db() );
       q.setForwardOnly( true );
       if ( !q.exec( query ) )
       {
-        QgsDebugMsg( q.lastError().text() );
+        QgsDebugError( q.lastError().text() );
       }
 
       QString type;
@@ -95,7 +97,15 @@ void QgsMssqlGeomColumnTypeThread::run()
 
         while ( q.next() )
         {
-          const QString type = q.value( 0 ).toString().toUpper();
+          const bool hasZ { q.value( 2 ).toString() == '1' };
+          const bool hasM { q.value( 3 ).toString() == '1' };
+          const int dimensions { 2 + ( ( hasZ &&hasM ) ? 2 : ( ( hasZ || hasM ) ? 1 : 0 ) ) };
+          QString typeName { q.value( 0 ).toString().toUpper() };
+          if ( hasM && ! typeName.endsWith( 'M' ) )
+          {
+            typeName.append( 'M' );
+          }
+          const QString type { QgsMssqlProvider::typeFromMetadata( typeName, dimensions ) };
           const QString srid = q.value( 1 ).toString();
 
           if ( type.isEmpty() )

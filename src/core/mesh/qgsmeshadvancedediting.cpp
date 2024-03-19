@@ -19,6 +19,11 @@
 #include "qgsmesheditor.h"
 #include "poly2tri.h"
 
+#include "qgsmeshlayer.h"
+#include "qgsexpression.h"
+#include "qgsexpressioncontextutils.h"
+
+
 QgsMeshAdvancedEditing::QgsMeshAdvancedEditing() = default;
 
 QgsMeshAdvancedEditing::~QgsMeshAdvancedEditing() = default;
@@ -43,8 +48,18 @@ void QgsMeshAdvancedEditing::clear()
   mInputVertices.clear();
   mInputFaces.clear();
   mMessage.clear();
-
+  mIsFinished = false;
   clearChanges();
+}
+
+bool QgsMeshAdvancedEditing::isFinished() const
+{
+  return mIsFinished;
+}
+
+QString QgsMeshAdvancedEditing::text() const
+{
+  return QString();
 }
 
 static int vertexPositionInFace( int vertexIndex, const QgsMeshFace &face )
@@ -89,6 +104,8 @@ QgsTopologicalMesh::Changes QgsMeshEditRefineFaces::apply( QgsMeshEditor *meshEd
 
   meshEditor->topologicalMesh().applyChanges( *this );
 
+  mIsFinished = true;
+
   return *this;
 }
 
@@ -102,6 +119,15 @@ void QgsMeshEditRefineFaces::createNewVerticesAndRefinedFaces( QgsMeshEditor *me
   int startingVertexIndex = mesh.vertexCount();
   int startingGlobalFaceIndex = mesh.faceCount();
 
+  auto canBeRefined = [ & ]( int fi )->bool
+  {
+    if ( fi < 0 || fi > mesh.faceCount() )
+      return false;
+    int fs = mesh.face( fi ).size();
+    return fs == 3 || fs == 4;
+
+  };
+
   for ( const int faceIndex : std::as_const( mInputFaces ) )
   {
     FaceRefinement refinement;
@@ -111,7 +137,7 @@ void QgsMeshEditRefineFaces::createNewVerticesAndRefinedFaces( QgsMeshEditor *me
 
     QVector<int> addedVerticesIndex( faceSize, -1 );
 
-    if ( faceSize == 3 || faceSize == 4 )
+    if ( canBeRefined( faceIndex ) )
     {
       refinement.newVerticesLocalIndex.reserve( faceSize );
       refinement.refinedFaceNeighbor.reserve( faceSize );
@@ -127,7 +153,7 @@ void QgsMeshEditRefineFaces::createNewVerticesAndRefinedFaces( QgsMeshEditor *me
 
         int neighborFaceIndex = neighbors.at( positionInFace );
         bool needCreateVertex = true;
-        if ( neighborFaceIndex != -1 && facesToRefine.contains( neighborFaceIndex ) )
+        if ( neighborFaceIndex != -1 && facesToRefine.contains( neighborFaceIndex ) && canBeRefined( neighborFaceIndex ) )
         {
           int neighborFaceSize = mesh.face( neighborFaceIndex ).size();
           int positionVertexInNeighbor = vertexPositionInFace( mesh, face.at( positionInFace ), neighborFaceIndex );
@@ -208,25 +234,25 @@ void QgsMeshEditRefineFaces::createNewVerticesAndRefinedFaces( QgsMeshEditor *me
         refinement.newCenterVertexIndex = -1;
 
       facesRefinement.insert( faceIndex, refinement );
+
+      //look for vertexToFace
+      for ( int positionInFace = 0; positionInFace < faceSize; ++positionInFace )
+      {
+        if ( addedVerticesIndex.at( positionInFace ) != -1 )
+        {
+          mVertexToFaceToAdd[addedVerticesIndex.at( positionInFace )] =
+            refinement.newFacesChangesIndex.at( positionInFace ) + startingGlobalFaceIndex;
+        }
+
+        int vertexIndex = face.at( positionInFace );
+        if ( topology.firstFaceLinked( vertexIndex ) == faceIndex )
+          mVerticesToFaceChanges.append( {vertexIndex, faceIndex, refinement.newFacesChangesIndex.at( positionInFace ) + startingGlobalFaceIndex} );
+      }
     }
     else
     {
       //not 3 or 4 vertices, we do not refine this face
       facesToRefine.remove( faceIndex );
-    }
-
-    //look for vertexToFace
-    for ( int positionInFace = 0; positionInFace < faceSize; ++positionInFace )
-    {
-      if ( addedVerticesIndex.at( positionInFace ) != -1 )
-      {
-        mVertexToFaceToAdd[addedVerticesIndex.at( positionInFace )] =
-          refinement.newFacesChangesIndex.at( positionInFace ) + startingGlobalFaceIndex;
-      }
-
-      int vertexIndex = face.at( positionInFace );
-      if ( topology.firstFaceLinked( vertexIndex ) == faceIndex )
-        mVerticesToFaceChanges.append( {vertexIndex, faceIndex, refinement.newFacesChangesIndex.at( positionInFace ) + startingGlobalFaceIndex} );
     }
   }
 
@@ -449,7 +475,7 @@ bool QgsMeshEditRefineFaces::createNewBorderFaces( QgsMeshEditor *meshEditor,
       QgsTopologicalMesh::TopologicalFaces topologicalFaces = QgsTopologicalMesh::createNewTopologicalFaces( faces, false, error );
       QVector<QgsTopologicalMesh::FaceNeighbors> neighborhood = topologicalFaces.facesNeighborhood();
 
-      // reindex internal neighborhod
+      // reindex internal neighborhood
       for ( int i = 0; i < neighborhood.count(); ++i )
       {
         QgsTopologicalMesh::FaceNeighbors &neighbors = neighborhood[i];
@@ -590,4 +616,189 @@ bool QgsMeshEditRefineFaces::createNewBorderFaces( QgsMeshEditor *meshEditor,
   }
 
   return true;
+}
+
+QString QgsMeshEditRefineFaces::text() const
+{
+  return QObject::tr( "Refine %n face(s)", nullptr, mInputFaces.count() );
+}
+
+bool QgsMeshTransformVerticesByExpression::calculate( QgsMeshLayer *layer )
+{
+  if ( !layer || !layer->meshEditor() || !layer->nativeMesh() )
+    return false;
+
+  if ( mInputVertices.isEmpty() )
+    return false;
+
+  const QgsMesh mesh = *layer->nativeMesh();
+  QSet<int> concernedFaces;
+  mChangingVertexMap = QHash<int, int>();
+
+  std::unique_ptr<QgsExpressionContextScope> expScope( QgsExpressionContextUtils::meshExpressionScope( QgsMesh::Vertex ) );
+  QgsExpressionContext context;
+  context.appendScope( expScope.release() );
+  context.lastScope()->setVariable( QStringLiteral( "_native_mesh" ), QVariant::fromValue( mesh ) );
+
+  QVector<QgsMeshVertex> newVertices;
+  newVertices.reserve( mInputVertices.count() );
+
+  int inputCount = mInputVertices.count();
+  mChangeCoordinateVerticesIndexes = mInputVertices;
+
+  bool calcX = !mExpressionX.isEmpty();
+  bool calcY = !mExpressionY.isEmpty();
+  bool calcZ = !mExpressionZ.isEmpty();
+  QgsExpression expressionX;
+  if ( calcX )
+  {
+    expressionX = QgsExpression( mExpressionX );
+    expressionX.prepare( &context );
+  }
+
+  QgsExpression expressionY;
+  if ( calcY )
+  {
+    expressionY = QgsExpression( mExpressionY );
+    expressionY.prepare( &context );
+  }
+
+  if ( calcX || calcY )
+  {
+    mNewXYValues.reserve( inputCount );
+    mOldXYValues.reserve( inputCount );
+  }
+
+  QgsExpression expressionZ;
+  if ( calcZ )
+  {
+    expressionZ = QgsExpression( mExpressionZ );
+    expressionZ.prepare( &context );
+    mNewZValues.reserve( inputCount );
+    mOldZValues.reserve( inputCount );
+  }
+
+  for ( int i = 0; i < mInputVertices.count(); ++i )
+  {
+    const int vertexIndex = mInputVertices.at( i );
+    context.lastScope()->setVariable( QStringLiteral( "_mesh_vertex_index" ), vertexIndex, false );
+
+    mChangingVertexMap[vertexIndex] = i;
+    const QVariant xvar = expressionX.evaluate( &context );
+    const QVariant yvar = expressionY.evaluate( &context );
+    const QVariant zvar = expressionZ.evaluate( &context );
+
+    const QgsMeshVertex &vert = mesh.vertex( vertexIndex );
+
+    if ( calcX || calcY )
+    {
+      mOldXYValues.append( QgsPointXY( vert ) );
+      mNewXYValues.append( QgsPointXY( vert ) );
+
+      const QList<int> facesAround = layer->meshEditor()->topologicalMesh().facesAroundVertex( vertexIndex );
+      concernedFaces.unite( qgis::listToSet( facesAround ) );
+    }
+
+    bool ok = false;
+    if ( calcX )
+    {
+      if ( xvar.isValid() )
+      {
+        double x = xvar.toDouble( &ok );
+        if ( ok )
+        {
+          mNewXYValues.last().setX( x );
+        }
+        else
+          return false;
+      }
+      else
+      {
+        return false;
+      }
+    }
+
+    if ( calcY )
+    {
+      if ( yvar.isValid() )
+      {
+        double y = yvar.toDouble( &ok );
+        if ( ok )
+        {
+          mNewXYValues.last().setY( y );
+        }
+        else
+          return false;
+      }
+      else
+        return false;
+    }
+
+    if ( calcZ )
+    {
+      double z = std::numeric_limits<double>::quiet_NaN();
+      if ( zvar.isValid() )
+      {
+        z = zvar.toDouble( &ok );
+        if ( !ok )
+          z = std::numeric_limits<double>::quiet_NaN();
+      }
+
+      mNewZValues.append( z );
+      mOldZValues.append( vert.z() );
+    }
+  }
+
+  auto transformFunction = [this, layer ]( int vi )-> const QgsMeshVertex
+  {
+    return transformedVertex( layer, vi );
+  };
+
+  mNativeFacesIndexesGeometryChanged = qgis::setToList( concernedFaces );
+  return ( !calcX && !calcY ) || layer->meshEditor()->canBeTransformed( mNativeFacesIndexesGeometryChanged, transformFunction );
+}
+
+QString QgsMeshTransformVerticesByExpression::text() const
+{
+  return QObject::tr( "Transform %n vertices by expression", nullptr, mInputVertices.count() );
+}
+
+void QgsMeshTransformVerticesByExpression::setExpressions( const QString &expressionX, const QString &expressionY, const QString &expressionZ )
+{
+  mExpressionX = expressionX;
+  mExpressionY = expressionY;
+  mExpressionZ = expressionZ;
+
+  mChangingVertexMap.clear();
+}
+
+QgsTopologicalMesh::Changes QgsMeshTransformVerticesByExpression::apply( QgsMeshEditor *meshEditor )
+{
+  meshEditor->topologicalMesh().applyChanges( *this );
+  mIsFinished = true;
+  return *this;
+}
+
+QgsMeshVertex QgsMeshTransformVerticesByExpression::transformedVertex( QgsMeshLayer *layer, int vertexIndex ) const
+{
+  int pos = mChangingVertexMap.value( vertexIndex, -1 );
+  if ( pos > -1 )
+  {
+    QgsPointXY pointXY;
+    double z;
+
+    if ( mNewXYValues.isEmpty() )
+      pointXY = layer->nativeMesh()->vertex( vertexIndex );
+    else
+      pointXY = mNewXYValues.at( pos );
+
+    if ( mNewZValues.isEmpty() )
+      z = layer->nativeMesh()->vertex( vertexIndex ).z();
+    else
+      z = mNewZValues.at( pos );
+
+    return QgsMeshVertex( pointXY.x(), pointXY.y(), z );
+  }
+  else
+    return layer->nativeMesh()->vertex( vertexIndex );
 }

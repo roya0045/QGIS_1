@@ -21,7 +21,7 @@
 
 void QgsSubdivideAlgorithm::initParameters( const QVariantMap & )
 {
-  std::unique_ptr< QgsProcessingParameterNumber> nodes = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "MAX_NODES" ), QObject::tr( "Maximum nodes in parts" ), QgsProcessingParameterNumber::Integer,
+  std::unique_ptr< QgsProcessingParameterNumber> nodes = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "MAX_NODES" ), QObject::tr( "Maximum nodes in parts" ), Qgis::ProcessingNumberParameterType::Integer,
       256, false, 8, 100000 );
   nodes->setIsDynamic( true );
   nodes->setDynamicPropertyDefinition( QgsPropertyDefinition( QStringLiteral( "MAX_NODES" ), QObject::tr( "Maximum nodes in parts" ), QgsPropertyDefinition::Integer ) );
@@ -75,7 +75,7 @@ QString QgsSubdivideAlgorithm::outputName() const
   return QObject::tr( "Subdivided" );
 }
 
-QgsWkbTypes::Type QgsSubdivideAlgorithm::outputWkbType( QgsWkbTypes::Type inputWkbType ) const
+Qgis::WkbType QgsSubdivideAlgorithm::outputWkbType( Qgis::WkbType inputWkbType ) const
 {
   return QgsWkbTypes::multiType( inputWkbType );
 }

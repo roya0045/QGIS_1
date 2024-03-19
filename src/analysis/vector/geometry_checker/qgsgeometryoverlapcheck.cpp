@@ -134,7 +134,7 @@ void QgsGeometryOverlapCheck::fixError( const QMap<QString, QgsFeaturePool *> &f
   {
     QgsAbstractGeometry *part = QgsGeometryCheckerUtils::getGeomPart( interGeom.get(), iPart );
     if ( std::fabs( part->area() - overlapError->value().toDouble() ) < mContext->reducedTolerance &&
-         QgsGeometryCheckerUtils::pointsFuzzyEqual( part->centroid(), overlapError->location(), mContext->reducedTolerance ) )
+         QgsGeometryUtilsBase::fuzzyDistanceEqual( mContext->reducedTolerance,  part->centroid().x(), part->centroid().y(), overlapError->location().x(), overlapError->location().y() ) ) // TODO: add fuzzyDistanceEqual in QgsAbstractGeometry classes
     {
       interPart = part;
       break;
@@ -184,7 +184,7 @@ void QgsGeometryOverlapCheck::fixError( const QMap<QString, QgsFeaturePool *> &f
       if ( shared1 < shared2 )
       {
         const QgsCoordinateTransform ct( featurePoolA->crs(), mContext->mapCrs, mContext->transformContext );
-        diff1->transform( ct, QgsCoordinateTransform::ReverseTransform );
+        diff1->transform( ct, Qgis::TransformDirection::Reverse );
         featureA.setGeometry( QgsGeometry( std::move( diff1 ) ) );
 
         changes[error->layerId()][featureA.id()].append( Change( ChangeFeature, ChangeChanged ) );
@@ -193,7 +193,7 @@ void QgsGeometryOverlapCheck::fixError( const QMap<QString, QgsFeaturePool *> &f
       else
       {
         const QgsCoordinateTransform ct( featurePoolB->crs(), mContext->mapCrs, mContext->transformContext );
-        diff2->transform( ct, QgsCoordinateTransform::ReverseTransform );
+        diff2->transform( ct, Qgis::TransformDirection::Reverse );
         featureB.setGeometry( QgsGeometry( std::move( diff2 ) ) );
 
         changes[overlapError->overlappedFeature().layerId()][featureB.id()].append( Change( ChangeFeature, ChangeChanged ) );
@@ -253,9 +253,9 @@ QgsGeometryCheck::Flags QgsGeometryOverlapCheck::factoryFlags()
   return QgsGeometryCheck::AvailableInValidation;
 }
 
-QList<QgsWkbTypes::GeometryType> QgsGeometryOverlapCheck::factoryCompatibleGeometryTypes()
+QList<Qgis::GeometryType> QgsGeometryOverlapCheck::factoryCompatibleGeometryTypes()
 {
-  return {QgsWkbTypes::PolygonGeometry};
+  return {Qgis::GeometryType::Polygon};
 }
 
 bool QgsGeometryOverlapCheck::factoryIsCompatible( QgsVectorLayer *layer ) SIP_SKIP
@@ -278,7 +278,7 @@ bool QgsGeometryOverlapCheckError::isEqual( QgsGeometryCheckError *other ) const
          other->layerId() == layerId() &&
          other->featureId() == featureId() &&
          err->overlappedFeature() == overlappedFeature() &&
-         QgsGeometryCheckerUtils::pointsFuzzyEqual( location(), other->location(), mCheck->context()->reducedTolerance ) &&
+         location().distanceCompare( other->location(), mCheck->context()->reducedTolerance ) &&
          std::fabs( value().toDouble() - other->value().toDouble() ) < mCheck->context()->reducedTolerance;
 }
 

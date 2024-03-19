@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsGeocoderLocatorFilter.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -12,28 +11,26 @@ __copyright__ = 'Copyright 2020, The QGIS Project'
 
 import tempfile
 
-import qgis  # NOQA
-from qgis.PyQt.QtCore import (
-    QCoreApplication,
-    QUrl
-)
+from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.core import (
-    QgsSettings,
-    QgsRectangle,
-    QgsGoogleMapsGeocoder,
+    QgsCoordinateTransformContext,
     QgsGeocoderContext,
-    QgsCoordinateTransformContext
+    QgsGoogleMapsGeocoder,
+    QgsRectangle,
+    QgsSettings,
 )
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsGeocoderLocatorFilter(unittest.TestCase):
+class TestQgsGeocoderLocatorFilter(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain("TestQgsGeocoderLocatorFilter.com")
@@ -58,6 +55,7 @@ class TestQgsGeocoderLocatorFilter(unittest.TestCase):
         """Run after all tests"""
         QgsSettings().clear()
         # shutil.rmtree(cls.basetestpath, True)
+        super().tearDownClass()
 
     def test_basic(self):
         """
@@ -177,7 +175,7 @@ class TestQgsGeocoderLocatorFilter(unittest.TestCase):
         geocoder.setEndpoint(self.endpoint)
 
         with open(geocoder.requestUrl('20 green st, twaddlingham').toString().replace('file://', ''), 'wb') as f:
-            f.write("""
+            f.write(b"""
         {
    "results" : [
       {
@@ -246,7 +244,7 @@ class TestQgsGeocoderLocatorFilter(unittest.TestCase):
    ],
    "status" : "OK"
 }
-        """.encode('UTF-8'))
+        """)
 
         context = QgsGeocoderContext(QgsCoordinateTransformContext())
         results = geocoder.geocodeString('20 green st, twaddlingham', context)

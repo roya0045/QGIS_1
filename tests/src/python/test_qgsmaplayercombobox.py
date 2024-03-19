@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsMapLayerComboBox
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,13 +9,17 @@ __author__ = 'Nyall Dawson'
 __date__ = '14/06/2019'
 __copyright__ = 'Copyright 2019, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import QgsVectorLayer, QgsMeshLayer, QgsProject, QgsMapLayerProxyModel
-from qgis.gui import QgsMapLayerComboBox
+from qgis.PyQt.QtCore import QCoreApplication, QEvent
 from qgis.PyQt.QtTest import QSignalSpy
-
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    Qgis,
+    QgsMeshLayer,
+    QgsProject,
+    QgsVectorLayer,
+)
+from qgis.gui import QgsMapLayerComboBox
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -32,7 +35,7 @@ def create_mesh_layer(name):
     return layer
 
 
-class TestQgsMapLayerComboBox(unittest.TestCase):
+class TestQgsMapLayerComboBox(QgisTestCase):
 
     def testGettersSetters(self):
         """ test combo getters/setters """
@@ -42,8 +45,8 @@ class TestQgsMapLayerComboBox(unittest.TestCase):
         l2 = create_layer('l2')
         QgsProject.instance().addMapLayer(l2)
 
-        m.setFilters(QgsMapLayerProxyModel.LineLayer | QgsMapLayerProxyModel.WritableLayer)
-        self.assertEqual(m.filters(), QgsMapLayerProxyModel.LineLayer | QgsMapLayerProxyModel.WritableLayer)
+        m.setFilters(Qgis.LayerFilter.LineLayer | Qgis.LayerFilter.WritableLayer)
+        self.assertEqual(m.filters(), Qgis.LayerFilters(Qgis.LayerFilter.LineLayer | Qgis.LayerFilter.WritableLayer))
 
         m.setExceptedLayerList([l2])
         self.assertEqual(m.exceptedLayerList(), [l2])
@@ -58,8 +61,8 @@ class TestQgsMapLayerComboBox(unittest.TestCase):
         l2 = create_layer('l2')
         QgsProject.instance().addMapLayer(l2)
 
-        m.setFilters(QgsMapLayerProxyModel.MeshLayer)
-        self.assertEqual(m.filters(), QgsMapLayerProxyModel.MeshLayer)
+        m.setFilters(Qgis.LayerFilter.MeshLayer)
+        self.assertEqual(m.filters(), Qgis.LayerFilter.MeshLayer)
 
         self.assertEqual(m.count(), 1)
         self.assertEqual(m.itemText(0), 'l1')
@@ -81,39 +84,39 @@ class TestQgsMapLayerComboBox(unittest.TestCase):
                             'layer 4', "memory")
         QgsProject.instance().addMapLayer(l4)
 
-        m.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        m.setFilters(Qgis.LayerFilter.PolygonLayer)
         self.assertEqual(m.count(), 1)
         self.assertEqual(m.itemText(0), 'layer 2')
 
-        m.setFilters(QgsMapLayerProxyModel.PointLayer)
+        m.setFilters(Qgis.LayerFilter.PointLayer)
         self.assertEqual(m.count(), 1)
         self.assertEqual(m.itemText(0), 'layer 1')
 
-        m.setFilters(QgsMapLayerProxyModel.LineLayer)
+        m.setFilters(Qgis.LayerFilter.LineLayer)
         self.assertEqual(m.count(), 1)
         self.assertEqual(m.itemText(0), 'layer 4')
 
-        m.setFilters(QgsMapLayerProxyModel.NoGeometry)
+        m.setFilters(Qgis.LayerFilter.NoGeometry)
         self.assertEqual(m.count(), 1)
         self.assertEqual(m.itemText(0), 'layer 3')
 
-        m.setFilters(QgsMapLayerProxyModel.HasGeometry)
+        m.setFilters(Qgis.LayerFilter.HasGeometry)
         self.assertEqual(m.count(), 3)
         self.assertEqual(m.itemText(0), 'layer 1')
         self.assertEqual(m.itemText(1), 'layer 2')
         self.assertEqual(m.itemText(2), 'layer 4')
 
-        m.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        m.setFilters(Qgis.LayerFilter.VectorLayer)
         self.assertEqual(m.count(), 4)
         self.assertEqual(m.itemText(0), 'layer 1')
         self.assertEqual(m.itemText(1), 'layer 2')
         self.assertEqual(m.itemText(2), 'layer 3')
         self.assertEqual(m.itemText(3), 'layer 4')
 
-        m.setFilters(QgsMapLayerProxyModel.PluginLayer)
+        m.setFilters(Qgis.LayerFilter.PluginLayer)
         self.assertEqual(m.count(), 0)
 
-        m.setFilters(QgsMapLayerProxyModel.RasterLayer)
+        m.setFilters(Qgis.LayerFilter.RasterLayer)
         self.assertEqual(m.count(), 0)
 
     def testFilterByLayer(self):
@@ -186,6 +189,101 @@ class TestQgsMapLayerComboBox(unittest.TestCase):
         m.setLayer(l1)
         self.assertEqual(len(spy), 4)
         self.assertEqual(m.currentLayer(), l1)
+
+    def testAdditionalLayers(self):
+        QgsProject.instance().clear()
+        l1 = create_layer('l1')
+        l2 = create_layer('l2')
+        QgsProject.instance().addMapLayers([l1, l2])
+        m = QgsMapLayerComboBox()
+        self.assertEqual(m.count(), 2)
+        l3 = create_layer('l3')
+        l4 = create_layer('l4')
+        m.setAdditionalLayers([l3, l4])
+        self.assertEqual(m.count(), 4)
+
+        m.setAdditionalItems(['a', 'b'])
+        self.assertEqual(m.count(), 6)
+        self.assertEqual(m.itemText(0), 'l1')
+        self.assertEqual(m.itemText(1), 'l2')
+        self.assertEqual(m.itemText(2), 'l3')
+        self.assertEqual(m.itemText(3), 'l4')
+        self.assertEqual(m.itemText(4), 'a')
+        self.assertEqual(m.itemText(5), 'b')
+
+        m.setAllowEmptyLayer(True)
+        self.assertEqual(m.count(), 7)
+        self.assertFalse(m.itemText(0))
+        self.assertEqual(m.itemText(1), 'l1')
+        self.assertEqual(m.itemText(2), 'l2')
+        self.assertEqual(m.itemText(3), 'l3')
+        self.assertEqual(m.itemText(4), 'l4')
+        self.assertEqual(m.itemText(5), 'a')
+        self.assertEqual(m.itemText(6), 'b')
+
+        l3.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        self.assertEqual(m.count(), 6)
+        self.assertFalse(m.itemText(0))
+        self.assertEqual(m.itemText(1), 'l1')
+        self.assertEqual(m.itemText(2), 'l2')
+        self.assertEqual(m.itemText(3), 'l4')
+        self.assertEqual(m.itemText(4), 'a')
+        self.assertEqual(m.itemText(5), 'b')
+
+        l5 = create_layer('l5')
+        l6 = create_layer('l6')
+        m.setAdditionalLayers([l5, l6, l4])
+        self.assertEqual(m.count(), 8)
+        self.assertFalse(m.itemText(0))
+        self.assertEqual(m.itemText(1), 'l1')
+        self.assertEqual(m.itemText(2), 'l2')
+        self.assertEqual(m.itemText(3), 'l4')
+        self.assertEqual(m.itemText(4), 'l5')
+        self.assertEqual(m.itemText(5), 'l6')
+        self.assertEqual(m.itemText(6), 'a')
+        self.assertEqual(m.itemText(7), 'b')
+
+        m.setAdditionalLayers([l5, l4])
+        self.assertEqual(m.count(), 7)
+        self.assertFalse(m.itemText(0))
+        self.assertEqual(m.itemText(1), 'l1')
+        self.assertEqual(m.itemText(2), 'l2')
+        self.assertEqual(m.itemText(3), 'l4')
+        self.assertEqual(m.itemText(4), 'l5')
+        self.assertEqual(m.itemText(5), 'a')
+        self.assertEqual(m.itemText(6), 'b')
+
+        QgsProject.instance().removeMapLayers([l1.id(), l2.id()])
+
+        self.assertEqual(m.count(), 5)
+        self.assertFalse(m.itemText(0))
+        self.assertEqual(m.itemText(1), 'l4')
+        self.assertEqual(m.itemText(2), 'l5')
+        self.assertEqual(m.itemText(3), 'a')
+        self.assertEqual(m.itemText(4), 'b')
+
+    def testProject(self):
+        QgsProject.instance().clear()
+        lA = create_layer('lA')
+        lB = create_layer('lB')
+
+        projectA = QgsProject.instance()
+        projectB = QgsProject()
+
+        projectA.addMapLayer(lA)
+        projectB.addMapLayer(lB)
+        cb = QgsMapLayerComboBox()
+
+        self.assertEqual(cb.currentLayer(), lA)
+
+        cb.setProject(projectB)
+        self.assertEqual(cb.currentLayer(), lB)
+
+        cb.setProject(projectA)
+        self.assertEqual(cb.currentLayer(), lA)
+
+        QgsProject.instance().clear()
 
 
 if __name__ == '__main__':

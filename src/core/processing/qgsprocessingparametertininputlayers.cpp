@@ -55,7 +55,7 @@ bool QgsProcessingParameterTinInputLayers::checkValueIsAcceptable( const QVarian
       continue;  // when called without context, we will skip checking whether the layer can be resolved
 
     QgsMapLayer *mapLayer = QgsProcessingUtils::mapLayerFromString( layerMap.value( QStringLiteral( "source" ) ).toString(), *context );
-    if ( !mapLayer || mapLayer->type() != QgsMapLayerType::VectorLayer )
+    if ( !mapLayer || mapLayer->type() != Qgis::LayerType::Vector )
       return false;
 
     QgsVectorLayer *vectorLayer = static_cast<QgsVectorLayer *>( mapLayer );
@@ -85,13 +85,24 @@ QString QgsProcessingParameterTinInputLayers::valueAsPythonString( const QVarian
   return parts.join( ',' ).prepend( '[' ).append( ']' );
 }
 
+QString QgsProcessingParameterTinInputLayers::valueAsString( const QVariant &value, QgsProcessingContext &context, bool &ok ) const
+{
+  return valueAsStringPrivate( value, context, ok, ValueAsStringFlag::AllowMapLayerValues );
+}
+
+QVariant QgsProcessingParameterTinInputLayers::valueAsJsonObject( const QVariant &value, QgsProcessingContext &context ) const
+{
+  return valueAsJsonObjectPrivate( value, context, ValueAsStringFlag::AllowMapLayerValues );
+}
+
 QString QgsProcessingParameterTinInputLayers::asPythonString( QgsProcessing::PythonOutputType outputType ) const
 {
   switch ( outputType )
   {
-    case QgsProcessing::PythonQgsProcessingAlgorithmSubclass:
+    case QgsProcessing::PythonOutputType::PythonQgsProcessingAlgorithmSubclass:
     {
-      QString code = QStringLiteral( "QgsProcessingParameterTinInputLayers('%1', '%2')" ).arg( name(), description() );
+      QString code = QStringLiteral( "QgsProcessingParameterTinInputLayers('%1', %2)" )
+                     .arg( name(), QgsProcessingUtils::stringToPythonLiteral( description() ) );
       return code;
     }
   }

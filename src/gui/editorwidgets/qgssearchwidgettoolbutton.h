@@ -16,7 +16,7 @@
 #ifndef QGSSEARCHWIDGETTOOLBUTTON_H
 #define QGSSEARCHWIDGETTOOLBUTTON_H
 
-#include "editorwidgets/core/qgssearchwidgetwrapper.h"
+#include "qgssearchwidgetwrapper.h"
 #include "qgis_sip.h"
 #include <QToolButton>
 #include "qgis_gui.h"
@@ -33,7 +33,6 @@
  * \brief A tool button widget which is displayed next to search widgets in forms, and
  * allows for controlling how the widget behaves and how the filtering/searching
  * operates.
- * \since QGIS 2.16
  */
 class GUI_EXPORT QgsSearchWidgetToolButton : public QToolButton
 {

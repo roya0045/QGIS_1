@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsServerRequest.
 
 From build dir, run: ctest -R PyQgsServerRequest -V
@@ -21,8 +20,12 @@ import unittest
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from qgis.PyQt.QtCore import QUrl
-from qgis.server import (QgsBufferServerResponse, QgsFcgiServerRequest,
-                         QgsServerRequest)
+from qgis.server import (
+    QgsBufferServerResponse,
+    QgsFcgiServerRequest,
+    QgsServerRequest,
+)
+
 from test_qgsserver import QgsServerTestBase
 
 
@@ -160,7 +163,7 @@ class QgsServerRequestTest(QgsServerTestBase):
             request = QgsFcgiServerRequest()
             response = QgsBufferServerResponse()
             self.server.handleRequest(request, response)
-            self.assertFalse(b'ServiceExceptionReport' in response.body())
+            self.assertNotIn(b'ServiceExceptionReport', response.body())
 
             if method == 'POST':
                 self.assertEqual(request.data(), data.encode('utf8'))
@@ -171,7 +174,7 @@ class QgsServerRequestTest(QgsServerTestBase):
 
             exp = re.compile(r'href="([^"]+)"', re.DOTALL | re.MULTILINE)
             elems = exp.findall(bytes(response.body()).decode('utf8'))
-            self.assertTrue(len(elems) > 0)
+            self.assertGreater(len(elems), 0)
             for href in elems:
                 self.assertTrue(href.startswith('http://www.myserver.com/aproject/'))
                 self.assertEqual(href.find(urlencode({'MAP': params['map']})), -1)
@@ -194,6 +197,48 @@ class QgsServerRequestTest(QgsServerTestBase):
         _check_links(params)
         _check_links(params, 'POST')
 
+    def test_fcgiRequestPOST_invalid_length_not_an_integer(self):
+        """Test post request handler with wrong CONTENT_LENGTH"""
+
+        data = '<Literal>+1</Literal>'
+        self._set_env({
+            'SERVER_NAME': 'www.myserver.com',
+            'SERVICE': 'WFS',
+            'REQUEST_BODY': data,
+            'CONTENT_LENGTH': "not an integer",
+            'REQUEST_METHOD': 'POST',
+        })
+        request = QgsFcgiServerRequest()
+        self.assertTrue(request.hasError())
+
+    def test_fcgiRequestPOST_invalid_length_negative(self):
+        """Test post request handler with wrong CONTENT_LENGTH"""
+
+        data = '<Literal>+1</Literal>'
+        self._set_env({
+            'SERVER_NAME': 'www.myserver.com',
+            'SERVICE': 'WFS',
+            'REQUEST_BODY': data,
+            'CONTENT_LENGTH': "-1",
+            'REQUEST_METHOD': 'POST',
+        })
+        request = QgsFcgiServerRequest()
+        self.assertTrue(request.hasError())
+
+    def test_fcgiRequestPOST_too_short_length(self):
+        """Test post request handler with wrong CONTENT_LENGTH"""
+
+        data = '<Literal>+1</Literal>'
+        self._set_env({
+            'SERVER_NAME': 'www.myserver.com',
+            'SERVICE': 'WFS',
+            'REQUEST_BODY': data,
+            'CONTENT_LENGTH': str(len(data) - 1),
+            'REQUEST_METHOD': 'POST',
+        })
+        request = QgsFcgiServerRequest()
+        self.assertTrue(request.hasError())
+
     def test_fcgiRequestBody(self):
         """Test request body"""
         data = '<Literal>+1</Literal>'
@@ -205,6 +250,7 @@ class QgsServerRequestTest(QgsServerTestBase):
             'REQUEST_METHOD': 'POST',
         })
         request = QgsFcgiServerRequest()
+        self.assertFalse(request.hasError())
         response = QgsBufferServerResponse()
         self.server.handleRequest(request, response)
         self.assertEqual(request.parameter('REQUEST_BODY'), '<Literal>+1</Literal>')
@@ -214,6 +260,33 @@ class QgsServerRequestTest(QgsServerTestBase):
         request.setParameter('FOOBAR', 'foobar')
         self.assertEqual(request.parameter('FOOBAR'), 'foobar')
         self.assertEqual(request.parameter('UNKNOWN'), '')
+
+    def test_headers(self):
+        """Tests that the headers are working in Fcgi mode"""
+        for header, env, enum, value in (
+            ("Host", "HTTP_HOST", QgsServerRequest.HOST, "example.com"),
+            ("Forwarded", "HTTP_FORWARDED", QgsServerRequest.FORWARDED, "aaa"),
+            ("X-Forwarded-For", "HTTP_X_FORWARDED_FOR", QgsServerRequest.X_FORWARDED_FOR, "bbb"),
+            ("X-Forwarded-Host", "HTTP_X_FORWARDED_HOST", QgsServerRequest.X_FORWARDED_HOST, "ccc"),
+            ("X-Forwarded-Proto", "HTTP_X_FORWARDED_PROTO", QgsServerRequest.X_FORWARDED_PROTO, "ddd"),
+            ("X-Qgis-Service-Url", "HTTP_X_QGIS_SERVICE_URL", QgsServerRequest.X_QGIS_SERVICE_URL, "eee"),
+            ("X-Qgis-Wms-Service-Url", "HTTP_X_QGIS_WMS_SERVICE_URL", QgsServerRequest.X_QGIS_WMS_SERVICE_URL, "fff"),
+            ("X-Qgis-Wfs-Service-Url", "HTTP_X_QGIS_WFS_SERVICE_URL", QgsServerRequest.X_QGIS_WFS_SERVICE_URL, "ggg"),
+            ("X-Qgis-Wcs-Service-Url", "HTTP_X_QGIS_WCS_SERVICE_URL", QgsServerRequest.X_QGIS_WCS_SERVICE_URL, "hhh"),
+            ("X-Qgis-Wmts-Service-Url", "HTTP_X_QGIS_WMTS_SERVICE_URL", QgsServerRequest.X_QGIS_WMTS_SERVICE_URL, "iii"),
+            ("Accept", "HTTP_ACCEPT", QgsServerRequest.ACCEPT, "jjj"),
+            ("User-Agent", "HTTP_USER_AGENT", QgsServerRequest.USER_AGENT, "kkk"),
+            ("Authorization", "HTTP_AUTHORIZATION", QgsServerRequest.AUTHORIZATION, "lll"),
+        ):
+            try:
+                os.environ[env] = value
+                request = QgsFcgiServerRequest()
+                self.assertEqual(request.headers(), {header: value})
+                request = QgsServerRequest(request)
+                self.assertEqual(request.headers(), {header: value})
+                self.assertEqual(request.header(enum), value)
+            finally:
+                del os.environ[env]
 
 
 if __name__ == '__main__':

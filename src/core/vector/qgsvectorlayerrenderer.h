@@ -50,28 +50,9 @@ class QgsVectorLayerDiagramProvider;
 
 /**
  * \ingroup core
- * \brief Interruption checker used by QgsVectorLayerRenderer::render()
- * \note not available in Python bindings
- */
-class QgsVectorLayerRendererInterruptionChecker: public QgsFeedback
-{
-    Q_OBJECT
-
-  public:
-    //! Constructor
-    explicit QgsVectorLayerRendererInterruptionChecker( const QgsRenderContext &context );
-
-  private:
-    const QgsRenderContext &mContext;
-    QTimer *mTimer = nullptr;
-};
-
-/**
- * \ingroup core
  * \brief Implementation of threaded rendering for vector layers.
  *
  * \note not available in Python bindings
- * \since QGIS 2.4
  */
 class QgsVectorLayerRenderer : public QgsMapLayerRenderer
 {
@@ -116,13 +97,15 @@ class QgsVectorLayerRenderer : public QgsMapLayerRenderer
     void stopRenderer( QgsFeatureRenderer *renderer, QgsSingleSymbolRenderer *selRenderer );
 
 
-    bool renderInternal( QgsFeatureRenderer *renderer );
-  protected:
+    bool renderInternal( QgsFeatureRenderer *renderer, int rendererIndex );
 
-    std::unique_ptr< QgsVectorLayerRendererInterruptionChecker > mInterruptionChecker;
+  private:
+
+    std::unique_ptr<QgsFeedback> mFeedback = nullptr;
 
     //! The rendered layer
     QgsVectorLayer *mLayer = nullptr;
+    QString mLayerName;
 
     QgsFields mFields; // TODO: use fields from mSource
 
@@ -140,14 +123,9 @@ class QgsVectorLayerRenderer : public QgsMapLayerRenderer
     Qgis::VertexMarkerType mVertexMarkerStyle = Qgis::VertexMarkerType::SemiTransparentCircle;
     double mVertexMarkerSize = 2.0;
 
-    QgsWkbTypes::GeometryType mGeometryType;
+    Qgis::GeometryType mGeometryType;
 
     QSet<QString> mAttrNames;
-
-    //! used with old labeling engine (QgsPalLabeling): whether labeling is enabled
-    bool mLabeling;
-    //! used with new labeling engine (QgsPalLabeling): whether diagrams are enabled
-    bool mDiagrams;
 
     /**
      * used with new labeling engine (QgsLabelingEngine): provider for labels.
@@ -178,6 +156,13 @@ class QgsVectorLayerRenderer : public QgsMapLayerRenderer
     int mRenderTimeHint = 0;
     bool mBlockRenderUpdates = false;
     QElapsedTimer mElapsedTimer;
+
+    bool mNoSetLayerExpressionContext = false;
+
+    bool mEnableProfile = false;
+    quint64 mPreparationTime = 0;
+
+    std::unique_ptr< QgsSymbol > mSelectionSymbol;
 
 };
 

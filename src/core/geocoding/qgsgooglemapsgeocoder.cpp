@@ -17,8 +17,10 @@
 #include "qgsgeocodercontext.h"
 #include "qgslogger.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 #include "qgsblockingnetworkrequest.h"
 #include "qgsreadwritelocker.h"
+#include "qgscoordinatetransform.h"
 #include <QUrl>
 #include <QUrlQuery>
 #include <QNetworkRequest>
@@ -63,9 +65,9 @@ QgsFields QgsGoogleMapsGeocoder::appendedFields() const
   return fields;
 }
 
-QgsWkbTypes::Type QgsGoogleMapsGeocoder::wkbType() const
+Qgis::WkbType QgsGoogleMapsGeocoder::wkbType() const
 {
-  return QgsWkbTypes::Point;
+  return Qgis::WkbType::Point;
 }
 
 QList<QgsGeocoderResult> QgsGoogleMapsGeocoder::geocodeString( const QString &string, const QgsGeocoderContext &context, QgsFeedback *feedback ) const
@@ -82,7 +84,7 @@ QList<QgsGeocoderResult> QgsGoogleMapsGeocoder::geocodeString( const QString &st
     }
     catch ( QgsCsException & )
     {
-      QgsDebugMsg( "Could not transform geocode bounds to WGS84" );
+      QgsDebugError( "Could not transform geocode bounds to WGS84" );
     }
   }
 
@@ -183,7 +185,7 @@ QUrl QgsGoogleMapsGeocoder::requestUrl( const QString &address, const QgsRectang
     // Qt5 does URL encoding from some reason (of the FILTER parameter for example)
     modifiedUrlString = QUrl::fromPercentEncoding( modifiedUrlString.toUtf8() );
     modifiedUrlString.replace( QLatin1String( "fake_qgis_http_endpoint/" ), QLatin1String( "fake_qgis_http_endpoint_" ) );
-    QgsDebugMsg( QStringLiteral( "Get %1" ).arg( modifiedUrlString ) );
+    QgsDebugMsgLevel( QStringLiteral( "Get %1" ).arg( modifiedUrlString ), 2 );
     modifiedUrlString = modifiedUrlString.mid( QStringLiteral( "http://" ).size() );
     QString args = modifiedUrlString.mid( modifiedUrlString.indexOf( '?' ) );
     if ( modifiedUrlString.size() > 150 )
@@ -212,7 +214,7 @@ QUrl QgsGoogleMapsGeocoder::requestUrl( const QString &address, const QgsRectang
     }
 #endif
     modifiedUrlString = modifiedUrlString.mid( 0, modifiedUrlString.indexOf( '?' ) ) + args;
-    QgsDebugMsg( QStringLiteral( "Get %1 (after laundering)" ).arg( modifiedUrlString ) );
+    QgsDebugMsgLevel( QStringLiteral( "Get %1 (after laundering)" ).arg( modifiedUrlString ), 2 );
     res = QUrl::fromLocalFile( modifiedUrlString );
   }
 

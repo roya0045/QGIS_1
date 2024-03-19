@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsMapCanvasAnnotationItem.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,28 +9,28 @@ __author__ = 'Nyall Dawson'
 __date__ = '24/1/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (QgsTextAnnotation,
-                       QgsCoordinateReferenceSystem,
-                       QgsRectangle,
-                       QgsPointXY,
-                       QgsVectorLayer,
-                       QgsFeature,
-                       QgsGeometry,
-                       QgsFillSymbol)
-from qgis.gui import QgsMapCanvas, QgsMapCanvasAnnotationItem
-
 from qgis.PyQt.QtCore import QPointF, QSizeF
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsFeature,
+    QgsFillSymbol,
+    QgsGeometry,
+    QgsPointXY,
+    QgsRectangle,
+    QgsTextAnnotation,
+    QgsVectorLayer,
+)
+from qgis.gui import QgsMapCanvas, QgsMapCanvasAnnotationItem
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
-from qgis.testing import start_app, unittest
 from utilities import unitTestDataPath
 
 start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsMapCanvasAnnotationItem(unittest.TestCase):
+class TestQgsMapCanvasAnnotationItem(QgisTestCase):
 
     def testPosition(self):
         """ test that map canvas annotation item syncs position correctly """
@@ -39,10 +38,10 @@ class TestQgsMapCanvasAnnotationItem(unittest.TestCase):
         a.setFrameSizeMm(QSizeF(300 / 3.7795275, 200 / 3.7795275))
         a.setFrameOffsetFromReferencePointMm(QPointF(40 / 3.7795275, 50 / 3.7795275))
         a.setMapPosition(QgsPointXY(12, 34))
-        a.setMapPositionCrs(QgsCoordinateReferenceSystem(4326))
+        a.setMapPositionCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
 
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
         canvas.show()
@@ -84,7 +83,7 @@ class TestQgsMapCanvasAnnotationItem(unittest.TestCase):
         a.setFillSymbol(QgsFillSymbol.createSimple({'color': 'blue', 'width_border': '0'}))
 
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
         canvas.show()
@@ -138,10 +137,10 @@ class TestQgsMapCanvasAnnotationItem(unittest.TestCase):
         a.setFrameOffsetFromReferencePointMm(QPointF(40 / 3.7795275, 50 / 3.7795275))
         a.setHasFixedMapPosition(True)
         a.setMapPosition(QgsPointXY(12, 34))
-        a.setMapPositionCrs(QgsCoordinateReferenceSystem(4326))
+        a.setMapPositionCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
 
         canvas = QgsMapCanvas()
-        canvas.setDestinationCrs(QgsCoordinateReferenceSystem(4326))
+        canvas.setDestinationCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         canvas.setFrameStyle(0)
         canvas.resize(600, 400)
 

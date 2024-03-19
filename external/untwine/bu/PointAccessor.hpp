@@ -13,7 +13,6 @@
 #pragma once
 
 #include "../untwine/Common.hpp"
-#include "../untwine/MapFile.hpp"
 #include "../untwine/Point.hpp"
 
 #include "FileInfo.hpp"
@@ -37,10 +36,10 @@ public:
 
     void read(FileInfo& fi)
     {
-        std::string filename = m_b.inputDir + "/" + fi.filename();
+        std::string filename = m_b.opts.tempDir + "/" + fi.filename();
         auto ctx = mapFile(filename, true, 0, fi.numPoints() * m_b.pointSize);
         if (ctx.m_addr == nullptr)
-            fatal(filename + ": " + ctx.m_error);
+            throw FatalError(filename + ": " + ctx.m_error);
         fi.setContext(ctx);
         fi.setStart(size());
         m_fileInfos.push_back(&fi);
@@ -57,6 +56,8 @@ public:
 
     size_t size()
     {
+        // start() returns the number of points in the file infos before the last one.
+        // adding numPoints() provides the total number of points.
         if (m_fileInfos.empty())
             return 0;
         else

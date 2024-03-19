@@ -20,7 +20,6 @@
 #include "qgscolordialog.h"
 #include "qgssymbollevelsdialog.h"
 #include "qgssymbollayer.h"
-#include "qgsexpressionbuilderdialog.h"
 #include "qgsmapcanvas.h"
 #include "qgspanelwidget.h"
 #include "qgsproject.h"
@@ -60,11 +59,11 @@ QgsRendererWidget::QgsRendererWidget( QgsVectorLayer *layer, QgsStyle *style )
   contextMenu->addAction( tr( "Change Opacity…" ), this, SLOT( changeSymbolOpacity() ) );
   contextMenu->addAction( tr( "Change Output Unit…" ), this, SLOT( changeSymbolUnit() ) );
 
-  if ( mLayer && mLayer->geometryType() == QgsWkbTypes::LineGeometry )
+  if ( mLayer && mLayer->geometryType() == Qgis::GeometryType::Line )
   {
     contextMenu->addAction( tr( "Change Width…" ), this, SLOT( changeSymbolWidth() ) );
   }
-  else if ( mLayer && mLayer->geometryType() == QgsWkbTypes::PointGeometry )
+  else if ( mLayer && mLayer->geometryType() == Qgis::GeometryType::Point )
   {
     contextMenu->addAction( tr( "Change Size…" ), this, SLOT( changeSymbolSize() ) );
     contextMenu->addAction( tr( "Change Angle…" ), this, SLOT( changeSymbolAngle() ) );
@@ -195,11 +194,11 @@ void QgsRendererWidget::changeSymbolUnit()
     return;
 
   bool ok;
-  const int currentUnit = ( firstSymbol->outputUnit() == QgsUnitTypes::RenderMillimeters ) ? 0 : 1;
+  const int currentUnit = ( firstSymbol->outputUnit() == Qgis::RenderUnit::Millimeters ) ? 0 : 1;
   const QString item = QInputDialog::getItem( this, tr( "Symbol unit" ), tr( "Select symbol unit" ), QStringList() << tr( "Millimeter" ) << tr( "Map unit" ), currentUnit, false, &ok );
   if ( ok )
   {
-    const QgsUnitTypes::RenderUnit unit = ( item.compare( tr( "Millimeter" ) ) == 0 ) ? QgsUnitTypes::RenderMillimeters : QgsUnitTypes::RenderMapUnits;
+    const Qgis::RenderUnit unit = ( item.compare( tr( "Millimeter" ) ) == 0 ) ? Qgis::RenderUnit::Millimeters : Qgis::RenderUnit::MapUnits;
 
     const auto constSymbolList = symbolList;
     for ( QgsSymbol *symbol : constSymbolList )
@@ -505,7 +504,7 @@ void QgsDataDefinedValueDialog::dataDefinedChanged()
 QgsDataDefinedSizeDialog::QgsDataDefinedSizeDialog( const QList<QgsSymbol *> &symbolList, QgsVectorLayer *layer )
   : QgsDataDefinedValueDialog( symbolList, layer, tr( "Size" ) )
 {
-  init( QgsSymbolLayer::PropertySize );
+  init( static_cast< int >( QgsSymbolLayer::Property::Size ) );
   if ( !symbolList.isEmpty() && symbolList.at( 0 ) && vectorLayer() )
   {
     mAssistantSymbol.reset( static_cast<const QgsMarkerSymbol *>( symbolList.at( 0 ) )->clone() );
@@ -534,7 +533,7 @@ void QgsDataDefinedSizeDialog::setDataDefined( QgsSymbol *symbol, const QgsPrope
 QgsDataDefinedRotationDialog::QgsDataDefinedRotationDialog( const QList<QgsSymbol *> &symbolList, QgsVectorLayer *layer )
   : QgsDataDefinedValueDialog( symbolList, layer, tr( "Rotation" ) )
 {
-  init( QgsSymbolLayer::PropertyAngle );
+  init( static_cast< int >( QgsSymbolLayer::Property::Angle ) );
 }
 
 QgsProperty QgsDataDefinedRotationDialog::symbolDataDefined( const QgsSymbol *symbol ) const
@@ -557,7 +556,7 @@ void QgsDataDefinedRotationDialog::setDataDefined( QgsSymbol *symbol, const QgsP
 QgsDataDefinedWidthDialog::QgsDataDefinedWidthDialog( const QList<QgsSymbol *> &symbolList, QgsVectorLayer *layer )
   : QgsDataDefinedValueDialog( symbolList, layer, tr( "Width" ) )
 {
-  init( QgsSymbolLayer::PropertyStrokeWidth );
+  init( static_cast< int >( QgsSymbolLayer::Property::StrokeWidth ) );
 }
 
 QgsProperty QgsDataDefinedWidthDialog::symbolDataDefined( const QgsSymbol *symbol ) const

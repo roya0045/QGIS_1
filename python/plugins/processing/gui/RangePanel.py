@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     RangePanel.py
@@ -42,12 +40,12 @@ class RangePanel(BASE, WIDGET):
     hasChanged = pyqtSignal()
 
     def __init__(self, param):
-        super(RangePanel, self).__init__(None)
+        super().__init__(None)
         self.setupUi(self)
 
         self.param = param
         # Integer or Double range
-        if self.param.dataType() == QgsProcessingParameterNumber.Integer:
+        if self.param.dataType() == QgsProcessingParameterNumber.Type.Integer:
             self.spnMin.setDecimals(0)
             self.spnMax.setDecimals(0)
 
@@ -72,7 +70,7 @@ class RangePanel(BASE, WIDGET):
             self.hasChanged.emit()
 
     def getValue(self):
-        return '{},{}'.format(self.spnMin.value(), self.spnMax.value())
+        return f'{self.spnMin.value()},{self.spnMax.value()}'
 
     def getValues(self):
         value = self.getValue()

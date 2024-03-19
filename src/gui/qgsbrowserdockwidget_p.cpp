@@ -38,7 +38,6 @@
 #include "qgsrasterlayer.h"
 #include "qgsvectorlayer.h"
 #include "qgsproject.h"
-#include "qgssettings.h"
 #include "qgsmeshlayer.h"
 #include "qgsgui.h"
 #include "qgsnative.h"
@@ -53,6 +52,7 @@
 #include "qgspointcloudlayer.h"
 #include "qgslayeritem.h"
 #include "qgsdirectoryitem.h"
+#include "qgstiledscenelayer.h"
 
 /// @cond PRIVATE
 
@@ -103,11 +103,14 @@ QgsBrowserPropertiesWidget *QgsBrowserPropertiesWidget::createWidget( QgsDataIte
     propertiesWidget = new QgsBrowserDirectoryProperties( parent );
     propertiesWidget->setItem( item );
   }
-  else if ( item->type() == Qgis::BrowserItemType::Layer || item->type() == Qgis::BrowserItemType::Custom )
+  else if ( item->type() == Qgis::BrowserItemType::Layer
+            || item->type() == Qgis::BrowserItemType::Custom
+            || item->type() == Qgis::BrowserItemType::Fields
+            || item->type() == Qgis::BrowserItemType::Field )
   {
     // try new infrastructure of creation of layer widgets
     QWidget *paramWidget = nullptr;
-    const QList< QgsDataItemGuiProvider * > providers = QgsGui::instance()->dataItemGuiProviderRegistry()->providers();
+    const QList< QgsDataItemGuiProvider * > providers = QgsGui::dataItemGuiProviderRegistry()->providers();
     for ( QgsDataItemGuiProvider *provider : providers )
     {
       paramWidget = provider->createParamWidget( item, context );
@@ -174,7 +177,7 @@ void QgsBrowserLayerProperties::setItem( QgsDataItem *item )
 
   mNoticeLabel->clear();
 
-  const QgsMapLayerType type = layerItem->mapLayerType();
+  const Qgis::LayerType type = layerItem->mapLayerType();
   QString layerMetadata = tr( "Error" );
 
   mLayer.reset();
@@ -182,12 +185,12 @@ void QgsBrowserLayerProperties::setItem( QgsDataItem *item )
   // find root item
   // we need to create a temporary layer to get metadata
   // we could use a provider but the metadata is not as complete and "pretty"  and this is easier
-  QgsDebugMsg( QStringLiteral( "creating temporary layer using path %1" ).arg( layerItem->path() ) );
+  QgsDebugMsgLevel( QStringLiteral( "creating temporary layer using path %1" ).arg( layerItem->path() ), 2 );
   switch ( type )
   {
-    case QgsMapLayerType::RasterLayer:
+    case Qgis::LayerType::Raster:
     {
-      QgsDebugMsg( QStringLiteral( "creating raster layer" ) );
+      QgsDebugMsgLevel( QStringLiteral( "creating raster layer" ), 2 );
       // should copy code from addLayer() to split uri ?
       QgsRasterLayer::LayerOptions options;
       options.skipCrsValidation = true;
@@ -195,32 +198,32 @@ void QgsBrowserLayerProperties::setItem( QgsDataItem *item )
       break;
     }
 
-    case QgsMapLayerType::MeshLayer:
+    case Qgis::LayerType::Mesh:
     {
-      QgsDebugMsg( QStringLiteral( "creating mesh layer" ) );
+      QgsDebugMsgLevel( QStringLiteral( "creating mesh layer" ), 2 );
       QgsMeshLayer::LayerOptions options { QgsProject::instance()->transformContext() };
       options.skipCrsValidation = true;
       mLayer = std::make_unique < QgsMeshLayer >( layerItem->uri(), layerItem->name(), layerItem->providerKey(), options );
       break;
     }
 
-    case QgsMapLayerType::VectorLayer:
+    case Qgis::LayerType::Vector:
     {
-      QgsDebugMsg( QStringLiteral( "creating vector layer" ) );
+      QgsDebugMsgLevel( QStringLiteral( "creating vector layer" ), 2 );
       QgsVectorLayer::LayerOptions options { QgsProject::instance()->transformContext() };
       options.skipCrsValidation = true;
       mLayer = std::make_unique < QgsVectorLayer>( layerItem->uri(), layerItem->name(), layerItem->providerKey(), options );
       break;
     }
 
-    case QgsMapLayerType::VectorTileLayer:
+    case Qgis::LayerType::VectorTile:
     {
       QgsDebugMsgLevel( QStringLiteral( "creating vector tile layer" ), 2 );
       mLayer = std::make_unique< QgsVectorTileLayer >( layerItem->uri(), layerItem->name() );
       break;
     }
 
-    case QgsMapLayerType::PointCloudLayer:
+    case Qgis::LayerType::PointCloud:
     {
       QgsDebugMsgLevel( QStringLiteral( "creating point cloud layer" ), 2 );
       QgsPointCloudLayer::LayerOptions options { QgsProject::instance()->transformContext() };
@@ -229,8 +232,18 @@ void QgsBrowserLayerProperties::setItem( QgsDataItem *item )
       break;
     }
 
-    case QgsMapLayerType::PluginLayer:
-    case QgsMapLayerType::AnnotationLayer:
+    case Qgis::LayerType::TiledScene:
+    {
+      QgsDebugMsgLevel( QStringLiteral( "creating tiled scene layer" ), 2 );
+      QgsTiledSceneLayer::LayerOptions options { QgsProject::instance()->transformContext() };
+      options.skipCrsValidation = true;
+      mLayer = std::make_unique< QgsTiledSceneLayer >( layerItem->uri(), layerItem->name(), layerItem->providerKey(), options );
+      break;
+    }
+
+    case Qgis::LayerType::Plugin:
+    case Qgis::LayerType::Annotation:
+    case Qgis::LayerType::Group:
     {
       // TODO: support display of properties for plugin layers
       return;
@@ -254,7 +267,7 @@ void QgsBrowserLayerProperties::setItem( QgsDataItem *item )
     mMapCanvas->setLayers( QList< QgsMapLayer * >() << mLayer.get() );
     mMapCanvas->zoomToFullExtent();
 
-    if ( mAttributesTab && mLayer->type() != QgsMapLayerType::VectorLayer )
+    if ( mAttributesTab && mLayer->type() != Qgis::LayerType::Vector )
     {
       mTabWidget->removeTab( mTabWidget->indexOf( mAttributesTab ) );
       mAttributesTab = nullptr;
@@ -280,14 +293,14 @@ void QgsBrowserLayerProperties::urlClicked( const QUrl &url )
 {
   const QFileInfo file( url.toLocalFile() );
   if ( file.exists() && !file.isDir() )
-    QgsGui::instance()->nativePlatformInterface()->openFileExplorerAndSelectFile( url.toLocalFile() );
+    QgsGui::nativePlatformInterface()->openFileExplorerAndSelectFile( url.toLocalFile() );
   else
     QDesktopServices::openUrl( url );
 }
 
 void QgsBrowserLayerProperties::loadAttributeTable()
 {
-  if ( !mLayer || !mLayer->isValid() || mLayer->type() != QgsMapLayerType::VectorLayer )
+  if ( !mLayer || !mLayer->isValid() || mLayer->type() != Qgis::LayerType::Vector )
     return;
 
   // Initialize the cache
@@ -295,7 +308,7 @@ void QgsBrowserLayerProperties::loadAttributeTable()
   layerCache->setCacheGeometry( false );
   QgsAttributeTableModel *tableModel = new QgsAttributeTableModel( layerCache, this );
   mAttributeTableFilterModel = new QgsAttributeTableFilterModel( nullptr, tableModel, this );
-  tableModel->setRequest( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setLimit( 100 ) );
+  tableModel->setRequest( QgsFeatureRequest().setFlags( Qgis::FeatureRequestFlag::NoGeometry ).setLimit( 100 ) );
   layerCache->setParent( tableModel );
   tableModel->setParent( mAttributeTableFilterModel );
 
@@ -344,7 +357,7 @@ QgsBrowserPropertiesDialog::QgsBrowserPropertiesDialog( const QString &settingsS
   , mSettingsSection( settingsSection )
 {
   setupUi( this );
-  QgsGui::instance()->enableAutoGeometryRestore( this );
+  QgsGui::enableAutoGeometryRestore( this );
 }
 
 void QgsBrowserPropertiesDialog::setItem( QgsDataItem *item, const QgsDataItemGuiContext &context )
@@ -397,7 +410,7 @@ void QgsDockBrowserTreeView::dragMoveEvent( QDragMoveEvent *e )
   // do not accept drops above/below items
   /*if ( dropIndicatorPosition() != QAbstractItemView::OnItem )
       {
-        QgsDebugMsg("drag not on item");
+        QgsDebugMsgLevel("drag not on item", 2);
         e->ignore();
         return;
       }*/

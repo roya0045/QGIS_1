@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 QGIS Server HTTP wrapper for testing purposes
 ================================================================================
@@ -115,17 +114,7 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 """
 
-import copy
 import os
-import signal
-import ssl
-import sys
-import urllib.parse
-
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from qgis.core import QgsApplication
-from qgis.server import (QgsBufferServerRequest, QgsBufferServerResponse,
-                         QgsServer, QgsServerRequest)
 
 __author__ = 'Alessandro Pasotti'
 __date__ = '05/15/2016'
@@ -135,18 +124,24 @@ __copyright__ = 'Copyright 2016, The QGIS Project'
 # executions
 os.environ['QT_HASH_SEED'] = '1'
 
-import sys
+import copy
+import math
 import signal
 import ssl
-import math
-import copy
+import sys
 import urllib.parse
+
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
-import threading
 
-from qgis.core import QgsApplication, QgsCoordinateTransform, QgsCoordinateReferenceSystem
-from qgis.server import QgsServer, QgsServerRequest, QgsBufferServerRequest, QgsBufferServerResponse, QgsServerFilter
+from qgis.core import QgsApplication
+from qgis.server import (
+    QgsBufferServerRequest,
+    QgsBufferServerResponse,
+    QgsServer,
+    QgsServerFilter,
+    QgsServerRequest,
+)
 
 QGIS_SERVER_PORT = int(os.environ.get('QGIS_SERVER_PORT', '8081'))
 QGIS_SERVER_HOST = os.environ.get('QGIS_SERVER_HOST', '127.0.0.1')
@@ -201,7 +196,6 @@ qgs_app = QgsApplication([], False)
 qgs_server = QgsServer()
 
 if QGIS_SERVER_HTTP_BASIC_AUTH:
-    from qgis.server import QgsServerFilter
     import base64
 
     class HTTPBasicFilter(QgsServerFilter):
@@ -264,17 +258,17 @@ class XYZFilter(QgsServerFilter):
             handler.setParameter('SRS', 'EPSG:4326')
             handler.setParameter('HEIGHT', '256')
             handler.setParameter('WIDTH', '256')
-            handler.setParameter('BBOX', "{},{},{},{}".format(lat_deg2, lon_deg, lat_deg, lon_deg2))
+            handler.setParameter('BBOX', f"{lat_deg2},{lon_deg},{lat_deg},{lon_deg2}")
 
 
 xyzfilter = XYZFilter(qgs_server.serverInterface())
 qgs_server.serverInterface().registerFilter(xyzfilter)
 
 if QGIS_SERVER_OAUTH2_AUTH:
-    from qgis.server import QgsServerFilter
-    from oauthlib.oauth2 import RequestValidator, LegacyApplicationServer
-    import base64
     from datetime import datetime
+
+    from oauthlib.oauth2 import LegacyApplicationServer, RequestValidator
+    from qgis.server import QgsServerFilter
 
     # Naive token storage implementation
     _tokens = {}
@@ -417,7 +411,7 @@ class Handler(BaseHTTPRequestHandler):
         for k, v in self.headers.items():
             headers['HTTP_%s' % k.replace(' ', '-').replace('-', '_').replace(' ', '-').upper()] = v
         if not self.path.startswith('http'):
-            self.path = "%s://%s:%s%s" % ('https' if HTTPS_ENABLED else 'http', QGIS_SERVER_HOST, self.server.server_port, self.path)
+            self.path = "{}://{}:{}{}".format('https' if HTTPS_ENABLED else 'http', QGIS_SERVER_HOST, self.server.server_port, self.path)
         request = QgsBufferServerRequest(
             self.path, (QgsServerRequest.PostMethod if post_body is not None else QgsServerRequest.GetMethod), headers, post_body)
         response = QgsBufferServerResponse()
@@ -453,23 +447,29 @@ if __name__ == '__main__':
     # HTTPS is enabled if any of PKI or OAuth2 are enabled too
     if HTTPS_ENABLED:
         if QGIS_SERVER_OAUTH2_AUTH:
-            server.socket = ssl.wrap_socket(
+            ssl_version = ssl.PROTOCOL_TLS
+            context = ssl.SSLContext(ssl_version)
+            context.verify_mode = ssl.CERT_NONE  # No certs for OAuth2
+            context.load_cert_chain(certfile=QGIS_SERVER_OAUTH2_CERTIFICATE,
+                                    keyfile=QGIS_SERVER_OAUTH2_KEY)
+            context.load_verify_locations(cafile=QGIS_SERVER_OAUTH2_AUTHORITY)
+
+            server.socket = context.wrap_socket(
                 server.socket,
-                certfile=QGIS_SERVER_OAUTH2_CERTIFICATE,
-                ca_certs=QGIS_SERVER_OAUTH2_AUTHORITY,
-                keyfile=QGIS_SERVER_OAUTH2_KEY,
-                server_side=True,
-                # cert_reqs=ssl.CERT_REQUIRED,  # No certs for OAuth2
-                ssl_version=ssl.PROTOCOL_TLSv1_2)
+                server_side=True
+            )
         else:
-            server.socket = ssl.wrap_socket(
+            ssl_version = ssl.PROTOCOL_TLS
+            context = ssl.SSLContext(ssl_version)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.load_cert_chain(certfile=QGIS_SERVER_PKI_CERTIFICATE,
+                                    keyfile=QGIS_SERVER_PKI_KEY)
+            context.load_verify_locations(cafile=QGIS_SERVER_PKI_AUTHORITY)
+
+            server.socket = context.wrap_socket(
                 server.socket,
-                certfile=QGIS_SERVER_PKI_CERTIFICATE,
-                keyfile=QGIS_SERVER_PKI_KEY,
-                ca_certs=QGIS_SERVER_PKI_AUTHORITY,
-                cert_reqs=ssl.CERT_REQUIRED,
-                server_side=True,
-                ssl_version=ssl.PROTOCOL_TLSv1_2)
+                server_side=True
+            )
 
     print('Starting server on %s://%s:%s, use <Ctrl-C> to stop' %
           ('https' if HTTPS_ENABLED else 'http', QGIS_SERVER_HOST, server.server_port), flush=True)

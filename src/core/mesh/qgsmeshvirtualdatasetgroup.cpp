@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include "qgsmeshvirtualdatasetgroup.h"
-#include "qgsmeshlayertemporalproperties.h"
 
 QgsMeshVirtualDatasetGroup::QgsMeshVirtualDatasetGroup(
   const QString &name,
@@ -40,8 +39,10 @@ void QgsMeshVirtualDatasetGroup::initialize()
   if ( !mCalcNode || !mLayer )
     return;
 
-  mDatasetGroupNameUsed = mCalcNode->usedDatasetGroupNames();
-  setDataType( QgsMeshCalcUtils::determineResultDataType( mLayer, mDatasetGroupNameUsed ) );
+  mDatasetGroupNameUsed = mCalcNode->notAggregatedUsedDatasetGroupNames();
+  mDatasetGroupNameUsedForAggregate = mCalcNode->aggregatedUsedDatasetGroupNames();
+  setDataType( QgsMeshCalcUtils::determineResultDataType( mLayer,
+               mDatasetGroupNameUsed + mDatasetGroupNameUsedForAggregate ) );
 
   //populate used group indexes
   QMap<QString, int> usedDatasetGroupindexes;
@@ -78,7 +79,7 @@ void QgsMeshVirtualDatasetGroup::initialize()
   if ( times.isEmpty() )
     times.insert( 0 );
 
-  mDatasetTimes = qgis::setToList( times );
+  mDatasetTimes = QList<qint64>( times.constBegin(), times.constEnd() );
   std::sort( mDatasetTimes.begin(), mDatasetTimes.end() );
 
   mDatasetMetaData = QVector<QgsMeshDatasetMetadata>( mDatasetTimes.count() );
@@ -152,7 +153,12 @@ bool QgsMeshVirtualDatasetGroup::calculateDataset() const
   if ( !mLayer )
     return false;
 
-  const QgsMeshCalcUtils dsu( mLayer, mDatasetGroupNameUsed, QgsInterval( mDatasetTimes[mCurrentDatasetIndex] / 1000.0 ) );
+  const QgsMeshCalcUtils dsu( mLayer,
+                              mDatasetGroupNameUsed,
+                              mDatasetGroupNameUsedForAggregate,
+                              QgsInterval( mDatasetTimes[mCurrentDatasetIndex] / 1000.0 ),
+                              QgsInterval( mStartTime / 1000.0 ),
+                              QgsInterval( mEndTime / 1000.0 ) );
 
   if ( !dsu.isValid() )
     return false;

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     QgisAlgorithmTests.py
@@ -32,12 +30,13 @@ from qgis.core import (QgsApplication,
                        QgsProject)
 from qgis.PyQt import sip
 from qgis.analysis import (QgsNativeAlgorithms)
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 import processing
 from processing.tests.TestData import points
 
 
-class TestProcessingGeneral(unittest.TestCase):
+class TestProcessingGeneral(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -106,6 +105,19 @@ class TestProcessingGeneral(unittest.TestCase):
 
         # Python should NOT have ownership
         self.assertFalse(sip.ispyowned(layer))
+
+    def testProviders(self):
+        """
+        When run from a standalone script (like this test), ensure that the providers from separate plugins are available
+        """
+        providers = [p.id() for p in QgsApplication.processingRegistry().providers()]
+        self.assertIn('qgis', providers)
+        self.assertIn('native', providers)
+        self.assertIn('gdal', providers)
+        self.assertIn('project', providers)
+        self.assertIn('script', providers)
+        self.assertIn('model', providers)
+        self.assertIn('grass', providers)
 
 
 if __name__ == '__main__':

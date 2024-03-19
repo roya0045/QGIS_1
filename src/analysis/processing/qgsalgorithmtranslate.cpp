@@ -81,7 +81,7 @@ void QgsTranslateAlgorithm::initParameters( const QVariantMap & )
   addParameter( yOffset.release() );
 
   std::unique_ptr< QgsProcessingParameterNumber > zOffset = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "DELTA_Z" ),
-      QObject::tr( "Offset distance (z-axis)" ), QgsProcessingParameterNumber::Double,
+      QObject::tr( "Offset distance (z-axis)" ), Qgis::ProcessingNumberParameterType::Double,
       0.0 );
   zOffset->setIsDynamic( true );
   zOffset->setDynamicPropertyDefinition( QgsPropertyDefinition( QStringLiteral( "DELTA_Z" ), QObject::tr( "Offset distance (z-axis)" ), QgsPropertyDefinition::Double ) );
@@ -89,7 +89,7 @@ void QgsTranslateAlgorithm::initParameters( const QVariantMap & )
   addParameter( zOffset.release() );
 
   std::unique_ptr< QgsProcessingParameterNumber > mOffset = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "DELTA_M" ),
-      QObject::tr( "Offset distance (m values)" ), QgsProcessingParameterNumber::Double,
+      QObject::tr( "Offset distance (m values)" ), Qgis::ProcessingNumberParameterType::Double,
       0.0 );
   mOffset->setIsDynamic( true );
   mOffset->setDynamicPropertyDefinition( QgsPropertyDefinition( QStringLiteral( "DELTA_M" ), QObject::tr( "Offset distance (m values)" ), QgsPropertyDefinition::Double ) );
@@ -153,9 +153,9 @@ QgsFeatureList QgsTranslateAlgorithm::processFeature( const QgsFeature &feature,
   return QgsFeatureList() << f;
 }
 
-QgsWkbTypes::Type QgsTranslateAlgorithm::outputWkbType( QgsWkbTypes::Type inputWkbType ) const
+Qgis::WkbType QgsTranslateAlgorithm::outputWkbType( Qgis::WkbType inputWkbType ) const
 {
-  QgsWkbTypes::Type wkb = inputWkbType;
+  Qgis::WkbType wkb = inputWkbType;
   if ( mDeltaZ != 0.0 )
     wkb = QgsWkbTypes::addZ( wkb );
   if ( mDeltaM != 0.0 )
@@ -178,7 +178,7 @@ bool QgsTranslateAlgorithm::supportInPlaceEdit( const QgsMapLayer *l ) const
     return true;
 
   // If the type differs there is no sense in executing the algorithm and drop the result
-  const QgsWkbTypes::Type inPlaceWkbType = layer->wkbType();
+  const Qgis::WkbType inPlaceWkbType = layer->wkbType();
   return inPlaceWkbType == outputWkbType( inPlaceWkbType );
 }
 ///@endcond

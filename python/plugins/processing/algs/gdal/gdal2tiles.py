@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     gdal2tiles.py
@@ -63,11 +61,11 @@ class gdal2tiles(GdalAlgorithm):
                          (self.tr('Raster'), 'raster'))
 
         self.methods = ((self.tr('Average'), 'average'),
-                        (self.tr('Nearest neighbour'), 'near'),
-                        (self.tr('Bilinear'), 'bilinear'),
-                        (self.tr('Cubic'), 'cubic'),
-                        (self.tr('Cubic spline'), 'cubicspline'),
-                        (self.tr('Lanczos windowed sinc'), 'lanczos'),
+                        (self.tr('Nearest Neighbour'), 'near'),
+                        (self.tr('Bilinear (2x2 Kernel)'), 'bilinear'),
+                        (self.tr('Cubic (4x4 Kernel)'), 'cubic'),
+                        (self.tr('Cubic B-Spline (4x4 Kernel)'), 'cubicspline'),
+                        (self.tr('Lanczos (6x6 Kernel)'), 'lanczos'),
                         (self.tr('Antialias'), 'antialias'))
 
         self.viewers = ((self.tr('All'), 'all'),
@@ -109,7 +107,7 @@ class gdal2tiles(GdalAlgorithm):
                                       optional=True),
             QgsProcessingParameterNumber(self.NODATA,
                                          self.tr('Transparency value to assign to the input data'),
-                                         type=QgsProcessingParameterNumber.Double,
+                                         type=QgsProcessingParameterNumber.Type.Double,
                                          defaultValue=0,
                                          optional=True),
             QgsProcessingParameterString(self.URL,
@@ -132,7 +130,7 @@ class gdal2tiles(GdalAlgorithm):
                                           defaultValue=False)
         ]
         for param in params:
-            param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            param.setFlags(param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             self.addParameter(param)
 
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT,
@@ -154,7 +152,7 @@ class gdal2tiles(GdalAlgorithm):
         return 'gdal2tiles'
 
     def flags(self):
-        return super().flags() | QgsProcessingAlgorithm.FlagDisplayNameIsLiteral
+        return super().flags() | QgsProcessingAlgorithm.Flag.FlagDisplayNameIsLiteral
 
     def getConsoleCommands(self, parameters, context, feedback, executing=True):
         arguments = [

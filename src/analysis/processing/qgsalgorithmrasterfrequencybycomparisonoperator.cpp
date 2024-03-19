@@ -43,12 +43,12 @@ void QgsRasterFrequencyByComparisonOperatorBase::initAlgorithm( const QVariantMa
 
 
   addParameter( new QgsProcessingParameterMultipleLayers( QStringLiteral( "INPUT_RASTERS" ),
-                QObject::tr( "Input raster layers" ), QgsProcessing::TypeRaster ) );
+                QObject::tr( "Input raster layers" ), Qgis::ProcessingSourceType::Raster ) );
 
   addParameter( new QgsProcessingParameterBoolean( QStringLiteral( "IGNORE_NODATA" ), QObject::tr( "Ignore NoData values" ), false ) );
 
-  std::unique_ptr< QgsProcessingParameterNumber > output_nodata_parameter = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "OUTPUT_NODATA_VALUE" ), QObject::tr( "Output NoData value" ), QgsProcessingParameterNumber::Double, -9999, true );
-  output_nodata_parameter->setFlags( output_nodata_parameter->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  std::unique_ptr< QgsProcessingParameterNumber > output_nodata_parameter = std::make_unique< QgsProcessingParameterNumber >( QStringLiteral( "OUTPUT_NODATA_VALUE" ), QObject::tr( "Output NoData value" ), Qgis::ProcessingNumberParameterType::Double, -9999, true );
+  output_nodata_parameter->setFlags( output_nodata_parameter->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( output_nodata_parameter.release() );
 
   addParameter( new QgsProcessingParameterRasterDestination( QStringLiteral( "OUTPUT" ),
@@ -89,7 +89,7 @@ bool QgsRasterFrequencyByComparisonOperatorBase::prepareAlgorithm( const QVarian
     if ( feedback->isCanceled() )
       break; //in case some slow data sources are loaded
 
-    if ( l->type() == QgsMapLayerType::RasterLayer )
+    if ( l->type() == Qgis::LayerType::Raster )
     {
       QgsRasterLayer *layer = qobject_cast< QgsRasterLayer * >( l );
       QgsRasterAnalysisUtils::RasterLogicInput input;

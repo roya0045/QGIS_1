@@ -11,7 +11,8 @@
 
 
 
-class QgsProcessingAlgorithmDialogBase : QDialog, QgsProcessingParametersGenerator
+
+class QgsProcessingAlgorithmDialogBase : QDialog, QgsProcessingParametersGenerator, QgsProcessingContextGenerator
 {
 %Docstring(signature="appended")
 Base class for processing algorithm dialogs.
@@ -19,8 +20,6 @@ Base class for processing algorithm dialogs.
 .. note::
 
    This is not considered stable API and may change in future QGIS versions.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -34,7 +33,13 @@ Base class for processing algorithm dialogs.
       FormatHtml,
     };
 
-    QgsProcessingAlgorithmDialogBase( QWidget *parent /TransferThis/ = 0, Qt::WindowFlags flags = Qt::WindowFlags() );
+    enum class DialogMode
+    {
+      Single,
+      Batch,
+    };
+
+    QgsProcessingAlgorithmDialogBase( QWidget *parent /TransferThis/ = 0, Qt::WindowFlags flags = Qt::WindowFlags(), QgsProcessingAlgorithmDialogBase::DialogMode mode = QgsProcessingAlgorithmDialogBase::DialogMode::Single );
 %Docstring
 Constructor for QgsProcessingAlgorithmDialogBase.
 %End
@@ -109,7 +114,7 @@ the given ``format``.
 .. versionadded:: 3.2
 %End
 
-    QgsProcessingContext::LogLevel logLevel() const;
+    Qgis::ProcessingLogLevel logLevel() const;
 %Docstring
 Returns the logging level to use when running algorithms from the dialog.
 
@@ -118,13 +123,20 @@ Returns the logging level to use when running algorithms from the dialog.
 .. versionadded:: 3.20
 %End
 
-    void setLogLevel( QgsProcessingContext::LogLevel level );
+    void setLogLevel( Qgis::ProcessingLogLevel level );
 %Docstring
 Sets the logging ``level`` to use when running algorithms from the dialog.
 
 .. seealso:: :py:func:`logLevel`
 
 .. versionadded:: 3.20
+%End
+
+    virtual void setParameters( const QVariantMap &values );
+%Docstring
+Sets the parameter ``values`` to show in the dialog.
+
+.. versionadded:: 3.24
 %End
 
   public slots:
@@ -144,6 +156,15 @@ Pushes a warning information string to the dialog's log.
     void pushInfo( const QString &info );
 %Docstring
 Pushes an information string to the dialog's log.
+%End
+
+    void pushFormattedMessage( const QString &html );
+%Docstring
+Pushes a pre-formatted message to the dialog's log
+
+This can be used to push formatted HTML messages to the dialog.
+
+.. versionadded:: 3.36
 %End
 
     void pushDebugInfo( const QString &message );
@@ -318,8 +339,22 @@ by the dialog. Ownership of ``task`` is transferred to the dialog.
     static QString formatStringForLog( const QString &string );
 %Docstring
 Formats an input ``string`` for display in the log tab.
+%End
 
-.. versionadded:: 3.0.1
+    virtual bool isFinalized();
+%Docstring
+Returns ``True`` if the dialog is all finalized and can be safely deleted.
+
+.. versionadded:: 3.26
+%End
+
+    void applyContextOverrides( QgsProcessingContext *context );
+%Docstring
+Applies any defined overrides for Processing context settings to the specified ``context``.
+
+This allows the dialog to override default Processing settings for an individual algorithm execution.
+
+.. versionadded:: 3.32
 %End
 
   signals:
@@ -341,6 +376,13 @@ Called when the algorithm has finished executing.
     virtual void runAlgorithm();
 %Docstring
 Called when the dialog's algorithm should be run. Must be overridden by subclasses.
+%End
+
+    virtual void algExecuted( bool successful, const QVariantMap &results );
+%Docstring
+Called when an algorithm task has completed.
+
+.. versionadded:: 3.26
 %End
 
 };

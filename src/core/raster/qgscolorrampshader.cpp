@@ -24,7 +24,7 @@ originally part of the larger QgsRasterLayer class
 
 #include "qgslogger.h"
 #include "qgis.h"
-#include "qgscolorramp.h"
+#include "qgscolorrampimpl.h"
 #include "qgscolorrampshader.h"
 #include "qgsrasterinterface.h"
 #include "qgsrasterminmaxorigin.h"
@@ -428,7 +428,7 @@ bool QgsColorRampShader::shade( double value, int *returnRedValue, int *returnGr
 
   // find index of the first ColorRampItem that is equal or higher to theValue
   const int lutIndex = ( value - mLUTOffset ) * mLUTFactor;
-  if ( value < mLUTOffset )
+  if ( value <= mLUTOffset )
   {
     idx = 0;
   }

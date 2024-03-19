@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     v_net.py
@@ -16,7 +14,7 @@
 *                                                                         *
 ***************************************************************************
 
-This Python module handles pre-treatment operations for v.net.* GRASS7 modules.
+This Python module handles pre-treatment operations for v.net.* GRASS modules.
 Before using a v.net module you often have to incorporate a points layer into
 the network vector map.
 """
@@ -39,7 +37,7 @@ def incorporatePoints(alg, parameters, context, feedback, pointLayerName='points
     pointLayer = alg.parameterAsVectorLayer(parameters, pointLayerName, context)
     if pointLayer:
         # Create an intermediate GRASS layer which is the combination of network + centers
-        intLayer = 'net' + os.path.basename(getTempFilename())
+        intLayer = 'net' + os.path.basename(getTempFilename(context=context))
 
         pointLayer = alg.exportedLayers[pointLayerName]
 
@@ -49,7 +47,7 @@ def incorporatePoints(alg, parameters, context, feedback, pointLayerName='points
             lineLayer = alg.exportedLayers[networkLayerName]
         else:
             raise QgsProcessingException(
-                alg.tr('GRASS GIS 7 v.net requires a lines layer!'))
+                alg.tr('GRASS GIS v.net requires a lines layer!'))
 
         threshold = alg.parameterAsDouble(parameters, 'threshold', context)
 

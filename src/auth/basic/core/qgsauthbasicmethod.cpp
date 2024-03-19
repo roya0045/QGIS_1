@@ -43,7 +43,6 @@ QgsAuthBasicMethod::QgsAuthBasicMethod()
   setDataProviders( QStringList()
                     << QStringLiteral( "postgres" )
                     << QStringLiteral( "oracle" )
-                    << QStringLiteral( "db2" )
                     << QStringLiteral( "ows" )
                     << QStringLiteral( "wfs" )  // convert to lowercase
                     << QStringLiteral( "wcs" )
@@ -77,7 +76,7 @@ bool QgsAuthBasicMethod::updateNetworkRequest( QNetworkRequest &request, const Q
   const QgsAuthMethodConfig mconfig = getMethodConfig( authcfg );
   if ( !mconfig.isValid() )
   {
-    QgsDebugMsg( QStringLiteral( "Update request config FAILED for authcfg: %1: config invalid" ).arg( authcfg ) );
+    QgsDebugError( QStringLiteral( "Update request config FAILED for authcfg: %1: config invalid" ).arg( authcfg ) );
     return false;
   }
 
@@ -99,16 +98,16 @@ bool QgsAuthBasicMethod::updateDataSourceUriItems( QStringList &connectionItems,
   const QgsAuthMethodConfig mconfig = getMethodConfig( authcfg );
   if ( !mconfig.isValid() )
   {
-    QgsDebugMsg( QStringLiteral( "Update URI items FAILED for authcfg: %1: basic config invalid" ).arg( authcfg ) );
+    QgsDebugError( QStringLiteral( "Update URI items FAILED for authcfg: %1: basic config invalid" ).arg( authcfg ) );
     return false;
   }
 
-  const QString username = mconfig.config( QStringLiteral( "username" ) );
-  const QString password = mconfig.config( QStringLiteral( "password" ) );
+  QString username = mconfig.config( QStringLiteral( "username" ) );
+  QString password = mconfig.config( QStringLiteral( "password" ) );
 
   if ( username.isEmpty() )
   {
-    QgsDebugMsg( QStringLiteral( "Update URI items FAILED for authcfg: %1: username empty" ).arg( authcfg ) );
+    QgsDebugError( QStringLiteral( "Update URI items FAILED for authcfg: %1: username empty" ).arg( authcfg ) );
     return false;
   }
 
@@ -140,6 +139,7 @@ bool QgsAuthBasicMethod::updateDataSourceUriItems( QStringList &connectionItems,
   // Branch for OGR
   if ( dataprovider == QLatin1String( "ogr" ) || dataprovider == QLatin1String( "gdal" ) )
   {
+
     if ( ! password.isEmpty() )
     {
       const QString fullUri( connectionItems.first() );
@@ -173,7 +173,8 @@ bool QgsAuthBasicMethod::updateDataSourceUriItems( QStringList &connectionItems,
         }
         else if ( uri.startsWith( QLatin1String( "SDE:" ) ) )
         {
-          uri = uri.replace( QRegularExpression( ",$" ), QStringLiteral( ",%1,%2" ).arg( username, password ) );
+          const thread_local QRegularExpression sRx = QRegularExpression( ",$" );
+          uri = uri.replace( sRx, QStringLiteral( ",%1,%2" ).arg( username, password ) );
         }
         else if ( uri.startsWith( QLatin1String( "IDB" ) ) )
         {
@@ -195,6 +196,20 @@ bool QgsAuthBasicMethod::updateDataSourceUriItems( QStringList &connectionItems,
         }
         else if ( uri.startsWith( QLatin1String( "MySQL:" ) ) )
         {
+          // If username or password contains comma or double quote we need to quote the string
+          if ( username.contains( ',' ) || username.contains( '"' ) )
+          {
+            username.replace( '"', QLatin1String( R"(\")" ) );
+            username.prepend( '"' );
+            username.append( '"' );
+          }
+
+          if ( password.contains( ',' ) || password.contains( '"' ) )
+          {
+            password.replace( '"', QLatin1String( R"(\")" ) );
+            password.prepend( '"' );
+            password.append( '"' );
+          }
           uri += QStringLiteral( ",user=%1" ).arg( username );
           uri += QStringLiteral( ",password=%1" ).arg( password );
         }
@@ -211,7 +226,8 @@ bool QgsAuthBasicMethod::updateDataSourceUriItems( QStringList &connectionItems,
         }
         else if ( uri.startsWith( QLatin1String( "ODBC:" ) ) )
         {
-          uri = uri.replace( QRegularExpression( "^ODBC:@?" ), "ODBC:" + username + '/' + password + '@' );
+          const thread_local QRegularExpression sOdbcRx = QRegularExpression( "^ODBC:@?" );
+          uri = uri.replace( sOdbcRx, "ODBC:" + username + '/' + password + '@' );
         }
         else if ( uri.startsWith( QLatin1String( "couchdb" ) )
                   || uri.startsWith( QLatin1String( "DODS" ) )
@@ -235,7 +251,7 @@ bool QgsAuthBasicMethod::updateDataSourceUriItems( QStringList &connectionItems,
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Update URI items FAILED for authcfg: %1: password empty" ).arg( authcfg ) );
+      QgsDebugError( QStringLiteral( "Update URI items FAILED for authcfg: %1: password empty" ).arg( authcfg ) );
     }
 
   }
@@ -292,7 +308,7 @@ bool QgsAuthBasicMethod::updateNetworkProxy( QNetworkProxy &proxy, const QString
   const QgsAuthMethodConfig mconfig = getMethodConfig( authcfg );
   if ( !mconfig.isValid() )
   {
-    QgsDebugMsg( QStringLiteral( "Update proxy config FAILED for authcfg: %1: config invalid" ).arg( authcfg ) );
+    QgsDebugError( QStringLiteral( "Update proxy config FAILED for authcfg: %1: config invalid" ).arg( authcfg ) );
     return false;
   }
 
@@ -312,7 +328,7 @@ void QgsAuthBasicMethod::updateMethodConfig( QgsAuthMethodConfig &mconfig )
   const QMutexLocker locker( &mMutex );
   if ( mconfig.hasConfig( QStringLiteral( "oldconfigstyle" ) ) )
   {
-    QgsDebugMsg( QStringLiteral( "Updating old style auth method config" ) );
+    QgsDebugMsgLevel( QStringLiteral( "Updating old style auth method config" ), 2 );
 
     const QStringList conflist = mconfig.config( QStringLiteral( "oldconfigstyle" ) ).split( QStringLiteral( "|||" ) );
     mconfig.setConfig( QStringLiteral( "realm" ), conflist.at( 0 ) );
@@ -345,14 +361,14 @@ QgsAuthMethodConfig QgsAuthBasicMethod::getMethodConfig( const QString &authcfg,
   if ( sAuthConfigCache.contains( authcfg ) )
   {
     mconfig = sAuthConfigCache.value( authcfg );
-    QgsDebugMsg( QStringLiteral( "Retrieved config for authcfg: %1" ).arg( authcfg ) );
+    QgsDebugMsgLevel( QStringLiteral( "Retrieved config for authcfg: %1" ).arg( authcfg ), 2 );
     return mconfig;
   }
 
   // else build basic bundle
   if ( !QgsApplication::authManager()->loadAuthenticationConfig( authcfg, mconfig, fullconfig ) )
   {
-    QgsDebugMsg( QStringLiteral( "Retrieve config FAILED for authcfg: %1" ).arg( authcfg ) );
+    QgsDebugError( QStringLiteral( "Retrieve config FAILED for authcfg: %1" ).arg( authcfg ) );
     return QgsAuthMethodConfig();
   }
 
@@ -365,7 +381,7 @@ QgsAuthMethodConfig QgsAuthBasicMethod::getMethodConfig( const QString &authcfg,
 void QgsAuthBasicMethod::putMethodConfig( const QString &authcfg, const QgsAuthMethodConfig &mconfig )
 {
   const QMutexLocker locker( &mMutex );
-  QgsDebugMsg( QStringLiteral( "Putting basic config for authcfg: %1" ).arg( authcfg ) );
+  QgsDebugMsgLevel( QStringLiteral( "Putting basic config for authcfg: %1" ).arg( authcfg ), 2 );
   sAuthConfigCache.insert( authcfg, mconfig );
 }
 
@@ -375,7 +391,7 @@ void QgsAuthBasicMethod::removeMethodConfig( const QString &authcfg )
   if ( sAuthConfigCache.contains( authcfg ) )
   {
     sAuthConfigCache.remove( authcfg );
-    QgsDebugMsg( QStringLiteral( "Removed basic config for authcfg: %1" ).arg( authcfg ) );
+    QgsDebugMsgLevel( QStringLiteral( "Removed basic config for authcfg: %1" ).arg( authcfg ), 2 );
   }
 }
 

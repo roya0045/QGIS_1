@@ -20,6 +20,8 @@
 #include "qgsbox3d.h"
 #include "qgsray3d.h"
 
+#include "qgs3dexportobject.h"
+
 #include <QSize>
 #include <QtMath>
 
@@ -27,11 +29,11 @@
  * \ingroup UnitTests
  * This is a unit test for the vertex tool
  */
-class TestQgs3DUtils : public QObject
+class TestQgs3DUtils : public QgsTest
 {
     Q_OBJECT
   public:
-    TestQgs3DUtils() = default;
+    TestQgs3DUtils() : QgsTest( QStringLiteral( "3D Utils" ) ) { }
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
@@ -41,17 +43,21 @@ class TestQgs3DUtils : public QObject
     void testRayFromScreenPoint();
     void testQgsBox3DDistanceTo();
     void testQgsRay3D();
+    void testExportToObj();
   private:
 };
 
 //runs before all tests
 void TestQgs3DUtils::initTestCase()
 {
+  QgsApplication::init();
+  QgsApplication::initQgis();
 }
 
 //runs after all tests
 void TestQgs3DUtils::cleanupTestCase()
 {
+  QgsApplication::exitQgis();
 }
 
 void TestQgs3DUtils::testTransforms()
@@ -105,20 +111,20 @@ void TestQgs3DUtils::testRayFromScreenPoint()
     {
       const QgsRay3D ray1 = Qgs3DUtils::rayFromScreenPoint( QPoint( 50, 50 ), QSize( 100, 100 ), &camera );
       const QgsRay3D ray2( QVector3D( 8.99999904632568f, 14.9999980926514f, 29.9999980926514f ), QVector3D( -0.25916051864624f, -0.431934207677841f, -0.863868415355682f ) );
-      QCOMPARE( ray1.origin(), ray2.origin() );
-      QCOMPARE( ray1.direction(), ray2.direction() );
+      QGSCOMPARENEARVECTOR3D( ray1.origin(), ray2.origin(), 0.00001 );
+      QGSCOMPARENEARVECTOR3D( ray1.direction(), ray2.direction(), 0.00001 );
     }
     {
       const QgsRay3D ray1 = Qgs3DUtils::rayFromScreenPoint( QPoint( 0, 0 ), QSize( 100, 100 ), &camera );
       const QgsRay3D ray2( QVector3D( 8.99999904632568f, 14.9999980926514f, 29.9999980926514f ), QVector3D( -0.810001313686371f, -0.0428109727799892f, -0.584863305091858f ) );
-      QCOMPARE( ray1.origin(), ray2.origin() );
-      QCOMPARE( ray1.direction(), ray2.direction() );
+      QGSCOMPARENEARVECTOR3D( ray1.origin(), ray2.origin(), 0.00001 );
+      QGSCOMPARENEARVECTOR3D( ray1.direction(), ray2.direction(), 0.00001 );
     }
     {
       const QgsRay3D ray1 = Qgs3DUtils::rayFromScreenPoint( QPoint( 100, 100 ), QSize( 100, 100 ), &camera );
       const QgsRay3D ray2( QVector3D( 8.99999904632568f, 14.9999980926514f, 29.9999980926514f ), QVector3D( 0.429731547832489f, -0.590972006320953f, -0.682702660560608f ) );
-      QCOMPARE( ray1.origin(), ray2.origin() );
-      QCOMPARE( ray1.direction(), ray2.direction() );
+      QGSCOMPARENEARVECTOR3D( ray1.origin(), ray2.origin(), 0.00001 );
+      QGSCOMPARENEARVECTOR3D( ray1.direction(), ray2.direction(), 0.00001 );
     }
   }
 
@@ -134,20 +140,20 @@ void TestQgs3DUtils::testRayFromScreenPoint()
     {
       const QgsRay3D ray1 = Qgs3DUtils::rayFromScreenPoint( QPoint( 500, 500 ), QSize( 1000, 1000 ), &camera );
       const QgsRay3D ray2( QVector3D( 0, 0, 0 ), QVector3D( 0, 0.70710676908493f, -0.70710676908493f ) );
-      QCOMPARE( ray1.origin(), ray2.origin() );
-      QCOMPARE( ray1.direction(), ray2.direction() );
+      QGSCOMPARENEARVECTOR3D( ray1.origin(), ray2.origin(), 0.00001 );
+      QGSCOMPARENEARVECTOR3D( ray1.direction(), ray2.direction(), 0.00001 );
     }
     {
       const QgsRay3D ray1 = Qgs3DUtils::rayFromScreenPoint( QPoint( 0, 0 ), QSize( 1000, 1000 ), &camera );
       const QgsRay3D ray2( QVector3D( 0, 0, 0 ), QVector3D( -0.70710676908493f, 0.683012664318085f, -0.183012709021568f ) );
-      QCOMPARE( ray1.origin(), ray2.origin() );
-      QCOMPARE( ray1.direction(), ray2.direction() );
+      QGSCOMPARENEARVECTOR3D( ray1.origin(), ray2.origin(), 0.00001 );
+      QGSCOMPARENEARVECTOR3D( ray1.direction(), ray2.direction(), 0.00001 );
     }
     {
       const QgsRay3D ray1 = Qgs3DUtils::rayFromScreenPoint( QPoint( 500, 1000 ), QSize( 1000, 1000 ), &camera );
       const QgsRay3D ray2( QVector3D( 0, 0, 0 ), QVector3D( 0, 0.258819073438644f, -0.965925812721252f ) );
-      QCOMPARE( ray1.origin(), ray2.origin() );
-      QCOMPARE( ray1.direction(), ray2.direction() );
+      QGSCOMPARENEARVECTOR3D( ray1.origin(), ray2.origin(), 0.00001 );
+      QGSCOMPARENEARVECTOR3D( ray1.direction(), ray2.direction(), 0.00001 );
     }
   }
 }
@@ -155,12 +161,12 @@ void TestQgs3DUtils::testRayFromScreenPoint()
 void TestQgs3DUtils::testQgsBox3DDistanceTo()
 {
   {
-    const QgsBox3d box( -1, -1, -1, 1, 1, 1 );
+    const QgsBox3D box( -1, -1, -1, 1, 1, 1 );
     QCOMPARE( box.distanceTo( QVector3D( 0, 0, 0 ) ), 0.0 );
     QCOMPARE( box.distanceTo( QVector3D( 2, 2, 2 ) ), qSqrt( 3.0 ) );
   }
   {
-    const QgsBox3d box( 1, 2, 1, 4, 3, 3 );
+    const QgsBox3D box( 1, 2, 1, 4, 3, 3 );
     QCOMPARE( box.distanceTo( QVector3D( 1, 2, 1 ) ), 0.0 );
     QCOMPARE( box.distanceTo( QVector3D( 0, 0, 0 ) ), qSqrt( 6.0 ) );
   }
@@ -212,6 +218,272 @@ void TestQgs3DUtils::testQgsRay3D()
     QVERIFY( !ray.isInFront( p2 ) );
   }
 }
+
+void TestQgs3DUtils::testExportToObj()
+{
+  // all vertice positions
+  QVector<float> positionData =
+  {
+    -0.456616, 0.00187836, -0.413774,
+      -0.4718, 0.00187836, -0.0764642,
+      -0.25705, 0.00187836, -0.230477,
+      -0.25705, 0.00187836, -0.230477,
+      -0.4718, 0.00187836, -0.0764642,
+      0.0184382, 0.00187836, 0.177332,
+      -0.25705, 0.00187836, -0.230477,
+      0.0184382, 0.00187836, 0.177332,
+      -0.25705, -0.00187836, -0.230477,
+      -0.25705, -0.00187836, -0.230477,
+      0.0184382, 0.00187836, 0.177332,
+      0.0184382, -0.00187836, 0.177332,
+      0.0184382, 0.00187836, 0.177332,
+      -0.4718, 0.00187836, -0.0764642,
+      0.0184382, -0.00187836, 0.177332,
+      0.0184382, -0.00187836, 0.177332,
+      -0.4718, 0.00187836, -0.0764642,
+      -0.4718, -0.00187836, -0.0764642,
+      -0.4718, 0.00187836, -0.0764642,
+      -0.456616, 0.00187836, -0.413774,
+      -0.4718, -0.00187836, -0.0764642,
+      -0.4718, -0.00187836, -0.0764642,
+      -0.456616, 0.00187836, -0.413774,
+      -0.456616, -0.00187836, -0.413774,
+      -0.456616, 0.00187836, -0.413774,
+      -0.25705, 0.00187836, -0.230477,
+      -0.456616, -0.00187836, -0.413774,
+      -0.456616, -0.00187836, -0.413774,
+      -0.25705, 0.00187836, -0.230477,
+      -0.25705, -0.00187836, -0.230477
+    };
+
+  // all vertice normals
+  QVector<float> normalsData =
+  {
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+    0.828644, 0, -0.559776,
+    0.828644, 0, -0.559776,
+    0.828644, 0, -0.559776,
+    0.828644, 0, -0.559776,
+    0.828644, 0, -0.559776,
+    0.828644, 0, -0.559776,
+    -0.459744, 0, 0.888052,
+    -0.459744, 0, 0.888052,
+    -0.459744, 0, 0.888052,
+    -0.459744, 0, 0.888052,
+    -0.459744, 0, 0.888052,
+    -0.459744, 0, 0.888052,
+    -0.998988, 0, -0.0449705,
+    -0.998988, 0, -0.0449705,
+    -0.998988, 0, -0.0449705,
+    -0.998988, 0, -0.0449705,
+    -0.998988, 0, -0.0449705,
+    -0.998988, 0, -0.0449705,
+    0.676449, 0, -0.736489,
+    0.676449, 0, -0.736489,
+    0.676449, 0, -0.736489,
+    0.676449, 0, -0.736489,
+    0.676449, 0, -0.736489,
+    0.676449, 0, -0.736489
+  };
+  float scale = 1.0f;
+  QVector3D translation( 0.0f, 0.0f, 0.0f );
+
+  const QString myTmpDir = QDir::tempPath() + '/';
+
+  // case where all vertices are used
+  {
+    Qgs3DExportObject object( "exported" );
+    object.setupPositionCoordinates( positionData, scale, translation );
+    QCOMPARE( object.vertexPosition().size(), positionData.size() );
+
+    // exported vertice indexes
+    QVector<uint> indexData =
+    {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    };
+
+    object.setupFaces( indexData );
+    QCOMPARE( object.indexes().size(), indexData.size() );
+
+    object.setupNormalCoordinates( normalsData );
+    QCOMPARE( object.normals().size(), normalsData.size() );
+
+
+    QFile file( myTmpDir + "out.obj" );
+    file.open( QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate );
+    QTextStream out( &file );
+
+    out << "o " << object.name() << "\n";
+    object.saveTo( out, scale, translation );
+
+    out.flush();
+    out.seek( 0 );
+
+    QString expected = "o exported\n"
+                       "s off\n"
+                       "v -0.456616 0.00187836 -0.413774\n"
+                       "vn 0 1 0\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn 0 1 0\n"
+                       "v -0.25705 0.00187836 -0.230477\n"
+                       "vn 0 1 0\n"
+                       "v -0.25705 0.00187836 -0.230477\n"
+                       "vn 0 1 0\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn 0 1 0\n"
+                       "v 0.0184382 0.00187836 0.177332\n"
+                       "vn 0 1 0\n"
+                       "v -0.25705 0.00187836 -0.230477\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 0.00187836 0.177332\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v -0.25705 -0.00187836 -0.230477\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v -0.25705 -0.00187836 -0.230477\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 0.00187836 0.177332\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 -0.00187836 0.177332\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 0.00187836 0.177332\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v 0.0184382 -0.00187836 0.177332\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v 0.0184382 -0.00187836 0.177332\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 -0.00187836 -0.0764642\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.456616 0.00187836 -0.413774\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.4718 -0.00187836 -0.0764642\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.4718 -0.00187836 -0.0764642\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.456616 0.00187836 -0.413774\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.456616 -0.00187836 -0.413774\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.456616 0.00187836 -0.413774\n"
+                       "vn 0.676449 0 -0.736489\n"
+                       "v -0.25705 0.00187836 -0.230477\n"
+                       "vn 0.676449 0 -0.736489\n"
+                       "v -0.456616 -0.00187836 -0.413774\n"
+                       "vn 0.676449 0 -0.736489\n"
+                       "v -0.456616 -0.00187836 -0.413774\n"
+                       "vn 0.676449 0 -0.736489\n"
+                       "v -0.25705 0.00187836 -0.230477\n"
+                       "vn 0.676449 0 -0.736489\n"
+                       "v -0.25705 -0.00187836 -0.230477\n"
+                       "vn 0.676449 0 -0.736489\n"
+                       "f -30//-30 -29//-29 -28//-28\n"
+                       "f -27//-27 -26//-26 -25//-25\n"
+                       "f -24//-24 -23//-23 -22//-22\n"
+                       "f -21//-21 -20//-20 -19//-19\n"
+                       "f -18//-18 -17//-17 -16//-16\n"
+                       "f -15//-15 -14//-14 -13//-13\n"
+                       "f -12//-12 -11//-11 -10//-10\n"
+                       "f -9//-9 -8//-8 -7//-7\n"
+                       "f -6//-6 -5//-5 -4//-4\n"
+                       "f -3//-3 -2//-2 -1//-1\n"
+                       ;
+
+    QString actual = out.readAll();
+    QCOMPARE( actual, expected );
+  }
+
+  // case where only a subset of vertices are used
+  {
+    // exported vertice indexes
+    QVector<uint> indexData =
+    {
+      6, 7, 8, 9,
+      10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23
+    };
+
+    Qgs3DExportObject object( "exported2" );
+    object.setupPositionCoordinates( positionData, scale, translation );
+    QCOMPARE( object.vertexPosition().size(), positionData.size() );
+
+    object.setupFaces( indexData );
+    QCOMPARE( object.indexes().size(), indexData.size() );
+
+    object.setupNormalCoordinates( normalsData );
+    QCOMPARE( object.normals().size(), normalsData.size() );
+
+    QFile file( myTmpDir + "out2.obj" );
+    file.open( QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate );
+    QTextStream out( &file );
+    out << "o " << object.name() << "\n";
+    object.saveTo( out, scale, translation );
+
+    out.flush();
+    out.seek( 0 );
+
+    QString expected = "o exported2\n"
+                       "s off\n"
+                       "v -0.25705 0.00187836 -0.230477\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 0.00187836 0.177332\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v -0.25705 -0.00187836 -0.230477\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v -0.25705 -0.00187836 -0.230477\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 0.00187836 0.177332\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 -0.00187836 0.177332\n"
+                       "vn 0.828644 0 -0.559776\n"
+                       "v 0.0184382 0.00187836 0.177332\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v 0.0184382 -0.00187836 0.177332\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v 0.0184382 -0.00187836 0.177332\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 -0.00187836 -0.0764642\n"
+                       "vn -0.459744 0 0.888052\n"
+                       "v -0.4718 0.00187836 -0.0764642\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.456616 0.00187836 -0.413774\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.4718 -0.00187836 -0.0764642\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.4718 -0.00187836 -0.0764642\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.456616 0.00187836 -0.413774\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "v -0.456616 -0.00187836 -0.413774\n"
+                       "vn -0.998988 0 -0.0449705\n"
+                       "f -18//-18 -17//-17 -16//-16\n"
+                       "f -15//-15 -14//-14 -13//-13\n"
+                       "f -12//-12 -11//-11 -10//-10\n"
+                       "f -9//-9 -8//-8 -7//-7\n"
+                       "f -6//-6 -5//-5 -4//-4\n"
+                       "f -3//-3 -2//-2 -1//-1\n"
+                       ;
+
+    QString actual = out.readAll();
+    QCOMPARE( actual, expected );
+  }
+}
+
 
 QGSTEST_MAIN( TestQgs3DUtils )
 #include "testqgs3dutils.moc"

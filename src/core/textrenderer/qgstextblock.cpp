@@ -16,6 +16,8 @@
 #include "qgstextblock.h"
 #include "qgstextfragment.h"
 
+#include <QSizeF>
+
 QgsTextBlock::QgsTextBlock( const QgsTextFragment &fragment )
 {
   mFragments.append( fragment );
@@ -56,7 +58,7 @@ int QgsTextBlock::size() const
   return mFragments.size();
 }
 
-void QgsTextBlock::applyCapitalization( QgsStringUtils::Capitalization capitalization )
+void QgsTextBlock::applyCapitalization( Qgis::Capitalization capitalization )
 {
   for ( QgsTextFragment &fragment : mFragments )
   {

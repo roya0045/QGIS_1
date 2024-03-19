@@ -15,11 +15,31 @@
 
 #include "qgsmultirenderchecker.h"
 #include "qgslayout.h"
+#include "qgslayoutexporter.h"
 #include <QDebug>
+#include <mutex>
+
+QgsMultiRenderChecker::QgsMultiRenderChecker()
+{
+  if ( qgetenv( "QGIS_CONTINUOUS_INTEGRATION_RUN" ) == QStringLiteral( "true" ) )
+    mIsCiRun = true;
+}
 
 void QgsMultiRenderChecker::setControlName( const QString &name )
 {
   mControlName = name;
+}
+
+void QgsMultiRenderChecker::setFileFunctionLine( const QString &file, const QString &function, int line )
+{
+#ifndef _MSC_VER
+  mSourceFile = QDir( QgsRenderChecker::sourcePath() ).relativeFilePath( file );
+#else
+  mSourceFile = file;
+#endif
+
+  mSourceFunction = function;
+  mSourceLine = line;
 }
 
 void QgsMultiRenderChecker::setControlPathPrefix( const QString &prefix )
@@ -34,9 +54,17 @@ void QgsMultiRenderChecker::setMapSettings( const QgsMapSettings &mapSettings )
 
 bool QgsMultiRenderChecker::runTest( const QString &testName, unsigned int mismatchCount )
 {
-  bool successful = false;
+  mResult = false;
+
+  mReportHeader = "<h2>" + testName + "</h2>\n";
+  mMarkdownReportHeader = QStringLiteral( "### %1\n\n" ).arg( testName );
 
   const QString baseDir = controlImagePath();
+  if ( !QFile::exists( baseDir ) )
+  {
+    qDebug() << "Control image path " << baseDir << " does not exist!";
+    return mResult;
+  }
 
   QStringList subDirs = QDir( baseDir ).entryList( QDir::Dirs | QDir::NoDotAndDotDot );
 
@@ -46,6 +74,9 @@ bool QgsMultiRenderChecker::runTest( const QString &testName, unsigned int misma
   }
 
   QVector<QgsDartMeasurement> dartMeasurements;
+
+  // we can only report one diff image, so just use the first
+  QString diffImageFile;
 
   for ( const QString &suffix : std::as_const( subDirs ) )
   {
@@ -62,26 +93,36 @@ bool QgsMultiRenderChecker::runTest( const QString &testName, unsigned int misma
     checker.setControlPathSuffix( suffix );
     checker.setControlName( mControlName );
     checker.setMapSettings( mMapSettings );
+    checker.setExpectFail( mExpectFail );
 
     if ( !mRenderedImage.isNull() )
     {
       checker.setRenderedImage( mRenderedImage );
-      result = checker.compareImages( testName, mismatchCount, mRenderedImage );
+      result = checker.compareImages( testName, mismatchCount, mRenderedImage, QgsRenderChecker::Flag::AvoidExportingRenderedImage );
     }
     else
     {
-      result = checker.runTest( testName, mismatchCount );
+      result = checker.runTest( testName, mismatchCount, QgsRenderChecker::Flag::AvoidExportingRenderedImage );
       mRenderedImage = checker.renderedImage();
     }
 
-    successful |= result;
+    mResult |= result;
 
     dartMeasurements << checker.dartMeasurements();
 
-    mReport += checker.report();
+    mReport += checker.report( false );
+    if ( subDirs.count() > 1 )
+      mMarkdownReport += QStringLiteral( "* " ) + checker.markdownReport( false );
+    else
+      mMarkdownReport += checker.markdownReport( false );
+
+    if ( !mResult && diffImageFile.isEmpty() )
+    {
+      diffImageFile = checker.mDiffImageFile;
+    }
   }
 
-  if ( !successful )
+  if ( !mResult && !mExpectFail && mIsCiRun )
   {
     const auto constDartMeasurements = dartMeasurements;
     for ( const QgsDartMeasurement &measurement : constDartMeasurements )
@@ -90,9 +131,113 @@ bool QgsMultiRenderChecker::runTest( const QString &testName, unsigned int misma
     QgsDartMeasurement msg( QStringLiteral( "Image not accepted by test" ), QgsDartMeasurement::Text, "This may be caused because the test is supposed to fail or rendering inconsistencies."
                             "If this is a rendering inconsistency, please add another control image folder, add an anomaly image or increase the color tolerance." );
     msg.send();
+
+#if DUMP_BASE64_IMAGES
+    QFile fileSource( mRenderedImage );
+    fileSource.open( QIODevice::ReadOnly );
+
+    const QByteArray blob = fileSource.readAll();
+    const QByteArray encoded = blob.toBase64();
+    qDebug() << "Dumping rendered image " << mRenderedImage << " as base64\n";
+    qDebug() << "################################################################";
+    qDebug() << encoded;
+    qDebug() << "################################################################";
+    qDebug() << "End dump";
+#endif
   }
 
-  return successful;
+  if ( !mResult && !mExpectFail )
+  {
+    const QDir reportDir = QgsRenderChecker::testReportDir();
+    if ( !reportDir.exists() )
+    {
+      if ( !QDir().mkpath( reportDir.path() ) )
+      {
+        qDebug() << "!!!!! cannot create " << reportDir.path();
+      }
+    }
+    if ( QFile::exists( mRenderedImage ) )
+    {
+      QFileInfo fi( mRenderedImage );
+      const QString destPath = reportDir.filePath( fi.fileName() );
+      if ( QFile::exists( destPath ) )
+        QFile::remove( destPath );
+
+      if ( !QFile::copy( mRenderedImage, destPath ) )
+      {
+        qDebug() << "!!!!! could not copy " << mRenderedImage << " to " << destPath;
+      }
+    }
+
+    if ( !diffImageFile.isEmpty() && QFile::exists( diffImageFile ) )
+    {
+      QFileInfo fi( diffImageFile );
+      const QString destPath = reportDir.filePath( fi.fileName() );
+      if ( QFile::exists( destPath ) )
+        QFile::remove( destPath );
+
+      if ( !QFile::copy( diffImageFile, destPath ) )
+      {
+        qDebug() << "!!!!! could not copy " << diffImageFile << " to " << destPath;
+      }
+    }
+  }
+
+  return mResult;
+}
+
+QString QgsMultiRenderChecker::report() const
+{
+  if ( mResult )
+    return QString();
+
+  QString report = mReportHeader;
+  if ( mSourceLine >= 0 )
+  {
+    const QString githubSha = qgetenv( "GITHUB_SHA" );
+    if ( !githubSha.isEmpty() )
+    {
+      const QString githubBlobUrl = QStringLiteral( "https://github.com/qgis/QGIS/blob/%1/%2#L%3" ).arg(
+                                      githubSha, mSourceFile ).arg( mSourceLine );
+      report += QStringLiteral( "<b style=\"color: red\">Test failed in %1 at <a href=\"%2\">%3:%4</a></b>\n" ).arg(
+                  mSourceFunction,
+                  githubBlobUrl,
+                  mSourceFile ).arg( mSourceLine );
+    }
+    else
+    {
+      report += QStringLiteral( "<b style=\"color: red\">Test failed in %1 at %2:%3</b>\n" ).arg( mSourceFunction, mSourceFile ).arg( mSourceLine );
+    }
+  }
+
+  report += mReport;
+  return report;
+}
+
+QString QgsMultiRenderChecker::markdownReport() const
+{
+  if ( mResult )
+    return QString();
+
+  QString report = mMarkdownReportHeader;
+
+  if ( mSourceLine >= 0 )
+  {
+    const QString githubSha = qgetenv( "GITHUB_SHA" );
+    QString fileLink;
+    if ( !githubSha.isEmpty() )
+    {
+      fileLink = QStringLiteral( "https://github.com/qgis/QGIS/blob/%1/%2#L%3" ).arg(
+                   githubSha, mSourceFile ).arg( mSourceLine );
+    }
+    else
+    {
+      fileLink = QUrl::fromLocalFile( QDir( QgsRenderChecker::sourcePath() ).filePath( mSourceFile ) ).toString();
+    }
+    report += QStringLiteral( "**Test failed at %1 at [%2:%3](%4)**\n\n" ).arg( mSourceFunction, mSourceFile ).arg( mSourceLine ).arg( fileLink );
+  }
+  report += mMarkdownReport;
+  return report;
 }
 
 QString QgsMultiRenderChecker::controlImagePath() const
@@ -121,9 +266,6 @@ QgsLayoutChecker::QgsLayoutChecker( const QString &testName, QgsLayout *layout )
 
 bool QgsLayoutChecker::testLayout( QString &checkedReport, int page, int pixelDiff, bool createReferenceImage )
 {
-#ifdef QT_NO_PRINTER
-  return false;
-#else
   if ( !mLayout )
   {
     return false;
@@ -165,6 +307,9 @@ bool QgsLayoutChecker::testLayout( QString &checkedReport, int page, int pixelDi
   p.end();
 
   QString renderedFilePath = QDir::tempPath() + '/' + QFileInfo( mTestName ).baseName() + "_rendered.png";
+  if ( QFile::exists( renderedFilePath ) )
+    QFile::remove( renderedFilePath );
+
   outputImage.save( renderedFilePath, "PNG" );
 
   setRenderedImage( renderedFilePath );
@@ -174,9 +319,7 @@ bool QgsLayoutChecker::testLayout( QString &checkedReport, int page, int pixelDi
   checkedReport += report();
 
   return testResult;
-#endif // QT_NO_PRINTER
 }
-
 
 
 ///@endcond

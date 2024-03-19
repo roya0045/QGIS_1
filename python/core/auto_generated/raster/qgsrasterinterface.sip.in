@@ -15,8 +15,6 @@ class QgsRasterBlockFeedback : QgsFeedback
 {
 %Docstring(signature="appended")
 Feedback object tailored for raster block reading.
-
-.. versionadded:: 3.0
 %End
 
 %TypeHeaderCode
@@ -82,6 +80,24 @@ Returns a list of any errors encountered while retrieving the raster block.
 .. versionadded:: 3.8.0
 %End
 
+    QgsRenderContext renderContext() const;
+%Docstring
+Returns the render context of the associated block reading
+
+.. seealso:: :py:func:`setRenderContext`
+
+.. versionadded:: 3.24.0
+%End
+
+    void setRenderContext( const QgsRenderContext &renderContext );
+%Docstring
+Sets the render context of the associated block reading
+
+.. seealso:: :py:func:`renderContext`
+
+.. versionadded:: 3.24.0
+%End
+
 };
 
 
@@ -109,6 +125,7 @@ Base class for processing filters like renderers, reprojector, resampler etc.
 #include <qgssinglebandcolordatarenderer.h>
 #include <qgssinglebandgrayrenderer.h>
 #include <qgssinglebandpseudocolorrenderer.h>
+#include <qgsrastercontourrenderer.h>
 %End
 %ConvertToSubClassCode
     if ( dynamic_cast<QgsBrightnessContrastFilter *>( sipCpp ) )
@@ -140,6 +157,8 @@ Base class for processing filters like renderers, reprojector, resampler etc.
         sipType = sipType_QgsSingleBandGrayRenderer;
       else if ( dynamic_cast<QgsSingleBandPseudoColorRenderer *>( sipCpp ) )
         sipType = sipType_QgsSingleBandPseudoColorRenderer;
+      else if ( dynamic_cast<QgsRasterContourRenderer *>( sipCpp ) )
+        sipType = sipType_QgsRasterContourRenderer;
       else
         sipType = sipType_QgsRasterRenderer;
     }
@@ -284,8 +303,22 @@ It may be used to get info about original data, e.g. resolution to decide
 resampling etc.
 %End
 
+ QgsRasterBandStats bandStatistics( int bandNo, int stats, const QgsRectangle &extent = QgsRectangle(), int sampleSize = 0, QgsRasterBlockFeedback *feedback = 0 ) /Deprecated/;
+%Docstring
+Returns the band statistics.
+
+:param bandNo: The band (number).
+:param stats: Requested statistics
+:param extent: Extent used to calc statistics, if empty, whole raster extent is used.
+:param sampleSize: Approximate number of cells in sample. If 0, all cells (whole raster will be used). If raster does not have exact size (WCS without exact size for example), provider decides size of sample.
+:param feedback: optional feedback object
+
+.. deprecated::
+   Use :py:class:`Qgis`.RasterBandStatistic instead of int for ``stats`` argument
+%End
+
     virtual QgsRasterBandStats bandStatistics( int bandNo,
-        int stats = QgsRasterBandStats::All,
+        Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
         const QgsRectangle &extent = QgsRectangle(),
         int sampleSize = 0, QgsRasterBlockFeedback *feedback = 0 );
 %Docstring
@@ -298,12 +331,24 @@ Returns the band statistics.
 :param feedback: optional feedback object
 %End
 
+ bool hasStatistics( int bandNo, int stats, const QgsRectangle &extent = QgsRectangle(), int sampleSize = 0 ) /Deprecated/;
+%Docstring
+Returns ``True`` if histogram is available (cached, already calculated).
+The parameters are the same as in :py:func:`~QgsRasterInterface.bandStatistics`
+
+:return: ``True`` if statistics are available (ready to use)
+
+.. deprecated::
+   Use :py:class:`Qgis`.RasterBandStatistic instead of int for ``stats`` argument
+%End
+
     virtual bool hasStatistics( int bandNo,
-                                int stats = QgsRasterBandStats::All,
+                                Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
                                 const QgsRectangle &extent = QgsRectangle(),
                                 int sampleSize = 0 );
 %Docstring
-Returns ``True`` if histogram is available (cached, already calculated).     *   The parameters are the same as in :py:func:`~QgsRasterInterface.bandStatistics`
+Returns ``True`` if histogram is available (cached, already calculated).
+The parameters are the same as in :py:func:`~QgsRasterInterface.bandStatistics`
 
 :return: ``True`` if statistics are available (ready to use)
 %End
@@ -492,19 +537,25 @@ Fill in histogram defaults if not specified
       maximum = PyFloat_AsDouble( a4 );
     }
 
-#if defined(SIP_PROTECTED_IS_PUBLIC)
+#if defined(SIP_PROTECTED_IS_PUBLIC) || (SIP_VERSION >= 0x050000 && !defined(_MSC_VER))
     sipCpp->initHistogram( *a0, a1, a2, minimum, maximum, *a5, a6, a7 );
 #else
     sipCpp->sipProtect_initHistogram( *a0, a1, a2, minimum, maximum, *a5, a6, a7 );
 #endif
 %End
 
+ void initStatistics( QgsRasterBandStats &statistics, int bandNo, int stats, const QgsRectangle &boundingBox = QgsRectangle(), int binCount = 0 ) const /Deprecated/;
+%Docstring
+Fill in statistics defaults if not specified
 
+.. deprecated::
+   Use :py:class:`Qgis`.RasterBandStatistic instead of int for ``stats`` argument
+%End
 
     void initStatistics( QgsRasterBandStats &statistics, int bandNo,
-                         int stats = QgsRasterBandStats::All,
+                         Qgis::RasterBandStatistics stats = Qgis::RasterBandStatistic::All,
                          const QgsRectangle &boundingBox = QgsRectangle(),
-                         int binCount = 0 );
+                         int binCount = 0 ) const;
 %Docstring
 Fill in statistics defaults if not specified
 %End
@@ -513,8 +564,6 @@ Fill in statistics defaults if not specified
     QgsRasterInterface( const QgsRasterInterface & );
     QgsRasterInterface &operator=( const QgsRasterInterface & );
 };
-
-
 
 /************************************************************************
  * This file has been generated automatically from                      *

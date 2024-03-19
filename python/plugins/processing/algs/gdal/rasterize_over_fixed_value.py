@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     rasterize_over_fixed_value.py
@@ -26,6 +24,7 @@ import os
 from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (QgsRasterFileWriter,
+                       QgsProcessingContext,
                        QgsProcessingException,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterFeatureSource,
@@ -59,7 +58,7 @@ class rasterize_over_fixed_value(GdalAlgorithm):
                                                             self.tr('Input raster layer')))
         self.addParameter(QgsProcessingParameterNumber(self.BURN,
                                                        self.tr('A fixed value to burn'),
-                                                       type=QgsProcessingParameterNumber.Double,
+                                                       type=QgsProcessingParameterNumber.Type.Double,
                                                        defaultValue=0.0))
 
         params = [
@@ -72,7 +71,7 @@ class rasterize_over_fixed_value(GdalAlgorithm):
                                          optional=True)
         ]
         for p in params:
-            p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             self.addParameter(p)
 
         self.addOutput(QgsProcessingOutputRasterLayer(self.OUTPUT,
@@ -122,3 +121,24 @@ class rasterize_over_fixed_value(GdalAlgorithm):
         arguments.append(inLayer.source())
 
         return [self.commandName(), GdalUtils.escapeAndJoin(arguments)]
+
+    def postProcessAlgorithm(self, context, feedback):
+        fileName = self.output_values.get(self.OUTPUT)
+        if not fileName:
+            return {}
+
+        if context.project():
+            for l in context.project().mapLayers().values():
+                if l.source() != fileName:
+                    continue
+
+                l.dataProvider().reloadData()
+                l.triggerRepaint()
+
+        for l in context.temporaryLayerStore().mapLayers().values():
+            if l.source() != fileName:
+                continue
+
+            l.dataProvider().reloadData()
+
+        return {}

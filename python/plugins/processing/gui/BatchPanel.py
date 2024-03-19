@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     BatchPanel.py
@@ -25,6 +23,7 @@ import os
 import json
 import warnings
 from pathlib import Path
+from typing import Optional
 
 from qgis.PyQt import uic
 from qgis.PyQt.QtWidgets import (
@@ -38,7 +37,7 @@ from qgis.PyQt.QtWidgets import (
     QAction
 )
 
-# adding to this list? also update the HistoryDialog.py executeAlgorithm imports!!
+# adding to this list? also update the QgsProcessingHistoryProvider executeAlgorithm imports!!
 
 from qgis.PyQt.QtCore import (
     QTime,  # NOQA - must be here for saved file evaluation
@@ -70,6 +69,7 @@ from qgis.core import (
     QgsProcessingParameterMapLayer,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterMeshLayer,
+    QgsProcessingParameterPointCloudLayer,
     QgsProcessingParameterVectorLayer,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterRasterDestination,
@@ -82,7 +82,8 @@ from qgis.core import (
     QgsExpression,
     QgsRasterLayer,
     QgsProcessingUtils,
-    QgsFileFilterGenerator
+    QgsFileFilterGenerator,
+    QgsProcessingContext
 )
 from qgis.gui import (
     QgsProcessingParameterWidgetContext,
@@ -113,7 +114,7 @@ class BatchPanelFillWidget(QToolButton):
     def __init__(self, parameterDefinition, column, panel, parent=None):
         super().__init__(parent)
 
-        self.setBackgroundRole(QPalette.Button)
+        self.setBackgroundRole(QPalette.ColorRole.Button)
         self.setAutoFillBackground(True)
 
         self.parameterDefinition = parameterDefinition
@@ -124,7 +125,7 @@ class BatchPanelFillWidget(QToolButton):
         f = self.font()
         f.setItalic(True)
         self.setFont(f)
-        self.setPopupMode(QToolButton.InstantPopup)
+        self.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.setAutoRaise(True)
 
         self.menu = QMenu()
@@ -177,6 +178,19 @@ class BatchPanelFillWidget(QToolButton):
                 select_layer_action.triggered.connect(self.showLayerSelectionDialog)
                 self.menu.addAction(select_layer_action)
 
+    def findStartingRow(self):
+        first_row = 0
+        for row in range(self.panel.batchRowCount()):
+            wrapper = self.panel.wrappers[row][self.column]
+            if wrapper is None:
+                break
+            else:
+                value = wrapper.parameterValue()
+                if value is None:
+                    break
+                first_row += 1
+        return first_row
+
     def fillDown(self):
         """
         Copy the top value down
@@ -214,12 +228,11 @@ class BatchPanelFillWidget(QToolButton):
         """
         dlg = QgsFindFilesByPatternDialog()
         dlg.setWindowTitle(self.tr("Add Files by Pattern"))
-        if dlg.exec_():
+        if dlg.exec():
             files = dlg.files()
             context = dataobjects.createContext()
 
-            first_row = self.panel.batchRowCount() if self.panel.batchRowCount() > 1 else 0
-            self.panel.addRow(len(files))
+            first_row = self.findStartingRow()
             self.panel.tblParameters.setUpdatesEnabled(False)
             for row, file in enumerate(files):
                 self.setRowValue(first_row + row, file, context)
@@ -243,8 +256,7 @@ class BatchPanelFillWidget(QToolButton):
 
         context = dataobjects.createContext()
 
-        first_row = self.panel.batchRowCount() if self.panel.batchRowCount() > 1 else 0
-        self.panel.addRow(len(files))
+        first_row = self.findStartingRow()
         self.panel.tblParameters.setUpdatesEnabled(False)
         for row, file in enumerate(files):
             self.setRowValue(first_row + row, file, context)
@@ -272,7 +284,7 @@ class BatchPanelFillWidget(QToolButton):
 
             if isinstance(self.parameterDefinition, QgsProcessingParameterRasterLayer) or (
                 isinstance(self.parameterDefinition, QgsProcessingParameterMultipleLayers)
-                and self.parameterDefinition.layerType() == QgsProcessing.TypeRaster
+                and self.parameterDefinition.layerType() == QgsProcessing.SourceType.TypeRaster
             ):
                 if not QgsRasterLayer.isValidRasterFileName(p):
                     continue
@@ -284,8 +296,7 @@ class BatchPanelFillWidget(QToolButton):
 
         context = dataobjects.createContext()
 
-        first_row = self.panel.batchRowCount() if self.panel.batchRowCount() > 1 else 0
-        self.panel.addRow(len(files))
+        first_row = self.findStartingRow()
         self.panel.tblParameters.setUpdatesEnabled(False)
         for row, file in enumerate(files):
             self.setRowValue(first_row + row, file, context)
@@ -296,7 +307,7 @@ class BatchPanelFillWidget(QToolButton):
         if isinstance(self.parameterDefinition, QgsProcessingParameterRasterLayer):
             layers = QgsProcessingUtils.compatibleRasterLayers(QgsProject.instance())
         elif isinstance(self.parameterDefinition,
-                        QgsProcessingParameterMultipleLayers) and self.parameterDefinition.layerType() == QgsProcessing.TypeRaster:
+                        QgsProcessingParameterMultipleLayers) and self.parameterDefinition.layerType() == QgsProcessing.SourceType.TypeRaster:
             layers = QgsProcessingUtils.compatibleRasterLayers(QgsProject.instance())
         elif isinstance(self.parameterDefinition, QgsProcessingParameterVectorLayer):
             layers = QgsProcessingUtils.compatibleVectorLayers(QgsProject.instance())
@@ -305,22 +316,27 @@ class BatchPanelFillWidget(QToolButton):
         elif isinstance(self.parameterDefinition, QgsProcessingParameterMeshLayer):
             layers = QgsProcessingUtils.compatibleMeshLayers(QgsProject.instance())
         elif isinstance(self.parameterDefinition,
-                        QgsProcessingParameterMultipleLayers) and self.parameterDefinition.layerType() == QgsProcessing.TypeMesh:
+                        QgsProcessingParameterMultipleLayers) and self.parameterDefinition.layerType() == QgsProcessing.SourceType.TypeMesh:
             layers = QgsProcessingUtils.compatibleMeshLayers(QgsProject.instance())
+        elif isinstance(self.parameterDefinition, QgsProcessingParameterPointCloudLayer):
+            layers = QgsProcessingUtils.compatiblePointCloudLayers(QgsProject.instance())
+        elif isinstance(self.parameterDefinition,
+                        QgsProcessingParameterMultipleLayers) and self.parameterDefinition.layerType() == QgsProcessing.SourceType.TypePointCloud:
+            layers = QgsProcessingUtils.compatiblePointCloudLayers(QgsProject.instance())
         else:
-            datatypes = [QgsProcessing.TypeVectorAnyGeometry]
+            datatypes = [QgsProcessing.SourceType.TypeVectorAnyGeometry]
             if isinstance(self.parameterDefinition, QgsProcessingParameterFeatureSource):
                 datatypes = self.parameterDefinition.dataTypes()
             elif isinstance(self.parameterDefinition, QgsProcessingParameterMultipleLayers):
                 datatypes = [self.parameterDefinition.layerType()]
 
-            if QgsProcessing.TypeVectorAnyGeometry not in datatypes:
+            if QgsProcessing.SourceType.TypeVectorAnyGeometry not in datatypes:
                 layers = QgsProcessingUtils.compatibleVectorLayers(QgsProject.instance(), datatypes)
             else:
                 layers = QgsProcessingUtils.compatibleVectorLayers(QgsProject.instance())
 
         dlg = MultipleInputDialog([layer.name() for layer in layers])
-        dlg.exec_()
+        dlg.exec()
 
         if not dlg.selectedoptions:
             return
@@ -329,7 +345,7 @@ class BatchPanelFillWidget(QToolButton):
 
         context = dataobjects.createContext()
 
-        first_row = self.panel.batchRowCount() if self.panel.batchRowCount() > 1 else 0
+        first_row = self.findStartingRow()
         for row, selected_idx in enumerate(selected):
             value = layers[selected_idx].id()
             self.setRowValue(first_row + row, value, context)
@@ -354,7 +370,9 @@ class BatchPanelFillWidget(QToolButton):
         expression_context = context.expressionContext()
 
         # use the first row parameter values as a preview during expression creation
-        params, ok = self.panel.parametersForRow(0, warnOnInvalid=False)
+        params, ok = self.panel.parametersForRow(row=0,
+                                                 context=context,
+                                                 warnOnInvalid=False)
         alg_scope = QgsExpressionContextUtils.processingAlgorithmScope(self.panel.alg, params, context)
 
         # create explicit variables corresponding to every parameter
@@ -376,7 +394,7 @@ class BatchPanelFillWidget(QToolButton):
         if adding:
             dlg.setExpectedOutputFormat(self.tr('An array of values corresponding to each new row to add'))
 
-        if not dlg.exec_():
+        if not dlg.exec():
             return
 
         if adding:
@@ -386,8 +404,7 @@ class BatchPanelFillWidget(QToolButton):
             if type(res) is not list:
                 res = [res]
 
-            first_row = self.panel.batchRowCount() if self.panel.batchRowCount() > 1 else 0
-            self.panel.addRow(len(res))
+            first_row = self.findStartingRow()
             self.panel.tblParameters.setUpdatesEnabled(False)
             for row, value in enumerate(res):
                 self.setRowValue(row + first_row, value, context)
@@ -395,7 +412,9 @@ class BatchPanelFillWidget(QToolButton):
         else:
             self.panel.tblParameters.setUpdatesEnabled(False)
             for row in range(self.panel.batchRowCount()):
-                params, ok = self.panel.parametersForRow(row, warnOnInvalid=False)
+                params, ok = self.panel.parametersForRow(row=row,
+                                                         context=context,
+                                                         warnOnInvalid=False)
 
                 # remove previous algorithm scope -- we need to rebuild this completely, using the
                 # other parameter values from the current row
@@ -423,7 +442,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
     OUTPUTS = "OUTPUTS"
 
     def __init__(self, parent, alg):
-        super(BatchPanel, self).__init__(None)
+        super().__init__(None)
         self.setupUi(self)
 
         self.wrappers = []
@@ -446,7 +465,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
         self.btnSave.clicked.connect(self.save)
         self.btnAdvanced.toggled.connect(self.toggleAdvancedMode)
 
-        self.tblParameters.horizontalHeader().resizeSections(QHeaderView.ResizeToContents)
+        self.tblParameters.horizontalHeader().resizeSections(QHeaderView.ResizeMode.ResizeToContents)
         self.tblParameters.horizontalHeader().setDefaultSectionSize(250)
         self.tblParameters.horizontalHeader().setMinimumSectionSize(150)
 
@@ -474,7 +493,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
     def initWidgets(self):
         # If there are advanced parameters — show corresponding button
         for param in self.alg.parameterDefinitions():
-            if param.flags() & QgsProcessingParameterDefinition.FlagAdvanced:
+            if param.flags() & QgsProcessingParameterDefinition.Flag.FlagAdvanced:
                 self.btnAdvanced.show()
                 break
 
@@ -489,7 +508,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
                 continue
             self.tblParameters.setHorizontalHeaderItem(
                 column, QTableWidgetItem(param.description()))
-            if param.flags() & QgsProcessingParameterDefinition.FlagAdvanced or param.flags() & QgsProcessingParameterDefinition.FlagHidden:
+            if param.flags() & QgsProcessingParameterDefinition.Flag.FlagAdvanced or param.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden:
                 self.tblParameters.setColumnHidden(column, True)
 
             self.column_to_parameter_definition[column] = param.name()
@@ -497,7 +516,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
             column += 1
 
         for out in self.alg.destinationParameterDefinitions():
-            if not out.flags() & QgsProcessingParameterDefinition.FlagHidden:
+            if not out.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden:
                 self.tblParameters.setHorizontalHeaderItem(
                     column, QTableWidgetItem(out.description()))
                 self.column_to_parameter_definition[column] = out.name()
@@ -509,8 +528,8 @@ class BatchPanel(QgsPanelWidget, WIDGET):
         # Add an empty row to begin
         self.addRow()
 
-        self.tblParameters.horizontalHeader().resizeSections(QHeaderView.ResizeToContents)
-        self.tblParameters.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tblParameters.horizontalHeader().resizeSections(QHeaderView.ResizeMode.ResizeToContents)
+        self.tblParameters.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.tblParameters.horizontalHeader().setStretchLastSection(True)
 
     def batchRowCount(self):
@@ -556,7 +575,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
                         wrapper.setParameterValue(value, context)
 
                 for out in self.alg.destinationParameterDefinitions():
-                    if out.flags() & QgsProcessingParameterDefinition.FlagHidden:
+                    if out.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden:
                         continue
                     if out.name() in outputs:
                         column = self.parameter_to_column[out.name()]
@@ -597,12 +616,12 @@ class BatchPanel(QgsPanelWidget, WIDGET):
                 if not param.checkValueIsAcceptable(value, context):
                     msg = self.tr('Wrong or missing parameter value: {0} (row {1})').format(
                         param.description(), row + 2)
-                    self.parent.messageBar().pushMessage("", msg, level=Qgis.Warning, duration=5)
+                    self.parent.messageBar().pushMessage("", msg, level=Qgis.MessageLevel.Warning, duration=5)
                     return
                 algParams[param.name()] = param.valueAsPythonString(value, context)
 
             for out in alg.destinationParameterDefinitions():
-                if out.flags() & QgsProcessingParameterDefinition.FlagHidden:
+                if out.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden:
                     continue
                 col = self.parameter_to_column[out.name()]
                 widget = self.tblParameters.cellWidget(row + 1, col)
@@ -613,7 +632,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
                     self.parent.messageBar().pushMessage("",
                                                          self.tr('Wrong or missing output value: {0} (row {1})').format(
                                                              out.description(), row + 2),
-                                                         level=Qgis.Warning, duration=5)
+                                                         level=Qgis.MessageLevel.Warning, duration=5)
                     return
             toSave.append({self.PARAMETERS: algParams, self.OUTPUTS: algOutputs})
 
@@ -685,7 +704,7 @@ class BatchPanel(QgsPanelWidget, WIDGET):
                 self.setCellWrapper(row, column, wrapper, context)
 
             for out in self.alg.destinationParameterDefinitions():
-                if out.flags() & QgsProcessingParameterDefinition.FlagHidden:
+                if out.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden:
                     continue
 
                 column = self.parameter_to_column[out.name()]
@@ -713,9 +732,19 @@ class BatchPanel(QgsPanelWidget, WIDGET):
             del self.wrappers[row - 1]
             self.tblParameters.removeRow(row)
 
+        # resynchronize stored row numbers for table widgets
+        for row in range(1, self.tblParameters.rowCount()):
+            for col in range(0, self.tblParameters.columnCount()):
+                cell_widget = self.tblParameters.cellWidget(row, col)
+                if not cell_widget:
+                    continue
+
+                if isinstance(cell_widget, BatchOutputSelectionPanel):
+                    cell_widget.row = row
+
     def toggleAdvancedMode(self, checked):
         for param in self.alg.parameterDefinitions():
-            if param.flags() & QgsProcessingParameterDefinition.FlagAdvanced and not (param.flags() & QgsProcessingParameterDefinition.FlagHidden):
+            if param.flags() & QgsProcessingParameterDefinition.Flag.FlagAdvanced and not (param.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden):
                 self.tblParameters.setColumnHidden(self.parameter_to_column[param.name()], not checked)
 
     def valueForParameter(self, row, parameter_name):
@@ -725,7 +754,11 @@ class BatchPanel(QgsPanelWidget, WIDGET):
         wrapper = self.wrappers[row][self.parameter_to_column[parameter_name]]
         return wrapper.parameterValue()
 
-    def parametersForRow(self, row, destinationProject=None, warnOnInvalid=True):
+    def parametersForRow(self,
+                         row: int,
+                         context: QgsProcessingContext,
+                         destinationProject: Optional[QgsProject] = None,
+                         warnOnInvalid: bool = True):
         """
         Returns the parameters dictionary corresponding to a row in the batch table
         """
@@ -740,12 +773,12 @@ class BatchPanel(QgsPanelWidget, WIDGET):
                 self.parent.messageBar().pushMessage("",
                                                      self.tr('Wrong or missing parameter value: {0} (row {1})').format(
                                                          param.description(), row + 2),
-                                                     level=Qgis.Warning, duration=5)
+                                                     level=Qgis.MessageLevel.Warning, duration=5)
                 return {}, False
 
         count_visible_outputs = 0
         for out in self.alg.destinationParameterDefinitions():
-            if out.flags() & QgsProcessingParameterDefinition.FlagHidden:
+            if out.flags() & QgsProcessingParameterDefinition.Flag.FlagHidden:
                 continue
 
             col = self.parameter_to_column[out.name()]
@@ -753,16 +786,29 @@ class BatchPanel(QgsPanelWidget, WIDGET):
             count_visible_outputs += 1
             widget = self.tblParameters.cellWidget(row + 1, col)
             text = widget.getValue()
-            if not warnOnInvalid or out.checkValueIsAcceptable(text):
-                if isinstance(out, (QgsProcessingParameterRasterDestination,
-                                    QgsProcessingParameterVectorDestination,
-                                    QgsProcessingParameterFeatureSink)):
-                    # load rasters and sinks on completion
-                    parameters[out.name()] = QgsProcessingOutputLayerDefinition(text, destinationProject)
-                else:
-                    parameters[out.name()] = text
+            if warnOnInvalid:
+                if not out.checkValueIsAcceptable(text):
+                    msg = self.tr(
+                        'Wrong or missing output value: {0} (row {1})').format(
+                        out.description(), row + 2)
+                    self.parent.messageBar().pushMessage("", msg,
+                                                         level=Qgis.MessageLevel.Warning,
+                                                         duration=5)
+                    return {}, False
+
+                ok, error = out.isSupportedOutputValue(text, context)
+                if not ok:
+                    self.parent.messageBar().pushMessage("", error,
+                                                         level=Qgis.MessageLevel.Warning,
+                                                         duration=5)
+                    return {}, False
+
+            if isinstance(out, (QgsProcessingParameterRasterDestination,
+                                QgsProcessingParameterVectorDestination,
+                                QgsProcessingParameterFeatureSink)):
+                # load rasters and sinks on completion
+                parameters[out.name()] = QgsProcessingOutputLayerDefinition(text, destinationProject)
             else:
-                msg = self.tr('Wrong or missing output value: {0} (row {1})').format(out.description(), row + 2)
-                self.parent.messageBar().pushMessage("", msg, level=Qgis.Warning, duration=5)
-                return {}, False
+                parameters[out.name()] = text
+
         return parameters, True

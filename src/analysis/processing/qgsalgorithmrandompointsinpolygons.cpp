@@ -17,6 +17,8 @@
 
 
 #include "qgsalgorithmrandompointsinpolygons.h"
+#include "qgsspatialindex.h"
+
 #include <random>
 
 // The algorithm parameter names:
@@ -61,8 +63,8 @@ QString QgsRandomPointsInPolygonsAlgorithm::groupId() const
 
 void QgsRandomPointsInPolygonsAlgorithm::initAlgorithm( const QVariantMap & )
 {
-  addParameter( new QgsProcessingParameterFeatureSource( INPUT, QObject::tr( "Input polygon layer" ), QList< int >() << QgsProcessing::TypeVectorPolygon ) );
-  std::unique_ptr< QgsProcessingParameterNumber > numberPointsParam = std::make_unique< QgsProcessingParameterNumber >( POINTS_NUMBER, QObject::tr( "Number of points for each feature" ), QgsProcessingParameterNumber::Integer, 1, false, 1 );
+  addParameter( new QgsProcessingParameterFeatureSource( INPUT, QObject::tr( "Input polygon layer" ), QList< int >() << static_cast< int >( Qgis::ProcessingSourceType::VectorPolygon ) ) );
+  std::unique_ptr< QgsProcessingParameterNumber > numberPointsParam = std::make_unique< QgsProcessingParameterNumber >( POINTS_NUMBER, QObject::tr( "Number of points for each feature" ), Qgis::ProcessingNumberParameterType::Integer, 1, false, 1 );
   numberPointsParam->setIsDynamic( true );
   numberPointsParam->setDynamicPropertyDefinition( QgsPropertyDefinition( POINTS_NUMBER, QObject::tr( "Number of points for each feature" ), QgsPropertyDefinition::IntegerPositive ) );
   numberPointsParam->setDynamicLayerParameterName( QStringLiteral( "INPUT" ) );
@@ -75,26 +77,26 @@ void QgsRandomPointsInPolygonsAlgorithm::initAlgorithm( const QVariantMap & )
   addParameter( minDistParam.release() );
 
   std::unique_ptr< QgsProcessingParameterDistance > minDistGlobalParam = std::make_unique< QgsProcessingParameterDistance >( MIN_DISTANCE_GLOBAL, QObject::tr( "Global minimum distance between points" ), 0, INPUT, true, 0 );
-  minDistGlobalParam->setFlags( minDistGlobalParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  minDistGlobalParam->setFlags( minDistGlobalParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( minDistGlobalParam.release() );
 
-  std::unique_ptr< QgsProcessingParameterNumber > maxAttemptsParam = std::make_unique< QgsProcessingParameterNumber >( MAX_TRIES_PER_POINT, QObject::tr( "Maximum number of search attempts (for Min. dist. > 0)" ), QgsProcessingParameterNumber::Integer, 10, true, 1 );
-  maxAttemptsParam->setFlags( maxAttemptsParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  std::unique_ptr< QgsProcessingParameterNumber > maxAttemptsParam = std::make_unique< QgsProcessingParameterNumber >( MAX_TRIES_PER_POINT, QObject::tr( "Maximum number of search attempts (for Min. dist. > 0)" ), Qgis::ProcessingNumberParameterType::Integer, 10, true, 1 );
+  maxAttemptsParam->setFlags( maxAttemptsParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   maxAttemptsParam->setIsDynamic( true );
   maxAttemptsParam->setDynamicPropertyDefinition( QgsPropertyDefinition( MAX_TRIES_PER_POINT, QObject::tr( "Maximum number of attempts per point (for Min. dist. > 0)" ), QgsPropertyDefinition::IntegerPositiveGreaterZero ) );
   maxAttemptsParam->setDynamicLayerParameterName( QStringLiteral( "INPUT" ) );
   addParameter( maxAttemptsParam.release() );
 
-  std::unique_ptr< QgsProcessingParameterNumber > randomSeedParam = std::make_unique< QgsProcessingParameterNumber >( SEED, QObject::tr( "Random seed" ), QgsProcessingParameterNumber::Integer, QVariant(), true, 1 );
-  randomSeedParam->setFlags( randomSeedParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  std::unique_ptr< QgsProcessingParameterNumber > randomSeedParam = std::make_unique< QgsProcessingParameterNumber >( SEED, QObject::tr( "Random seed" ), Qgis::ProcessingNumberParameterType::Integer, QVariant(), true, 1 );
+  randomSeedParam->setFlags( randomSeedParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( randomSeedParam.release() );
 
   std::unique_ptr< QgsProcessingParameterBoolean > includePolygonAttrParam = std::make_unique< QgsProcessingParameterBoolean >( INCLUDE_POLYGON_ATTRIBUTES, QObject::tr( "Include polygon attributes" ), true );
-  includePolygonAttrParam->setFlags( includePolygonAttrParam->flags() | QgsProcessingParameterDefinition::FlagAdvanced );
+  includePolygonAttrParam->setFlags( includePolygonAttrParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( includePolygonAttrParam.release() );
 
   addParameter( new
-                QgsProcessingParameterFeatureSink( OUTPUT, QObject::tr( "Random points in polygons" ), QgsProcessing::TypeVectorPoint ) );
+                QgsProcessingParameterFeatureSink( OUTPUT, QObject::tr( "Random points in polygons" ), Qgis::ProcessingSourceType::VectorPoint ) );
 
   addOutput( new QgsProcessingOutputNumber( OUTPUT_POINTS, QObject::tr( "Total number of points generated" ) ) );
   addOutput( new QgsProcessingOutputNumber( POINTS_MISSED, QObject::tr( "Number of missed points" ) ) );
@@ -189,7 +191,7 @@ QVariantMap QgsRandomPointsInPolygonsAlgorithm::processAlgorithm( const QVariant
 
   QString ldest;
   std::unique_ptr< QgsFeatureSink > sink( parameterAsSink( parameters, OUTPUT,
-                                          context, ldest, fields, QgsWkbTypes::Point, polygonSource->sourceCrs() ) );
+                                          context, ldest, fields, Qgis::WkbType::Point, polygonSource->sourceCrs() ) );
   if ( !sink )
     throw QgsProcessingException( invalidSinkError( parameters, OUTPUT ) );
 
@@ -210,7 +212,6 @@ QVariantMap QgsRandomPointsInPolygonsAlgorithm::processAlgorithm( const QVariant
   int missedPolygons = 0;
   int emptyOrNullGeom = 0;
 
-  long featureCount = 0;
   long long attempts = 0; // used for unique feature IDs in the indexes
   const long numberOfFeatures = polygonSource->featureCount();
   long long desiredNumberOfPoints = 0;
@@ -230,7 +231,6 @@ QVariantMap QgsRandomPointsInPolygonsAlgorithm::processAlgorithm( const QVariant
     {
       // Increment invalid features count
       emptyOrNullGeom++;
-      featureCount++;
       baseFeatureProgress += featureProgressStep;
       feedback->setProgress( baseFeatureProgress );
       continue;
@@ -240,7 +240,6 @@ QVariantMap QgsRandomPointsInPolygonsAlgorithm::processAlgorithm( const QVariant
     {
       // Increment invalid features count
       emptyOrNullGeom++;
-      featureCount++;
       baseFeatureProgress += featureProgressStep;
       feedback->setProgress( baseFeatureProgress );
       continue;
@@ -374,7 +373,6 @@ QVariantMap QgsRandomPointsInPolygonsAlgorithm::processAlgorithm( const QVariant
     {
       missedPolygons++;
     }
-    featureCount++;
     feedback->setProgress( baseFeatureProgress );
   } // while features
   missedPoints = desiredNumberOfPoints - totNPoints;

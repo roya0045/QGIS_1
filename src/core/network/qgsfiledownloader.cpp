@@ -15,8 +15,10 @@
 
 #include "qgsfiledownloader.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
 #include "qgsapplication.h"
 #include "qgsauthmanager.h"
+#include "qgsvariantutils.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
@@ -25,11 +27,14 @@
 #include <QSslError>
 #endif
 
-QgsFileDownloader::QgsFileDownloader( const QUrl &url, const QString &outputFileName, const QString &authcfg, bool delayStart )
+QgsFileDownloader::QgsFileDownloader( const QUrl &url, const QString &outputFileName, const QString &authcfg, bool delayStart, Qgis::HttpMethod httpMethod, const QByteArray &data )
   : mUrl( url )
   , mDownloadCanceled( false )
+  , mHttpMethod( httpMethod )
+  , mData( data )
 {
-  mFile.setFileName( outputFileName );
+  if ( !outputFileName.isEmpty() )
+    mFile.setFileName( outputFileName );
   mAuthCfg = authcfg;
   if ( !delayStart )
     startDownload();
@@ -50,6 +55,7 @@ void QgsFileDownloader::startDownload()
   QgsNetworkAccessManager *nam = QgsNetworkAccessManager::instance();
 
   QNetworkRequest request( mUrl );
+  request.setAttribute( QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::RedirectPolicy::NoLessSafeRedirectPolicy );
   QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsFileDownloader" ) );
   if ( !mAuthCfg.isEmpty() )
   {
@@ -65,7 +71,20 @@ void QgsFileDownloader::startDownload()
     mReply->deleteLater();
   }
 
-  mReply = nam->get( request );
+  switch ( mHttpMethod )
+  {
+    case Qgis::HttpMethod::Get:
+    {
+      mReply = nam->get( request );
+      break;
+    }
+    case Qgis::HttpMethod::Post:
+    {
+      mReply = nam->post( request, mData );
+      break;
+    }
+  }
+
   if ( !mAuthCfg.isEmpty() )
   {
     QgsApplication::authManager()->updateNetworkReply( mReply, mAuthCfg );
@@ -165,30 +184,10 @@ void QgsFileDownloader::onFinished()
       mFile.close();
     }
 
-    // get redirection url
-    const QVariant redirectionTarget = mReply->attribute( QNetworkRequest::RedirectionTargetAttribute );
     if ( mReply->error() )
     {
       mFile.remove();
       error( tr( "Download failed: %1" ).arg( mReply->errorString() ) );
-    }
-    else if ( !redirectionTarget.isNull() )
-    {
-      const QUrl newUrl = mUrl.resolved( redirectionTarget.toUrl() );
-      mUrl = newUrl;
-      mReply->deleteLater();
-      if ( !mFile.open( QIODevice::WriteOnly ) )
-      {
-        mFile.remove();
-        error( tr( "Cannot open output file: %1" ).arg( mFile.fileName() ) );
-      }
-      else
-      {
-        mFile.resize( 0 );
-        mFile.close();
-        startDownload();
-      }
-      return;
     }
     else
     {

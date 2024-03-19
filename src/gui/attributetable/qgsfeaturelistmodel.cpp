@@ -76,7 +76,7 @@ QVariant QgsFeatureListModel::data( const QModelIndex &index, int role ) const
   {
     QgsFeature feat;
 
-    mFilterModel->layerCache()->featureAtId( idxToFid( index ), feat );
+    mFilterModel->layerCache()->featureAtIdWithAllAttributes( idxToFid( index ), feat );
 
     mExpressionContext.setFeature( feat );
     return mDisplayExpression.evaluate( &mExpressionContext );
@@ -88,7 +88,7 @@ QVariant QgsFeatureListModel::data( const QModelIndex &index, int role ) const
 
     QgsFeature feat;
 
-    mFilterModel->layerCache()->featureAtId( idxToFid( index ), feat );
+    mFilterModel->layerCache()->featureAtIdWithAllAttributes( idxToFid( index ), feat );
 
     QgsVectorLayerEditBuffer *editBuffer = mFilterModel->layer()->editBuffer();
 
@@ -110,29 +110,24 @@ QVariant QgsFeatureListModel::data( const QModelIndex &index, int role ) const
   {
     QgsFeature feat;
 
-    mFilterModel->layerCache()->featureAtId( idxToFid( index ), feat );
+    mFilterModel->layerCache()->featureAtIdWithAllAttributes( idxToFid( index ), feat );
 
     return QVariant::fromValue( feat );
   }
   else if ( role == Qt::TextAlignmentRole )
   {
-    return Qt::AlignLeft;
+    return static_cast<Qt::Alignment::Int>( Qt::AlignLeft );
   }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-  if ( role == Qt::BackgroundColorRole
-       || role == Qt::TextColorRole
-#else
   if ( role == Qt::BackgroundRole
        || role == Qt::ForegroundRole
-#endif
        || role == Qt::DecorationRole
        || role == Qt::FontRole )
   {
     QgsVectorLayer *layer = mFilterModel->layer();
     QgsFeature feat;
     const QgsFeatureId fid = idxToFid( index );
-    mFilterModel->layerCache()->featureAtId( fid, feat );
+    mFilterModel->layerCache()->featureAtIdWithAllAttributes( fid, feat );
     mExpressionContext.setFeature( feat );
     QList<QgsConditionalStyle> styles;
 
@@ -161,17 +156,9 @@ QVariant QgsFeatureListModel::data( const QModelIndex &index, int role ) const
 
     if ( style.isValid() )
     {
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-      if ( role == Qt::BackgroundColorRole && style.validBackgroundColor() )
-#else
       if ( role == Qt::BackgroundRole && style.validBackgroundColor() )
-#endif
         return style.backgroundColor().isValid() ? style.backgroundColor() : QVariant();
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-      if ( role == Qt::TextColorRole && style.validTextColor() )
-#else
       if ( role == Qt::ForegroundRole && style.validTextColor() )
-#endif
         return style.textColor().isValid() ? style.textColor() : QVariant();
       if ( role == Qt::DecorationRole )
         return style.icon().isNull() ? QVariant() : style.icon();
@@ -255,7 +242,7 @@ QString QgsFeatureListModel::displayExpression() const
 
 bool QgsFeatureListModel::featureByIndex( const QModelIndex &index, QgsFeature &feat )
 {
-  return mFilterModel->layerCache()->featureAtId( idxToFid( index ), feat );
+  return mFilterModel->layerCache()->featureAtIdWithAllAttributes( idxToFid( index ), feat );
 }
 
 void QgsFeatureListModel::onBeginRemoveRows( const QModelIndex &parent, int first, int last )
@@ -303,7 +290,7 @@ void QgsFeatureListModel::setSortByDisplayExpression( bool sortByDisplayExpressi
   if ( mSortByDisplayExpression )
     setInjectNull( false );
 
-  setSortRole( QgsAttributeTableModel::SortRole + 1 );
+  setSortRole( static_cast< int >( QgsAttributeTableModel::CustomRole::Sort ) + 1 );
   setDynamicSortFilter( mSortByDisplayExpression );
   sort( 0, order );
 }

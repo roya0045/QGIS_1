@@ -18,7 +18,6 @@
 #include <QTextStream>
 
 #include "qgslayerdefinition.h"
-#include "qgslayertree.h"
 #include "qgslogger.h"
 #include "qgsmaplayer.h"
 #include "qgspathresolver.h"
@@ -29,12 +28,15 @@
 #include "qgsreadwritecontext.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectortilelayer.h"
+#include "qgstiledscenelayer.h"
 #include "qgsapplication.h"
 #include "qgsmaplayerfactory.h"
 #include "qgsmeshlayer.h"
 #include "qgspointcloudlayer.h"
-#include "qgsannotationlayer.h"
 #include "qgsfileutils.h"
+#include "qgsgrouplayer.h"
+#include "qgslayertreegroup.h"
+#include "qgslayertreelayer.h"
 
 bool QgsLayerDefinition::loadLayerDefinition( const QString &path, QgsProject *project, QgsLayerTreeGroup *rootGroup, QString &errorMessage )
 {
@@ -184,10 +186,7 @@ bool QgsLayerDefinition::loadLayerDefinition( QDomDocument doc, QgsProject *proj
   const auto constLayers = layers;
   for ( QgsMapLayer *layer : constLayers )
   {
-    if ( QgsVectorLayer *vlayer = qobject_cast< QgsVectorLayer * >( layer ) )
-    {
-      vlayer->resolveReferences( project );
-    }
+    layer->resolveReferences( project );
   }
 
   root->resolveReferences( project );
@@ -309,39 +308,47 @@ QList<QgsMapLayer *> QgsLayerDefinition::loadLayerDefinitionLayersInternal( QDom
     QgsMapLayer *layer = nullptr;
 
     bool ok = false;
-    const QgsMapLayerType layerType = QgsMapLayerFactory::typeFromString( type, ok );
+    const Qgis::LayerType layerType = QgsMapLayerFactory::typeFromString( type, ok );
     if ( ok )
     {
       switch ( layerType )
       {
-        case QgsMapLayerType::VectorLayer:
+        case Qgis::LayerType::Vector:
           layer = new QgsVectorLayer();
           break;
 
-        case QgsMapLayerType::RasterLayer:
+        case Qgis::LayerType::Raster:
           layer = new QgsRasterLayer();
           break;
 
-        case QgsMapLayerType::PluginLayer:
+        case Qgis::LayerType::Plugin:
         {
           const QString typeName = layerElem.attribute( QStringLiteral( "name" ) );
           layer = QgsApplication::pluginLayerRegistry()->createLayer( typeName );
           break;
         }
 
-        case QgsMapLayerType::MeshLayer:
+        case Qgis::LayerType::Mesh:
           layer = new QgsMeshLayer();
           break;
 
-        case QgsMapLayerType::VectorTileLayer:
+        case Qgis::LayerType::VectorTile:
           layer = new QgsVectorTileLayer;
           break;
 
-        case QgsMapLayerType::PointCloudLayer:
+        case Qgis::LayerType::PointCloud:
           layer = new QgsPointCloudLayer();
           break;
 
-        case QgsMapLayerType::AnnotationLayer:
+        case Qgis::LayerType::TiledScene:
+          layer = new QgsTiledSceneLayer;
+          break;
+
+        case Qgis::LayerType::Group:
+          layer = new QgsGroupLayer( QString(), QgsGroupLayer::LayerOptions( QgsCoordinateTransformContext() ) );
+          break;
+
+        case Qgis::LayerType::Annotation:
           break;
       }
     }
@@ -367,14 +374,14 @@ QList<QgsMapLayer *> QgsLayerDefinition::loadLayerDefinitionLayers( const QStrin
   QFile file( qlrfile );
   if ( !file.open( QIODevice::ReadOnly ) )
   {
-    QgsDebugMsg( QStringLiteral( "Can't open file" ) );
+    QgsDebugError( QStringLiteral( "Can't open file" ) );
     return QList<QgsMapLayer *>();
   }
 
   QDomDocument doc;
   if ( !doc.setContent( &file ) )
   {
-    QgsDebugMsg( QStringLiteral( "Can't set content" ) );
+    QgsDebugError( QStringLiteral( "Can't set content" ) );
     return QList<QgsMapLayer *>();
   }
 
@@ -436,6 +443,7 @@ void QgsLayerDefinition::DependencySorter::init( const QDomDocument &doc )
     else
     {
       layersToSort << qMakePair( id, layerElem );
+      mDependentLayerIds.insert( id );
     }
     layerElem = layerElem.nextSiblingElement( );
   }
@@ -525,6 +533,11 @@ QgsLayerDefinition::DependencySorter::DependencySorter( const QString &fileName 
   ( void )pFile.open( QIODevice::ReadOnly );
   ( void )doc.setContent( &pFile );
   init( doc );
+}
+
+bool QgsLayerDefinition::DependencySorter::isLayerDependent( const QString &layerId ) const
+{
+  return mDependentLayerIds.contains( layerId );
 }
 
 

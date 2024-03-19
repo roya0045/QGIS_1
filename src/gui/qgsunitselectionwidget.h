@@ -39,7 +39,6 @@ class QgsMapCanvas;
  * QgsMapUnitScale object.
  * \see QgsMapUnitScaleDialog
  * \see QgsUnitSelectionWidget
- * \since QGIS 3.0
 */
 class GUI_EXPORT QgsMapUnitScaleWidget : public QgsPanelWidget, private Ui::QgsMapUnitScaleWidgetBase
 {
@@ -138,7 +137,6 @@ class GUI_EXPORT QgsMapUnitScaleDialog : public QDialog
      * Sets the map canvas associated with the dialog. This allows the dialog to retrieve the current
      * map scale from the canvas.
      * \param canvas map canvas
-     * \since QGIS 2.12
      */
     void setMapCanvas( QgsMapCanvas *canvas );
 
@@ -184,7 +182,6 @@ class GUI_EXPORT QgsUnitSelectionWidget : public QWidget, private Ui::QgsUnitSel
     /**
      * Sets the units which the user can choose from in the combobox. Clears any existing units.
      * \param units list of valid units
-     * \since QGIS 2.9
      */
     void setUnits( const QgsUnitTypes::RenderUnitList &units );
 
@@ -194,9 +191,8 @@ class GUI_EXPORT QgsUnitSelectionWidget : public QWidget, private Ui::QgsUnitSel
     /**
      * Returns the current predefined selected unit (if applicable).
      * \returns selected output unit, or QgsUnitTypes::RenderUnknownUnit if the widget was populated with custom unit types
-     * \since QGIS 2.9
      */
-    QgsUnitTypes::RenderUnit unit() const;
+    Qgis::RenderUnit unit() const;
 
     /**
      * Sets the selected unit index
@@ -209,7 +205,7 @@ class GUI_EXPORT QgsUnitSelectionWidget : public QWidget, private Ui::QgsUnitSel
      * Sets the selected unit
      * \param unit predefined unit to set as current
      */
-    void setUnit( QgsUnitTypes::RenderUnit unit );
+    void setUnit( Qgis::RenderUnit unit );
 
     //! Returns the map unit scale
     QgsMapUnitScale getMapUnitScale() const { return mMapUnitScale; }
@@ -221,9 +217,24 @@ class GUI_EXPORT QgsUnitSelectionWidget : public QWidget, private Ui::QgsUnitSel
      * Sets the map canvas associated with the widget. This allows the widget to retrieve the current
      * map scale from the canvas.
      * \param canvas map canvas
-     * \since QGIS 2.12
      */
     void setMapCanvas( QgsMapCanvas *canvas );
+
+    /**
+     * Returns TRUE if the widget can show the map scale button when the Map Units option is selected.
+     *
+     * \see setShowMapScaleButton()
+     * \since QGIS 3.22
+     */
+    bool showMapScaleButton() const;
+
+    /**
+     * Sets whether the widget can show the map scale button when the Map Units option is selected.
+     *
+     * \see showMapScaleButton()
+     * \since QGIS 3.22
+     */
+    void setShowMapScaleButton( bool show );
 
   signals:
     void changed();
@@ -237,6 +248,7 @@ class GUI_EXPORT QgsUnitSelectionWidget : public QWidget, private Ui::QgsUnitSel
     QgsMapUnitScale mMapUnitScale;
     int mMapUnitIdx;
     QgsMapCanvas *mCanvas = nullptr;
+    bool mShowMapScaleButton = true;
 
 };
 

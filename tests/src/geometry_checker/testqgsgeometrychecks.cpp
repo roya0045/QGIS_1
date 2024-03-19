@@ -18,6 +18,7 @@
 #include "qgsfeaturepool.h"
 #include "qgsvectorlayer.h"
 
+#include "qgsgeometrycollection.h"
 #include "qgsgeometryanglecheck.h"
 #include "qgsgeometryareacheck.h"
 #include "qgsgeometrycontainedcheck.h"
@@ -83,6 +84,7 @@ class TestQgsGeometryChecks: public QObject
     void testDegeneratePolygonCheck();
     void testDuplicateCheck();
     void testDuplicateNodesCheck();
+    void testDuplicateNodesCheckTolerance();
     void testFollowBoundariesCheck();
     void testGapCheck();
     void testAllowedGaps();
@@ -490,6 +492,27 @@ void TestQgsGeometryChecks::testDuplicateNodesCheck()
   cleanupTestContext( testContext );
 }
 
+void TestQgsGeometryChecks::testDuplicateNodesCheckTolerance()
+{
+  QTemporaryDir dir;
+  QMap<QString, QString> layers;
+  layers.insert( "line_layer.shp", "" );
+  auto testContext = createTestContext( dir, layers, QgsCoordinateReferenceSystem( "EPSG:4326" ), 3 );
+
+  QList<QgsGeometryCheckError *> checkErrors;
+  QStringList messages;
+  QgsFeedback feedback;
+
+  const QgsGeometryDuplicateNodesCheck check( testContext.first, QVariantMap() );
+  check.collectErrors( testContext.second, checkErrors, messages, &feedback );
+  listErrors( checkErrors, messages );
+
+  int nErrors = checkErrors.size();
+  QCOMPARE( nErrors, 3 );
+
+  cleanupTestContext( testContext );
+}
+
 void TestQgsGeometryChecks::testFollowBoundariesCheck()
 {
   QTemporaryDir dir;
@@ -606,14 +629,9 @@ void TestQgsGeometryChecks::testAllowedGaps()
   QVERIFY( it.nextFeature( f ) );
 
   qDebug() << GEOSversion() << "\n";
-  if ( GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 9 )
-  {
-    QCOMPARE( f.geometry().asWkt( 4 ), QgsGeometry::fromWkt( "Polygon ((0.393901 -0.769953, 0.25997 -0.88388, 0.26997 -0.99981, 0.24598 -0.865897, 0.3939 -0.76995))" ).asWkt( 4 ) );
-  }
-  else
-  {
-    QCOMPARE( f.geometry().asWkt( 4 ), QgsGeometry::fromWkt( "Polygon ((0.246 -0.8659, 0.3939 -0.77, 0.26 -0.8839, 0.27 -0.9998, 0.246 -0.8659))" ).asWkt( 4 ) );
-  }
+  QgsGeometry res = f.geometry();
+  res.normalize();
+  QCOMPARE( res.asWkt( 4 ), QgsGeometry::fromWkt( "Polygon ((0.246 -0.8659, 0.3939 -0.77, 0.26 -0.8839, 0.27 -0.9998, 0.246 -0.8659))" ).asWkt( 4 ) );
 
   // Run check again after adding the gap geometry to the allowed gaps layer: one less error
   check.prepare( testContext.first, configuration );
@@ -1093,6 +1111,7 @@ void TestQgsGeometryChecks::testSelfIntersectionCheck()
   QCOMPARE( f.geometry().constGet()->vertexCount( 1 ), 5 );
 
   nextId = testContext.second[errs3[0]->layerId()]->layer()->featureCount();
+  testContext.second[errs3[0]->layerId()]->getFeature( errs3[0]->featureId(), f );
   QVERIFY( fixCheckError( testContext.second,  errs3[0],
                           QgsGeometrySelfIntersectionCheck::ToSingleObjects, QgsGeometryCheckError::StatusFixed,
   {
@@ -1100,11 +1119,16 @@ void TestQgsGeometryChecks::testSelfIntersectionCheck()
     {errs3[0]->layerId(), nextId, QgsGeometryCheck::ChangeFeature, QgsGeometryCheck::ChangeAdded, QgsVertexId()}
   } ) );
   testContext.second[errs3[0]->layerId()]->getFeature( errs3[0]->featureId(), f );
-  QCOMPARE( f.geometry().constGet()->partCount(), 1 );
-  QCOMPARE( f.geometry().constGet()->vertexCount(), 6 );
+  const QgsGeometryCollection *collectionResult = qgsgeometry_cast< const QgsGeometryCollection * >( f.geometry().constGet() );
+
+  QCOMPARE( qgsgeometry_cast< const QgsPolygon * >( collectionResult->geometryN( 0 ) )->exteriorRing()->asWkt( 2 ), QStringLiteral( "LineString (0.7 0.59, 1.32 0.6, 1.26 0.09, 0.51 0.05, 0.89 0.57, 0.7 0.59)" ) );
+  // make sure the other part of the ring isn't present in this feature. We may have OTHER parts in this feature though, depending on the GDAL version!
+  for ( int i = 1; i < collectionResult->numGeometries(); ++i )
+  {
+    QVERIFY( qgsgeometry_cast< const QgsPolygon * >( collectionResult->geometryN( i ) )->exteriorRing()->asWkt( 2 ) != QLatin1String( "LineString (1.24 -0.05, 1.45 0.1, 1.26 0.09, 1.24 -0.05)" ) );
+  }
   testContext.second[errs3[0]->layerId()]->getFeature( nextId, f );
-  QCOMPARE( f.geometry().constGet()->partCount(), 1 );
-  QCOMPARE( f.geometry().constGet()->vertexCount(), 4 );
+  QCOMPARE( qgsgeometry_cast< const QgsPolygon * >( f.geometry().constGet() )->exteriorRing()->asWkt( 2 ), QStringLiteral( "LineString (1.24 -0.05, 1.45 0.1, 1.26 0.09, 1.24 -0.05)" ) );
 
   QVERIFY( fixCheckError( testContext.second,  errs4[0],
                           QgsGeometrySelfIntersectionCheck::ToMultiObject, QgsGeometryCheckError::StatusFixed,
@@ -1202,7 +1226,7 @@ void TestQgsGeometryChecks::testGapCheckPointInPoly()
   QgsFeature f;
   testContext.second[layers["gap_layer_point_in_poly.shp"]]->getFeature( 1, f );
   const double areaOld = f.geometry().area();
-  QCOMPARE( areaOld, 19913.135772452362 );
+  QGSCOMPARENEAR( areaOld, 19913.135772452362, 0.0001 );
 
   QgsGeometryCheck::Changes changes;
   const QMap<QString, int> mergeAttrs;
@@ -1257,7 +1281,7 @@ void TestQgsGeometryChecks::testOverlapCheckToleranceBug()
   const QgsPoint pointOld_2 = f.geometry().vertexAt( 2 );
 
   // Just making sure we've got the right feature/point
-  QCOMPARE( areaOld, 10442.710061549426 );
+  QGSCOMPARENEAR( areaOld, 10442.710061549426, 0.0002 );
   QGSCOMPARENEARPOINT( pointOld_1, QgsPoint( 2537221.53079314017668366, 1152360.02460834058001637 ), 0.00001 );
   QGSCOMPARENEARPOINT( pointOld_2, QgsPoint( 2537366.84566075634211302, 1152360.28978145681321621 ), 0.00001 );
 
@@ -1271,23 +1295,15 @@ void TestQgsGeometryChecks::testOverlapCheckToleranceBug()
   // Ensure it actually worked
   testContext.second[layers["overlap_layer_tolerance_bug.shp"]]->getFeature( 0, f );
   QVERIFY( f.geometry().area() < areaOld );
-  if ( GEOS_VERSION_MAJOR == 3 && GEOS_VERSION_MINOR < 9 )
-  {
-    // And that we don't have unexpected changes on unaffected points
-    QCOMPARE( f.geometry().vertexAt( 1 ), pointOld_1 );
-    QCOMPARE( f.geometry().vertexAt( 2 ), pointOld_2 );
-  }
-  else
-  {
-    /* For reference
-    qDebug() << f.geometry().vertexAt( 1 ).asWkt() << "\n"; // "Point (2537366.84566075634211302 1152360.28978145681321621)"
-    qDebug() << pointOld_1.asWkt() << "\n"; // "Point (2537221.53079314017668366 1152360.02460834058001637)"
-    qDebug() << f.geometry().vertexAt( 2 ).asWkt() << "\n"; // "Point (2537297.08237999258562922 1152290.78251273254863918)"
-    qDebug() << pointOld_2.asWkt() << "\n"; //  "Point (2537366.84566075634211302 1152360.28978145681321621)"
-    */
-    QCOMPARE( f.geometry().vertexAt( 1 ).asWkt( 4 ), QStringLiteral( "Point (2537366.8457 1152360.2898)" ) );
-    QCOMPARE( f.geometry().vertexAt( 2 ).asWkt( 4 ), QStringLiteral( "Point (2537297.0824 1152290.7825)" ) );
-  }
+
+  /* For reference
+  qDebug() << f.geometry().vertexAt( 1 ).asWkt() << "\n"; // "Point (2537366.84566075634211302 1152360.28978145681321621)"
+  qDebug() << pointOld_1.asWkt() << "\n"; // "Point (2537221.53079314017668366 1152360.02460834058001637)"
+  qDebug() << f.geometry().vertexAt( 2 ).asWkt() << "\n"; // "Point (2537297.08237999258562922 1152290.78251273254863918)"
+  qDebug() << pointOld_2.asWkt() << "\n"; //  "Point (2537366.84566075634211302 1152360.28978145681321621)"
+  */
+  QCOMPARE( f.geometry().vertexAt( 1 ).asWkt( 4 ), QStringLiteral( "Point (2537366.8457 1152360.2898)" ) );
+  QCOMPARE( f.geometry().vertexAt( 2 ).asWkt( 4 ), QStringLiteral( "Point (2537297.0824 1152290.7825)" ) );
 
   cleanupTestContext( testContext );
 }
@@ -1318,8 +1334,9 @@ QPair<QgsGeometryCheckContext *, QMap<QString, QgsFeaturePool *> > TestQgsGeomet
   const QDir tmpDir( tempDir.path() );
 
   QMap<QString, QgsFeaturePool *> featurePools;
-  for ( const QString &layerFile : layers.keys() )
+  for ( auto it = layers.begin(); it != layers.end(); it++ )
   {
+    const QString layerFile = it.key();
     QFile( testDataDir.absoluteFilePath( layerFile ) ).copy( tmpDir.absoluteFilePath( layerFile ) );
     if ( layerFile.endsWith( ".shp", Qt::CaseInsensitive ) )
     {
@@ -1332,6 +1349,7 @@ QPair<QgsGeometryCheckContext *, QMap<QString, QgsFeaturePool *> > TestQgsGeomet
     QgsVectorLayer *layer = new QgsVectorLayer( tmpDir.absoluteFilePath( layerFile ), layerFile );
     Q_ASSERT( layer && layer->isValid() );
     layers[layerFile] = layer->id();
+    //*it = layer->id();
     layer->dataProvider()->enterUpdateMode();
     featurePools.insert( layer->id(), createFeaturePool( layer ) );
   }
@@ -1351,26 +1369,14 @@ void TestQgsGeometryChecks::cleanupTestContext( QPair<QgsGeometryCheckContext *,
 
 void TestQgsGeometryChecks::listErrors( const QList<QgsGeometryCheckError *> &checkErrors, const QStringList &messages ) const
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-  QTextStream( stdout ) << " - Check result:" << endl;
-#else
   QTextStream( stdout ) << " - Check result:" << Qt::endl;
-#endif
   for ( const QgsGeometryCheckError *error : checkErrors )
   {
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    QTextStream( stdout ) << "   * " << error->layerId() << ":" << error->featureId() << " @[" << error->vidx().part << ", " << error->vidx().ring << ", " << error->vidx().vertex << "](" << error->location().x() << ", " << error->location().y() << ") = " << error->value().toString() << endl;
-#else
     QTextStream( stdout ) << "   * " << error->layerId() << ":" << error->featureId() << " @[" << error->vidx().part << ", " << error->vidx().ring << ", " << error->vidx().vertex << "](" << error->location().x() << ", " << error->location().y() << ") = " << error->value().toString() << Qt::endl;
-#endif
   }
   if ( !messages.isEmpty() )
   {
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    QTextStream( stdout ) << " - Check messages:" << endl << "   * " << messages.join( "\n   * " ) << endl;
-#else
     QTextStream( stdout ) << " - Check messages:" << Qt::endl << "   * " << messages.join( "\n   * " ) << Qt::endl;
-#endif
   }
 }
 
@@ -1416,18 +1422,10 @@ QList<QgsGeometryCheckError *> TestQgsGeometryChecks::searchCheckErrors( const Q
 
 bool TestQgsGeometryChecks::fixCheckError( QMap<QString, QgsFeaturePool *> featurePools, QgsGeometryCheckError *error, int method, const QgsGeometryCheckError::Status &expectedStatus, const QVector<Change> &expectedChanges, const QMap<QString, int> &mergeAttrs )
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-  QTextStream( stdout ) << " - Fixing " << error->layerId() << ":" << error->featureId() << " @[" << error->vidx().part << ", " << error->vidx().ring << ", " << error->vidx().vertex << "](" << error->location().x() << ", " << error->location().y() << ") = " << error->value().toString() << endl;
-#else
   QTextStream( stdout ) << " - Fixing " << error->layerId() << ":" << error->featureId() << " @[" << error->vidx().part << ", " << error->vidx().ring << ", " << error->vidx().vertex << "](" << error->location().x() << ", " << error->location().y() << ") = " << error->value().toString() << Qt::endl;
-#endif
   QgsGeometryCheck::Changes changes;
   error->check()->fixError( featurePools, error, method, mergeAttrs, changes );
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-  QTextStream( stdout ) << "   * Fix status: " << error->status() << endl;
-#else
   QTextStream( stdout ) << "   * Fix status: " << error->status() << Qt::endl;
-#endif
   if ( error->status() != expectedStatus )
   {
     return false;
@@ -1435,26 +1433,21 @@ bool TestQgsGeometryChecks::fixCheckError( QMap<QString, QgsFeaturePool *> featu
   const QString strChangeWhat[] = { "ChangeFeature", "ChangePart", "ChangeRing", "ChangeNode" };
   const QString strChangeType[] = { "ChangeAdded", "ChangeRemoved", "ChangeChanged" };
   int totChanges = 0;
-  for ( const QString &layerId : changes.keys() )
+  for ( auto itLayerChanges = changes.constBegin(); itLayerChanges != changes.constEnd(); itLayerChanges++ )
   {
-    for ( const QgsFeatureId &fid : changes[layerId].keys() )
+    const QString layerId = itLayerChanges.key();
+    const auto &featureChanges = itLayerChanges.value();
+    for ( auto itFeatureChanges = featureChanges.constBegin(); itFeatureChanges != featureChanges.constEnd(); itFeatureChanges++ )
     {
-      for ( const QgsGeometryCheck::Change &change : changes[layerId][fid] )
+      const QgsFeatureId fid = itFeatureChanges.key();
+      for ( const QgsGeometryCheck::Change &change : itFeatureChanges.value() )
       {
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-        QTextStream( stdout ) << "   * Change: " << layerId << ":" << fid << " :: " << strChangeWhat[change.what] << ", " << strChangeType[change.type] << ", " << change.vidx.part << ":" << change.vidx.ring << ":" << change.vidx.vertex << endl;
-#else
         QTextStream( stdout ) << "   * Change: " << layerId << ":" << fid << " :: " << strChangeWhat[change.what] << ", " << strChangeType[change.type] << ", " << change.vidx.part << ":" << change.vidx.ring << ":" << change.vidx.vertex << Qt::endl;
-#endif
       }
-      totChanges += changes[layerId][fid].size();
+      totChanges += itFeatureChanges.value().size();
     }
   }
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-  QTextStream( stdout ) << "   * Num changes: " << totChanges << ", expected num changes: " << expectedChanges.size() << endl;
-#else
   QTextStream( stdout ) << "   * Num changes: " << totChanges << ", expected num changes: " << expectedChanges.size() << Qt::endl;
-#endif
   if ( expectedChanges.size() != totChanges )
   {
     return false;

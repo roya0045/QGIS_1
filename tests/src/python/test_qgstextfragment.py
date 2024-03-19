@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsTextFragment.
 
 Run with: ctest -V -R QgsTextFragment
@@ -12,20 +11,15 @@ __author__ = 'Nyall Dawson'
 __date__ = '12/05/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
-from qgis.core import (
-    QgsTextFragment,
-    QgsTextCharacterFormat,
-    QgsStringUtils
-)
 from qgis.PyQt.QtGui import QColor
-from qgis.testing import start_app, unittest
+from qgis.core import QgsStringUtils, QgsTextCharacterFormat, QgsTextFragment
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsTextFragment(unittest.TestCase):
+class TestQgsTextFragment(QgisTestCase):
 
     def testConstructors(self):
         # empty
@@ -52,7 +46,7 @@ class TestQgsTextFragment(unittest.TestCase):
 
     def testCapitalize(self):
         fragment = QgsTextFragment('ludicrous gibs!')
-        fragment.applyCapitalization(QgsStringUtils.TitleCase)
+        fragment.applyCapitalization(QgsStringUtils.Capitalization.TitleCase)
         self.assertEqual(fragment.text(), 'Ludicrous Gibs!')
 
 

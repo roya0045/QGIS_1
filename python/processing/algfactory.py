@@ -39,6 +39,7 @@ from qgis.core import (QgsProcessingParameterDefinition,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterDestination,
                        QgsProcessingParameterVectorDestination,
+                       QgsProcessingParameterPointCloudDestination,
                        QgsProcessingParameterBand,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterCrs,
@@ -67,6 +68,7 @@ from qgis.core import (QgsProcessingParameterDefinition,
                        QgsProcessingParameterDatabaseTable,
                        QgsProcessingParameterCoordinateOperation,
                        QgsProcessingParameterPointCloudLayer,
+                       QgsProcessingParameterAnnotationLayer,
                        QgsProcessingOutputString,
                        QgsProcessingOutputBoolean,
                        QgsProcessingOutputFile,
@@ -78,6 +80,7 @@ from qgis.core import (QgsProcessingParameterDefinition,
                        QgsProcessingOutputNumber,
                        QgsProcessingOutputRasterLayer,
                        QgsProcessingOutputVectorLayer,
+                       QgsProcessingOutputPointCloudLayer,
                        QgsMessageLog,
                        QgsApplication)
 
@@ -210,7 +213,7 @@ class AlgWrapper(QgsProcessingAlgorithm):
                     raise ProcessingAlgFactoryException("{} is a invalid input type".format(type))
             parm = make_func(**kwargs)
             if advanced:
-                parm.setFlags(parm.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+                parm.setFlags(parm.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
             if not output:
                 parm.setHelp(help_str)
             return parm
@@ -246,10 +249,10 @@ class AlgWrapper(QgsProcessingAlgorithm):
             value = self.parameterAsString(parameters, name, context)
             return value
         elif isinstance(parm, QgsProcessingParameterNumber):
-            if parm.dataType() == QgsProcessingParameterNumber.Integer:
+            if parm.dataType() == QgsProcessingParameterNumber.Type.Integer:
                 value = self.parameterAsInt(parameters, name, context)
                 return value
-            if parm.dataType() == QgsProcessingParameterNumber.Double:
+            if parm.dataType() == QgsProcessingParameterNumber.Type.Double:
                 value = self.parameterAsDouble(parameters, name, context)
                 return value
 
@@ -319,10 +322,12 @@ class ProcessingAlgFactory():
     RASTER_LAYER = "RASTER_LAYER",
     VECTOR_LAYER = "VECTOR_LAYER",
     MESH_LAYER = "MESH_LAYER",
+    POINT_CLOUD_LAYER = "POINT_CLOUD_LAYER",
     FILE_DEST = "FILE_DEST",
     FOLDER_DEST = "FOLDER_DEST",
     RASTER_LAYER_DEST = "RASTER_LAYER_DEST",
     VECTOR_LAYER_DEST = "VECTOR_LAYER_DEST",
+    POINTCLOUD_LAYER_DEST = "POINTCLOUD_LAYER_DEST",
     BAND = "BAND",
     BOOL = "BOOL",
     CRS = "CRS",
@@ -340,12 +345,15 @@ class ProcessingAlgFactory():
     LAYOUT = "LAYOUT"
     LAYOUT_ITEM = "LAYOUT_ITEM"
     DATETIME = "DATETIME"
+    DATE = "DATE"
+    TIME = "TIME"
     MAP_THEME = "MAP_THEME"
     PROVIDER_CONNECTION = "PROVIDER_CONNECTION"
     DATABASE_SCHEMA = "DATABASE_SCHEMA"
     DATABASE_TABLE = "DATABASE_TABLE"
     COORDINATE_OPERATION = "COORDINATE_OPERATION"
-    POINT_CLOUD_LAYER = "POINT_CLOUD_LAYER"
+    POINTCLOUD_LAYER = "POINTCLOUD_LAYER"
+    ANNOTATION_LAYER = "ANNOTATION_LAYER"
 
     def __init__(self):
         self._current = None
@@ -408,6 +416,7 @@ class ProcessingAlgFactory():
             alg.MULTILAYER:  QgsProcessingOutputMultipleLayers
             alg.RASTER_LAYER: QgsProcessingOutputRasterLayer
             alg.VECTOR_LAYER: QgsProcessingOutputVectorLayer
+            alg.POINTCLOUD_LAYER: QgsProcessingOutputPointCloudLayer
             alg.BOOL: QgsProcessingOutputBoolean
 
         :param type: The type of the input. This should be a type define on `alg` like alg.STRING, alg.DISTANCE
@@ -458,6 +467,7 @@ class ProcessingAlgFactory():
             alg.RASTER_LAYER: QgsProcessingParameterRasterLayer
             alg.RASTER_LAYER_DEST: QgsProcessingParameterRasterDestination
             alg.VECTOR_LAYER_DEST: QgsProcessingParameterVectorDestination
+            alg.POINTCLOUD_LAYER_DEST: QgsProcessingParameterPointCloudDestination
             alg.BAND: QgsProcessingParameterBand
             alg.BOOL: QgsProcessingParameterBoolean
             alg.CRS: QgsProcessingParameterCrs
@@ -479,13 +489,16 @@ class ProcessingAlgFactory():
             alg.LAYOUT: QgsProcessingParameterLayout
             alg.LAYOUT_ITEM: QgsProcessingParameterLayoutItem
             alg.COLOR: QgsProcessingParameterColor
-            alg.DATETIME: QgsProcessingParameterDateTime
+            alg.DATETIME: QgsProcessingParameterDateTime(type=QgsProcessingParameterDateTime.Type.DateTime)
+            alg.DATE: QgsProcessingParameterDateTime(type=QgsProcessingParameterDateTime.Type.Date)
+            alg.TIME: QgsProcessingParameterDateTime(type=QgsProcessingParameterDateTime.Type.Time)
             alg.MAP_THEME: QgsProcessingParameterMapTheme
             alg.PROVIDER_CONNECTION: QgsProcessingParameterProviderConnection
             alg.DATABASE_SCHEMA: QgsProcessingParameterDatabaseSchema
             alg.DATABASE_TABLE: QgsProcessingParameterDatabaseTable
             alg.COORDINATE_OPERATION: QgsProcessingParameterCoordinateOperation
-            alg.POINT_CLOUD_LAYER: QgsProcessingParameterPointCloudLayer
+            alg.POINTCLOUD_LAYER: QgsProcessingParameterPointCloudLayer
+            alg.ANNOTATION_LAYER: QgsProcessingParameterAnnotationLayer
 
         :param type: The type of the input. This should be a type define on `alg` like alg.STRING, alg.DISTANCE
         :keyword label: The label of the output. Translates into `description` arg.
@@ -503,11 +516,11 @@ class ProcessingAlgFactory():
 
 input_type_mapping = {
     str: QgsProcessingParameterString,
-    int: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Integer),
-    float: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Double),
+    int: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Integer),
+    float: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Double),
     bool: QgsProcessingParameterBoolean,
-    ProcessingAlgFactory.NUMBER: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Double),
-    ProcessingAlgFactory.INT: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Integer),
+    ProcessingAlgFactory.NUMBER: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Double),
+    ProcessingAlgFactory.INT: partial(QgsProcessingParameterNumber, type=QgsProcessingParameterNumber.Type.Integer),
     ProcessingAlgFactory.STRING: QgsProcessingParameterString,
     ProcessingAlgFactory.DISTANCE: QgsProcessingParameterDistance,
     ProcessingAlgFactory.SINK: QgsProcessingParameterFeatureSink,
@@ -517,6 +530,7 @@ input_type_mapping = {
     ProcessingAlgFactory.RASTER_LAYER: QgsProcessingParameterRasterLayer,
     ProcessingAlgFactory.RASTER_LAYER_DEST: QgsProcessingParameterRasterDestination,
     ProcessingAlgFactory.VECTOR_LAYER_DEST: QgsProcessingParameterVectorDestination,
+    ProcessingAlgFactory.POINTCLOUD_LAYER_DEST: QgsProcessingParameterPointCloudDestination,
     ProcessingAlgFactory.BAND: QgsProcessingParameterBand,
     ProcessingAlgFactory.BOOL: QgsProcessingParameterBoolean,
     ProcessingAlgFactory.CRS: QgsProcessingParameterCrs,
@@ -538,13 +552,16 @@ input_type_mapping = {
     ProcessingAlgFactory.LAYOUT: QgsProcessingParameterLayout,
     ProcessingAlgFactory.LAYOUT_ITEM: QgsProcessingParameterLayoutItem,
     ProcessingAlgFactory.COLOR: QgsProcessingParameterColor,
-    ProcessingAlgFactory.DATETIME: QgsProcessingParameterDateTime,
+    ProcessingAlgFactory.DATETIME: partial(QgsProcessingParameterDateTime, type=QgsProcessingParameterDateTime.Type.DateTime),
+    ProcessingAlgFactory.DATE: partial(QgsProcessingParameterDateTime, type=QgsProcessingParameterDateTime.Type.Date),
+    ProcessingAlgFactory.TIME: partial(QgsProcessingParameterDateTime, type=QgsProcessingParameterDateTime.Type.Time),
     ProcessingAlgFactory.MAP_THEME: QgsProcessingParameterMapTheme,
     ProcessingAlgFactory.PROVIDER_CONNECTION: QgsProcessingParameterProviderConnection,
     ProcessingAlgFactory.DATABASE_SCHEMA: QgsProcessingParameterDatabaseSchema,
     ProcessingAlgFactory.DATABASE_TABLE: QgsProcessingParameterDatabaseTable,
     ProcessingAlgFactory.COORDINATE_OPERATION: QgsProcessingParameterCoordinateOperation,
-    ProcessingAlgFactory.POINT_CLOUD_LAYER: QgsProcessingParameterPointCloudLayer
+    ProcessingAlgFactory.POINTCLOUD_LAYER: QgsProcessingParameterPointCloudLayer,
+    ProcessingAlgFactory.ANNOTATION_LAYER: QgsProcessingParameterAnnotationLayer
 }
 
 output_type_mapping = {
@@ -563,5 +580,6 @@ output_type_mapping = {
     ProcessingAlgFactory.MULTILAYER: partial(_make_output, cls=QgsProcessingOutputMultipleLayers),
     ProcessingAlgFactory.RASTER_LAYER: partial(_make_output, cls=QgsProcessingOutputRasterLayer),
     ProcessingAlgFactory.VECTOR_LAYER: partial(_make_output, cls=QgsProcessingOutputVectorLayer),
+    ProcessingAlgFactory.POINTCLOUD_LAYER: partial(_make_output, cls=QgsProcessingOutputPointCloudLayer),
     ProcessingAlgFactory.BOOL: partial(_make_output, cls=QgsProcessingOutputBoolean),
 }

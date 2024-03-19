@@ -36,7 +36,7 @@ class QgsExpressionContextGenerator;
 
 /**
  * \ingroup gui
- * \brief The QgsFieldExpressionWidget class reates a widget to choose fields and edit expressions
+ * \brief The QgsFieldExpressionWidget class creates a widget to choose fields and edit expressions
  * It contains a combo box to display the fields and expression and a button to open the expression dialog.
  * The combo box is editable, allowing expressions to be edited inline.
  * The validity of the expression is checked live on key press, invalid expressions are displayed in red.
@@ -50,6 +50,7 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
     Q_PROPERTY( QgsFieldProxyModel::Filters filters READ filters WRITE setFilters )
     Q_PROPERTY( bool allowEmptyFieldName READ allowEmptyFieldName WRITE setAllowEmptyFieldName )
     Q_PROPERTY( bool allowEvalErrors READ allowEvalErrors WRITE setAllowEvalErrors NOTIFY allowEvalErrorsChanged )
+    Q_PROPERTY( bool buttonVisible READ buttonVisible WRITE setButtonVisible NOTIFY buttonVisibleChanged )
 
   public:
 
@@ -124,7 +125,6 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
      * Returns the currently selected field or expression. If a field is currently selected, the returned
      * value will be converted to a valid expression referencing this field (ie enclosing the field name with
      * appropriate quotations).
-     * \since QGIS 2.14
      */
     QString asExpression() const;
 
@@ -135,7 +135,6 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
      *
      * Alias for asExpression()
      *
-     * \since QGIS 3.0
      */
     QString expression() const;
 
@@ -150,7 +149,6 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
      * an expression context for the widget.
      * \param generator A QgsExpressionContextGenerator class that will be used to
      *                  create an expression context when required.
-     * \since QGIS 3.0
      */
     void registerExpressionContextGenerator( const QgsExpressionContextGenerator *generator );
 
@@ -158,7 +156,6 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
      * Allow accepting expressions with evaluation errors. This can be useful when we are not able to
      * provide an expression context of which we are sure it's completely populated.
      *
-     * \since QGIS 3.0
      */
     bool allowEvalErrors() const;
 
@@ -166,9 +163,26 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
      * Allow accepting expressions with evaluation errors. This can be useful when we are not able to
      * provide an expression context of which we are sure it's completely populated.
      *
-     * \since QGIS 3.0
      */
     void setAllowEvalErrors( bool allowEvalErrors );
+
+    /**
+     * Returns the visibility of the button
+     *
+     * If button is hidden, the widget essentially becomes an editable combo box
+     *
+     * \since QGIS 3.36
+     */
+    bool buttonVisible() const;
+
+    /**
+     * Set the visibility of the button
+     *
+     * If button is hidden, the widget essentially becomes an editable combo box
+     *
+     * \since QGIS 3.36
+     */
+    void setButtonVisible( bool visible );
 
   signals:
     //! Emitted when the currently selected field changes.
@@ -181,9 +195,15 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
      * Allow accepting expressions with evaluation errors. This can be useful when we are not able to
      * provide an expression context of which we are sure it's completely populated.
      *
-     * \since QGIS 3.0
      */
     void allowEvalErrorsChanged();
+
+    /**
+     * Emitted when the button visibility changes
+     *
+     * \since QGIS 3.36
+     */
+    void buttonVisibleChanged();
 
   public slots:
 
@@ -209,7 +229,6 @@ class GUI_EXPORT QgsFieldExpressionWidget : public QWidget
      * Sets the current expression text and if applicable also the field.
      * Alias for setField.
      *
-     * \since QGIS 3.0
      */
     void setExpression( const QString &expression );
 

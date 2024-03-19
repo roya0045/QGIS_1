@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsExifTools.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,12 +9,14 @@ __author__ = 'Nyall Dawson'
 __date__ = '09/11/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA switch sip api
 import os
 import shutil
-from qgis.PyQt.QtCore import QTemporaryFile, QDateTime
-from qgis.core import QgsPointXY, QgsExifTools
-from qgis.testing import start_app, unittest
+
+from qgis.PyQt.QtCore import QDateTime, Qt, QTemporaryFile, QTime, QDate
+from qgis.core import QgsExifTools, QgsPointXY
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 TEST_DATA_DIR = unitTestDataPath()
@@ -23,18 +24,22 @@ TEST_DATA_DIR = unitTestDataPath()
 start_app()
 
 
-class TestQgsExifUtils(unittest.TestCase):
+class TestQgsExifUtils(QgisTestCase):
 
     def testReadTags(self):
         photos_folder = os.path.join(TEST_DATA_DIR, 'photos')
 
-        # test a convnerted rational value
+        # test a converted Exif rational value
         elevation = QgsExifTools.readTag(os.path.join(photos_folder, '0997.JPG'), 'Exif.GPSInfo.GPSAltitude')
         self.assertEqual(elevation, 422.19101123595505)
 
-        # test a converted datetime value
+        # test a converted Exif datetime value
         dt = QgsExifTools.readTag(os.path.join(photos_folder, '0997.JPG'), 'Exif.Image.DateTime')
         self.assertEqual(dt, QDateTime(2018, 3, 16, 12, 19, 19))
+
+        # test a converted Xmp datetime value
+        dt = QgsExifTools.readTag(os.path.join(photos_folder, '0997.JPG'), 'Xmp.xmp.MetadataDate')
+        self.assertEqual(dt, QDateTime(QDate(2023, 2, 5), QTime(10, 16, 5, 0), Qt.TimeSpec(1)))
 
     def testGeoTags(self):
         photos_folder = os.path.join(TEST_DATA_DIR, 'photos')
@@ -97,6 +102,15 @@ class TestQgsExifUtils(unittest.TestCase):
         tag, ok = QgsExifTools.getGeoTag(tmpName)
         self.assertTrue(ok)
         self.assertEqual(tag.asWkt(6), 'PointZ (1.1 3.3 -110.1)')
+        os.remove(tmpName)
+
+        shutil.copy(src_photo, tmpName)
+        self.assertTrue(QgsExifTools.tagImage(tmpName, 'Exif.Photo.ShutterSpeedValue', 5.333))
+        self.assertTrue(QgsExifTools.tagImage(tmpName, 'Xmp.dc.Format', 'image/jpeg'))
+        value = QgsExifTools.readTag(tmpName, 'Exif.Photo.ShutterSpeedValue')
+        self.assertEqual(value, 5.333)
+        value = QgsExifTools.readTag(tmpName, 'Xmp.dc.Format')
+        self.assertEqual(value, 'image/jpeg')
         os.remove(tmpName)
 
 

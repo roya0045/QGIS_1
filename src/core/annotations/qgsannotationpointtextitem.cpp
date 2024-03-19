@@ -17,6 +17,9 @@
 
 #include "qgsannotationpointtextitem.h"
 #include "qgstextrenderer.h"
+#include "qgsannotationitemnode.h"
+#include "qgsannotationitemeditoperation.h"
+#include "qgsrendercontext.h"
 
 QgsAnnotationPointTextItem::QgsAnnotationPointTextItem( const QString &text, QgsPointXY point )
   : QgsAnnotationItem()
@@ -24,6 +27,12 @@ QgsAnnotationPointTextItem::QgsAnnotationPointTextItem( const QString &text, Qgs
   , mPoint( point )
 {
 
+}
+
+Qgis::AnnotationItemFlags QgsAnnotationPointTextItem::flags() const
+{
+  // in truth this should depend on whether the text format is scale dependent or not!
+  return Qgis::AnnotationItemFlag::ScaleDependentBoundingBox;
 }
 
 QgsAnnotationPointTextItem::~QgsAnnotationPointTextItem() = default;
@@ -49,9 +58,21 @@ void QgsAnnotationPointTextItem::render( QgsRenderContext &context, QgsFeedback 
 
   context.mapToPixel().transformInPlace( pt.rx(), pt.ry() );
 
-  QgsTextRenderer::drawText( pt, mAngle * M_PI / 180.0,
+  double angle = mAngle;
+  switch ( mRotationMode )
+  {
+    case Qgis::SymbolRotationMode::RespectMapRotation:
+      angle += context.mapToPixel().mapRotation();
+      break;
+
+    case Qgis::SymbolRotationMode::IgnoreMapRotation:
+      break;
+  }
+
+  const QString displayText = QgsExpression::replaceExpressionText( mText, &context.expressionContext(), &context.distanceArea() );
+  QgsTextRenderer::drawText( pt, - angle * M_PI / 180.0,
                              QgsTextRenderer::convertQtHAlignment( mAlignment ),
-                             mText.split( '\n' ), context, mTextFormat );
+                             displayText.split( '\n' ), context, mTextFormat );
 }
 
 bool QgsAnnotationPointTextItem::writeXml( QDomElement &element, QDomDocument &document, const QgsReadWriteContext &context ) const
@@ -59,14 +80,15 @@ bool QgsAnnotationPointTextItem::writeXml( QDomElement &element, QDomDocument &d
   element.setAttribute( QStringLiteral( "x" ), qgsDoubleToString( mPoint.x() ) );
   element.setAttribute( QStringLiteral( "y" ), qgsDoubleToString( mPoint.y() ) );
   element.setAttribute( QStringLiteral( "text" ), mText );
-  element.setAttribute( QStringLiteral( "zIndex" ), zIndex() );
   element.setAttribute( QStringLiteral( "angle" ), qgsDoubleToString( mAngle ) );
   element.setAttribute( QStringLiteral( "alignment" ), QString::number( mAlignment ) );
+  element.setAttribute( QStringLiteral( "rotationMode" ), qgsEnumValueToKey( mRotationMode ) );
 
   QDomElement textFormatElem = document.createElement( QStringLiteral( "pointTextFormat" ) );
   textFormatElem.appendChild( mTextFormat.writeXml( document, context ) );
   element.appendChild( textFormatElem );
 
+  writeCommonProperties( element, document, context );
   return true;
 }
 
@@ -83,8 +105,7 @@ bool QgsAnnotationPointTextItem::readXml( const QDomElement &element, const QgsR
   mText = element.attribute( QStringLiteral( "text" ) );
   mAngle = element.attribute( QStringLiteral( "angle" ) ).toDouble();
   mAlignment = static_cast< Qt::Alignment >( element.attribute( QStringLiteral( "alignment" ) ).toInt() );
-  setZIndex( element.attribute( QStringLiteral( "zIndex" ) ).toInt() );
-
+  mRotationMode = qgsEnumKeyToValue( element.attribute( QStringLiteral( "rotationMode" ) ), Qgis::SymbolRotationMode::IgnoreMapRotation );
   const QDomElement textFormatElem = element.firstChildElement( QStringLiteral( "pointTextFormat" ) );
   if ( !textFormatElem.isNull() )
   {
@@ -93,22 +114,144 @@ bool QgsAnnotationPointTextItem::readXml( const QDomElement &element, const QgsR
     mTextFormat.readXml( textFormatElem, context );
   }
 
+  readCommonProperties( element, context );
   return true;
 }
 
-QgsAnnotationPointTextItem *QgsAnnotationPointTextItem::clone()
+QgsAnnotationPointTextItem *QgsAnnotationPointTextItem::clone() const
 {
   std::unique_ptr< QgsAnnotationPointTextItem > item = std::make_unique< QgsAnnotationPointTextItem >( mText, mPoint );
   item->setFormat( mTextFormat );
   item->setAngle( mAngle );
   item->setAlignment( mAlignment );
-  item->setZIndex( zIndex() );
+  item->setRotationMode( mRotationMode );
+  item->copyCommonProperties( this );
   return item.release();
 }
 
 QgsRectangle QgsAnnotationPointTextItem::boundingBox() const
 {
   return QgsRectangle( mPoint.x(), mPoint.y(), mPoint.x(), mPoint.y() );
+}
+
+QgsRectangle rotateBoundingBoxAroundPoint( double cx, double cy, const QgsRectangle &original, double angleClockwiseDegrees )
+{
+  QTransform t;
+  t.translate( cx, cy );
+  const double angleRadians = -M_PI * angleClockwiseDegrees / 180.0;
+  t.rotateRadians( angleRadians );
+  t.translate( -cx, -cy );
+  const QRectF result = t.mapRect( original.toRectF() );
+  return QgsRectangle( result );
+}
+
+QgsRectangle QgsAnnotationPointTextItem::boundingBox( QgsRenderContext &context ) const
+{
+  const QString displayText = QgsExpression::replaceExpressionText( mText, &context.expressionContext(), &context.distanceArea() );
+
+  const double widthInPixels = QgsTextRenderer::textWidth( context, mTextFormat, displayText.split( '\n' ) );
+  const double heightInPixels = QgsTextRenderer::textHeight( context, mTextFormat, displayText.split( '\n' ) );
+
+  // text size has already been calculated using any symbology reference scale factor above -- we need
+  // to temporarily remove the reference scale here or we'll be undoing the scaling
+  QgsScopedRenderContextReferenceScaleOverride resetScaleFactor( context, -1.0 );
+  const double widthInMapUnits = context.convertToMapUnits( widthInPixels, Qgis::RenderUnit::Pixels );
+  const double heightInMapUnits = context.convertToMapUnits( heightInPixels, Qgis::RenderUnit::Pixels );
+
+  double angle = mAngle;
+  switch ( mRotationMode )
+  {
+    case Qgis::SymbolRotationMode::RespectMapRotation:
+      angle += context.mapToPixel().mapRotation();
+      break;
+
+    case Qgis::SymbolRotationMode::IgnoreMapRotation:
+      break;
+  }
+
+  QgsRectangle unrotatedRect;
+  switch ( mAlignment & Qt::AlignHorizontal_Mask )
+  {
+    case Qt::AlignRight:
+      unrotatedRect = QgsRectangle( mPoint.x() - widthInMapUnits, mPoint.y(), mPoint.x(), mPoint.y() + heightInMapUnits );
+      break;
+
+    case Qt::AlignHCenter:
+      unrotatedRect = QgsRectangle( mPoint.x() - widthInMapUnits * 0.5, mPoint.y(), mPoint.x() + widthInMapUnits * 0.5, mPoint.y() + heightInMapUnits );
+      break;
+
+    default:
+      unrotatedRect = QgsRectangle( mPoint.x(), mPoint.y(), mPoint.x() + widthInMapUnits, mPoint.y() + heightInMapUnits );
+      break;
+  }
+
+  if ( !qgsDoubleNear( angle, 0 ) )
+  {
+    return rotateBoundingBoxAroundPoint( mPoint.x(), mPoint.y(), unrotatedRect, angle );
+  }
+  else
+  {
+    return unrotatedRect;
+  }
+}
+
+QList<QgsAnnotationItemNode> QgsAnnotationPointTextItem::nodes() const
+{
+  return { QgsAnnotationItemNode( QgsVertexId( 0, 0, 0 ), mPoint, Qgis::AnnotationItemNodeType::VertexHandle )};
+}
+
+Qgis::AnnotationItemEditOperationResult QgsAnnotationPointTextItem::applyEdit( QgsAbstractAnnotationItemEditOperation *operation )
+{
+  switch ( operation->type() )
+  {
+    case QgsAbstractAnnotationItemEditOperation::Type::MoveNode:
+    {
+      QgsAnnotationItemEditOperationMoveNode *moveOperation = dynamic_cast< QgsAnnotationItemEditOperationMoveNode * >( operation );
+      mPoint = moveOperation->after();
+      return Qgis::AnnotationItemEditOperationResult::Success;
+    }
+
+    case QgsAbstractAnnotationItemEditOperation::Type::DeleteNode:
+    {
+      return Qgis::AnnotationItemEditOperationResult::ItemCleared;
+    }
+
+    case QgsAbstractAnnotationItemEditOperation::Type::TranslateItem:
+    {
+      QgsAnnotationItemEditOperationTranslateItem *moveOperation = qgis::down_cast< QgsAnnotationItemEditOperationTranslateItem * >( operation );
+      mPoint.setX( mPoint.x() + moveOperation->translationX() );
+      mPoint.setY( mPoint.y() + moveOperation->translationY() );
+      return Qgis::AnnotationItemEditOperationResult::Success;
+    }
+
+    case QgsAbstractAnnotationItemEditOperation::Type::AddNode:
+      break;
+  }
+
+  return Qgis::AnnotationItemEditOperationResult::Invalid;
+}
+
+QgsAnnotationItemEditOperationTransientResults *QgsAnnotationPointTextItem::transientEditResults( QgsAbstractAnnotationItemEditOperation *operation )
+{
+  switch ( operation->type() )
+  {
+    case QgsAbstractAnnotationItemEditOperation::Type::MoveNode:
+    {
+      QgsAnnotationItemEditOperationMoveNode *moveOperation = dynamic_cast< QgsAnnotationItemEditOperationMoveNode * >( operation );
+      return new QgsAnnotationItemEditOperationTransientResults( QgsGeometry( moveOperation->after().clone() ) );
+    }
+
+    case QgsAbstractAnnotationItemEditOperation::Type::TranslateItem:
+    {
+      QgsAnnotationItemEditOperationTranslateItem *moveOperation = qgis::down_cast< QgsAnnotationItemEditOperationTranslateItem * >( operation );
+      return new QgsAnnotationItemEditOperationTransientResults( QgsGeometry( new QgsPoint( mPoint.x() + moveOperation->translationX(), mPoint.y() + moveOperation->translationY() ) ) );
+    }
+
+    case QgsAbstractAnnotationItemEditOperation::Type::DeleteNode:
+    case QgsAbstractAnnotationItemEditOperation::Type::AddNode:
+      break;
+  }
+  return nullptr;
 }
 
 QgsTextFormat QgsAnnotationPointTextItem::format() const
@@ -129,4 +272,14 @@ Qt::Alignment QgsAnnotationPointTextItem::alignment() const
 void QgsAnnotationPointTextItem::setAlignment( Qt::Alignment alignment )
 {
   mAlignment = alignment;
+}
+
+Qgis::SymbolRotationMode QgsAnnotationPointTextItem::rotationMode() const
+{
+  return mRotationMode;
+}
+
+void QgsAnnotationPointTextItem::setRotationMode( Qgis::SymbolRotationMode mode )
+{
+  mRotationMode = mode;
 }

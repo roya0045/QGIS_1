@@ -29,7 +29,6 @@
  * \ingroup core
  * \class QgsCircularString
  * \brief Circular string geometry type
- * \since QGIS 2.10
  */
 class CORE_EXPORT QgsCircularString: public QgsCurve
 {
@@ -85,7 +84,133 @@ class CORE_EXPORT QgsCircularString: public QgsCurve
         const QgsPoint &center,
         bool useShortestArc = true );
 
-    bool equals( const QgsCurve &other ) const override;
+#ifndef SIP_RUN
+  private:
+    bool fuzzyHelper( double epsilon,
+                      const QgsAbstractGeometry &other,
+                      bool is3DFlag,
+                      bool isMeasureFlag,
+                      std::function<bool( double, double, double, double, double, double, double, double, double )> comparator3DMeasure,
+                      std::function<bool( double, double, double, double, double, double, double )> comparator3D,
+                      std::function<bool( double, double, double, double, double, double, double )> comparatorMeasure,
+                      std::function<bool( double, double, double, double, double )> comparator2D ) const
+    {
+      const QgsCircularString *otherLine = qgsgeometry_cast< const QgsCircularString * >( &other );
+      if ( !otherLine )
+        return false;
+
+      if ( mWkbType != otherLine->mWkbType )
+        return false;
+
+      const int size = mX.count();
+      if ( size != otherLine->mX.count() )
+        return false;
+
+      bool result = true;
+      const double *xData = mX.constData();
+      const double *yData = mY.constData();
+      const double *zData = is3DFlag ? mZ.constData() : nullptr;
+      const double *mData = isMeasureFlag ? mM.constData() : nullptr;
+      const double *otherXData = otherLine->mX.constData();
+      const double *otherYData = otherLine->mY.constData();
+      const double *otherZData = is3DFlag ? otherLine->mZ.constData() : nullptr;
+      const double *otherMData = isMeasureFlag ? otherLine->mM.constData() : nullptr;
+      for ( int i = 0; i < size; ++i )
+      {
+        if ( is3DFlag && isMeasureFlag )
+        {
+          result &= comparator3DMeasure( epsilon, *xData++, *yData++, *zData++, *mData++,
+                                         *otherXData++, *otherYData++, *otherZData++, *otherMData++ );
+        }
+        else if ( is3DFlag )
+        {
+          result &= comparator3D( epsilon, *xData++, *yData++, *zData++,
+                                  *otherXData++, *otherYData++, *otherZData++ );
+        }
+        else if ( isMeasureFlag )
+        {
+          result &= comparatorMeasure( epsilon, *xData++, *yData++, *mData++,
+                                       *otherXData++, *otherYData++, *otherMData++ );
+        }
+        else
+        {
+          result &= comparator2D( epsilon, *xData++, *yData++,
+                                  *otherXData++, *otherYData++ );
+        }
+        if ( ! result )
+        {
+          return false;
+        }
+      }
+
+      return result;
+    }
+#endif // !SIP_RUN
+
+  public:
+    bool fuzzyEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper(
+               epsilon,
+               other,
+               is3D(),
+               isMeasure(),
+               []( double epsilon, double x1, double y1, double z1, double m1,
+                   double x2, double y2, double z2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, z1, m1, x2, y2, z2, m2 );
+      },
+      []( double epsilon, double x1, double y1, double z1,
+          double x2, double y2, double z2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, z1, x2, y2, z2 );
+      },
+      []( double epsilon, double x1, double y1, double m1,
+          double x2, double y2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, m1, x2, y2, m2 );
+      },
+      []( double epsilon, double x1, double y1,
+          double x2, double y2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, x2, y2 );
+      } );
+    }
+
+    bool fuzzyDistanceEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper(
+               epsilon,
+               other,
+               is3D(),
+               isMeasure(),
+               []( double epsilon, double x1, double y1, double z1, double m1,
+                   double x2, double y2, double z2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, z1, m1, x2, y2, z2, m2 );
+      },
+      []( double epsilon, double x1, double y1, double z1,
+          double x2, double y2, double z2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, z1, x2, y2, z2 );
+      },
+      []( double epsilon, double x1, double y1, double m1,
+          double x2, double y2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, m1, x2, y2, m2 );
+      },
+      []( double epsilon, double x1, double y1,
+          double x2, double y2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, x2, y2 );
+      } );
+    }
+
+    bool equals( const QgsCurve &other ) const override
+    {
+      return fuzzyEqual( other, 1e-8 );
+    }
+
 
     QString geometryType() const override SIP_HOLDGIL;
     int dimension() const override SIP_HOLDGIL;
@@ -138,7 +263,7 @@ class CORE_EXPORT QgsCircularString: public QgsCurve
     bool removeDuplicateNodes( double epsilon = 4 * std::numeric_limits<double>::epsilon(), bool useZValues = false ) override;
 
     void draw( QPainter &p ) const override;
-    void transform( const QgsCoordinateTransform &ct, QgsCoordinateTransform::TransformDirection d = QgsCoordinateTransform::ForwardTransform, bool transformZ = false ) override SIP_THROW( QgsCsException );
+    void transform( const QgsCoordinateTransform &ct, Qgis::TransformDirection d = Qgis::TransformDirection::Forward, bool transformZ = false ) override SIP_THROW( QgsCsException );
     void transform( const QTransform &t, double zTranslate = 0.0, double zScale = 1.0, double mTranslate = 0.0, double mScale = 1.0 ) override;
     void addToPainterPath( QPainterPath &path ) const override;
     void drawAsPolygon( QPainter &p ) const override;
@@ -146,7 +271,7 @@ class CORE_EXPORT QgsCircularString: public QgsCurve
     bool moveVertex( QgsVertexId position, const QgsPoint &newPos ) override;
     bool deleteVertex( QgsVertexId position ) override;
     double closestSegment( const QgsPoint &pt, QgsPoint &segmentPt SIP_OUT, QgsVertexId &vertexAfter SIP_OUT, int *leftOf SIP_OUT = nullptr, double epsilon = 4 * std::numeric_limits<double>::epsilon() ) const override;
-    bool pointAt( int node, QgsPoint &point, QgsVertexId::VertexType &type ) const override;
+    bool pointAt( int node, QgsPoint &point, Qgis::VertexType &type ) const override;
     void sumUpArea( double &sum SIP_OUT ) const override;
     bool hasCurvedSegments() const override;
     double vertexAngle( QgsVertexId vertex ) const override;
@@ -161,6 +286,8 @@ class CORE_EXPORT QgsCircularString: public QgsCurve
     void swapXy() override;
     double xAt( int index ) const override SIP_HOLDGIL;
     double yAt( int index ) const override SIP_HOLDGIL;
+    double zAt( int index ) const override SIP_HOLDGIL;
+    double mAt( int index ) const override SIP_HOLDGIL;
 
     bool transform( QgsAbstractGeometryTransformer *transformer, QgsFeedback *feedback = nullptr ) override;
     void scroll( int firstVertexIndex ) final;
@@ -175,11 +302,10 @@ class CORE_EXPORT QgsCircularString: public QgsCurve
      * Should be used by qgsgeometry_cast<QgsCircularString *>( geometry ).
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
-     * \since QGIS 3.0
      */
     inline static const QgsCircularString *cast( const QgsAbstractGeometry *geom )
     {
-      if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == QgsWkbTypes::CircularString )
+      if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == Qgis::WkbType::CircularString )
         return static_cast<const QgsCircularString *>( geom );
       return nullptr;
     }
@@ -201,7 +327,7 @@ class CORE_EXPORT QgsCircularString: public QgsCurve
   protected:
 
     int compareToSameClass( const QgsAbstractGeometry *other ) const final;
-    QgsRectangle calculateBoundingBox() const override;
+    QgsBox3D calculateBoundingBox3D() const override;
 
   private:
     QVector<double> mX;

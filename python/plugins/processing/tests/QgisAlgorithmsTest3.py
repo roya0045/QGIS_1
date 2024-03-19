@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     QgisAlgorithmTests2.py
@@ -30,12 +28,13 @@ import os
 from qgis.core import (QgsApplication,
                        QgsProcessingException)
 from qgis.analysis import (QgsNativeAlgorithms)
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.modeler.ModelerUtils import ModelerUtils
 
 
-class TestQgisAlgorithms3(unittest.TestCase, AlgorithmsTestBase.AlgorithmsTest):
+class TestQgisAlgorithms3(QgisTestCase, AlgorithmsTestBase.AlgorithmsTest):
 
     @classmethod
     def setUpClass(cls):
@@ -53,7 +52,7 @@ class TestQgisAlgorithms3(unittest.TestCase, AlgorithmsTestBase.AlgorithmsTest):
         for path in cls.cleanup_paths:
             shutil.rmtree(path)
 
-    def test_definition_file(self):
+    def definition_file(self):
         return 'qgis_algorithm_tests3.yaml'
 
 

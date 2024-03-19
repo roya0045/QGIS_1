@@ -16,7 +16,7 @@
 #ifndef QGSGRADIENTSTOPEDITOR_H
 #define QGSGRADIENTSTOPEDITOR_H
 
-#include "qgscolorramp.h"
+#include "qgscolorrampimpl.h"
 #include "qgis_sip.h"
 #include <QWidget>
 #include "qgis_gui.h"
@@ -27,7 +27,6 @@
  * \class QgsGradientStopEditor
  * \brief An interactive editor for previewing a gradient color ramp and modifying the position of color
  * stops along the gradient.
- * \since QGIS 2.16
  */
 
 class GUI_EXPORT QgsGradientStopEditor : public QWidget
@@ -92,6 +91,20 @@ class GUI_EXPORT QgsGradientStopEditor : public QWidget
      * \see setSelectedStopDetails()
      */
     void setSelectedStopOffset( double offset );
+
+    /**
+     * Sets the color \a spec for the current selected stop.
+     *
+     * \since QGIS 3.24
+     */
+    void setSelectedStopColorSpec( QColor::Spec spec );
+
+    /**
+     * Sets the hue angular direction for the current selected stop.
+     *
+     * \since QGIS 3.24
+     */
+    void setSelectedStopDirection( Qgis::AngularDirection direction );
 
     /**
      * Sets the color and offset for the current selected stop.

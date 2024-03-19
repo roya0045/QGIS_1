@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for Processing CheckValidity algorithm.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -29,7 +28,8 @@ from qgis.core import (
 )
 from processing.core.Processing import Processing
 from processing.gui.AlgorithmExecutor import execute
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 from qgis.PyQt.QtTest import QSignalSpy
 from qgis.analysis import QgsNativeAlgorithms
 
@@ -42,11 +42,13 @@ class ConsoleFeedBack(QgsProcessingFeedback):
         print(error)
 
 
-class TestQgsProcessingCheckValidity(unittest.TestCase):
+class TestQgsProcessingCheckValidity(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
+
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(
             "QGIS_TestPyQgsProcessingCheckValidity.com")

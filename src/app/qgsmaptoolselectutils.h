@@ -22,6 +22,8 @@ email                : jpalmer at linz dot govt dot nz
 #include <QFutureWatcher>
 
 #include "qgsvectorlayer.h"
+#include "qgscoordinatetransform.h"
+#include "qgsrendercontext.h"
 
 class QMouseEvent;
 class QgsMapCanvas;
@@ -48,7 +50,6 @@ namespace QgsMapToolSelectUtils
    * the selection rubber band (otherwise intersection is enough).
    * \param singleSelect only selects the closest feature to the selectGeometry.
    * \returns list of features which match search geometry and parameters
-   * \since QGIS 2.16
    */
   QgsFeatureIds getMatchingFeatures( QgsMapCanvas *canvas, const QgsGeometry &selectGeometry, bool doContains, bool singleSelect );
 
@@ -62,7 +63,6 @@ namespace QgsMapToolSelectUtils
    * \param doContains features will only be selected if fully contained within
    * the selection rubber band (otherwise intersection is enough).
    * \param singleSelect only selects the closest feature to the selectGeometry.
-   * \since QGIS 2.16
   */
   void setSelectedFeatures( QgsMapCanvas *canvas,
                             const QgsGeometry &selectGeometry,
@@ -79,7 +79,6 @@ namespace QgsMapToolSelectUtils
    * \param modifiers Keyboard modifiers are used to determine the current selection
    * operations (add, subtract, contains)
    * \see selectSingleFeature()
-   * \since QGIS 2.16
   */
   void selectMultipleFeatures( QgsMapCanvas *canvas, const QgsGeometry &selectGeometry, Qt::KeyboardModifiers modifiers );
 
@@ -96,20 +95,19 @@ namespace QgsMapToolSelectUtils
   void selectSingleFeature( QgsMapCanvas *canvas, const QgsGeometry &selectGeometry, Qt::KeyboardModifiers modifiers );
 
   /**
-   * Get the current selected canvas map layer. Returns nullptr if it is not a vector layer
+   * Get the current selected canvas map layer. Returns nullptr if it is not a selectable layer
    * \param canvas The map canvas used for getting the current layer
-   * \returns QgsVectorLayer The layer
   */
-  QgsVectorLayer *getCurrentVectorLayer( QgsMapCanvas *canvas );
+  QgsMapLayer *getCurrentTargetLayer( QgsMapCanvas *canvas );
 
   /**
-   * Expands a point to a rectangle with minimum size for selection based on the vector layer type
+   * Expands a point to a rectangle with minimum size for selection based on the \a layer
    * \param point The point to expand the rectangle around (in map coordinates)
    * \param canvas The map canvas used to transform between canvas and map units
-   * \param vlayer The vector layer layer
+   * \param layer The target layer
    * \returns Expanded rectangle in map units
   */
-  QgsRectangle expandSelectRectangle( QgsPointXY mapPoint, QgsMapCanvas *canvas, QgsVectorLayer *vlayer );
+  QgsRectangle expandSelectRectangle( QgsPointXY mapPoint, QgsMapCanvas *canvas, QgsMapLayer *layer );
 
   /**
    * Sets a QgsRubberband to rectangle in map units using a rectangle defined in device coords
@@ -131,7 +129,7 @@ namespace QgsMapToolSelectUtils
       /**
       * Constructor
       * \param canvas The map canvas where where are the selected features
-      * \param vectorLayr The vector layer
+      * \param vectorLayer The target layer
       * \param behavior behavior of select
       * \param selectionGeometry the geometry used to select the feature
       * \param parent a QObject that owns the instance ot this class
@@ -141,7 +139,6 @@ namespace QgsMapToolSelectUtils
                                    Qgis::SelectBehavior behavior,
                                    const QgsGeometry &selectionGeometry,
                                    QObject *parent = nullptr );
-
 
       ~QgsMapToolSelectMenuActions();
 
@@ -171,8 +168,6 @@ namespace QgsMapToolSelectUtils
 
       void startFeatureSearch();
 
-      void styleHighlight( QgsHighlight *highlight );
-
       QString textForChooseAll( qint64 featureCount = -1 ) const;
       QString textForChooseOneMenu() const;
       void populateChooseOneMenu( const QgsFeatureIds &ids );
@@ -201,7 +196,6 @@ namespace QgsMapToolSelectUtils
       void chooseOneCandidateFeature( QgsFeatureId id );
       void highlightOneFeature( QgsFeatureId id );
   };
-
 }
 
 #endif

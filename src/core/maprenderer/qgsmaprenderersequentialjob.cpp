@@ -19,6 +19,7 @@
 #include "qgsmaprenderercustompainterjob.h"
 #include "qgspallabeling.h"
 #include "qgslabelingresults.h"
+#include "qgsrendereditemresults.h"
 
 QgsMapRendererSequentialJob::QgsMapRendererSequentialJob( const QgsMapSettings &settings )
   : QgsMapRendererQImageJob( settings )
@@ -28,8 +29,8 @@ QgsMapRendererSequentialJob::QgsMapRendererSequentialJob( const QgsMapSettings &
 
   mImage = QImage( mSettings.deviceOutputSize(), mSettings.outputImageFormat() );
   mImage.setDevicePixelRatio( mSettings.devicePixelRatio() );
-  mImage.setDotsPerMeterX( mSettings.devicePixelRatio() * 1000 * settings.outputDpi() / 25.4 );
-  mImage.setDotsPerMeterY( mSettings.devicePixelRatio() * 1000 * settings.outputDpi() / 25.4 );
+  mImage.setDotsPerMeterX( 1000 * settings.outputDpi() / 25.4 );
+  mImage.setDotsPerMeterY( 1000 * settings.outputDpi() / 25.4 );
   mImage.fill( Qt::transparent );
 }
 
@@ -65,9 +66,12 @@ void QgsMapRendererSequentialJob::startPrivate()
   mPainter = new QPainter( &mImage );
 
   mInternalJob = new QgsMapRendererCustomPainterJob( mSettings, mPainter );
+  mInternalJob->setLabelSink( labelSink() );
   mInternalJob->setCache( mCache );
 
   connect( mInternalJob, &QgsMapRendererJob::finished, this, &QgsMapRendererSequentialJob::internalFinished );
+  connect( mInternalJob, &QgsMapRendererJob::layerRendered, this, &QgsMapRendererSequentialJob::layerRendered );
+  connect( mInternalJob, &QgsMapRendererJob::layerRenderingStarted, this, &QgsMapRendererSequentialJob::layerRenderingStarted );
 
   mInternalJob->start();
 }
@@ -79,6 +83,7 @@ void QgsMapRendererSequentialJob::cancel()
     return;
 
   QgsDebugMsgLevel( QStringLiteral( "sequential - cancel internal" ), 5 );
+  // cppcheck-suppress nullPointerRedundantCheck
   mInternalJob->cancel();
 
   Q_ASSERT( !mInternalJob && !mPainter );
@@ -137,6 +142,9 @@ void QgsMapRendererSequentialJob::internalFinished()
 
   mLabelingResults.reset( mInternalJob->takeLabelingResults() );
   mUsedCachedLabels = mInternalJob->usedCachedLabels();
+  mLayersRedrawnFromCache = mInternalJob->layersRedrawnFromCache();
+
+  mRenderedItemResults.reset( mInternalJob->takeRenderedItemResults() );
 
   mErrors = mInternalJob->errors();
 

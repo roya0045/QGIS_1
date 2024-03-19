@@ -25,6 +25,7 @@
 #include <QNetworkReply>
 #include <QFile>
 #include <QTemporaryFile>
+#include <QPointer>
 
 #include "qgis_core.h"
 #include "qgstaskmanager.h"
@@ -51,10 +52,12 @@ class CORE_EXPORT QgsFetchedContent : public QObject
     };
 
     //! Constructs a FetchedContent with pointer to the downloaded file and status of the download
-    explicit QgsFetchedContent( const QString &url, QTemporaryFile *file = nullptr, ContentStatus status = NotStarted )
+    explicit QgsFetchedContent( const QString &url, QTemporaryFile *file = nullptr, ContentStatus status = NotStarted,
+                                const QString &authConfig = QString() )
       : mUrl( url )
       , mFile( file )
       , mStatus( status )
+      , mAuthConfig( authConfig )
     {}
 
     ~QgsFetchedContent() override
@@ -79,6 +82,11 @@ class CORE_EXPORT QgsFetchedContent : public QObject
     //! Returns the potential error of the download
     QNetworkReply::NetworkError error() const {return mError;}
 
+    /**
+     * Returns the authentication configuration id use for this fetched content
+     */
+    QString authConfig() const {return mAuthConfig;}
+
   public slots:
 
     /**
@@ -96,6 +104,13 @@ class CORE_EXPORT QgsFetchedContent : public QObject
     //! Emitted when the file is fetched and accessible
     void fetched();
 
+    /**
+     * Emitted when an error with \a code error occurred while processing the request
+     * \a errorMsg is a textual description of the error
+     * \since QGIS 3.22
+     */
+    void errorOccurred( QNetworkReply::NetworkError code, const QString &errorMsg );
+
   private slots:
     void taskCompleted();
 
@@ -103,9 +118,11 @@ class CORE_EXPORT QgsFetchedContent : public QObject
     QString mUrl;
     QTemporaryFile *mFile = nullptr;
     QString mFilePath;
-    QgsNetworkContentFetcherTask *mFetchingTask = nullptr;
+    QPointer< QgsNetworkContentFetcherTask > mFetchingTask;
     ContentStatus mStatus = NotStarted;
     QNetworkReply::NetworkError mError = QNetworkReply::NoError;
+    QString mAuthConfig;
+    QString mErrorString;
 };
 
 /**
@@ -134,9 +151,10 @@ class CORE_EXPORT QgsNetworkContentFetcherRegistry : public QObject
      * \brief Initialize a download for the given URL
      * \param url the URL to be fetched
      * \param fetchingMode defines if the download will start immediately or shall be manually triggered
+     * \param authConfig authentication configuration id to be used while fetching
      * \note If the download starts immediately, it will not redownload any already fetched or currently fetching file.
      */
-    const QgsFetchedContent *fetch( const QString &url, Qgis::ActionStart fetchingMode = Qgis::ActionStart::Deferred );
+    QgsFetchedContent *fetch( const QString &url, Qgis::ActionStart fetchingMode = Qgis::ActionStart::Deferred, const QString &authConfig = QString() );
 
 #ifndef SIP_RUN
 

@@ -1,5 +1,3 @@
-
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsDatumTransforms.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -12,20 +10,20 @@ __date__ = '2019-05-25'
 __copyright__ = 'Copyright 2019, The QGIS Project'
 
 from qgis.core import (
-    QgsProjUtils,
     QgsCoordinateReferenceSystem,
-    QgsDatumTransform
+    QgsDatumTransform,
+    QgsProjUtils,
 )
-from qgis.testing import (start_app,
-                          unittest,
-                          )
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestPyQgsDatumTransform(unittest.TestCase):
+class TestPyQgsDatumTransform(QgisTestCase):
 
     def testOperations(self):
         ops = QgsDatumTransform.operations(QgsCoordinateReferenceSystem(),
@@ -92,7 +90,6 @@ class TestPyQgsDatumTransform(unittest.TestCase):
             self.assertEqual(ops[op2_index].grids[0].shortName, 'GDA94_GDA2020_conformal_and_distortion.gsb')
         else:
             self.assertEqual(ops[op2_index].grids[0].shortName, 'au_icsm_GDA94_GDA2020_conformal_and_distortion.tif')
-        self.assertEqual(ops[op2_index].grids[0].fullName, '')
         if QgsProjUtils.projVersionMajor() == 6:
             self.assertTrue(ops[op2_index].grids[0].packageName)
         self.assertIn('http', ops[op2_index].grids[0].url)
@@ -117,7 +114,6 @@ class TestPyQgsDatumTransform(unittest.TestCase):
             self.assertEqual(ops[op3_index].grids[0].shortName, 'GDA94_GDA2020_conformal.gsb')
         else:
             self.assertEqual(ops[op3_index].grids[0].shortName, 'au_icsm_GDA94_GDA2020_conformal.tif')
-        self.assertEqual(ops[op3_index].grids[0].fullName, '')
         if QgsProjUtils.projVersionMajor() == 6:
             self.assertTrue(ops[op3_index].grids[0].packageName)
         self.assertIn('http', ops[op3_index].grids[0].url)
@@ -142,7 +138,6 @@ class TestPyQgsDatumTransform(unittest.TestCase):
             self.assertEqual(ops[op4_index].grids[0].shortName, 'GDA94_GDA2020_conformal_cocos_island.gsb')
         else:
             self.assertEqual(ops[op4_index].grids[0].shortName, 'au_icsm_GDA94_GDA2020_conformal_cocos_island.tif')
-        self.assertEqual(ops[op4_index].grids[0].fullName, '')
         if QgsProjUtils.projVersionMajor() == 6:
             self.assertTrue(ops[op4_index].grids[0].packageName)
         self.assertIn('http', ops[op4_index].grids[0].url)
@@ -165,7 +160,6 @@ class TestPyQgsDatumTransform(unittest.TestCase):
             self.assertEqual(ops[op5_index].grids[0].shortName, 'GDA94_GDA2020_conformal_christmas_island.gsb')
         else:
             self.assertEqual(ops[op5_index].grids[0].shortName, 'au_icsm_GDA94_GDA2020_conformal_christmas_island.tif')
-        self.assertEqual(ops[op5_index].grids[0].fullName, '')
         if QgsProjUtils.projVersionMajor() == 6:
             self.assertTrue(ops[op5_index].grids[0].packageName)
         self.assertIn('http', ops[op5_index].grids[0].url)
@@ -201,7 +195,6 @@ class TestPyQgsDatumTransform(unittest.TestCase):
             self.assertEqual(ops[op2_index].grids[0].shortName, 'GDA94_GDA2020_conformal_and_distortion.gsb')
         else:
             self.assertEqual(ops[op2_index].grids[0].shortName, 'au_icsm_GDA94_GDA2020_conformal_and_distortion.tif')
-        self.assertEqual(ops[op2_index].grids[0].fullName, '')
         if QgsProjUtils.projVersionMajor() == 6:
             self.assertTrue(ops[op2_index].grids[0].packageName)
         self.assertIn('http', ops[op2_index].grids[0].url)
@@ -226,14 +219,13 @@ class TestPyQgsDatumTransform(unittest.TestCase):
             self.assertEqual(ops[op3_index].grids[0].shortName, 'GDA94_GDA2020_conformal.gsb')
         else:
             self.assertEqual(ops[op3_index].grids[0].shortName, 'au_icsm_GDA94_GDA2020_conformal.tif')
-        self.assertEqual(ops[op3_index].grids[0].fullName, '')
         if QgsProjUtils.projVersionMajor() == 6:
             self.assertTrue(ops[op3_index].grids[0].packageName)
         self.assertIn('http', ops[op3_index].grids[0].url)
         self.assertTrue(ops[op3_index].grids[0].directDownload)
         self.assertTrue(ops[op3_index].grids[0].openLicense)
 
-    @unittest.skipIf(QgsProjUtils.projVersionMajor() < 7, 'Not a proj >= 7 build')
+    @unittest.skipIf(QgsProjUtils.projVersionMajor() > 9 or (QgsProjUtils.projVersionMajor() == 9 and QgsProjUtils.projVersionMinor() >= 2), 'NADCON5 support added in Proj 9.2')
     def testNoLasLos(self):
         """
         Test that operations which rely on an NADCON5 grid shift file (which are unsupported by Proj... at time of writing !) are not returned

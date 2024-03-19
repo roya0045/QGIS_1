@@ -179,7 +179,6 @@ void QgsProcessingVectorTileWriterLayersPanelWidget::copyLayer()
   }
 
   QStandardItem *item = mModel->itemFromIndex( selection[0] );
-  const QVariant value = item->data( Qt::UserRole );
   mModel->insertRow( selection[0].row() + 1, item->clone() );
 }
 
@@ -290,7 +289,7 @@ void QgsProcessingVectorTileWriterLayersWidget::showDialog()
 
 void QgsProcessingVectorTileWriterLayersWidget::updateSummaryText()
 {
-  mLineEdit->setText( tr( "%1 vector layers selected" ).arg( mValue.count() ) );
+  mLineEdit->setText( tr( "%n vector layer(s) selected", nullptr, mValue.count() ) );
 }
 
 //

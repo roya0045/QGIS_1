@@ -45,12 +45,12 @@ class QgsLayoutItemHtml;
 class QgsLayoutItemAttributeTable;
 class QgsLayoutItemGroup;
 class QgsLayoutAtlas;
+class QgsProject;
 
 /**
  * \brief QgsCompositionConverter class converts a QGIS 2.x composition to a QGIS 3.x layout
  * \note Not available in Python bindings.
  * \ingroup core
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsCompositionConverter
 {
@@ -59,7 +59,7 @@ class CORE_EXPORT QgsCompositionConverter
     /**
      * Composition data defined properties for different item types
      */
-    enum DataDefinedProperty
+    enum class DataDefinedProperty
     {
       NoProperty = 0, //!< No property
       AllProperties, //!< All properties for item
@@ -147,7 +147,6 @@ class CORE_EXPORT QgsCompositionConverter
     /**
      * Check if the given \a document is a composition template
      * \return TRUE if the document is a composition template
-     * \since QGIS 3.0.1
      */
     static bool isCompositionTemplate( const QDomDocument &document );
 
@@ -156,7 +155,6 @@ class CORE_EXPORT QgsCompositionConverter
      * \param document containing a composition
      * \param project
      * \return dom document with the converted template
-     * \since QGIS 3.0.1
      */
     static QDomDocument convertCompositionTemplate( const QDomDocument
         &document, QgsProject *project );

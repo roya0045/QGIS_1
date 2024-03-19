@@ -38,16 +38,23 @@ class GUI_EXPORT QgsSingleBandGrayRendererWidget: public QgsRasterRendererWidget
 
     static QgsRasterRendererWidget *create( QgsRasterLayer *layer, const QgsRectangle &extent ) SIP_FACTORY { return new QgsSingleBandGrayRendererWidget( layer, extent ); }
 
-    QgsRasterRenderer *renderer() override;
+    QgsRasterRenderer *renderer() SIP_FACTORY override;
     void setMapCanvas( QgsMapCanvas *canvas ) override;
 
+    /**
+     * Sets the widget state from the specified renderer.
+     */
     void setFromRenderer( const QgsRasterRenderer *r );
 
     QString min( int index = 0 ) override { Q_UNUSED( index ) return mMinLineEdit->text(); }
     QString max( int index = 0 ) override { Q_UNUSED( index ) return mMaxLineEdit->text(); }
     void setMin( const QString &value, int index = 0 ) override;
     void setMax( const QString &value, int index = 0 ) override;
-    int selectedBand( int index = 0 ) override { Q_UNUSED( index ) return mGrayBandComboBox->currentIndex() + 1; }
+    int selectedBand( int index = 0 ) override { Q_UNUSED( index ) return mGrayBandComboBox->currentBand(); }
+
+    QgsContrastEnhancement::ContrastEnhancementAlgorithm contrastEnhancementAlgorithm() const override;
+    void setContrastEnhancementAlgorithm( QgsContrastEnhancement::ContrastEnhancementAlgorithm algorithm ) override;
+
     void doComputations() override;
     QgsRasterMinMaxWidget *minMaxWidget() override { return mMinMaxWidget; }
 

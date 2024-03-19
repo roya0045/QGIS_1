@@ -19,8 +19,9 @@
 #include "qgspostgresprovider.h"
 #include "qgspostgrestransaction.h"
 #include "qgslogger.h"
+#include "qgsdbquerylog.h"
+#include "qgsdbquerylog_p.h"
 #include "qgsmessagelog.h"
-#include "qgssettings.h"
 #include "qgsexception.h"
 #include "qgsgeometryengine.h"
 
@@ -30,7 +31,7 @@
 QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource *source, bool ownSource, const QgsFeatureRequest &request )
   : QgsAbstractFeatureIteratorFromSource<QgsPostgresFeatureSource>( source, ownSource, request )
 {
-  if ( request.filterType() == QgsFeatureRequest::FilterFids && request.filterFids().isEmpty() )
+  if ( request.filterType() == Qgis::FeatureRequestFilterType::Fids && request.filterFids().isEmpty() )
   {
     mClosed = true;
     iteratorClosed();
@@ -121,22 +122,22 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
     whereClause = QgsPostgresUtils::andWhereClauses( whereClause, '(' + mSource->mSqlWhereClause + ')' );
   }
 
-  if ( request.filterType() == QgsFeatureRequest::FilterFid )
+  if ( request.filterType() == Qgis::FeatureRequestFilterType::Fid )
   {
     QString fidWhereClause = QgsPostgresUtils::whereClause( mRequest.filterFid(), mSource->mFields, mConn, mSource->mPrimaryKeyType, mSource->mPrimaryKeyAttrs, mSource->mShared );
 
     whereClause = QgsPostgresUtils::andWhereClauses( whereClause, fidWhereClause );
   }
-  else if ( request.filterType() == QgsFeatureRequest::FilterFids )
+  else if ( request.filterType() == Qgis::FeatureRequestFilterType::Fids )
   {
     QString fidsWhereClause = QgsPostgresUtils::whereClause( mRequest.filterFids(), mSource->mFields, mConn, mSource->mPrimaryKeyType, mSource->mPrimaryKeyAttrs, mSource->mShared );
 
     whereClause = QgsPostgresUtils::andWhereClauses( whereClause, fidsWhereClause );
   }
-  else if ( request.filterType() == QgsFeatureRequest::FilterExpression )
+  else if ( request.filterType() == Qgis::FeatureRequestFilterType::Expression )
   {
     // ensure that all attributes required for expression filter are being fetched
-    if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+    if ( mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
     {
       QgsAttributeList attrs = mRequest.subsetOfAttributes();
       //ensure that all fields required for filter expressions are prepared
@@ -147,7 +148,7 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
     mFilterRequiresGeometry = request.filterExpression()->needsGeometry();
 
     //IMPORTANT - this MUST be the last clause added!
-    QgsPostgresExpressionCompiler compiler = QgsPostgresExpressionCompiler( source, request.flags() & QgsFeatureRequest::IgnoreStaticNodesDuringExpressionCompilation );
+    QgsPostgresExpressionCompiler compiler = QgsPostgresExpressionCompiler( source, request.flags() & Qgis::FeatureRequestFlag::IgnoreStaticNodesDuringExpressionCompilation );
 
     if ( compiler.compile( request.filterExpression() ) == QgsSqlExpressionCompiler::Complete )
     {
@@ -210,7 +211,7 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
     }
 
     // ensure that all attributes required for order by are fetched
-    if ( !mOrderByCompiled && mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
+    if ( !mOrderByCompiled && mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes )
     {
       QgsAttributeList attrs = mRequest.subsetOfAttributes();
       const auto usedAttributeIndices = mRequest.orderBy().usedAttributeIndices( mSource->mFields );
@@ -292,12 +293,18 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature &feature )
       QgsDebugMsgLevel( QStringLiteral( "fetching %1 features." ).arg( mFeatureQueueSize ), 4 );
 
       lock();
+
+      QgsDatabaseQueryLogWrapper logWrapper { fetch, mSource->mConnInfo, QStringLiteral( "postgres" ), QStringLiteral( "QgsPostgresFeatureIterator" ), QGS_QUERY_LOG_ORIGIN };
+
       if ( mConn->PQsendQuery( fetch ) == 0 ) // fetch features asynchronously
       {
-        QgsMessageLog::logMessage( QObject::tr( "Fetching from cursor %1 failed\nDatabase error: %2" ).arg( mCursorName, mConn->PQerrorMessage() ), QObject::tr( "PostGIS" ) );
+        const QString error { QObject::tr( "Fetching from cursor %1 failed\nDatabase error: %2" ).arg( mCursorName, mConn->PQerrorMessage() ) };
+        QgsMessageLog::logMessage( error, QObject::tr( "PostGIS" ) );
+        logWrapper.setError( error );
       }
 
       QgsPostgresResult queryResult;
+      long long fetchedRows { 0 };
       for ( ;; )
       {
         queryResult = mConn->PQgetResult();
@@ -313,6 +320,8 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature &feature )
         int rows = queryResult.PQntuples();
         if ( rows == 0 )
           continue;
+        else
+          fetchedRows += rows;
 
         mLastFetch = rows < mFeatureQueueSize;
 
@@ -323,6 +332,11 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature &feature )
         } // for each row in queue
       }
       unlock();
+
+      if ( fetchedRows > 0 )
+      {
+        logWrapper.setFetchedRows( fetchedRows );
+      }
 
 #if 0 //disabled dynamic queue size
       if ( timer.elapsed() > 500 && mFeatureQueueSize > 1 )
@@ -374,7 +388,7 @@ bool QgsPostgresFeatureIterator::nextFeatureFilterExpression( QgsFeature &f )
 bool QgsPostgresFeatureIterator::prepareSimplification( const QgsSimplifyMethod &simplifyMethod )
 {
   // setup simplification of geometries to fetch
-  if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) &&
+  if ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry ) &&
        simplifyMethod.methodType() != QgsSimplifyMethod::NoSimplification &&
        !simplifyMethod.forceLocalOptimization() )
   {
@@ -386,7 +400,7 @@ bool QgsPostgresFeatureIterator::prepareSimplification( const QgsSimplifyMethod 
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Simplification method type (%1) is not recognised by PostgresFeatureIterator" ).arg( methodType ) );
+      QgsDebugError( QStringLiteral( "Simplification method type (%1) is not recognised by PostgresFeatureIterator" ).arg( methodType ) );
     }
   }
   return QgsAbstractFeatureIterator::prepareSimplification( simplifyMethod );
@@ -423,7 +437,7 @@ bool QgsPostgresFeatureIterator::rewind()
 
   // move cursor to first record
 
-  mConn->PQexecNR( QStringLiteral( "move absolute 0 in %1" ).arg( mCursorName ) );
+  mConn->LoggedPQexecNR( "QgsPostgresFeatureIterator", QStringLiteral( "move absolute 0 in %1" ).arg( mCursorName ) );
   mFeatureQueue.clear();
   mFetched = 0;
   mLastFetch = false;
@@ -460,6 +474,13 @@ bool QgsPostgresFeatureIterator::close()
 QString QgsPostgresFeatureIterator::whereClauseRect()
 {
   QgsRectangle rect = mFilterRect;
+
+  // in case coordinates are around 180.0°
+  if ( rect.xMinimum() > rect.xMaximum() && mSource->mCrs.isGeographic() )
+  {
+    rect.setXMaximum( rect.xMaximum() + 360.0 );
+  }
+
   if ( mSource->mSpatialColType == SctGeography )
   {
     rect = QgsRectangle( -180.0, -90.0, 180.0, 90.0 ).intersect( rect );
@@ -492,10 +513,54 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
   bool castToGeometry = mSource->mSpatialColType == SctGeography ||
                         mSource->mSpatialColType == SctPcPatch;
 
-  QString whereClause = QStringLiteral( "%1%2 && %3" )
-                        .arg( QgsPostgresConn::quotedIdentifier( mSource->mBoundingBoxColumn ),
-                              castToGeometry ? "::geometry" : "",
-                              qBox );
+  QString whereClause;
+  if ( mSource->mSpatialColType == SctTopoGeometry &&
+       mSource->mTopoLayerInfo.layerLevel == 0 )
+  {
+    whereClause = QStringLiteral( R"SQL(
+      id(%1) in (
+        WITH elems AS (
+
+          SELECT n.node_id id, 1 typ
+          FROM %3.node n
+          WHERE %5 in (1,4) AND n.geom && %2
+
+            UNION ALL
+
+          SELECT edge_id, 2
+          FROM %3.edge
+          WHERE %5 in (2,4) AND geom && %2
+
+            UNION ALL
+
+          SELECT face_id, 3
+          FROM %3.face
+          WHERE %5 in (3,4) AND mbr && %2
+
+        )
+        select r.topogeo_id
+        FROM %3.relation r, elems e
+        WHERE r.layer_id = %4
+          AND r.element_type = e.typ
+          AND r.element_id = e.id
+      )
+    )SQL" )
+                  // Should we bother with mBoundingBoxColumn ?
+                  .arg(
+                    QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ),
+                    qBox,
+                    QgsPostgresConn::quotedIdentifier( mSource->mTopoLayerInfo.topologyName )
+                  )
+                  .arg( mSource->mTopoLayerInfo.layerId )
+                  .arg( mSource->mTopoLayerInfo.featureType );
+  }
+  else
+  {
+    whereClause = QStringLiteral( "%1%2 && %3" )
+                  .arg( QgsPostgresConn::quotedIdentifier( mSource->mBoundingBoxColumn ),
+                        castToGeometry ? "::geometry" : "",
+                        qBox );
+  }
 
   // For geography type, using a && filter with the geography column cast as
   // geometry prevents the use of a spatial index. So for "small" filtering
@@ -570,7 +635,7 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
                          qBoxGeog );
   }
 
-  if ( mRequest.flags() & QgsFeatureRequest::ExactIntersect )
+  if ( mRequest.flags() & Qgis::FeatureRequestFlag::ExactIntersect )
   {
     QString curveToLineFn; // in PostGIS < 1.5 the st_curvetoline function does not exist
     if ( mConn->majorVersion() >= 2 || ( mConn->majorVersion() == 1 && mConn->minorVersion() >= 5 ) )
@@ -592,7 +657,7 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
                          mSource->mRequestedSrid );
   }
 
-  if ( mSource->mRequestedGeomType != QgsWkbTypes::Unknown && mSource->mRequestedGeomType != mSource->mDetectedGeomType )
+  if ( mSource->mRequestedGeomType != Qgis::WkbType::Unknown && mSource->mRequestedGeomType != mSource->mDetectedGeomType )
   {
     whereClause += QStringLiteral( " AND %1" ).arg( QgsPostgresConn::postgisTypeFilter( mSource->mGeometryColumn, mSource->mRequestedGeomType, castToGeometry ) );
   }
@@ -605,7 +670,7 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
 
 bool QgsPostgresFeatureIterator::declareCursor( const QString &whereClause, long limit, bool closeOnFail, const QString &orderBy )
 {
-  mFetchGeometry = ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry )
+  mFetchGeometry = ( !( mRequest.flags() & Qgis::FeatureRequestFlag::NoGeometry )
                      || mFilterRequiresGeometry
                      || ( mRequest.spatialFilterType() == Qgis::SpatialFilterType::DistanceWithin && !mTransform.isShortCircuited() ) )
                    && !mSource->mGeometryColumn.isNull();
@@ -629,12 +694,12 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString &whereClause, long
          mSource->mSpatialColType == SctPcPatch )
       geom += QLatin1String( "::geometry" );
 
-    QgsWkbTypes::Type usedGeomType = mSource->mRequestedGeomType != QgsWkbTypes::Unknown
-                                     ? mSource->mRequestedGeomType : mSource->mDetectedGeomType;
+    Qgis::WkbType usedGeomType = mSource->mRequestedGeomType != Qgis::WkbType::Unknown
+                                 ? mSource->mRequestedGeomType : mSource->mDetectedGeomType;
 
     if ( !mRequest.simplifyMethod().forceLocalOptimization() &&
          mRequest.simplifyMethod().methodType() != QgsSimplifyMethod::NoSimplification &&
-         QgsWkbTypes::flatType( QgsWkbTypes::singleType( usedGeomType ) ) != QgsWkbTypes::Point )
+         QgsWkbTypes::flatType( QgsWkbTypes::singleType( usedGeomType ) ) != Qgis::WkbType::Point )
     {
       // PostGIS simplification method to use
       QString simplifyPostgisMethod;
@@ -738,11 +803,11 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString &whereClause, long
       break;
 
     case PktUnknown:
-      QgsDebugMsg( QStringLiteral( "Cannot declare cursor without primary key." ) );
+      QgsDebugError( QStringLiteral( "Cannot declare cursor without primary key." ) );
       return false;
   }
 
-  bool subsetOfAttributes = mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes;
+  bool subsetOfAttributes = mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes;
   const auto constAllAttributesList = subsetOfAttributes ? mRequest.subsetOfAttributes() : mSource->mFields.allAttributesList();
   for ( int idx : constAllAttributesList )
   {
@@ -793,12 +858,12 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
 
       unsigned int wkbType;
       memcpy( &wkbType, featureGeom + 1, sizeof( wkbType ) );
-      QgsWkbTypes::Type newType = QgsPostgresConn::wkbTypeFromOgcWkbType( wkbType );
+      Qgis::WkbType newType = QgsPostgresConn::wkbTypeFromOgcWkbType( wkbType );
 
       if ( static_cast< unsigned int >( newType ) != wkbType )
       {
         // overwrite type
-        unsigned int n = newType;
+        unsigned int n = static_cast< quint32>( newType );
         memcpy( featureGeom + 1, &n, sizeof( n ) );
       }
 
@@ -812,7 +877,7 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
         unsigned char *wkb = featureGeom + 9;
         for ( unsigned int i = 0; i < numGeoms; ++i )
         {
-          const unsigned int localType = QgsWkbTypes::singleType( newType ); // polygon(Z|M)
+          const unsigned int localType = static_cast< quint32>( QgsWkbTypes::singleType( newType ) ); // polygon(Z|M)
           memcpy( wkb + 1, &localType, sizeof( localType ) );
 
           // skip endian and type info
@@ -845,7 +910,7 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
 
   QgsFeatureId fid = 0;
 
-  bool subsetOfAttributes = mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes;
+  bool subsetOfAttributes = mRequest.flags() & Qgis::FeatureRequestFlag::SubsetOfAttributes;
   QgsAttributeList fetchAttributes = mRequest.subsetOfAttributes();
 
   switch ( mSource->mPrimaryKeyType )
@@ -875,7 +940,7 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
       int idx = mSource->mPrimaryKeyAttrs.at( 0 );
       QgsField fld = mSource->mFields.at( idx );
 
-      QVariant v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), QString::number( mConn->getBinaryInt( queryResult, row, col ) ), fld.typeName() );
+      QVariant v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), QString::number( mConn->getBinaryInt( queryResult, row, col ) ), fld.typeName(), mConn );
       pkVal << v;
 
       if ( !subsetOfAttributes || fetchAttributes.contains( idx ) )
@@ -900,11 +965,11 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
 
         if ( fld.type() == QVariant::LongLong )
         {
-          v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), QString::number( mConn->getBinaryInt( queryResult, row, col ) ), fld.typeName() );
+          v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), QString::number( mConn->getBinaryInt( queryResult, row, col ) ), fld.typeName(), mConn );
         }
         else
         {
-          v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), queryResult.PQgetvalue( row, col ), fld.typeName() );
+          v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), queryResult.PQgetvalue( row, col ), fld.typeName(), mConn );
         }
         primaryKeyVals << v;
 
@@ -986,13 +1051,13 @@ void QgsPostgresFeatureIterator::getFeatureAttribute( int idx, QgsPostgresResult
       }
       else
       {
-        v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), QString::number( mConn->getBinaryInt( queryResult, row, col ) ), fld.typeName() );
+        v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), QString::number( mConn->getBinaryInt( queryResult, row, col ) ), fld.typeName(), mConn );
       }
       break;
     }
     default:
     {
-      v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), queryResult.PQgetvalue( row, col ), fld.typeName() );
+      v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), queryResult.PQgetvalue( row, col ), fld.typeName(), mConn );
       break;
     }
   }
@@ -1020,6 +1085,7 @@ QgsPostgresFeatureSource::QgsPostgresFeatureSource( const QgsPostgresProvider *p
   , mQuery( p->mQuery )
   , mCrs( p->crs() )
   , mShared( p->mShared )
+  , mTopoLayerInfo( p->mTopoLayerInfo )
 {
   if ( mSqlWhereClause.startsWith( QLatin1String( " WHERE " ) ) )
     mSqlWhereClause = mSqlWhereClause.mid( 7 );

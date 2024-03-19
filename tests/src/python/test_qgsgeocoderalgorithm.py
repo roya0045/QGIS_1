@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsBatchGeocodeAlgorithm.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,26 +9,25 @@ __author__ = 'Nyall Dawson'
 __date__ = '02/11/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
 
-import qgis  # NOQA
-
+from qgis.PyQt.QtCore import QVariant
 from qgis.analysis import QgsBatchGeocodeAlgorithm
 from qgis.core import (
+    NULL,
+    QgsCoordinateReferenceSystem,
+    QgsFeature,
+    QgsField,
+    QgsFields,
     QgsGeocoderInterface,
-    QgsWkbTypes,
     QgsGeocoderResult,
     QgsGeometry,
     QgsPointXY,
-    QgsCoordinateReferenceSystem,
-    QgsFeature,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsRectangle,
-    QgsField,
-    QgsFields,
-    NULL
+    QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -37,10 +35,10 @@ start_app()
 class TestGeocoder(QgsGeocoderInterface):
 
     def flags(self):
-        return QgsGeocoderInterface.GeocodesStrings
+        return QgsGeocoderInterface.Flag.GeocodesStrings
 
     def wkbType(self):
-        return QgsWkbTypes.Point
+        return QgsWkbTypes.Type.Point
 
     def geocodeString(self, string, context, feedback):
         if string == 'a':
@@ -67,10 +65,10 @@ class TestGeocoder(QgsGeocoderInterface):
 class TestGeocoderExtraFields(QgsGeocoderInterface):
 
     def flags(self):
-        return QgsGeocoderInterface.GeocodesStrings
+        return QgsGeocoderInterface.Flag.GeocodesStrings
 
     def wkbType(self):
-        return QgsWkbTypes.Point
+        return QgsWkbTypes.Type.Point
 
     def appendedFields(self):
         fields = QgsFields()
@@ -116,7 +114,7 @@ class TestGeocoderAlgorithm(QgsBatchGeocodeAlgorithm):
         return TestGeocoderAlgorithm(self.geocoder)
 
 
-class TestQgsBatchGeocodeAlgorithm(unittest.TestCase):
+class TestQgsBatchGeocodeAlgorithm(QgisTestCase):
 
     def test_algorithm(self):
         geocoder = TestGeocoder()

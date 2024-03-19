@@ -149,7 +149,7 @@ QVariant QgsLayoutAttributeTableColumnModelBase::data( const QModelIndex &index,
     {
       if ( role == Qt::DisplayRole )
       {
-        return column.width() <= 0 ? tr( "Automatic" ) : tr( "%1 mm" ).arg( column.width(), 0, 'f', 2 );
+        return column.width() <= 0 ? tr( "Automatic" ) : tr( "%L1 mm" ).arg( column.width(), 0, 'f', 2 );
       }
       else
       {
@@ -415,10 +415,11 @@ void QgsLayoutColumnAlignmentDelegate::updateEditorGeometry( QWidget *editor, co
 
 // QgsLayoutColumnSourceDelegate
 
-QgsLayoutColumnSourceDelegate::QgsLayoutColumnSourceDelegate( QgsVectorLayer *vlayer, QObject *parent, const QgsLayoutObject *layoutObject )
+QgsLayoutColumnSourceDelegate::QgsLayoutColumnSourceDelegate( QgsVectorLayer *vlayer, QObject *parent, const QgsLayoutObject *layoutObject, bool forceExpressions )
   : QItemDelegate( parent )
   , mVectorLayer( vlayer )
   , mLayoutObject( layoutObject )
+  , mForceExpressions( forceExpressions )
 {
 
 }
@@ -462,7 +463,7 @@ void QgsLayoutColumnSourceDelegate::setEditorData( QWidget *editor, const QModel
 void QgsLayoutColumnSourceDelegate::setModelData( QWidget *editor, QAbstractItemModel *model, const QModelIndex &index ) const
 {
   QgsFieldExpressionWidget *fieldExpression = static_cast<QgsFieldExpressionWidget *>( editor );
-  const QString field = fieldExpression->currentField();
+  const QString field = mForceExpressions ? fieldExpression->asExpression() : fieldExpression->currentField();
 
   model->setData( index, field, Qt::EditRole );
 }
@@ -631,7 +632,7 @@ QgsLayoutAttributeSelectionDialog::QgsLayoutAttributeSelectionDialog( QgsLayoutI
     mSortColumnModel = new QgsLayoutTableSortModel( mTable, mSortColumnTableView );
     mSortColumnTableView->setModel( mSortColumnModel );
     mSortColumnTableView->horizontalHeader()->setSectionResizeMode( QHeaderView::Stretch );
-    mSortColumnSourceDelegate = new QgsLayoutColumnSourceDelegate( vLayer, mSortColumnTableView, mTable );
+    mSortColumnSourceDelegate = new QgsLayoutColumnSourceDelegate( vLayer, mSortColumnTableView, mTable, true );
     mSortColumnTableView->setItemDelegateForColumn( 0, mSortColumnSourceDelegate );
     mSortColumnOrderDelegate = new QgsLayoutColumnSortOrderDelegate( mSortColumnTableView );
     mSortColumnTableView->setItemDelegateForColumn( 1, mSortColumnOrderDelegate );
@@ -709,7 +710,7 @@ void QgsLayoutAttributeSelectionDialog::showHelp()
   QgsHelp::openHelp( QStringLiteral( "print_composer/composer_items/composer_attribute_table.html" ) );
 }
 
-void QgsLayoutAttributeSelectionDialog::mSortColumnUpPushButton_clicked()
+void QgsLayoutAttributeSelectionDialog::mSortColumnDownPushButton_clicked()
 {
   //move selected row down
   const QModelIndexList indexes =  mSortColumnTableView->selectionModel()->selectedRows();
@@ -719,7 +720,7 @@ void QgsLayoutAttributeSelectionDialog::mSortColumnUpPushButton_clicked()
     mSortColumnModel->moveRow( indexes.at( i - 1 ).row(), QgsLayoutTableSortModel::ShiftDown );
 }
 
-void QgsLayoutAttributeSelectionDialog::mSortColumnDownPushButton_clicked()
+void QgsLayoutAttributeSelectionDialog::mSortColumnUpPushButton_clicked()
 {
   //move selected row up
   const QModelIndexList indexes =  mSortColumnTableView->selectionModel()->selectedRows();

@@ -30,7 +30,6 @@
  * \ingroup server
  * \class QgsServerInterfaceImpl
  * \brief Interfaces exposed by QGIS Server and made available to plugins.
- * \since QGIS 2.8
  */
 class SERVER_EXPORT QgsServerInterfaceImpl : public QgsServerInterface
 {
@@ -87,6 +86,8 @@ class SERVER_EXPORT QgsServerInterfaceImpl : public QgsServerInterface
 
     QgsServerSettings *serverSettings() override;
 
+    void reloadSettings() override;
+
   private:
 
     QString mConfigFilePath;
@@ -97,6 +98,7 @@ class SERVER_EXPORT QgsServerInterfaceImpl : public QgsServerInterface
     QgsRequestHandler *mRequestHandler = nullptr;
     QgsServiceRegistry *mServiceRegistry = nullptr;
     QgsServerSettings *mServerSettings = nullptr;
+
 };
 
 #endif // QGSSERVERINTERFACEIMPL_H

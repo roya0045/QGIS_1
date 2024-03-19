@@ -17,6 +17,8 @@
 
 #include "qgsalgorithmrastersurfacevolume.h"
 #include "qgsstringutils.h"
+#include "qgsunittypes.h"
+
 #include <QTextStream>
 
 ///@cond PRIVATE
@@ -53,7 +55,7 @@ void QgsRasterSurfaceVolumeAlgorithm::initAlgorithm( const QVariantMap & )
   addParameter( new QgsProcessingParameterBand( QStringLiteral( "BAND" ),
                 QObject::tr( "Band number" ), 1, QStringLiteral( "INPUT" ) ) );
   addParameter( new QgsProcessingParameterNumber( QStringLiteral( "LEVEL" ),
-                QObject::tr( "Base level" ), QgsProcessingParameterNumber::Double, 0 ) );
+                QObject::tr( "Base level" ), Qgis::ProcessingNumberParameterType::Double, 0 ) );
   addParameter( new QgsProcessingParameterEnum( QStringLiteral( "METHOD" ),
                 QObject::tr( "Method" ), QStringList()
                 << QObject::tr( "Count Only Above Base Level" )
@@ -64,7 +66,7 @@ void QgsRasterSurfaceVolumeAlgorithm::initAlgorithm( const QVariantMap & )
   addParameter( new QgsProcessingParameterFileDestination( QStringLiteral( "OUTPUT_HTML_FILE" ),
                 QObject::tr( "Surface volume report" ), QObject::tr( "HTML files (*.html)" ), QVariant(), true ) );
   addParameter( new QgsProcessingParameterFeatureSink( QStringLiteral( "OUTPUT_TABLE" ),
-                QObject::tr( "Surface volume table" ), QgsProcessing::TypeVector, QVariant(), true, false ) );
+                QObject::tr( "Surface volume table" ), Qgis::ProcessingSourceType::Vector, QVariant(), true, false ) );
 
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "VOLUME" ), QObject::tr( "Volume" ) ) );
   addOutput( new QgsProcessingOutputNumber( QStringLiteral( "PIXEL_COUNT" ), QObject::tr( "Pixel count" ) ) );
@@ -139,7 +141,7 @@ QVariantMap QgsRasterSurfaceVolumeAlgorithm::processAlgorithm( const QVariantMap
     outFields.append( QgsField( QStringLiteral( "volume" ), QVariant::Double, QString(), 20, 8 ) );
     outFields.append( QgsField( areaUnit.replace( QStringLiteral( "²" ), QStringLiteral( "2" ) ), QVariant::Double, QString(), 20, 8 ) );
     outFields.append( QgsField( QStringLiteral( "pixel_count" ), QVariant::LongLong ) );
-    sink.reset( parameterAsSink( parameters, QStringLiteral( "OUTPUT_TABLE" ), context, tableDest, outFields, QgsWkbTypes::NoGeometry, QgsCoordinateReferenceSystem() ) );
+    sink.reset( parameterAsSink( parameters, QStringLiteral( "OUTPUT_TABLE" ), context, tableDest, outFields, Qgis::WkbType::NoGeometry, QgsCoordinateReferenceSystem() ) );
     if ( !sink )
       throw QgsProcessingException( invalidSinkError( parameters, QStringLiteral( "OUTPUT_TABLE" ) ) );
   }

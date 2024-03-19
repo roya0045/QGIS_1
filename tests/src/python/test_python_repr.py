@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for core additions
 
 From build dir, run: ctest -R PyPythonRepr -V
@@ -12,61 +11,63 @@ __author__ = 'Denis Rouzaud'
 __date__ = '05.06.2018'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
 
-from PyQt5.QtCore import QVariant
-from qgis.testing import unittest, start_app
+from qgis.PyQt.QtCore import QVariant
 from qgis.core import (
-    QgsGeometry,
-    QgsPoint,
-    QgsPointXY,
+    QgsAnnotationLayer,
+    QgsBookmark,
     QgsCircle,
     QgsCircularString,
+    QgsClassificationRange,
     QgsCompoundCurve,
-    QgsCurvePolygon,
-    QgsEllipse,
-    QgsLineString,
-    QgsMultiCurve,
-    QgsRectangle,
-    QgsExpression,
-    QgsField,
-    QgsError,
-    QgsMimeDataUtils,
-    QgsVector,
-    QgsVector3D,
-    QgsVectorLayer,
-    QgsReferencedPointXY,
-    QgsReferencedRectangle,
+    QgsConditionalStyle,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
-    QgsProject,
-    QgsClassificationRange,
-    QgsBookmark,
+    QgsCurvePolygon,
+    QgsDataSourceUri,
+    QgsDefaultValue,
+    QgsDoubleRange,
+    QgsEllipse,
+    QgsError,
+    QgsExpression,
+    QgsField,
+    QgsGeometry,
+    QgsIntRange,
     QgsLayoutMeasurement,
     QgsLayoutPoint,
     QgsLayoutSize,
-    QgsUnitTypes,
-    QgsConditionalStyle,
-    QgsTableCell,
+    QgsLineString,
+    QgsMeshLayer,
+    QgsMimeDataUtils,
+    QgsMultiCurve,
+    QgsPoint,
+    QgsPointCloudLayer,
+    QgsPointXY,
+    QgsProject,
     QgsProperty,
-    QgsVertexId,
-    QgsReferencedGeometry,
     QgsProviderRegistry,
     QgsRasterLayer,
-    QgsAnnotationLayer,
-    QgsPointCloudLayer,
+    QgsRectangle,
+    QgsReferencedGeometry,
+    QgsReferencedPointXY,
+    QgsReferencedRectangle,
+    QgsRendererCategory,
+    QgsRendererRange,
+    QgsTableCell,
+    QgsUnitTypes,
+    QgsVector,
+    QgsVector3D,
+    QgsVectorLayer,
     QgsVectorTileLayer,
-    QgsMeshLayer,
-    QgsDataSourceUri,
-    QgsDoubleRange,
-    QgsIntRange,
-    QgsDefaultValue
+    QgsVertexId,
 )
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestPython__repr__(unittest.TestCase):
+class TestPython__repr__(QgisTestCase):
 
     def testQgsGeometryRepr(self):
 
@@ -175,6 +176,8 @@ class TestPython__repr__(unittest.TestCase):
     def testQgsRectangleRepr(self):
         r = QgsRectangle(1, 2, 3, 4)
         self.assertEqual(r.__repr__(), '<QgsRectangle: 1 2, 3 4>')
+        r = QgsRectangle()
+        self.assertEqual(r.__repr__(), '<QgsRectangle()>')
 
     def testQgsReferencedRectangleRepr(self):
         r = QgsReferencedRectangle(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('EPSG:4326'))
@@ -256,22 +259,22 @@ class TestPython__repr__(unittest.TestCase):
 
     def testQgsBookmark(self):
         b = QgsBookmark()
-        self.assertEqual(b.__repr__(), "<QgsBookmark: '' (0 0, 0 0 - )>")
+        self.assertEqual(b.__repr__(), "<QgsBookmark: '' (EMPTY)>")
         b.setName('test bookmark')
-        self.assertEqual(b.__repr__(), "<QgsBookmark: 'test bookmark' (0 0, 0 0 - )>")
+        self.assertEqual(b.__repr__(), "<QgsBookmark: 'test bookmark' (EMPTY)>")
         b.setExtent(QgsReferencedRectangle(QgsRectangle(1, 2, 3, 4), QgsCoordinateReferenceSystem('EPSG:3111')))
         self.assertEqual(b.__repr__(), "<QgsBookmark: 'test bookmark' (1 2, 3 4 - EPSG:3111)>")
 
     def testQgsLayoutPoint(self):
-        b = QgsLayoutPoint(1, 2, QgsUnitTypes.LayoutInches)
+        b = QgsLayoutPoint(1, 2, QgsUnitTypes.LayoutUnit.LayoutInches)
         self.assertEqual(b.__repr__(), "<QgsLayoutPoint: 1, 2 in >")
 
     def testQgsLayoutMeasurement(self):
-        b = QgsLayoutMeasurement(3, QgsUnitTypes.LayoutPoints)
+        b = QgsLayoutMeasurement(3, QgsUnitTypes.LayoutUnit.LayoutPoints)
         self.assertEqual(b.__repr__(), "<QgsLayoutMeasurement: 3 pt >")
 
     def testQgsLayoutSize(self):
-        b = QgsLayoutSize(10, 20, QgsUnitTypes.LayoutInches)
+        b = QgsLayoutSize(10, 20, QgsUnitTypes.LayoutUnit.LayoutInches)
         self.assertEqual(b.__repr__(), "<QgsLayoutSize: 10 x 20 in >")
 
     def testQgsConditionalStyle(self):
@@ -304,11 +307,11 @@ class TestPython__repr__(unittest.TestCase):
 
     def testQgsVertexId(self):
         v = QgsVertexId()
-        self.assertEqual(v.__repr__(), '<QgsVertexId: -1,-1,-1>')
+        self.assertEqual(v.__repr__(), '<QgsVertexId: -1,-1,-1 Segment>')
         v = QgsVertexId(1, 2, 3)
-        self.assertEqual(v.__repr__(), '<QgsVertexId: 1,2,3>')
-        v = QgsVertexId(1, 2, 3, _type=QgsVertexId.CurveVertex)
-        self.assertEqual(v.__repr__(), '<QgsVertexId: 1,2,3 CurveVertex>')
+        self.assertEqual(v.__repr__(), '<QgsVertexId: 1,2,3 Segment>')
+        v = QgsVertexId(1, 2, 3, _type=QgsVertexId.VertexType.CurveVertex)
+        self.assertEqual(v.__repr__(), '<QgsVertexId: 1,2,3 Curve>')
 
     def testProviderMetadata(self):
         self.assertEqual(QgsProviderRegistry.instance().providerMetadata('ogr').__repr__(), '<QgsProviderMetadata: ogr>')
@@ -335,6 +338,17 @@ class TestPython__repr__(unittest.TestCase):
     def testDefaultValue(self):
         self.assertEqual(QgsDefaultValue().__repr__(), '<QgsDefaultValue: invalid>')
         self.assertEqual(QgsDefaultValue('1+3').__repr__(), '<QgsDefaultValue: 1+3>')
+
+    def testRendererRange(self):
+        self.assertEqual(QgsRendererRange().__repr__(), '<QgsRendererRange: 0 - 0>')
+        self.assertEqual(QgsRendererRange(1.0, 2.0, None, None).__repr__(), '<QgsRendererRange: 1 - 2>')
+        self.assertEqual(QgsRendererRange(1.0, 2.0, None, 'my class').__repr__(), '<QgsRendererRange: 1 - 2 (my class)>')
+
+    def testRendererCategory(self):
+        self.assertEqual(QgsRendererCategory().__repr__(), '<QgsRendererCategory>')
+        self.assertEqual(QgsRendererCategory(5, None, None).__repr__(), '<QgsRendererCategory: 5>')
+        self.assertEqual(QgsRendererCategory('abc', None, None).__repr__(), '<QgsRendererCategory: abc>')
+        self.assertEqual(QgsRendererCategory('abc', None, 'my class').__repr__(), '<QgsRendererCategory: abc (my class)>')
 
 
 if __name__ == "__main__":

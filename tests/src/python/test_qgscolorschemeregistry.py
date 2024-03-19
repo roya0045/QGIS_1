@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsColorSchemeRegistry.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,15 +9,20 @@ __author__ = 'Nyall Dawson'
 __date__ = '25/07/2014'
 __copyright__ = 'Copyright 2014, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.testing import start_app, unittest
-from qgis.core import QgsColorSchemeRegistry, QgsRecentColorScheme, QgsApplication, QgsColorScheme
+from qgis.core import (
+    QgsApplication,
+    QgsColorScheme,
+    QgsColorSchemeRegistry,
+    QgsRecentColorScheme,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsColorSchemeRegistry(unittest.TestCase):
+class TestQgsColorSchemeRegistry(QgisTestCase):
 
     def testCreateInstance(self):
         """Test creating global color scheme registry instance"""

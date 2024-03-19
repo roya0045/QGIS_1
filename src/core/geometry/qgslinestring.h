@@ -25,8 +25,10 @@
 #include "qgis_sip.h"
 #include "qgscurve.h"
 #include "qgscompoundcurve.h"
+#include "qgsgeometryutils_base.h"
 
 class QgsLineSegment2D;
+class QgsBox3D;
 
 /***************************************************************************
  * This class is considered CRITICAL and any change MUST be accompanied with
@@ -38,7 +40,6 @@ class QgsLineSegment2D;
  * \ingroup core
  * \class QgsLineString
  * \brief Line string geometry type, with support for z-dimension and m-values.
- * \since QGIS 2.10
  */
 class CORE_EXPORT QgsLineString: public QgsCurve
 {
@@ -55,7 +56,6 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * Construct a linestring from a vector of points.
      * Z and M type will be set based on the type of the first point
      * in the vector.
-     * \since QGIS 3.0
      */
     QgsLineString( const QVector<QgsPoint> &points );
 
@@ -63,7 +63,6 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * Construct a linestring from list of points.
      * This constructor is more efficient then calling setPoints()
      * or repeatedly calling addVertex()
-     * \since QGIS 3.0
      */
     QgsLineString( const QVector<QgsPointXY> &points );
 #else
@@ -225,7 +224,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
                 ml.append( p->m() );
               }
 
-              if ( i == 0 && p->wkbType() == QgsWkbTypes::Point25D )
+              if ( i == 0 && p->wkbType() == Qgis::WkbType::Point25D )
                 is25D = true;
             }
             sipReleaseType( p, sipType_QgsPoint, state );
@@ -273,7 +272,6 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * If the sizes of \a x and \a y are non-equal then the resultant linestring
      * will be created using the minimum size of these arrays.
      *
-     * \since QGIS 3.0
      */
     QgsLineString( const QVector<double> &x, const QVector<double> &y,
                    const QVector<double> &z = QVector<double>(),
@@ -303,8 +301,133 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * \since QGIS 3.10
      */
     static QgsLineString *fromQPolygonF( const QPolygonF &polygon ) SIP_FACTORY;
+#ifndef SIP_RUN
+  private:
+    bool fuzzyHelper( double epsilon,
+                      const QgsAbstractGeometry &other,
+                      bool is3DFlag,
+                      bool isMeasureFlag,
+                      std::function<bool( double, double, double, double, double, double, double, double, double )> comparator3DMeasure,
+                      std::function<bool( double, double, double, double, double, double, double )> comparator3D,
+                      std::function<bool( double, double, double, double, double, double, double )> comparatorMeasure,
+                      std::function<bool( double, double, double, double, double )> comparator2D ) const
+    {
+      const QgsLineString *otherLine = qgsgeometry_cast< const QgsLineString * >( &other );
+      if ( !otherLine )
+        return false;
 
-    bool equals( const QgsCurve &other ) const override;
+      if ( mWkbType != otherLine->mWkbType )
+        return false;
+
+      const int size = mX.count();
+      if ( size != otherLine->mX.count() )
+        return false;
+
+      bool result = true;
+      const double *xData = mX.constData();
+      const double *yData = mY.constData();
+      const double *zData = is3DFlag ? mZ.constData() : nullptr;
+      const double *mData = isMeasureFlag ? mM.constData() : nullptr;
+      const double *otherXData = otherLine->mX.constData();
+      const double *otherYData = otherLine->mY.constData();
+      const double *otherZData = is3DFlag ? otherLine->mZ.constData() : nullptr;
+      const double *otherMData = isMeasureFlag ? otherLine->mM.constData() : nullptr;
+      for ( int i = 0; i < size; ++i )
+      {
+        if ( is3DFlag && isMeasureFlag )
+        {
+          result &= comparator3DMeasure( epsilon, *xData++, *yData++, *zData++, *mData++,
+                                         *otherXData++, *otherYData++, *otherZData++, *otherMData++ );
+        }
+        else if ( is3DFlag )
+        {
+          result &= comparator3D( epsilon, *xData++, *yData++, *zData++,
+                                  *otherXData++, *otherYData++, *otherZData++ );
+        }
+        else if ( isMeasureFlag )
+        {
+          result &= comparatorMeasure( epsilon, *xData++, *yData++, *mData++,
+                                       *otherXData++, *otherYData++, *otherMData++ );
+        }
+        else
+        {
+          result &= comparator2D( epsilon, *xData++, *yData++,
+                                  *otherXData++, *otherYData++ );
+        }
+        if ( ! result )
+        {
+          return false;
+        }
+      }
+
+      return result;
+    }
+#endif // !SIP_RUN
+
+  public:
+    bool fuzzyEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper(
+               epsilon,
+               other,
+               is3D(),
+               isMeasure(),
+               []( double epsilon, double x1, double y1, double z1, double m1,
+                   double x2, double y2, double z2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, z1, m1, x2, y2, z2, m2 );
+      },
+      []( double epsilon, double x1, double y1, double z1,
+          double x2, double y2, double z2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, z1, x2, y2, z2 );
+      },
+      []( double epsilon, double x1, double y1, double m1,
+          double x2, double y2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, m1, x2, y2, m2 );
+      },
+      []( double epsilon, double x1, double y1,
+          double x2, double y2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyEqual( epsilon, x1, y1, x2, y2 );
+      } );
+    }
+
+    bool fuzzyDistanceEqual( const QgsAbstractGeometry &other, double epsilon = 1e-8 ) const override SIP_HOLDGIL
+    {
+      return fuzzyHelper(
+               epsilon,
+               other,
+               is3D(),
+               isMeasure(),
+               []( double epsilon, double x1, double y1, double z1, double m1,
+                   double x2, double y2, double z2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, z1, m1, x2, y2, z2, m2 );
+      },
+      []( double epsilon, double x1, double y1, double z1,
+          double x2, double y2, double z2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, z1, x2, y2, z2 );
+      },
+      []( double epsilon, double x1, double y1, double m1,
+          double x2, double y2, double m2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, m1, x2, y2, m2 );
+      },
+      []( double epsilon, double x1, double y1,
+          double x2, double y2 )
+      {
+        return QgsGeometryUtilsBase::fuzzyDistanceEqual( epsilon, x1, y1, x2, y2 );
+      } );
+    }
+
+    bool equals( const QgsCurve &other ) const override
+    {
+      return fuzzyEqual( other, 1e-8 );
+    }
+
 
 #ifndef SIP_RUN
 
@@ -457,6 +580,47 @@ class CORE_EXPORT QgsLineString: public QgsCurve
         return mM.constData();
     }
 
+    /**
+     * Returns the x vertex values as a vector.
+     * \note Not available in Python bindings
+     * \since QGIS 3.26
+    */
+    QVector< double > xVector() const SIP_SKIP
+    {
+      return mX;
+    }
+
+    /**
+     * Returns the y vertex values as a vector.
+     * \note Not available in Python bindings
+     * \since QGIS 3.26
+    */
+    QVector< double > yVector() const SIP_SKIP
+    {
+      return mY;
+    }
+
+    /**
+     * Returns the z vertex values as a vector.
+     * \note Not available in Python bindings
+     * \since QGIS 3.26
+    */
+    QVector< double > zVector() const SIP_SKIP
+    {
+      return mZ;
+    }
+
+    /**
+     * Returns the m vertex values as a vector.
+     * \note Not available in Python bindings
+     * \since QGIS 3.26
+    */
+    QVector< double > mVector() const SIP_SKIP
+    {
+      return mM;
+    }
+
+
 #ifndef SIP_RUN
 
     /**
@@ -466,7 +630,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * does not have a z dimension
      * \see setZAt()
      */
-    double zAt( int index ) const
+    double zAt( int index ) const override
     {
       if ( index >= 0 && index < mZ.size() )
         return mZ.at( index );
@@ -485,7 +649,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      *
      * \throws IndexError if no point with the specified index exists.
     */
-    double zAt( int index ) const;
+    double zAt( int index ) const override;
     % MethodCode
     const int count = sipCpp->numPoints();
     if ( a0 < -count || a0 >= count )
@@ -512,7 +676,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * does not have m values
      * \see setMAt()
      */
-    double mAt( int index ) const
+    double mAt( int index ) const override
     {
       if ( index >= 0 && index < mM.size() )
         return mM.at( index );
@@ -531,7 +695,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      *
      * \throws IndexError if no point with the specified index exists.
     */
-    double mAt( int index ) const;
+    double mAt( int index ) const override;
     % MethodCode
     const int count = sipCpp->numPoints();
     if ( a0 < -count || a0 >= count )
@@ -720,10 +884,25 @@ class CORE_EXPORT QgsLineString: public QgsCurve
 #endif
 
     /**
-     * Resets the line string to match the specified list of points. The line string will
-     * inherit the dimensionality of the first point in the list.
-     * \param points new points for line string. If empty, line string will be cleared.
-     */
+    * Resets the line string to match the specified point data. The line string
+    * dimensionality will be based on whether \a z or \a m arrays are specified.
+    *
+    * \param size point count.
+    * \param x array of x data
+    * \param y array of y data
+    * \param z array of z data, can be NULLPTR
+    * \param m array of m data, can be NULLPTR
+    *
+    * \note Not available from Python bindings
+    * \since QGIS 3.26
+    */
+    void setPoints( size_t size, const double *x, const double *y, const double *z = nullptr, const double *m = nullptr ) SIP_SKIP;
+
+    /**
+    * Resets the line string to match the specified list of points. The line string will
+    * inherit the dimensionality of the first point in the list.
+    * \param points new points for line string. If empty, line string will be cleared.
+    */
     void setPoints( const QgsPointSequence &points );
 
     /**
@@ -751,7 +930,6 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * Extends the line geometry by extrapolating out the start or end of the line
      * by a specified distance. Lines are extended using the bearing of the first or last
      * segment in the line.
-     * \since QGIS 3.0
      */
     void extend( double startDistance, double endDistance );
 
@@ -781,6 +959,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
     bool isClosed() const override SIP_HOLDGIL;
     bool isClosed2D() const override SIP_HOLDGIL;
     bool boundingBoxIntersects( const QgsRectangle &rectangle ) const override SIP_HOLDGIL;
+    bool boundingBoxIntersects( const QgsBox3D &box3d ) const override SIP_HOLDGIL;
 
     /**
      * Returns a list of any duplicate nodes contained in the geometry, within the specified tolerance.
@@ -835,7 +1014,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
 
     void draw( QPainter &p ) const override;
 
-    void transform( const QgsCoordinateTransform &ct, QgsCoordinateTransform::TransformDirection d = QgsCoordinateTransform::ForwardTransform, bool transformZ = false ) override  SIP_THROW( QgsCsException );
+    void transform( const QgsCoordinateTransform &ct, Qgis::TransformDirection d = Qgis::TransformDirection::Forward, bool transformZ = false ) override  SIP_THROW( QgsCsException );
     void transform( const QTransform &t, double zTranslate = 0.0, double zScale = 1.0, double mTranslate = 0.0, double mScale = 1.0 ) override;
 
     void addToPainterPath( QPainterPath &path ) const override;
@@ -850,11 +1029,20 @@ class CORE_EXPORT QgsLineString: public QgsCurve
     QgsLineString *curveSubstring( double startDistance, double endDistance ) const override SIP_FACTORY;
 
     double closestSegment( const QgsPoint &pt, QgsPoint &segmentPt SIP_OUT, QgsVertexId &vertexAfter SIP_OUT, int *leftOf SIP_OUT = nullptr, double epsilon = 4 * std::numeric_limits<double>::epsilon() ) const override;
-    bool pointAt( int node, QgsPoint &point, QgsVertexId::VertexType &type ) const override;
+    bool pointAt( int node, QgsPoint &point, Qgis::VertexType &type ) const override;
 
     QgsPoint centroid() const override;
 
+    /**
+     * Calculates the shoelace/triangle formula sum for the points in the linestring.
+     * If the linestring is closed (i.e. a polygon) then the polygon area is equal to the absolute value of the sum.
+     * Please note that the sum will be negative if the points are defined in clockwise order.
+     * Therefore, if you want to use the sum as an area (as the method name indicates) then you probably should use the absolute value,
+     * since otherwise a bug can be introduced (such as the bug fixed for github issue 49578)
+     * \see https://en.wikipedia.org/wiki/Shoelace_formula#Triangle_formula
+     */
     void sumUpArea( double &sum SIP_OUT ) const override;
+
     double vertexAngle( QgsVertexId vertex ) const override;
     double segmentLength( QgsVertexId startVertex ) const override;
     bool addZValue( double zValue = 0 ) override;
@@ -864,7 +1052,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
     bool dropMValue() override;
     void swapXy() override;
 
-    bool convertTo( QgsWkbTypes::Type type ) override;
+    bool convertTo( Qgis::WkbType type ) override;
 
     bool transform( QgsAbstractGeometryTransformer *transformer, QgsFeedback *feedback = nullptr ) override;
     void scroll( int firstVertexIndex ) final;
@@ -878,11 +1066,10 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * Should be used by qgsgeometry_cast<QgsLineString *>( geometry ).
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
-     * \since QGIS 3.0
      */
     inline static const QgsLineString *cast( const QgsAbstractGeometry *geom )
     {
-      if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == QgsWkbTypes::LineString )
+      if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == Qgis::WkbType::LineString )
         return static_cast<const QgsLineString *>( geom );
       return nullptr;
     }
@@ -984,10 +1171,34 @@ class CORE_EXPORT QgsLineString: public QgsCurve
 
 #endif
 
+    /**
+     * Calculates the minimal 3D bounding box for the geometry.
+     * Deprecated: use calculateBoundingBox3D instead
+     * \see calculateBoundingBox()
+     * \since QGIS 3.26
+     * \deprecated since QGIS 3.34
+     */
+    Q_DECL_DEPRECATED QgsBox3D calculateBoundingBox3d() const SIP_DEPRECATED;
+
+    /**
+     * Calculates the minimal 3D bounding box for the geometry.
+     * \see calculateBoundingBox()
+     * \since QGIS 3.34
+     */
+    QgsBox3D calculateBoundingBox3D() const override;
+
+
+    /**
+     * Re-write the measure ordinate (or add one, if it isn't already there) interpolating
+     * the measure between the supplied \a start and \a end values.
+     *
+     * \since QGIS 3.36
+     */
+    QgsLineString *measuredLine( double start, double end ) const SIP_FACTORY;
+
   protected:
 
     int compareToSameClass( const QgsAbstractGeometry *other ) const final;
-    QgsRectangle calculateBoundingBox() const override;
 
   private:
     QVector<double> mX;
@@ -1002,7 +1213,7 @@ class CORE_EXPORT QgsLineString: public QgsCurve
      * \param type WKB type
      * \param wkb WKB representation of line geometry
      */
-    void fromWkbPoints( QgsWkbTypes::Type type, const QgsConstWkbPtr &wkb )
+    void fromWkbPoints( Qgis::WkbType type, const QgsConstWkbPtr &wkb )
     {
       mWkbType = type;
       importVerticesFromWkb( wkb );

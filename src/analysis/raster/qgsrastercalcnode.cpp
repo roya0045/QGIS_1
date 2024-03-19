@@ -36,6 +36,13 @@ QgsRasterCalcNode::QgsRasterCalcNode( Operator op, QgsRasterCalcNode *left, QgsR
 {
 }
 
+QgsRasterCalcNode::QgsRasterCalcNode( QString functionName, QVector <QgsRasterCalcNode *> functionArgs )
+  : mType( tFunction )
+  , mFunctionName( functionName )
+  , mFunctionArgs( functionArgs )
+{
+}
+
 QgsRasterCalcNode::QgsRasterCalcNode( const QString &rasterName )
   : mType( tRasterRef )
   , mRasterName( rasterName )
@@ -48,6 +55,11 @@ QgsRasterCalcNode::~QgsRasterCalcNode()
 {
   delete mLeft;
   delete mRight;
+  for ( int i = 0; i < mFunctionArgs.size(); ++i )
+  {
+    if ( mFunctionArgs.at( i ) )
+      delete mFunctionArgs.at( i );
+  }
 }
 
 bool QgsRasterCalcNode::calculate( QMap<QString, QgsRasterBlock * > &rasterData, QgsRasterMatrix &result, int row ) const
@@ -60,7 +72,7 @@ bool QgsRasterCalcNode::calculate( QMap<QString, QgsRasterBlock * > &rasterData,
     const QMap<QString, QgsRasterBlock *>::iterator it = rasterData.find( mRasterName );
     if ( it == rasterData.end() )
     {
-      QgsDebugMsg( QStringLiteral( "Error: could not find raster data for \"%1\"" ).arg( mRasterName ) );
+      QgsDebugError( QStringLiteral( "Error: could not find raster data for \"%1\"" ).arg( mRasterName ) );
       return false;
     }
 
@@ -206,6 +218,21 @@ bool QgsRasterCalcNode::calculate( QMap<QString, QgsRasterBlock * > &rasterData,
       data[i] = mMatrix->data()[i] == mMatrix->nodataValue() ? result.nodataValue() : mMatrix->data()[i];
     }
     result.setData( mMatrix->nColumns(), mMatrix->nRows(), data, result.nodataValue() );
+    return true;
+  }
+  else if ( mType == tFunction )
+  {
+    std::vector< std::unique_ptr< QgsRasterMatrix > > matrixContainer;
+    for ( int i = 0; i < mFunctionArgs.size(); ++i )
+    {
+      std::unique_ptr< QgsRasterMatrix > singleMatrix = std::make_unique< QgsRasterMatrix >( result.nColumns(), result.nRows(), nullptr, result.nodataValue() );
+      if ( !mFunctionArgs.at( i ) || !mFunctionArgs.at( i )->calculate( rasterData, *singleMatrix, row ) )
+      {
+        return false;
+      }
+      matrixContainer.emplace_back( std::move( singleMatrix ) );
+    }
+    evaluateFunction( matrixContainer, result );
     return true;
   }
   return false;
@@ -360,6 +387,18 @@ QString QgsRasterCalcNode::toString( bool cStyle ) const
       break;
     case tMatrix:
       break;
+    case tFunction:
+      if ( mFunctionName == "if" )
+      {
+        const QString argOne = mFunctionArgs.at( 0 )->toString( cStyle );
+        const QString argTwo = mFunctionArgs.at( 1 )->toString( cStyle );
+        const QString argThree = mFunctionArgs.at( 2 )->toString( cStyle );
+        if ( cStyle )
+          result =  QStringLiteral( " ( %1 ) ? ( %2 ) : ( %3 ) " ).arg( argOne, argTwo, argThree );
+        else
+          result = QStringLiteral( "if( %1 , %2 , %3 )" ).arg( argOne, argTwo, argThree );
+      }
+      break;
   }
   return result;
 }
@@ -373,6 +412,10 @@ QList<const QgsRasterCalcNode *> QgsRasterCalcNode::findNodes( const QgsRasterCa
     nodeList.append( mLeft->findNodes( type ) );
   if ( mRight )
     nodeList.append( mRight->findNodes( type ) );
+
+  for ( QgsRasterCalcNode *node : mFunctionArgs )
+    nodeList.append( node->findNodes( type ) );
+
   return nodeList;
 }
 
@@ -405,7 +448,7 @@ QStringList QgsRasterCalcNode::cleanRasterReferences()
   {
 
     QString layerRef( r->toString() );
-    if ( layerRef.at( 0 ) == QStringLiteral( "\"" ) && layerRef.at( layerRef.size() - 1 ) == QStringLiteral( "\"" ) )
+    if ( layerRef.at( 0 ) == QLatin1String( "\"" ) && layerRef.at( layerRef.size() - 1 ) == QLatin1String( "\"" ) )
     {
       layerRef.remove( 0, 1 );
       layerRef.chop( 1 );
@@ -416,4 +459,49 @@ QStringList QgsRasterCalcNode::cleanRasterReferences()
   }
 
   return rasterReferences;
+}
+
+QgsRasterMatrix QgsRasterCalcNode::evaluateFunction( const std::vector< std::unique_ptr< QgsRasterMatrix > > &matrixVector, QgsRasterMatrix &result ) const
+{
+
+  if ( mFunctionName == "if" )
+  {
+    //scalar condition
+    if ( matrixVector.at( 0 )->isNumber() )
+    {
+      result = ( matrixVector.at( 0 )->data() ? * matrixVector.at( 1 ) : * matrixVector.at( 2 ) );
+      return result;
+    }
+    int nCols = matrixVector.at( 0 )->nColumns();
+    int nRows = matrixVector.at( 0 )->nRows();
+    int nEntries = nCols * nRows;
+    std::unique_ptr< double[] > dataResult = std::make_unique< double[] >( nEntries );
+    double *dataResultRawPtr =  dataResult.get();
+
+    double *condition = matrixVector.at( 0 )->data();
+    double *firstOption = matrixVector.at( 1 )->data();
+    double *secondOption = matrixVector.at( 2 )->data();
+
+    bool isFirstOptionNumber = matrixVector.at( 1 )->isNumber();
+    bool isSecondCOptionNumber = matrixVector.at( 2 )->isNumber();
+    double noDataValueCondition = matrixVector.at( 0 )->nodataValue();
+
+    for ( int i = 0; i < nEntries; ++i )
+    {
+      if ( condition[i] == noDataValueCondition )
+      {
+        dataResultRawPtr[i] = result.nodataValue();
+        continue;
+      }
+      else if ( condition[i] != 0 )
+      {
+        dataResultRawPtr[i] = isFirstOptionNumber ? firstOption[0] : firstOption[i];
+        continue;
+      }
+      dataResultRawPtr[i] = isSecondCOptionNumber ? secondOption[0] : secondOption[i];
+    }
+
+    result.setData( nCols, nRows, dataResult.release(), result.nodataValue() );
+  }
+  return result;
 }

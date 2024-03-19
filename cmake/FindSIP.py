@@ -37,14 +37,11 @@ try:
     print("sip_version_num:%d" % sipbuild.version.SIP_VERSION)
     print("sip_version_str:%s" % sipbuild.version.SIP_VERSION_STR)
 
-    import shutil
-    sip_bin = shutil.which("sip5")
-    if sip_bin is None:
-        raise ImportError("sipbuild found, but not sip5")
-    print("sip_bin:%s" % sip_bin)
-
-    from distutils.sysconfig import get_python_lib
-    python_modules_dir = get_python_lib(plat_specific=1)
+    import sysconfig
+    if "deb_system" in sysconfig.get_scheme_names():
+        python_modules_dir = sysconfig.get_path("purelib", "deb_system")
+    else:
+        python_modules_dir = sysconfig.get_path("purelib")
     print("default_sip_dir:%s" % python_modules_dir)
 except ImportError:  # Code for SIP v4
     import sipconfig

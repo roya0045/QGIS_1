@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for the OGR/MapInfo tab provider.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -15,9 +14,15 @@ import shutil
 import tempfile
 
 import osgeo.gdal  # NOQA
-from qgis.PyQt.QtCore import QDate, QTime, QDateTime, QVariant, QDir
-from qgis.core import QgsVectorLayer, QgsFeatureRequest, QgsVectorDataProvider, QgsField
-from qgis.testing import start_app, unittest
+from qgis.PyQt.QtCore import QDate, QDateTime, QDir, QTime, QVariant
+from qgis.core import (
+    QgsFeatureRequest,
+    QgsField,
+    QgsVectorDataProvider,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from utilities import unitTestDataPath
 
@@ -28,11 +33,12 @@ TEST_DATA_DIR = unitTestDataPath()
 # Note - doesn't implement ProviderTestCase as OGR provider is tested by the shapefile provider test
 
 
-class TestPyQgsTabfileProvider(unittest.TestCase):
+class TestPyQgsTabfileProvider(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
         cls.basetestpath = tempfile.mkdtemp()
         cls.dirs_to_cleanup = [cls.basetestpath]
 
@@ -41,11 +47,12 @@ class TestPyQgsTabfileProvider(unittest.TestCase):
         """Run after all tests"""
         for dirname in cls.dirs_to_cleanup:
             shutil.rmtree(dirname, True)
+        super().tearDownClass()
 
     def testDateTimeFormats(self):
         # check that date and time formats are correctly interpreted
         basetestfile = os.path.join(TEST_DATA_DIR, 'tab_file.tab')
-        vl = QgsVectorLayer('{}|layerid=0'.format(basetestfile), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{basetestfile}|layerid=0', 'test', 'ogr')
 
         fields = vl.dataProvider().fields()
         self.assertEqual(fields.at(fields.indexFromName('date')).type(), QVariant.Date)
@@ -68,9 +75,9 @@ class TestPyQgsTabfileProvider(unittest.TestCase):
         """ Test that on-the-fly re-opening in update/read-only mode works """
 
         basetestfile = os.path.join(TEST_DATA_DIR, 'tab_file.tab')
-        vl = QgsVectorLayer('{}|layerid=0'.format(basetestfile), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{basetestfile}|layerid=0', 'test', 'ogr')
         caps = vl.dataProvider().capabilities()
-        self.assertTrue(caps & QgsVectorDataProvider.AddFeatures)
+        self.assertTrue(caps & QgsVectorDataProvider.Capability.AddFeatures)
 
         # We should be really opened in read-only mode even if write capabilities are declared
         self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-only")
@@ -93,7 +100,7 @@ class TestPyQgsTabfileProvider(unittest.TestCase):
         shutil.copy(os.path.join(TEST_DATA_DIR, 'tab_file.dat'), base_dest_file_name + '.dat')
         shutil.copy(os.path.join(TEST_DATA_DIR, 'tab_file.map'), base_dest_file_name + '.map')
         shutil.copy(os.path.join(TEST_DATA_DIR, 'tab_file.id'), base_dest_file_name + '.id')
-        vl = QgsVectorLayer('{}|layerid=0'.format(dest_file_name), 'test', 'ogr')
+        vl = QgsVectorLayer(f'{dest_file_name}|layerid=0', 'test', 'ogr')
         self.assertTrue(vl.isValid())
         self.assertTrue(vl.dataProvider().addAttributes([QgsField("int8", QVariant.LongLong, "integer64")]))
 
@@ -107,7 +114,7 @@ class TestPyQgsTabfileProvider(unittest.TestCase):
         # symbols should not be fetched by default
         self.assertFalse(any(f.embeddedSymbol() for f in layer.getFeatures()))
 
-        symbols = [f.embeddedSymbol().clone() for f in layer.getFeatures(QgsFeatureRequest().setFlags(QgsFeatureRequest.EmbeddedSymbols))]
+        symbols = [f.embeddedSymbol().clone() for f in layer.getFeatures(QgsFeatureRequest().setFlags(QgsFeatureRequest.Flag.EmbeddedSymbols))]
         self.assertTrue(all(symbols))
         self.assertCountEqual([s.color().name() for s in symbols], ['#0040c0', '#ffb060', '#e03800'])
 

@@ -22,17 +22,6 @@
 //qgis includes...
 #include <qgstemporalnavigationobject.h>
 
-char *toString( const QgsDateTimeRange &range )
-{
-  const QString str = QStringLiteral( "<QgsDateTimeRange: %1%2, %3%4>" ).arg(
-                        range.includeBeginning() ? QStringLiteral( "[" ) : QStringLiteral( "(" ),
-                        range.begin().toString( Qt::ISODateWithMs ),
-                        range.end().toString( Qt::ISODateWithMs ),
-                        range.includeEnd() ? QStringLiteral( "]" ) : QStringLiteral( ")" ) );
-  char *dst = new char[str.size() + 1];
-  return qstrcpy( dst, str.toLocal8Bit().constData() );
-}
-
 /**
  * \ingroup UnitTests
  * This is a unit test for the QgsTemporalNavigationObject class.
@@ -57,6 +46,8 @@ class TestQgsTemporalNavigationObject : public QObject
     void expressionContext();
     void testIrregularStep();
 
+    void testMovieMode();
+
   private:
     QgsTemporalNavigationObject *navigationObject = nullptr;
 };
@@ -79,7 +70,7 @@ void TestQgsTemporalNavigationObject::init()
   //create a temporal object that will be used in all tests...
 
   navigationObject = new QgsTemporalNavigationObject();
-  navigationObject->setNavigationMode( QgsTemporalNavigationObject::Animated );
+  navigationObject->setNavigationMode( Qgis::TemporalNavigationMode::Animated );
 }
 
 void TestQgsTemporalNavigationObject::cleanup()
@@ -99,27 +90,27 @@ void TestQgsTemporalNavigationObject::animationState()
                                  );
   navigationObject->setTemporalExtents( range );
 
-  navigationObject->setFrameDuration( QgsInterval( 1, QgsUnitTypes::TemporalMonths ) );
+  navigationObject->setFrameDuration( QgsInterval( 1, Qgis::TemporalUnit::Months ) );
 
-  qRegisterMetaType<QgsTemporalNavigationObject::AnimationState>( "AnimationState" );
+  qRegisterMetaType<Qgis::AnimationState>( "AnimationState" );
   const QSignalSpy stateSignal( navigationObject, &QgsTemporalNavigationObject::stateChanged );
 
-  QCOMPARE( navigationObject->animationState(), QgsTemporalNavigationObject::Idle );
+  QCOMPARE( navigationObject->animationState(), Qgis::AnimationState::Idle );
 
-  navigationObject->setAnimationState( QgsTemporalNavigationObject::Forward );
-  QCOMPARE( navigationObject->animationState(), QgsTemporalNavigationObject::Forward );
+  navigationObject->setAnimationState( Qgis::AnimationState::Forward );
+  QCOMPARE( navigationObject->animationState(), Qgis::AnimationState::Forward );
   QCOMPARE( stateSignal.count(), 1 );
 
   navigationObject->playBackward();
-  QCOMPARE( navigationObject->animationState(), QgsTemporalNavigationObject::Reverse );
+  QCOMPARE( navigationObject->animationState(), Qgis::AnimationState::Reverse );
   QCOMPARE( stateSignal.count(), 2 );
 
   navigationObject->playForward();
-  QCOMPARE( navigationObject->animationState(), QgsTemporalNavigationObject::Forward );
+  QCOMPARE( navigationObject->animationState(), Qgis::AnimationState::Forward );
   QCOMPARE( stateSignal.count(), 3 );
 
   navigationObject->pause();
-  QCOMPARE( navigationObject->animationState(), QgsTemporalNavigationObject::Idle );
+  QCOMPARE( navigationObject->animationState(), Qgis::AnimationState::Idle );
   QCOMPARE( stateSignal.count(), 4 );
 
   navigationObject->next();
@@ -172,25 +163,25 @@ void TestQgsTemporalNavigationObject::navigationMode()
   connect( navigationObject, &QgsTemporalNavigationObject::updateTemporalRange, context, checkUpdateTemporalRange );
 
   // Changing navigation mode emits an updateTemporalRange, in this case it should be an empty range
-  navigationObject->setNavigationMode( QgsTemporalNavigationObject::NavigationOff );
+  navigationObject->setNavigationMode( Qgis::TemporalNavigationMode::Disabled );
   // Setting temporal extents also triggers an updateTemporalRange with an empty range
   navigationObject->setTemporalExtents( range );
 
   // Changing navigation mode emits an updateTemporalRange, in this case it should be the last range
   // we used in setTemporalExtents.
   check = range;
-  navigationObject->setNavigationMode( QgsTemporalNavigationObject::FixedRange );
+  navigationObject->setNavigationMode( Qgis::TemporalNavigationMode::FixedRange );
   check = range2;
   navigationObject->setTemporalExtents( range2 );
 
   // Delete context to disconnect the signal to the lambda function
   delete context;
-  navigationObject->setNavigationMode( QgsTemporalNavigationObject::Animated );
+  navigationObject->setNavigationMode( Qgis::TemporalNavigationMode::Animated );
 }
 
 void TestQgsTemporalNavigationObject::frameSettings()
 {
-  navigationObject->setFrameDuration( QgsInterval( 2, QgsUnitTypes::TemporalHours ) );
+  navigationObject->setFrameDuration( QgsInterval( 2, Qgis::TemporalUnit::Hours ) );
 
   const QSignalSpy temporalRangeSignal( navigationObject, &QgsTemporalNavigationObject::updateTemporalRange );
 
@@ -217,12 +208,12 @@ void TestQgsTemporalNavigationObject::frameSettings()
               false
             ) );
 
-  navigationObject->setFrameDuration( QgsInterval( 1, QgsUnitTypes::TemporalHours ) );
-  QCOMPARE( navigationObject->frameDuration(), QgsInterval( 1, QgsUnitTypes::TemporalHours ) );
+  navigationObject->setFrameDuration( QgsInterval( 1, Qgis::TemporalUnit::Hours ) );
+  QCOMPARE( navigationObject->frameDuration(), QgsInterval( 1, Qgis::TemporalUnit::Hours ) );
   QCOMPARE( temporalRangeSignal.count(), 2 );
 
   QCOMPARE( navigationObject->frameDuration().originalDuration(), 1.0 );
-  QCOMPARE( navigationObject->frameDuration().originalUnit(), QgsUnitTypes::TemporalHours );
+  QCOMPARE( navigationObject->frameDuration().originalUnit(), Qgis::TemporalUnit::Hours );
 
   QCOMPARE( navigationObject->currentFrameNumber(), 0 );
   // four frames - 8-9, 9-10, 10-11, 11-12am
@@ -272,7 +263,7 @@ void TestQgsTemporalNavigationObject::frameSettings()
   // Test if changing the frame duration 'keeps' the current frameNumber
   navigationObject->setCurrentFrameNumber( 2 ); // 10:00-11
   QCOMPARE( navigationObject->currentFrameNumber(), 2 );
-  navigationObject->setFrameDuration( QgsInterval( 2, QgsUnitTypes::TemporalHours ) );
+  navigationObject->setFrameDuration( QgsInterval( 2, Qgis::TemporalUnit::Hours ) );
   QCOMPARE( navigationObject->currentFrameNumber(), 1 ); // going from 1 hour to 2 hour frames, but stay on 10:00-...
   QCOMPARE( temporalRangeSignal.count(), 7 );
 
@@ -291,7 +282,7 @@ void TestQgsTemporalNavigationObject::frameSettings()
 
   navigationObject->setTemporalRangeCumulative( false );
   // interval which doesn't fit exactly into overall range
-  navigationObject->setFrameDuration( QgsInterval( 0.75, QgsUnitTypes::TemporalHours ) );
+  navigationObject->setFrameDuration( QgsInterval( 0.75, Qgis::TemporalUnit::Hours ) );
   // six frames - 8-8.45, 8.45-9.30, 9.30-10.15, 10.15-11.00, 11.00-11.45, 11.45-12.30
   QCOMPARE( navigationObject->totalFrameCount(), 6LL );
   QCOMPARE( navigationObject->dateTimeRangeForFrameNumber( 0 ),  QgsDateTimeRange(
@@ -342,7 +333,7 @@ void TestQgsTemporalNavigationObject::expressionContext()
                                    QDateTime( QDate( 2020, 1, 1 ), QTime( 12, 0, 0 ) )
                                  );
   object.setTemporalExtents( range );
-  object.setFrameDuration( QgsInterval( 1, QgsUnitTypes::TemporalHours ) );
+  object.setFrameDuration( QgsInterval( 1, Qgis::TemporalUnit::Hours ) );
   object.setCurrentFrameNumber( 1 );
   object.setFramesPerSecond( 30 );
 
@@ -350,7 +341,8 @@ void TestQgsTemporalNavigationObject::expressionContext()
   QCOMPARE( scope->variable( QStringLiteral( "frame_rate" ) ).toDouble(), 30.0 );
   QCOMPARE( scope->variable( QStringLiteral( "frame_duration" ) ).value< QgsInterval >().seconds(), 3600.0 );
   QCOMPARE( scope->variable( QStringLiteral( "frame_timestep" ) ).value< double >(), 1.0 );
-  QCOMPARE( scope->variable( QStringLiteral( "frame_timestep_unit" ) ).value< QgsUnitTypes::TemporalUnit >(), QgsUnitTypes::TemporalUnit::TemporalHours );
+  QCOMPARE( scope->variable( QStringLiteral( "frame_timestep_unit" ) ).value< Qgis::TemporalUnit >(), Qgis::TemporalUnit::Hours );
+  QCOMPARE( scope->variable( QStringLiteral( "frame_timestep_units" ) ).toString(), QStringLiteral( "hours" ) );
   QCOMPARE( scope->variable( QStringLiteral( "frame_number" ) ).toInt(), 1 );
   QCOMPARE( scope->variable( QStringLiteral( "animation_start_time" ) ).toDateTime(), range.begin() );
   QCOMPARE( scope->variable( QStringLiteral( "animation_end_time" ) ).toDateTime(), range.end() );
@@ -373,7 +365,7 @@ void TestQgsTemporalNavigationObject::testIrregularStep()
                                         };
   object.setAvailableTemporalRanges( ranges );
 
-  object.setFrameDuration( QgsInterval( 1, QgsUnitTypes::TemporalIrregularStep ) );
+  object.setFrameDuration( QgsInterval( 1, Qgis::TemporalUnit::IrregularStep ) );
 
   QCOMPARE( object.totalFrameCount(), 3LL );
 
@@ -409,6 +401,32 @@ void TestQgsTemporalNavigationObject::testIrregularStep()
   QCOMPARE( object.findBestFrameNumberForFrameStart( QDateTime( QDate( 2020, 3, 2 ), QTime( 0, 0, 0 ) ) ), 2LL );
   QCOMPARE( object.findBestFrameNumberForFrameStart( QDateTime( QDate( 2020, 4, 5 ), QTime( 0, 0, 0 ) ) ), 2LL );
   QCOMPARE( object.findBestFrameNumberForFrameStart( QDateTime( QDate( 2020, 5, 6 ), QTime( 0, 0, 0 ) ) ), 2LL );
+}
+
+void TestQgsTemporalNavigationObject::testMovieMode()
+{
+  QgsTemporalNavigationObject object;
+  object.setNavigationMode( Qgis::TemporalNavigationMode::Movie );
+  object.setTotalMovieFrames( 1000 );
+  QCOMPARE( object.totalMovieFrames(), 1000LL );
+
+  QSignalSpy spy( &object, &QgsTemporalNavigationObject::totalMovieFramesChanged );
+  object.setTotalMovieFrames( 1000 );
+
+  QCOMPARE( spy.count(), 0 );
+  object.setTotalMovieFrames( 500 );
+  QCOMPARE( spy.count(), 1 );
+  QCOMPARE( spy.at( 0 ).at( 0 ).toLongLong(), 500LL );
+
+  QCOMPARE( object.totalFrameCount(), 500LL );
+
+  object.setCurrentFrameNumber( 17 );
+  object.setFramesPerSecond( 30 );
+
+  std::unique_ptr< QgsExpressionContextScope > scope( object.createExpressionContextScope() );
+  QCOMPARE( scope->variable( QStringLiteral( "frame_rate" ) ).toDouble(), 30.0 );
+  QCOMPARE( scope->variable( QStringLiteral( "frame_number" ) ).toInt(), 17 );
+  QCOMPARE( scope->variable( QStringLiteral( "total_frame_count" ) ).toInt(), 500 );
 }
 
 QGSTEST_MAIN( TestQgsTemporalNavigationObject )

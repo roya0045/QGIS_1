@@ -39,12 +39,13 @@
  * \ingroup UnitTests
  * This is a unit test for the different renderers for vector layers.
  */
-class TestQgsRenderers : public QObject
+class TestQgsRenderers : public QgsTest
 {
     Q_OBJECT
 
   public:
-    TestQgsRenderers() = default;
+    TestQgsRenderers() : QgsTest( QStringLiteral( "Vector Renderer Tests" ) ) {}
+
     ~TestQgsRenderers() override
     {
       delete mMapSettings;
@@ -53,8 +54,6 @@ class TestQgsRenderers : public QObject
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init() {} // will be called before each testfunction is executed.
-    void cleanup() {} // will be called after every testfunction.
 
     void singleSymbol();
     void emptyGeometry();
@@ -71,7 +70,6 @@ class TestQgsRenderers : public QObject
     QgsMapLayer *mpLinesLayer = nullptr;
     QgsMapLayer *mpPolysLayer = nullptr;
     QString mTestDataDir;
-    QString mReport;
 };
 
 
@@ -130,26 +128,14 @@ void TestQgsRenderers::initTestCase()
   //
   mMapSettings->setLayers(
     QList<QgsMapLayer *>() << mpPointsLayer << mpPolysLayer << mpLinesLayer );
-  mReport += QLatin1String( "<h1>Vector Renderer Tests</h1>\n" );
 }
 void TestQgsRenderers::cleanupTestCase()
 {
   QgsApplication::exitQgis();
-
-  const QString myReportFile = QDir::tempPath() + "/qgistest.html";
-  QFile myFile( myReportFile );
-  if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
-  {
-    QTextStream myQTextStream( &myFile );
-    myQTextStream << mReport;
-    myFile.close();
-    //QDesktopServices::openUrl( "file:///" + myReportFile );
-  }
 }
 
 void TestQgsRenderers::singleSymbol()
 {
-  mReport += QLatin1String( "<h2>Single symbol renderer test</h2>\n" );
   QVERIFY( setQml( "single" ) );
   QVERIFY( imageCheck( "single" ) );
 }
@@ -215,7 +201,7 @@ bool TestQgsRenderers::checkEmptyRender( const QString &testName, QgsVectorLayer
   QgsMapSettings ms;
   const QgsRectangle extent( -180, -90, 180, 90 );
   ms.setExtent( extent );
-  ms.setFlag( QgsMapSettings::ForceVectorOutput );
+  ms.setFlag( Qgis::MapSettingsFlag::ForceVectorOutput );
   ms.setOutputDpi( 96 );
   ms.setLayers( QList< QgsMapLayer * >() << layer );
   QgsMultiRenderChecker myChecker;
@@ -278,7 +264,7 @@ bool TestQgsRenderers::imageCheck( const QString &testType )
   // gives correct extent. Forced to fixed extend however to avoid problems in future.
   const QgsRectangle extent( -118.8888888888887720, 22.8002070393376783, -83.3333333333331581, 46.8719806763287536 );
   mMapSettings->setExtent( extent );
-  mMapSettings->setFlag( QgsMapSettings::ForceVectorOutput );
+  mMapSettings->setFlag( Qgis::MapSettingsFlag::ForceVectorOutput );
   mMapSettings->setOutputDpi( 96 );
   QgsMultiRenderChecker myChecker;
   myChecker.setControlName( "expected_" + testType );

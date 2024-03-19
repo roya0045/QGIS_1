@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     test_qgspointdisplacementrenderer.py
@@ -24,34 +22,38 @@ __author__ = 'Nyall Dawson'
 __date__ = 'September 2016'
 __copyright__ = '(C) 2016, Nyall Dawson'
 
-import qgis  # NOQA
-
 import os
 
+from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtCore import QSize, QThreadPool, QDir
 from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import (
+    QgsCategorizedSymbolRenderer,
+    QgsFeature,
+    QgsFontUtils,
+    QgsGeometry,
+    QgsGeometryGeneratorSymbolLayer,
+    QgsMapRendererSequentialJob,
+    QgsMapSettings,
+    QgsMapUnitScale,
+    QgsMarkerSymbol,
+    QgsPointClusterRenderer,
+    QgsPointDisplacementRenderer,
+    QgsProject,
+    QgsProperty,
+    QgsReadWriteContext,
+    QgsRectangle,
+    QgsRenderContext,
+    QgsRendererCategory,
+    QgsSingleSymbolRenderer,
+    QgsSymbol,
+    QgsSymbolLayer,
+    QgsUnitTypes,
+    QgsVectorLayer
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
-from qgis.core import (QgsVectorLayer,
-                       QgsProject,
-                       QgsRectangle,
-                       QgsMultiRenderChecker,
-                       QgsPointDisplacementRenderer,
-                       QgsFontUtils,
-                       QgsUnitTypes,
-                       QgsMapUnitScale,
-                       QgsMarkerSymbol,
-                       QgsCategorizedSymbolRenderer,
-                       QgsRendererCategory,
-                       QgsSingleSymbolRenderer,
-                       QgsPointClusterRenderer,
-                       QgsMapSettings,
-                       QgsProperty,
-                       QgsReadWriteContext,
-                       QgsSymbolLayer,
-                       QgsRenderContext
-                       )
-from qgis.testing import start_app, unittest
 from utilities import unitTestDataPath
 
 # Convenience instances in case you may need them
@@ -60,15 +62,11 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestQgsPointDisplacementRenderer(unittest.TestCase):
+class TestQgsPointDisplacementRenderer(QgisTestCase):
 
-    def setUp(self):
-        self.report = "<h1>Python QgsPointDisplacementRenderer Tests</h1>\n"
-
-    def tearDown(self):
-        report_file_path = "%s/qgistest.html" % QDir.tempPath()
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(self.report)
+    @classmethod
+    def control_path_prefix(cls):
+        return 'displacement_renderer'
 
     def _setUp(self):
         myShpFile = os.path.join(TEST_DATA_DIR, 'points.shp')
@@ -105,12 +103,12 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         r.setMinimumLabelScale(50000)
         r.setLabelColor(QColor(255, 0, 0))
         r.setTolerance(5)
-        r.setToleranceUnit(QgsUnitTypes.RenderMapUnits)
+        r.setToleranceUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
         r.setToleranceMapUnitScale(QgsMapUnitScale(5, 15))
         r.setCircleWidth(15)
         r.setCircleColor(QColor(0, 255, 0))
         r.setCircleRadiusAddition(2.5)
-        r.setPlacement(QgsPointDisplacementRenderer.ConcentricRings)
+        r.setPlacement(QgsPointDisplacementRenderer.Placement.ConcentricRings)
         r.setLabelDistanceFactor(0.25)
         m = QgsMarkerSymbol()
         m.setColor(QColor(0, 255, 0))
@@ -127,12 +125,12 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         self.assertEqual(r.minimumLabelScale(), 50000)
         self.assertEqual(r.labelColor(), QColor(255, 0, 0))
         self.assertEqual(r.tolerance(), 5)
-        self.assertEqual(r.toleranceUnit(), QgsUnitTypes.RenderMapUnits)
+        self.assertEqual(r.toleranceUnit(), QgsUnitTypes.RenderUnit.RenderMapUnits)
         self.assertEqual(r.toleranceMapUnitScale(), QgsMapUnitScale(5, 15))
         self.assertEqual(r.circleWidth(), 15)
         self.assertEqual(r.circleColor(), QColor(0, 255, 0))
         self.assertEqual(r.circleRadiusAddition(), 2.5)
-        self.assertEqual(r.placement(), QgsPointDisplacementRenderer.ConcentricRings)
+        self.assertEqual(r.placement(), QgsPointDisplacementRenderer.Placement.ConcentricRings)
         self.assertEqual(r.centerSymbol().color(), QColor(0, 255, 0))
         self.assertEqual(r.embeddedRenderer().symbol().color().name(), '#fdbf6f')
         self.assertEqual(r.labelDistanceFactor(), 0.25)
@@ -181,7 +179,7 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         # test conversion from cluster renderer
         r = QgsPointClusterRenderer()
         r.setTolerance(5)
-        r.setToleranceUnit(QgsUnitTypes.RenderMapUnits)
+        r.setToleranceUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
         r.setToleranceMapUnitScale(QgsMapUnitScale(5, 15))
         m = QgsMarkerSymbol()
         m.setColor(QColor(0, 255, 0))
@@ -193,7 +191,7 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         # want to keep as many settings as possible when converting between cluster and displacement renderer
         d = QgsPointDisplacementRenderer.convertFromRenderer(r)
         self.assertEqual(d.tolerance(), 5)
-        self.assertEqual(d.toleranceUnit(), QgsUnitTypes.RenderMapUnits)
+        self.assertEqual(d.toleranceUnit(), QgsUnitTypes.RenderUnit.RenderMapUnits)
         self.assertEqual(d.toleranceMapUnitScale(), QgsMapUnitScale(5, 15))
         self.assertEqual(d.centerSymbol().color(), QColor(0, 255, 0))
         self.assertEqual(d.embeddedRenderer().symbol().color().name(), '#fdbf6f')
@@ -201,26 +199,74 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
     def testRenderNoCluster(self):
         layer, renderer, mapsettings = self._setUp()
         layer.renderer().setTolerance(1)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_no_cluster')
-        res = renderchecker.runTest('displacement_no_cluster')
-        self.report += renderchecker.report()
+        res = self.render_map_settings_check(
+            'displacement_no_cluster',
+            'displacement_no_cluster',
+            mapsettings)
+
         self.assertTrue(res)
         self._tearDown(layer)
 
     def testRenderWithin(self):
         layer, renderer, mapsettings = self._setUp()
         layer.renderer().setTolerance(10)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster')
-        res = renderchecker.runTest('expected_displacement_cluster')
-        self.report += renderchecker.report()
+        res = self.render_map_settings_check(
+            'displacement_cluster',
+            'displacement_cluster',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
+
+    def testMultiPoint(self):
+        """
+        Test multipoint handling
+        """
+        layer = QgsVectorLayer('Multipoint?field=cat:string', '', 'memory')
+        self.assertTrue(layer.isValid())
+
+        f = QgsFeature(layer.fields())
+        f.setAttributes(['a'])
+        f.setGeometry(QgsGeometry.fromWkt('MultiPoint(5 5, 5 6, 9 9)'))
+        layer.dataProvider().addFeature(f)
+        f.setAttributes(['b'])
+        f.setGeometry(QgsGeometry.fromWkt('MultiPoint(2 1, 2 2, 5 5)'))
+        layer.dataProvider().addFeature(f)
+        f.setAttributes(['c'])
+        f.setGeometry(QgsGeometry.fromWkt('MultiPoint(9 1)'))
+        layer.dataProvider().addFeature(f)
+
+        renderer = QgsPointDisplacementRenderer()
+        sym1 = QgsMarkerSymbol.createSimple({'color': '#ff00ff', 'size': '3', 'outline_style': 'no'})
+        sym_renderer = QgsCategorizedSymbolRenderer()
+        sym_renderer.setClassAttribute('cat')
+        sym1.setColor(QColor(255, 0, 0))
+        sym_renderer.addCategory(QgsRendererCategory('a', sym1.clone(), 'a'))
+        sym1.setColor(QColor(0, 255, 0))
+        sym_renderer.addCategory(QgsRendererCategory('b', sym1.clone(), 'b'))
+        sym1.setColor(QColor(0, 0, 255))
+        sym_renderer.addCategory(QgsRendererCategory('c', sym1.clone(), 'c'))
+        renderer.setEmbeddedRenderer(sym_renderer)
+
+        renderer.setCircleRadiusAddition(2)
+        renderer.setCircleWidth(1)
+        renderer.setCircleColor(QColor(0, 0, 0))
+        renderer.setCenterSymbol(QgsMarkerSymbol.createSimple({'color': '#ffff00', 'size': '3', 'outline_style': 'no'}))
+        renderer.setToleranceUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
+        renderer.setTolerance(2)
+        layer.setRenderer(renderer)
+
+        rendered_layers = [layer]
+        mapsettings = QgsMapSettings()
+        mapsettings.setOutputSize(QSize(400, 400))
+        mapsettings.setOutputDpi(96)
+        mapsettings.setExtent(QgsRectangle(0, 0, 10, 10))
+        mapsettings.setLayers(rendered_layers)
+
+        result = self.render_map_settings_check(
+            'displacement_multipoint',
+            'displacement_multipoint',
+            mapsettings)
+        self.assertTrue(result)
 
     def testRenderVariables(self):
         """ test rendering with expression variables in marker """
@@ -230,17 +276,15 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         old_marker = layer.renderer().centerSymbol().clone()
 
         new_marker = QgsMarkerSymbol.createSimple({'color': '#ffff00', 'size': '3', 'outline_style': 'no'})
-        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.PropertyFillColor,
+        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.Property.PropertyFillColor,
                                                          QgsProperty.fromExpression('@cluster_color'))
-        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.PropertySize,
+        new_marker.symbolLayer(0).setDataDefinedProperty(QgsSymbolLayer.Property.PropertySize,
                                                          QgsProperty.fromExpression('@cluster_size*2'))
         layer.renderer().setCenterSymbol(new_marker)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_variables')
-        result = renderchecker.runTest('expected_displacement_variables')
-        self.report += renderchecker.report()
+        result = self.render_map_settings_check(
+            'displacement_variables',
+            'displacement_variables',
+            mapsettings)
         layer.renderer().setCenterSymbol(old_marker)
         self.assertTrue(result)
         self._tearDown(layer)
@@ -248,13 +292,11 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
     def testRenderGrid(self):
         layer, renderer, mapsettings = self._setUp()
         layer.renderer().setTolerance(10)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_grid')
-        res = renderchecker.runTest('expected_displacement_grid')
-        self.report += renderchecker.report()
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.Grid)
+        res = self.render_map_settings_check(
+            'displacement_grid',
+            'displacement_grid',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -262,14 +304,12 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer, renderer, mapsettings = self._setUp()
         layer.renderer().setTolerance(10)
         layer.renderer().setCircleRadiusAddition(5)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.Grid)
         layer.renderer().setCircleColor(QColor())
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_adjust_grid')
-        res = renderchecker.runTest('expected_displacement_adjust_grid')
-        self.report += renderchecker.report()
+        res = self.render_map_settings_check(
+            'displacement_adjust_grid',
+            'displacement_adjust_grid',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -280,12 +320,10 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(0.35)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_ring_labels')
-        res = renderchecker.runTest('expected_displacement_cluster_ring_labels')
-        self.report += renderchecker.report()
+        res = self.render_map_settings_check(
+            'displacement_cluster_ring_labels',
+            'displacement_cluster_ring_labels',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -296,13 +334,11 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(0.35)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_grid_labels')
-        res = renderchecker.runTest('expected_displacement_cluster_grid_labels')
-        self.report += renderchecker.report()
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.Grid)
+        res = self.render_map_settings_check(
+            'displacement_cluster_grid_labels',
+            'displacement_cluster_grid_labels',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -313,13 +349,11 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(0.35)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.ConcentricRings)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_concentric_labels')
-        res = renderchecker.runTest('expected_displacement_cluster_concentric_labels')
-        self.report += renderchecker.report()
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.ConcentricRings)
+        res = self.render_map_settings_check(
+            'displacement_cluster_concentric_labels',
+            'displacement_cluster_concentric_labels',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -331,12 +365,10 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(0.35)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_ring_labels_diff_size')
-        res = renderchecker.runTest('expected_displacement_cluster_ring_labels_diff_size')
-        self.report += renderchecker.report()
+        res = self.render_map_settings_check(
+            'displacement_cluster_ring_labels_diff_size',
+            'displacement_cluster_ring_labels_diff_size',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -348,13 +380,11 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(0.35)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_grid_labels_diff_size')
-        res = renderchecker.runTest('expected_displacement_cluster_grid_labels_diff_size')
-        self.report += renderchecker.report()
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.Grid)
+        res = self.render_map_settings_check(
+            'displacement_cluster_grid_labels_diff_size',
+            'displacement_cluster_grid_labels_diff_size',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -366,13 +396,11 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(0.35)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.ConcentricRings)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_concentric_labels_diff_size')
-        res = renderchecker.runTest('expected_displacement_cluster_concentric_labels_diff_size')
-        self.report += renderchecker.report()
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.ConcentricRings)
+        res = self.render_map_settings_check(
+            'displacement_cluster_concentric_labels_diff_size',
+            'displacement_cluster_concentric_labels_diff_size',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -384,12 +412,10 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(1)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_ring_labels_diff_size_farther')
-        res = renderchecker.runTest('expected_displacement_cluster_ring_labels_diff_size_farther')
-        self.report += renderchecker.report()
+        res = self.render_map_settings_check(
+            'displacement_cluster_ring_labels_diff_size_farther',
+            'displacement_cluster_ring_labels_diff_size_farther',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -399,15 +425,13 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setTolerance(10)
         layer.renderer().setLabelAttributeName('Class')
         layer.renderer().setLabelDistanceFactor(1)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Grid)
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.Grid)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_grid_labels_diff_size_farther')
-        res = renderchecker.runTest('expected_displacement_cluster_grid_labels_diff_size_farther')
-        self.report += renderchecker.report()
+        res = self.render_map_settings_check(
+            'displacement_cluster_grid_labels_diff_size_farther',
+            'displacement_cluster_grid_labels_diff_size_farther',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
 
@@ -419,21 +443,71 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         layer.renderer().setLabelDistanceFactor(1)
         f = QgsFontUtils.getStandardTestFont('Bold', 14)
         layer.renderer().setLabelFont(f)
-        layer.renderer().setPlacement(QgsPointDisplacementRenderer.ConcentricRings)
-        renderchecker = QgsMultiRenderChecker()
-        renderchecker.setMapSettings(mapsettings)
-        renderchecker.setControlPathPrefix('displacement_renderer')
-        renderchecker.setControlName('expected_displacement_cluster_concentric_labels_diff_size_farther')
-        res = renderchecker.runTest('expected_displacement_cluster_concentric_labels_diff_size_farther')
-        self.report += renderchecker.report()
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.ConcentricRings)
+        res = self.render_map_settings_check(
+            'displacement_cluster_concentric_labels_diff_size_farther',
+            'displacement_cluster_concentric_labels_diff_size_farther',
+            mapsettings)
         self.assertTrue(res)
         self._tearDown(layer)
+
+    def test_legend_keys(self):
+        symbol1 = QgsMarkerSymbol()
+        symbol2 = QgsMarkerSymbol()
+        sub_renderer = QgsCategorizedSymbolRenderer('cat', [QgsRendererCategory('cat1', symbol1, 'cat1', True, '0'),
+                                                            QgsRendererCategory('cat2', symbol2, 'cat2', True, '1')
+                                                            ])
+
+        renderer = QgsPointDisplacementRenderer()
+        renderer.setEmbeddedRenderer(sub_renderer)
+
+        self.assertEqual(renderer.legendKeys(), {'0', '1'})
+
+    def test_legend_key_to_expression(self):
+        sym1 = QgsMarkerSymbol.createSimple({'color': '#fdbf6f', 'outline_color': 'black'})
+        sub_renderer = QgsSingleSymbolRenderer(sym1)
+
+        renderer = QgsPointDisplacementRenderer()
+        renderer.setEmbeddedRenderer(sub_renderer)
+
+        exp, ok = renderer.legendKeyToExpression('0', None)
+        self.assertTrue(ok)
+        self.assertEqual(exp, 'TRUE')
+
+        exp, ok = renderer.legendKeyToExpression('xxxx', None)
+        self.assertFalse(ok)
 
     def testUsedAttributes(self):
         layer, renderer, mapsettings = self._setUp()
         ctx = QgsRenderContext.fromMapSettings(mapsettings)
 
         self.assertCountEqual(renderer.usedAttributes(ctx), {})
+
+    def testGeometryGenerator(self):
+        """
+        Don't check result image here, there is no point in using geometry generators
+        with point displacement renderer, we just want to avoid crash
+        """
+
+        layer, renderer, mapsettings = self._setUp()
+        layer.renderer().setTolerance(10)
+        layer.renderer().setPlacement(QgsPointDisplacementRenderer.Placement.Ring)
+        layer.renderer().setCircleRadiusAddition(0)
+
+        geomGeneratorSymbolLayer = QgsGeometryGeneratorSymbolLayer.create({'geometryModifier': '$geometry'})
+        geomGeneratorSymbolLayer.setSymbolType(QgsSymbol.SymbolType.Marker)
+        geomGeneratorSymbolLayer.subSymbol().setSize(2.5)
+
+        markerSymbol = QgsMarkerSymbol()
+        markerSymbol.deleteSymbolLayer(0)
+        markerSymbol.appendSymbolLayer(geomGeneratorSymbolLayer)
+        self.assertEqual(markerSymbol.size(), 2.5)
+
+        layer.renderer().setEmbeddedRenderer(QgsSingleSymbolRenderer(markerSymbol))
+
+        job = QgsMapRendererSequentialJob(mapsettings)
+        job.start()
+        job.waitForFinished()
 
 
 if __name__ == '__main__':

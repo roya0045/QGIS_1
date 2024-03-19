@@ -37,7 +37,6 @@ class QgsVectorLayer;
  * \brief QgsGeometrySnapper allows a geometry to be snapped to the geometries within a
  * different reference layer. Vertices in the geometries will be modified to
  * match the reference layer features within a specified snap tolerance.
- * \since QGIS 3.0
  */
 class ANALYSIS_EXPORT QgsGeometrySnapper : public QObject
 {
@@ -131,7 +130,6 @@ class ANALYSIS_EXPORT QgsGeometrySnapper : public QObject
  * The returned QgsGeometryMap can be passed to QgsVectorDataProvider::changeGeometryValues() to save
  * the snapped geometries back to the source layer.
  *
- * \since QGIS 3.0
  */
 class ANALYSIS_EXPORT QgsInternalGeometrySnapper
 {
@@ -210,28 +208,23 @@ class QgsSnapIndex
         SegmentSnapItem( const CoordIdx *_idxFrom, const CoordIdx *_idxTo );
         QgsPoint getSnapPoint( const QgsPoint &p ) const override;
         bool getIntersection( const QgsPoint &p1, const QgsPoint &p2, QgsPoint &inter ) const;
-        bool getProjection( const QgsPoint &p, QgsPoint &pProj );
+        bool getProjection( const QgsPoint &p, QgsPoint &pProj ) const;
+        bool withinSquaredDistance( const QgsPoint &p, const double squaredDistance );
         const CoordIdx *idxFrom = nullptr;
         const CoordIdx *idxTo = nullptr;
     };
 
-    QgsSnapIndex( const QgsPoint &origin, double cellSize );
+    QgsSnapIndex();
     ~QgsSnapIndex();
 
     QgsSnapIndex( const QgsSnapIndex &rh ) = delete;
     QgsSnapIndex &operator=( const QgsSnapIndex &rh ) = delete;
 
     void addGeometry( const QgsAbstractGeometry *geom );
-    QgsPoint getClosestSnapToPoint( const QgsPoint &p, const QgsPoint &q );
-    SnapItem *getSnapItem( const QgsPoint &pos, double tol, PointSnapItem **pSnapPoint = nullptr, SegmentSnapItem **pSnapSegment = nullptr, bool endPointOnly = false ) const;
+    QgsPoint getClosestSnapToPoint( const QgsPoint &startPoint, const QgsPoint &midPoint );
+    SnapItem *getSnapItem( const QgsPoint &pos, const double tolerance, PointSnapItem **pSnapPoint = nullptr, SegmentSnapItem **pSnapSegment = nullptr, bool endPointOnly = false ) const;
 
   private:
-    typedef QList<SnapItem *> Cell;
-    typedef QPair<QgsPoint, QgsPoint> Segment;
-
-    QgsPoint mOrigin;
-    double mCellSize;
-
     QList<CoordIdx *> mCoordIdxs;
     QList<SnapItem *> mSnapItems;
 

@@ -27,17 +27,7 @@
 #include <cstdlib>
 
 #ifdef Q_OS_WIN
-// Open files in binary mode
 #include <fcntl.h> /*  _O_BINARY */
-#ifdef MSVC
-#undef _fmode
-int _fmode = _O_BINARY;
-#else
-// Only do this if we are not building on windows with msvc.
-// Recommended method for doing this with msvc is with a call to _set_fmode
-// which is the first thing we do in main().
-// Similarly, with MinGW set _fmode in main().
-#endif  //_MSC_VER
 #else
 #include <getopt.h>
 #endif
@@ -261,21 +251,21 @@ int main( int argc, char *argv[] )
         return 2;   // XXX need standard exit codes
 
       default:
-        QgsDebugMsg( QStringLiteral( "%1: getopt returned character code %2" ).arg( argv[0] ).arg( optionChar ) );
+        QgsDebugError( QStringLiteral( "%1: getopt returned character code %2" ).arg( argv[0] ).arg( optionChar ) );
         return 1;   // XXX need standard exit codes
     }
   }
 
   // Add any remaining args to the file list - we will attempt to load them
   // as layers in the map view further down....
-  QgsDebugMsg( QStringLiteral( "Files specified on command line: %1" ).arg( optind ) );
+  QgsDebugMsgLevel( QStringLiteral( "Files specified on command line: %1" ).arg( optind ), 1 );
   if ( optind < argc )
   {
     while ( optind < argc )
     {
 #ifdef QGISDEBUG
       const int idx = optind;
-      QgsDebugMsg( QStringLiteral( "%1: %2" ).arg( idx ).arg( argv[idx] ) );
+      QgsDebugMsgLevel( QStringLiteral( "%1: %2" ).arg( idx ).arg( argv[idx] ), 1 );
 #endif
       sFileList.append( QDir::toNativeSeparators( QFileInfo( QFile::decodeName( argv[optind++] ) ).absoluteFilePath() ) );
     }
@@ -507,16 +497,13 @@ int main( int argc, char *argv[] )
       if ( q == QLatin1String( "Antialiasing" ) ) hints |= QPainter::Antialiasing;
       else if ( q == QLatin1String( "TextAntialiasing" ) ) hints |= QPainter::TextAntialiasing;
       else if ( q == QLatin1String( "SmoothPixmapTransform" ) ) hints |= QPainter::SmoothPixmapTransform;
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-      else if ( q == QLatin1String( "NonCosmeticDefaultPen" ) ) hints |= QPainter::NonCosmeticDefaultPen;
-#endif
       else
       {
         fprintf( stderr, "Unknown quality option\n" );
         return 1;
       }
     }
-    QgsDebugMsg( QStringLiteral( "hints: %1" ).arg( hints ) );
+    QgsDebugMsgLevel( QStringLiteral( "hints: %1" ).arg( hints ), 1 );
     qbench->setRenderHints( hints );
   }
 
@@ -525,10 +512,10 @@ int main( int argc, char *argv[] )
   /////////////////////////////////////////////////////////////////////
   // autoload any file names that were passed in on the command line
   /////////////////////////////////////////////////////////////////////
-  QgsDebugMsg( QStringLiteral( "Number of files in myFileList: %1" ).arg( sFileList.count() ) );
+  QgsDebugMsgLevel( QStringLiteral( "Number of files in myFileList: %1" ).arg( sFileList.count() ), 1 );
   for ( QStringList::Iterator myIterator = sFileList.begin(); myIterator != sFileList.end(); ++myIterator )
   {
-    QgsDebugMsg( QStringLiteral( "Trying to load file : %1" ).arg( ( *myIterator ) ) );
+    QgsDebugMsgLevel( QStringLiteral( "Trying to load file : %1" ).arg( ( *myIterator ) ), 1 );
     const QString myLayerName = *myIterator;
     // don't load anything with a .qgs or .qgz extension - these are project files
     if ( !myLayerName.endsWith( QLatin1String( ".qgs" ), Qt::CaseInsensitive ) &&
@@ -562,11 +549,7 @@ int main( int argc, char *argv[] )
         ok = false;
         break;
       }
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
-      coords[i] = myInitialExtent.midRef( posOld, pos - posOld ).toDouble( &ok );
-#else
-      coords[i] = QStringView {myInitialExtent}.mid( posOld, pos - posOld ).toDouble( &ok );
-#endif
+      coords[i] = QStringView {myInitialExtent} .mid( posOld, pos - posOld ).toDouble( &ok );
       if ( !ok )
         break;
 
@@ -574,17 +557,12 @@ int main( int argc, char *argv[] )
     }
 
     // parse last coordinate
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 2)
     if ( ok )
-      coords[3] = myInitialExtent.midRef( posOld ).toDouble( &ok );
-#else
-    if ( ok )
-      coords[3] = QStringView {myInitialExtent}.mid( posOld ).toDouble( &ok );
-#endif
+      coords[3] = QStringView {myInitialExtent} .mid( posOld ).toDouble( &ok );
 
     if ( !ok )
     {
-      QgsDebugMsg( QStringLiteral( "Error while parsing initial extent!" ) );
+      QgsDebugError( QStringLiteral( "Error while parsing initial extent!" ) );
     }
     else
     {

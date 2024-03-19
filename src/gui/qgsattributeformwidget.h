@@ -33,7 +33,6 @@ class QgsSearchWidgetToolButton;
  * \brief Base class for all widgets shown on a QgsAttributeForm.
  * Consists of the widget which is visible in edit mode as well as the widget visible in search mode.
  *
- * \since QGIS 3.0
  */
 class GUI_EXPORT QgsAttributeFormWidget : public QWidget // SIP_ABSTRACT
 {
@@ -55,6 +54,8 @@ class GUI_EXPORT QgsAttributeFormWidget : public QWidget // SIP_ABSTRACT
      */
     explicit QgsAttributeFormWidget( QgsWidgetWrapper *widget, QgsAttributeForm *form );
 
+    ~QgsAttributeFormWidget() override;
+
     /**
      * Creates the search widget wrappers for the widget used when the form is in
      * search mode.
@@ -66,7 +67,6 @@ class GUI_EXPORT QgsAttributeFormWidget : public QWidget // SIP_ABSTRACT
     /**
      * Creates an expression matching the current search filter value and
      * search properties represented in the widget.
-     * \since QGIS 2.16
      */
     virtual QString currentFilterExpression() const;
 
@@ -171,6 +171,13 @@ class GUI_EXPORT QgsAttributeFormWidget : public QWidget // SIP_ABSTRACT
      * \note not available in Python bindings
      */
     QWidget *searchPage() const SIP_SKIP;
+
+    /**
+     * Sets the visible page in the widget to the page matching the specified \a mode.
+     *
+     * \since QGIS 3.32
+     */
+    void setVisiblePageForMode( QgsAttributeFormWidget::Mode mode );
 
   private slots:
 

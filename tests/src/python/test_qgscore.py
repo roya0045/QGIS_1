@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for core functions
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,17 +9,15 @@ __author__ = 'Loïc Bartoletti'
 __date__ = '28.6.2019'
 __copyright__ = 'Copyright 2019, The QGIS Project'
 
-import qgis  # NOQA
-import os
 
-from qgis.testing import unittest, start_app
-from qgis.core import qgsRound, qgsDoubleNear
-from qgis.PyQt import sip
+from qgis.core import qgsDoubleNear, qgsRound
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestCoreAdditions(unittest.TestCase):
+class TestCoreAdditions(QgisTestCase):
 
     def testQgsRound(self):
         qgsDoubleNear(qgsRound(1234.567, 2), 1234.57, 0.01)

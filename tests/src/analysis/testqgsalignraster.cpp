@@ -19,6 +19,7 @@
 #include "qgsapplication.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsrectangle.h"
+#include "qgis.h"
 
 #include <QDir>
 
@@ -32,9 +33,14 @@ static QString _tempFile( const QString &name )
 }
 
 
-class TestAlignRaster : public QObject
+class TestAlignRaster : public QgsTest
 {
     Q_OBJECT
+
+  public:
+    TestAlignRaster()
+      : QgsTest( QStringLiteral( "Align Raster Tests" ) )
+    {}
 
     QString SRC_FILE;
   private slots:
@@ -46,6 +52,11 @@ class TestAlignRaster : public QObject
       SRC_FILE = QStringLiteral( TEST_DATA_DIR ) + "/float1-16.tif";
 
       QgsApplication::init(); // needed for CRS database
+    }
+
+    void cleanupTestCase()
+    {
+      QgsApplication::exitQgis();
     }
 
     void testRasterInfo()
@@ -123,7 +134,7 @@ class TestAlignRaster : public QObject
       QgsAlignRaster align;
       QgsAlignRaster::List rasters;
       rasters << QgsAlignRaster::Item( SRC_FILE, tmpFile );
-      rasters[0].resampleMethod = QgsAlignRaster::RA_Bilinear;
+      rasters[0].resampleMethod = Qgis::GdalResampleAlgorithm::RA_Bilinear;
       align.setRasters( rasters );
       align.setParametersFromRaster( SRC_FILE );
       QPointF offset = align.gridOffset();
@@ -146,7 +157,7 @@ class TestAlignRaster : public QObject
       QgsAlignRaster align;
       QgsAlignRaster::List rasters;
       rasters << QgsAlignRaster::Item( SRC_FILE, tmpFile );
-      rasters[0].resampleMethod = QgsAlignRaster::RA_Bilinear;
+      rasters[0].resampleMethod = Qgis::GdalResampleAlgorithm::RA_Bilinear;
       align.setRasters( rasters );
       align.setParametersFromRaster( SRC_FILE );
       align.setCellSize( 0.1, 0.1 );
@@ -169,7 +180,7 @@ class TestAlignRaster : public QObject
       QgsAlignRaster align;
       QgsAlignRaster::List rasters;
       rasters << QgsAlignRaster::Item( SRC_FILE, tmpFile );
-      rasters[0].resampleMethod = QgsAlignRaster::RA_Average;
+      rasters[0].resampleMethod = Qgis::GdalResampleAlgorithm::RA_Average;
       align.setRasters( rasters );
       align.setParametersFromRaster( SRC_FILE, QString(), QSizeF( 0.4, 0.4 ) );
       const bool res = align.run();
@@ -190,7 +201,7 @@ class TestAlignRaster : public QObject
       QgsAlignRaster align;
       QgsAlignRaster::List rasters;
       rasters << QgsAlignRaster::Item( SRC_FILE, tmpFile );
-      rasters[0].resampleMethod = QgsAlignRaster::RA_Average;
+      rasters[0].resampleMethod = Qgis::GdalResampleAlgorithm::RA_Average;
       rasters[0].rescaleValues = true;
       align.setRasters( rasters );
       align.setParametersFromRaster( SRC_FILE, QString(), QSizeF( 0.4, 0.4 ) );
@@ -218,7 +229,7 @@ class TestAlignRaster : public QObject
       QgsAlignRaster::List rasters;
       rasters << QgsAlignRaster::Item( SRC_FILE, tmpFile );
       align.setRasters( rasters );
-      align.setParametersFromRaster( SRC_FILE, destCRS.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED ) );
+      align.setParametersFromRaster( SRC_FILE, destCRS.toWkt( Qgis::CrsWktVariant::Preferred ) );
       const bool res = align.run();
       QVERIFY( res );
 

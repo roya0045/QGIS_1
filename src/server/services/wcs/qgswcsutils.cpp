@@ -18,7 +18,7 @@
 #include "qgswcsutils.h"
 #include "qgsconfigcache.h"
 #include "qgsserverprojectutils.h"
-
+#include "qgscoordinatetransform.h"
 #include "qgsproject.h"
 #include "qgsexception.h"
 #include "qgsrasterlayer.h"
@@ -84,7 +84,7 @@ namespace QgsWcs
     }
     catch ( QgsCsException &e )
     {
-      QgsDebugMsg( QStringLiteral( "Transform error caught: %1. Using original layer extent." ).arg( e.what() ) );
+      QgsDebugError( QStringLiteral( "Transform error caught: %1. Using original layer extent." ).arg( e.what() ) );
       BBox = layer->extent();
     }
     QDomElement lonLatElem = doc.createElement( QStringLiteral( "lonLatEnvelope" ) );

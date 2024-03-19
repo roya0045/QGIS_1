@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsVectorFileWriterTask.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,20 +9,20 @@ __author__ = 'Nyall Dawson'
 __date__ = '12/02/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
 
-import qgis  # NOQA
 import os
 
+from qgis.PyQt.QtCore import QCoreApplication, QDir
 from qgis.core import (
     QgsApplication,
-    QgsVectorLayer,
     QgsFeature,
     QgsGeometry,
     QgsPointXY,
     QgsVectorFileWriter,
-    QgsVectorFileWriterTask
+    QgsVectorFileWriterTask,
+    QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QDir
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
@@ -32,7 +31,7 @@ def create_temp_filename(base_file):
     return os.path.join(str(QDir.tempPath()), base_file)
 
 
-class TestQgsVectorFileWriterTask(unittest.TestCase):
+class TestQgsVectorFileWriterTask(QgisTestCase):
 
     def setUp(self):
         self.new_filename = ''

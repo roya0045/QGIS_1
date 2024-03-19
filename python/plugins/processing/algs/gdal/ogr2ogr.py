@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     ogr2ogr.py
@@ -25,6 +23,7 @@ import os
 
 from qgis.core import (QgsProcessing,
                        QgsProcessingException,
+                       QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterString,
@@ -35,6 +34,7 @@ from processing.algs.gdal.GdalUtils import GdalUtils
 
 class ogr2ogr(GdalAlgorithm):
     INPUT = 'INPUT'
+    CONVERT_ALL_LAYERS = 'CONVERT_ALL_LAYERS'
     OPTIONS = 'OPTIONS'
     OUTPUT = 'OUTPUT'
 
@@ -44,13 +44,19 @@ class ogr2ogr(GdalAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(self.INPUT,
                                                               self.tr('Input layer'),
-                                                              types=[QgsProcessing.TypeVector]))
+                                                              types=[QgsProcessing.SourceType.TypeVector]))
+
+        convert_all_layers_param = QgsProcessingParameterBoolean(self.CONVERT_ALL_LAYERS,
+                                                                 self.tr('Convert all layers from dataset'), defaultValue=False)
+        convert_all_layers_param.setHelp(self.tr("Use convert all layers to convert a whole dataset. "
+                                                 "Supported output formats for this option are GPKG and GML."))
+        self.addParameter(convert_all_layers_param)
 
         options_param = QgsProcessingParameterString(self.OPTIONS,
                                                      self.tr('Additional creation options'),
                                                      defaultValue='',
                                                      optional=True)
-        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        options_param.setFlags(options_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(options_param)
 
         self.addParameter(QgsProcessingParameterVectorDestination(self.OUTPUT,
@@ -73,6 +79,7 @@ class ogr2ogr(GdalAlgorithm):
 
     def getConsoleCommands(self, parameters, context, feedback, executing=True):
         ogrLayer, layerName = self.getOgrCompatibleSource(self.INPUT, parameters, context, feedback, executing)
+        convertAllLayers = self.parameterAsBoolean(parameters, self.CONVERT_ALL_LAYERS, context)
         options = self.parameterAsString(parameters, self.OPTIONS, context)
         outFile = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
         self.setOutputValue(self.OUTPUT, outFile)
@@ -80,17 +87,26 @@ class ogr2ogr(GdalAlgorithm):
         output, outputFormat = GdalUtils.ogrConnectionStringAndFormat(outFile, context)
 
         if outputFormat in ('SQLite', 'GPKG') and os.path.isfile(output):
-            raise QgsProcessingException(self.tr('Output file "{}" already exists.'.format(output)))
+            raise QgsProcessingException(self.tr('Output file "{}" already exists.').format(output))
 
         arguments = []
         if outputFormat:
-            arguments.append('-f {}'.format(outputFormat))
+            arguments.append(f'-f {outputFormat}')
 
         if options:
             arguments.append(options)
 
         arguments.append(output)
         arguments.append(ogrLayer)
-        arguments.append(layerName)
+        if not convertAllLayers:
+            arguments.append(layerName)
 
         return ['ogr2ogr', GdalUtils.escapeAndJoin(arguments)]
+
+    def shortHelpString(self):
+        return self.tr("The algorithm converts simple features data between file formats.\n\n"
+                       "Use convert all layers to convert a whole dataset.\n"
+                       "Supported output formats for this option are:\n"
+                       "- GPKG\n"
+                       "- GML"
+                       )

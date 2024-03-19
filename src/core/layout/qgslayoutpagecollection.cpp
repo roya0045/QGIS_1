@@ -17,12 +17,11 @@
 #include "qgslayoutpagecollection.h"
 #include "qgslayout.h"
 #include "qgsreadwritecontext.h"
-#include "qgsproject.h"
-#include "qgslayoutitemundocommand.h"
 #include "qgssymbollayerutils.h"
 #include "qgslayoutframe.h"
 #include "qgslayoutundostack.h"
 #include "qgsfillsymbol.h"
+#include "qgsmargins.h"
 
 QgsLayoutPageCollection::QgsLayoutPageCollection( QgsLayout *layout )
   : QObject( layout )
@@ -80,13 +79,24 @@ void QgsLayoutPageCollection::endPageSizeChange()
 {
   for ( auto it = mPreviousItemPositions.constBegin(); it != mPreviousItemPositions.constEnd(); ++it )
   {
-    if ( QgsLayoutItem *item = mLayout->itemByUuid( it.key() ) )
+    const QString key { it.key() };
+    if ( QgsLayoutItem *item = mLayout->itemByUuid( key ) )
     {
       if ( !mBlockUndoCommands )
         item->beginCommand( QString() );
+
       item->attemptMove( it.value().second, true, false, it.value().first );
-      if ( !mBlockUndoCommands )
-        item->endCommand();
+
+      // Item might have been deleted
+      if ( mLayout->itemByUuid( key ) )
+      {
+        if ( !mBlockUndoCommands )
+          item->endCommand();
+      }
+      else
+      {
+        item->cancelCommand();
+      }
     }
   }
   mPreviousItemPositions.clear();
@@ -281,7 +291,7 @@ double QgsLayoutPageCollection::pageShadowWidth() const
   return spaceBetweenPages() / 2;
 }
 
-void QgsLayoutPageCollection::resizeToContents( const QgsMargins &margins, QgsUnitTypes::LayoutUnit marginUnits )
+void QgsLayoutPageCollection::resizeToContents( const QgsMargins &margins, Qgis::LayoutUnit marginUnits )
 {
   //calculate current bounds
   QRectF bounds = mLayout->layoutBounds( true, 0.0 );

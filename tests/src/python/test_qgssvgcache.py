@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsSvgCache.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,18 +9,20 @@ __author__ = '(C) 2018 by Nyall Dawson'
 __date__ = '29/03/2018'
 __copyright__ = 'Copyright 2018, The QGIS Project'
 
-import qgis  # NOQA
-
+import http.server
 import os
 import socketserver
 import threading
-import http.server
 import time
-from qgis.PyQt.QtCore import QDir, QCoreApplication
-from qgis.PyQt.QtGui import QColor, QImage, QPainter
 
-from qgis.core import (QgsSvgCache, QgsRenderChecker, QgsApplication, QgsMultiRenderChecker)
-from qgis.testing import start_app, unittest
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QColor
+from qgis.core import (
+    QgsApplication
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 from utilities import unitTestDataPath
 
 start_app()
@@ -35,10 +36,15 @@ class SlowHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
 
-class TestQgsSvgCache(unittest.TestCase):
+class TestQgsSvgCache(QgisTestCase):
+
+    @classmethod
+    def control_path_prefix(cls):
+        return "svg_cache"
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         # Bring up a simple HTTP server, for remote SVG tests
         os.chdir(unitTestDataPath() + '')
         handler = SlowHTTPRequestHandler
@@ -47,19 +53,12 @@ class TestQgsSvgCache(unittest.TestCase):
         cls.port = cls.httpd.server_address[1]
 
         cls.httpd_thread = threading.Thread(target=cls.httpd.serve_forever)
-        cls.httpd_thread.setDaemon(True)
+        cls.httpd_thread.daemon = True
         cls.httpd_thread.start()
 
     def setUp(self):
-        self.report = "<h1>Python QgsSvgCache Tests</h1>\n"
-
         self.fetched = True
         QgsApplication.svgCache().remoteSvgFetched.connect(self.svgFetched)
-
-    def tearDown(self):
-        report_file_path = "%s/qgistest.html" % QDir.tempPath()
-        with open(report_file_path, 'a') as report_file:
-            report_file.write(self.report)
 
     def svgFetched(self):
         self.fetched = True
@@ -71,28 +70,56 @@ class TestQgsSvgCache(unittest.TestCase):
 
     def testRemoteSVG(self):
         """Test fetching remote svg."""
-        url = 'http://localhost:{}/qgis_local_server/sample_svg.svg'.format(str(TestQgsSvgCache.port))
+        url = f'http://localhost:{str(TestQgsSvgCache.port)}/qgis_local_server/sample_svg.svg'
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1)
         # first should be waiting image
-        self.assertTrue(self.imageCheck('Remote SVG', 'waiting_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG',
+                'waiting_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
         self.waitForFetch()
 
         # second should be correct image
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1)
-        self.assertTrue(self.imageCheck('Remote SVG', 'remote_svg', image))
+
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG',
+                'remote_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         for i in range(1000):
             QCoreApplication.processEvents()
 
     def testRemoteSvgAsText(self):
         """Test fetching remote svg with text mime format - e.g. github raw svgs"""
-        url = 'http://localhost:{}/qgis_local_server/svg_as_text.txt'.format(str(TestQgsSvgCache.port))
+        url = f'http://localhost:{str(TestQgsSvgCache.port)}/qgis_local_server/svg_as_text.txt'
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1)
         # first should be waiting image
-        self.assertTrue(self.imageCheck('Remote SVG as Text', 'waiting_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG as Text',
+                'waiting_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         self.waitForFetch()
         # second should be correct image
@@ -100,35 +127,71 @@ class TestQgsSvgCache(unittest.TestCase):
                                                                strokeWidth=0.1, widthScaleFactor=1)
 
         # first should be waiting image
-        self.assertTrue(self.imageCheck('Remote SVG as Text', 'remote_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG as Text',
+                'remote_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         for i in range(1000):
             QCoreApplication.processEvents()
 
     def testRemoteSvgBadMime(self):
         """Test fetching remote svg with bad mime type"""
-        url = 'http://localhost:{}/qgis_local_server/logo.png'.format(str(TestQgsSvgCache.port))
+        url = f'http://localhost:{str(TestQgsSvgCache.port)}/qgis_local_server/logo.png'
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1)
         # first should be waiting image
-        self.assertTrue(self.imageCheck('Remote SVG bad MIME type', 'waiting_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG bad MIME type',
+                'waiting_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         # second should be correct image
         self.waitForFetch()
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1)
-        self.assertTrue(self.imageCheck('Remote SVG bad MIME type', 'bad_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG bad MIME type',
+                'bad_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         for i in range(1000):
             QCoreApplication.processEvents()
 
     def testRemoteSvgMissing(self):
         """Test fetching remote svg with bad url"""
-        url = 'http://localhost:{}/qgis_local_server/xxx.svg'.format(str(TestQgsSvgCache.port))  # oooo naughty
+        url = f'http://localhost:{str(TestQgsSvgCache.port)}/qgis_local_server/xxx.svg'  # oooo naughty
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1)
 
-        self.assertTrue(self.imageCheck('Remote SVG missing', 'waiting_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG missing',
+                'waiting_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         for i in range(1000):
             QCoreApplication.processEvents()
@@ -136,50 +199,55 @@ class TestQgsSvgCache(unittest.TestCase):
     def testRemoteSVGBlocking(self):
         """Test fetching remote svg."""
         # remote not yet requested so not in cache
-        url = 'http://localhost:{}/qgis_local_server/QGIS_logo_2017.svg'.format(str(TestQgsSvgCache.port))
+        url = f'http://localhost:{str(TestQgsSvgCache.port)}/qgis_local_server/QGIS_logo_2017.svg'
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1, blocking=1)
         # first should be correct image
-        self.assertTrue(self.imageCheck('Remote SVG sync', 'remote_svg_blocking', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG sync',
+                'remote_svg_blocking',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         # remote probably in cache
-        url = 'http://localhost:{}/qgis_local_server/sample_svg.svg'.format(str(TestQgsSvgCache.port))
+        url = f'http://localhost:{str(TestQgsSvgCache.port)}/qgis_local_server/sample_svg.svg'
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1, blocking=1)
 
-        self.assertTrue(self.imageCheck('Remote SVG', 'remote_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG',
+                'remote_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         # missing
-        url = 'http://localhost:{}/qgis_local_server/xxx.svg'.format(str(TestQgsSvgCache.port))  # oooo naughty
+        url = f'http://localhost:{str(TestQgsSvgCache.port)}/qgis_local_server/xxx.svg'  # oooo naughty
         image, in_cache = QgsApplication.svgCache().svgAsImage(url, 100, fill=QColor(0, 0, 0), stroke=QColor(0, 0, 0),
                                                                strokeWidth=0.1, widthScaleFactor=1, blocking=1)
 
-        self.assertTrue(self.imageCheck('Remote SVG missing', 'waiting_svg', image))
+        self.assertTrue(
+            self.image_check(
+                'Remote SVG missing',
+                'waiting_svg',
+                image,
+                color_tolerance=2,
+                allowed_mismatch=20,
+                use_checkerboard_background=True
+            )
+        )
 
         for i in range(1000):
             QCoreApplication.processEvents()
-
-    def imageCheck(self, name, reference_image, image):
-        self.report += "<h2>Render {}</h2>\n".format(name)
-        temp_dir = QDir.tempPath() + '/'
-        file_name = temp_dir + 'svg_' + name + ".png"
-
-        output_image = QImage(image.size(), QImage.Format_RGB32)
-        QgsMultiRenderChecker.drawBackground(output_image)
-        painter = QPainter(output_image)
-        painter.drawImage(0, 0, image)
-        painter.end()
-
-        output_image.save(file_name, "PNG")
-        checker = QgsRenderChecker()
-        checker.setControlPathPrefix("svg_cache")
-        checker.setControlName("expected_" + reference_image)
-        checker.setRenderedImage(file_name)
-        checker.setColorTolerance(2)
-        result = checker.compareImages(name, 20)
-        self.report += checker.report()
-        print((self.report))
-        return result
 
 
 if __name__ == '__main__':

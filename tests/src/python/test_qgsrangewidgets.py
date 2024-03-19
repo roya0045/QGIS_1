@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for edit widgets.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,19 +9,20 @@ __author__ = 'Tobias Reber'
 __date__ = '20/05/2015'
 __copyright__ = 'Copyright 2015, The QGIS Project'
 
-import qgis  # NOQA
 
-from qgis.core import QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer, NULL
+from qgis.core import NULL, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 from qgis.gui import QgsGui
-from qgis.testing import start_app, unittest
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 start_app()
 
 
-class TestQgsRangeWidget(unittest.TestCase):
+class TestQgsRangeWidget(QgisTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         QgsGui.editorWidgetRegistry().initEditors()
 
     def setUp(self):
@@ -58,10 +58,10 @@ class TestQgsRangeWidget(unittest.TestCase):
         """
         rangewidget = self.__createRangeWidget()
 
-        rangewidget.setValue(1)
+        rangewidget.setValues(1, [])
         assert rangewidget.value() == 1
 
-        rangewidget.setValue(0)
+        rangewidget.setValues(0, [])
         assert rangewidget.value() == 0
 
     def test_range_widget_no_null(self):
@@ -70,10 +70,10 @@ class TestQgsRangeWidget(unittest.TestCase):
         """
         rangewidget = self.__createRangeWidget()
 
-        rangewidget.setValue(NULL)
+        rangewidget.setValues(NULL, [])
         assert rangewidget.value() == 0
 
-        rangewidget.setValue(None)
+        rangewidget.setValues(None, [])
         assert rangewidget.value() == 0
 
     def test_range_widget_null_allowed(self):
@@ -82,13 +82,13 @@ class TestQgsRangeWidget(unittest.TestCase):
         """
         rangewidget = self.__createRangeWidget(True)
 
-        rangewidget.setValue(NULL)
+        rangewidget.setValues(NULL, [])
         self.assertEqual(rangewidget.value(), NULL)
 
-        rangewidget.setValue(None)
+        rangewidget.setValues(None, [])
         self.assertEqual(rangewidget.value(), NULL)
 
-        rangewidget.setValue(0)
+        rangewidget.setValues(0, [])
         self.assertEqual(rangewidget.value(), 0)
 
 

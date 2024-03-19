@@ -38,7 +38,7 @@ class QgsCategorizeUsingStyleAlgorithm : public QgsProcessingAlgorithm
     QgsCategorizeUsingStyleAlgorithm();
     ~QgsCategorizeUsingStyleAlgorithm() override;
     void initAlgorithm( const QVariantMap &configuration = QVariantMap() ) override;
-    Flags flags() const override;
+    Qgis::ProcessingAlgorithmFlags flags() const override;
     QString name() const override;
     QString displayName() const override;
     QStringList tags() const override;
@@ -59,7 +59,7 @@ class QgsCategorizeUsingStyleAlgorithm : public QgsProcessingAlgorithm
     QString mField;
     QString mLayerId;
     QString mLayerName;
-    QgsWkbTypes::GeometryType mLayerGeometryType = QgsWkbTypes::UnknownGeometry;
+    Qgis::GeometryType mLayerGeometryType = Qgis::GeometryType::Unknown;
     QgsFields mLayerFields;
     QgsExpression mExpression;
     QgsExpressionContext mExpressionContext;

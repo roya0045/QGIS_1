@@ -39,9 +39,14 @@ class DummyMaterialSettings : public QgsAbstractMaterialSettings
     QByteArray dataDefinedVertexColorsAsByte( const QgsExpressionContext & ) const override {return QByteArray();}
 };
 
-class TestQgsMaterialRegistry : public QObject
+class TestQgsMaterialRegistry : public QgsTest
 {
     Q_OBJECT
+
+  public:
+    TestQgsMaterialRegistry()
+      : QgsTest( QStringLiteral( "3D Material Registry Tests" ), QStringLiteral( "3d" ) )
+    {}
 
   private slots:
     void initTestCase();
@@ -88,7 +93,6 @@ void TestQgsMaterialRegistry::metadata()
   QCOMPARE( metadata.visibleName(), QString( "display name" ) );
 
   //test creating material settings from metadata
-  const QVariantMap map;
   const std::unique_ptr< QgsAbstractMaterialSettings > material( metadata.create() );
   QVERIFY( material );
   DummyMaterialSettings *dummyMaterial = dynamic_cast<DummyMaterialSettings *>( material.get() );

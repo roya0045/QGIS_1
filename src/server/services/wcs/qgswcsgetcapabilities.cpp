@@ -142,13 +142,10 @@ namespace QgsWcs
     serviceElem.appendChild( nameElem );
 
     const QString title = QgsServerProjectUtils::owsServiceTitle( *project );
-    if ( !title.isEmpty() )
-    {
-      QDomElement titleElem = doc.createElement( QStringLiteral( "label" ) );
-      const QDomText titleText = doc.createTextNode( title );
-      titleElem.appendChild( titleText );
-      serviceElem.appendChild( titleElem );
-    }
+    QDomElement titleElem = doc.createElement( QStringLiteral( "label" ) );
+    const QDomText titleText = doc.createTextNode( title );
+    titleElem.appendChild( titleText );
+    serviceElem.appendChild( titleElem );
 
     const QString abstract = QgsServerProjectUtils::owsServiceAbstract( *project );
     if ( !abstract.isEmpty() )
@@ -289,7 +286,7 @@ namespace QgsWcs
       {
         continue;
       }
-      if ( layer->type() != QgsMapLayerType::RasterLayer )
+      if ( layer->type() != Qgis::LayerType::Raster )
       {
         continue;
       }

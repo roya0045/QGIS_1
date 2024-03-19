@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     OgrToPostGis.py
@@ -81,7 +79,7 @@ class OgrToPostGis(GdalAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(self.INPUT,
                                                               self.tr('Input layer'),
-                                                              types=[QgsProcessing.TypeVector]))
+                                                              types=[QgsProcessing.SourceType.TypeVector]))
         self.addParameter(QgsProcessingParameterString(self.SHAPE_ENCODING,
                                                        self.tr('Shape encoding'), "", optional=True))
         self.addParameter(QgsProcessingParameterEnum(self.GTYPE,
@@ -292,7 +290,7 @@ class OgrToPostGis(GdalAlgorithm):
         if len(table) == 0:
             table = layername.lower()
         if schema:
-            table = '{}.{}'.format(schema, table)
+            table = f'{schema}.{table}'
         arguments.append('-nln')
         arguments.append(table)
         if ssrs.isValid():

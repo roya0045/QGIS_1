@@ -16,10 +16,11 @@
 #ifndef QGSGCPTRANSFORMER_H
 #define QGSGCPTRANSFORMER_H
 
+#include <QObject>
 #include <gdal_alg.h>
-#include "qgspoint.h"
 #include "qgis_analysis.h"
 #include "qgis_sip.h"
+#include "qgspointxy.h"
 
 /**
  * \ingroup analysis
@@ -32,6 +33,8 @@
 */
 class ANALYSIS_EXPORT QgsGcpTransformerInterface SIP_ABSTRACT
 {
+    Q_GADGET
+
   public:
 
     /**
@@ -48,6 +51,7 @@ class ANALYSIS_EXPORT QgsGcpTransformerInterface SIP_ABSTRACT
       Projective, //!< Projective
       InvalidTransform = 65535 //!< Invalid transform
     };
+    Q_ENUM( TransformMethod )
 
     //! Constructor for QgsGcpTransformerInterface
     QgsGcpTransformerInterface() = default;
@@ -208,8 +212,8 @@ class ANALYSIS_EXPORT QgsHelmertGeorefTransform : public QgsGcpTransformerInterf
     struct HelmertParameters
     {
       QgsPointXY origin;
-      double scale;
-      double angle;
+      double scale = 0;
+      double angle = 0;
       bool invertYAxis = false;
     };
     HelmertParameters mHelmertParameters;

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsDatabaseSchemaModel
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -10,23 +9,16 @@ the Free Software Foundation; either version 2 of the License, or
 __author__ = 'Nyall Dawson'
 __date__ = '07/03/2020'
 __copyright__ = 'Copyright 2020, The QGIS Project'
-# This will get replaced with a git SHA1 when you do a git archive
-__revision__ = '$Format:%H$'
 
 import os
-from qgis.core import (
-    QgsDatabaseSchemaModel,
-    QgsProviderRegistry,
-)
-from qgis.PyQt.QtCore import (
-    QCoreApplication,
-    QModelIndex,
-    Qt
-)
-from qgis.testing import unittest, start_app
+
+from qgis.PyQt.QtCore import QCoreApplication, QModelIndex, Qt
+from qgis.core import QgsDatabaseSchemaModel, QgsProviderRegistry
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 
-class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
+class TestPyQgsDatabaseSchemaModel(QgisTestCase):
 
     # Provider test cases must define the string URI for the test
     uri = ''
@@ -36,6 +28,7 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super().setUpClass()
 
         QCoreApplication.setOrganizationName("QGIS_Test")
         QCoreApplication.setOrganizationDomain(cls.__name__)
@@ -53,12 +46,12 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
         self.assertGreaterEqual(model.rowCount(), 3)
         old_count = model.rowCount()
         self.assertEqual(model.columnCount(), 1)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
-        self.assertEqual(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), Qt.ToolTipRole), 'qgis_test')
-        self.assertIsNone(model.data(model.index(model.rowCount(), 0, QModelIndex()), Qt.DisplayRole))
+        self.assertEqual(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), Qt.ItemDataRole.ToolTipRole), 'qgis_test')
+        self.assertIsNone(model.data(model.index(model.rowCount(), 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
 
         model.refresh()
         self.assertEqual(model.rowCount(), old_count)
@@ -67,9 +60,9 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
         self.assertEqual(model.rowCount(), old_count)
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 1)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertIn('myNewSchema', schemas)
 
@@ -77,9 +70,9 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
         conn.createSchema('myNewSchema3')
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 3)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertIn('myNewSchema', schemas)
         self.assertIn('myNewSchema2', schemas)
@@ -90,9 +83,9 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
         conn.dropSchema('myNewSchema')
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 2)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertNotIn('myNewSchema', schemas)
         self.assertNotIn('myNewSchema2', schemas)
@@ -103,9 +96,9 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
         conn.dropSchema('myNewSchema4')
         model.refresh()
         self.assertEqual(model.rowCount(), old_count)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertNotIn('myNewSchema3', schemas)
         self.assertNotIn('myNewSchema4', schemas)
@@ -120,14 +113,14 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
         model.setAllowEmptySchema(True)
         self.assertEqual(model.rowCount(), old_count + 1)
 
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
-        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
-        self.assertIsNone(model.data(model.index(model.rowCount(), 0, QModelIndex()), Qt.DisplayRole))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
+        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
+        self.assertIsNone(model.data(model.index(model.rowCount(), 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
 
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 1)
@@ -136,75 +129,75 @@ class TestPyQgsDatabaseSchemaModel(unittest.TestCase):
         self.assertEqual(model.rowCount(), old_count + 1)
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 2)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertIn('myNewSchema', schemas)
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
-        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
+        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
 
         model.setAllowEmptySchema(False)
         self.assertEqual(model.rowCount(), old_count + 1)
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
         model.setAllowEmptySchema(True)
         self.assertEqual(model.rowCount(), old_count + 2)
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
-        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
+        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
 
         conn.createSchema('myNewSchema2')
         conn.createSchema('myNewSchema3')
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 4)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertIn('myNewSchema', schemas)
         self.assertIn('myNewSchema2', schemas)
         self.assertIn('myNewSchema3', schemas)
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
-        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
+        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
 
         conn.createSchema('myNewSchema4')
         conn.dropSchema('myNewSchema2')
         conn.dropSchema('myNewSchema')
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 3)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertNotIn('myNewSchema', schemas)
         self.assertNotIn('myNewSchema2', schemas)
         self.assertIn('myNewSchema3', schemas)
         self.assertIn('myNewSchema4', schemas)
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
-        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
+        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
 
         conn.dropSchema('myNewSchema3')
         conn.dropSchema('myNewSchema4')
         model.refresh()
         self.assertEqual(model.rowCount(), old_count + 1)
-        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.DisplayRole) for r in range(model.rowCount())]
+        schemas = [model.data(model.index(r, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole) for r in range(model.rowCount())]
         self.assertIn('public', schemas)
-        self.assertIn('CamelCaseSchema', schemas)
+        self.assertIn("CamelCase'singlequote'Schema", schemas)
         self.assertIn('qgis_test', schemas)
         self.assertNotIn('myNewSchema3', schemas)
         self.assertNotIn('myNewSchema4', schemas)
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
-        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
+        self.assertFalse(model.data(model.index(schemas.index('qgis_test'), 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
 
         model.setAllowEmptySchema(False)
         self.assertEqual(model.rowCount(), old_count)
-        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), Qt.DisplayRole))
-        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.RoleEmpty))
+        self.assertTrue(model.data(model.index(0, 0, QModelIndex()), Qt.ItemDataRole.DisplayRole))
+        self.assertFalse(model.data(model.index(0, 0, QModelIndex()), QgsDatabaseSchemaModel.Role.RoleEmpty))
 
 
 if __name__ == '__main__':

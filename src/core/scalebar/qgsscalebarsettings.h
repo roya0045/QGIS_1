@@ -19,7 +19,6 @@
 
 #include "qgis_core.h"
 #include "qgis.h"
-#include "qgsunittypes.h"
 #include "qgstextformat.h"
 #include <QColor>
 #include <QFont>
@@ -35,7 +34,6 @@ class QgsFillSymbol;
  * \ingroup core
  * \brief The QgsScaleBarSettings class stores the appearance and layout settings
  * for scalebar drawing with QgsScaleBarRenderer.
- * \since QGIS 3.0
 */
 class CORE_EXPORT QgsScaleBarSettings
 {
@@ -228,13 +226,13 @@ class CORE_EXPORT QgsScaleBarSettings
      * Returns the distance units used by the scalebar.
      * \see setUnits()
      */
-    QgsUnitTypes::DistanceUnit units() const { return mUnits; }
+    Qgis::DistanceUnit units() const { return mUnits; }
 
     /**
      * Sets the distance \a units used by the scalebar.
      * \see units()
      */
-    void setUnits( QgsUnitTypes::DistanceUnit units ) { mUnits = units; }
+    void setUnits( Qgis::DistanceUnit units ) { mUnits = units; }
 
     /**
      * Returns the number of map units per scale bar unit used by the scalebar.
@@ -299,12 +297,12 @@ class CORE_EXPORT QgsScaleBarSettings
       if ( font.pointSizeF() > 0 )
       {
         mTextFormat.setSize( font.pointSizeF() );
-        mTextFormat.setSizeUnit( QgsUnitTypes::RenderPoints );
+        mTextFormat.setSizeUnit( Qgis::RenderUnit::Points );
       }
       else if ( font.pixelSize() > 0 )
       {
         mTextFormat.setSize( font.pixelSize() );
-        mTextFormat.setSizeUnit( QgsUnitTypes::RenderPixels );
+        mTextFormat.setSizeUnit( Qgis::RenderUnit::Pixels );
       }
     }
 
@@ -713,7 +711,7 @@ class CORE_EXPORT QgsScaleBarSettings
 
     Alignment mAlignment = AlignLeft;
 
-    QgsUnitTypes::DistanceUnit mUnits = QgsUnitTypes::DistanceMeters;
+    Qgis::DistanceUnit mUnits = Qgis::DistanceUnit::Meters;
 
 
     std::unique_ptr< QgsNumericFormat > mNumericFormat;

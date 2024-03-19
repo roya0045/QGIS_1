@@ -30,6 +30,7 @@
 #include "qgspolygon.h"
 #include "qgsgeometry.h"
 #include "qgsogrutils.h"
+#include "qgscoordinatereferencesystem.h"
 
 #include <QString>
 #include <QStringList>
@@ -51,7 +52,7 @@
 #include <memory>
 #include <mutex>
 
-#define LOG( x ) { QgsDebugMsg( x ); QgsMessageLog::logMessage( x, QObject::tr( "DWG/DXF import" ) ); }
+#define LOG( x ) { QgsDebugMsgLevel( x, 2 ); QgsMessageLog::logMessage( x, QObject::tr( "DWG/DXF import" ) ); }
 #define ONCE( x ) { static bool show=true; if( show ) LOG( x ); show=false; }
 #define NYI( x ) { static bool show=true; if( show ) LOG( QObject::tr("Not yet implemented %1").arg( x ) ); show=false; }
 #define SETSTRING(a)  setString(dfn, f, #a, decode(data.a))
@@ -216,16 +217,16 @@ QgsDwgImporter::QgsDwgImporter( const QString &database, const QgsCoordinateRefe
     DRW::setCustomDebugPrinter( new QgsDrwDebugPrinter( 4 ) );
   } );
 
-  const QString crswkt( crs.toWkt( QgsCoordinateReferenceSystem::WKT_PREFERRED_GDAL ) );
+  const QString crswkt( crs.toWkt( Qgis::CrsWktVariant::PreferredGdal ) );
   mCrsH = QgsOgrUtils::crsToOGRSpatialReference( crs );
-  QgsDebugMsg( QStringLiteral( "CRS %1[%2]: %3" ).arg( mCrs ).arg( ( qint64 ) mCrsH, 0, 16 ).arg( crswkt ) );
+  QgsDebugMsgLevel( QStringLiteral( "CRS %1[%2]: %3" ).arg( mCrs ).arg( ( qint64 ) mCrsH, 0, 16 ).arg( crswkt ), 2 );
 }
 
 bool QgsDwgImporter::exec( const QString &sql, bool logError )
 {
   if ( !mDs )
   {
-    QgsDebugMsg( QStringLiteral( "No data source" ) );
+    QgsDebugError( QStringLiteral( "No data source" ) );
     return false;
   }
 
@@ -234,7 +235,7 @@ bool QgsDwgImporter::exec( const QString &sql, bool logError )
   OGRLayerH layer = OGR_DS_ExecuteSQL( mDs.get(), sql.toUtf8().constData(), nullptr, nullptr );
   if ( layer )
   {
-    QgsDebugMsg( QStringLiteral( "Unexpected result set" ) );
+    QgsDebugError( QStringLiteral( "Unexpected result set" ) );
     OGR_DS_ReleaseResultSet( mDs.get(), layer );
     return false;
   }
@@ -254,7 +255,7 @@ OGRLayerH QgsDwgImporter::query( const QString &sql )
 {
   if ( !mDs )
   {
-    QgsDebugMsg( QStringLiteral( "No data source" ) );
+    QgsDebugError( QStringLiteral( "No data source" ) );
     return nullptr;
   }
 
@@ -263,7 +264,7 @@ OGRLayerH QgsDwgImporter::query( const QString &sql )
   OGRLayerH layer = OGR_DS_ExecuteSQL( mDs.get(), sql.toUtf8().constData(), nullptr, nullptr );
   if ( !layer )
   {
-    QgsDebugMsg( QStringLiteral( "Result expected" ) );
+    QgsDebugError( QStringLiteral( "Result expected" ) );
     return layer;
   }
 
@@ -867,7 +868,7 @@ bool QgsDwgImporter::import( const QString &drawing, QString &error, bool doExpa
 
   if ( result != DRW::BAD_NONE )
   {
-    QgsDebugMsg( QStringLiteral( "error:%1" ).arg( error ) );
+    QgsDebugError( QStringLiteral( "error:%1" ).arg( error ) );
     return false;
   }
 
@@ -971,7 +972,7 @@ void QgsDwgImporter::addHeader( const DRW_Header *data )
 
           mCodec = QTextCodec::codecForName( encodingMap.value( v, QStringLiteral( "CP1252" ) ).toLocal8Bit() );
 
-          QgsDebugMsg( QString( "codec set to %1" ).arg( mCodec ? QString( mCodec->name() ) : QStringLiteral( "(unset)" ) ) );
+          QgsDebugMsgLevel( QString( "codec set to %1" ).arg( mCodec ? QString( mCodec->name() ) : QStringLiteral( "(unset)" ) ), 2 );
         }
         break;
 
@@ -1026,11 +1027,7 @@ void QgsDwgImporter::addLType( const DRW_LType &data )
   setString( dfn, f.get(), QStringLiteral( "name" ), name );
   SETSTRINGPTR( desc );
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-  QVector<double> path( QVector<double>::fromStdVector( data.path ) );
-#else
   QVector<double> path( data.path.begin(), data.path.end() );
-#endif
   OGR_F_SetFieldDoubleList( f.get(), OGR_FD_GetFieldIndex( dfn, "path" ), path.size(), path.data() );
 
   QVector<double> upath;
@@ -1447,7 +1444,7 @@ bool QgsDwgImporter::createFeature( OGRLayerH layer, OGRFeatureH f, const QgsAbs
   OGRGeometryH geom;
   if ( OGR_G_CreateFromWkb( ( unsigned char * ) wkb.constData(), nullptr, &geom, wkb.size() ) != OGRERR_NONE )
   {
-    QgsDebugMsg( QStringLiteral( "Could not create geometry [%1][%2]" ).arg( g->asWkt() ).arg( QString::fromUtf8( CPLGetLastErrorMsg() ) ) );
+    QgsDebugError( QStringLiteral( "Could not create geometry [%1][%2]" ).arg( g->asWkt() ).arg( QString::fromUtf8( CPLGetLastErrorMsg() ) ) );
     LOG( tr( "Could not create geometry [%1]" ).arg( QString::fromUtf8( CPLGetLastErrorMsg() ) ) );
     return false;
   }
@@ -1479,7 +1476,7 @@ void QgsDwgImporter::addBlock( const DRW_Block &data )
   setString( dfn, f.get(), QStringLiteral( "name" ), name );
   SETINTEGERPTR( flags );
 
-  const QgsPoint p( QgsWkbTypes::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
+  const QgsPoint p( Qgis::WkbType::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
 
   if ( !createFeature( layer, f.get(), p ) )
   {
@@ -1507,7 +1504,7 @@ void QgsDwgImporter::addEntity( OGRFeatureDefnH dfn, OGRFeatureH f, const DRW_En
   mEntities++;
   if ( mTime.elapsed() > 1000 )
   {
-    progress( tr( "%1 entities processed." ).arg( mEntities ) );
+    progress( tr( "%n entities processed.", nullptr, mEntities ) );
     mTime.restart();
   }
 
@@ -1547,7 +1544,7 @@ void QgsDwgImporter::addPoint( const DRW_Point &data )
 
   setPoint( dfn, f, QStringLiteral( "ext" ), data.extPoint );
 
-  const QgsPoint p( QgsWkbTypes::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
+  const QgsPoint p( Qgis::WkbType::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
   if ( !createFeature( layer, f, p ) )
   {
     LOG( tr( "Could not add %2 [%1]" )
@@ -1579,9 +1576,9 @@ bool QgsDwgImporter::circularStringFromArc( const DRW_Arc &data, QgsCircularStri
   const double a2 = data.isccw ? data.endangle : -data.endangle;
 
   c.setPoints( QgsPointSequence()
-               << QgsPoint( QgsWkbTypes::PointZ, data.basePoint.x + std::cos( a0 ) * data.radius, data.basePoint.y + std::sin( a0 ) * data.radius )
-               << QgsPoint( QgsWkbTypes::PointZ, data.basePoint.x + std::cos( a1 ) * data.radius, data.basePoint.y + std::sin( a1 ) * data.radius )
-               << QgsPoint( QgsWkbTypes::PointZ, data.basePoint.x + std::cos( a2 ) * data.radius, data.basePoint.y + std::sin( a2 ) * data.radius )
+               << QgsPoint( Qgis::WkbType::PointZ, data.basePoint.x + std::cos( a0 ) * data.radius, data.basePoint.y + std::sin( a0 ) * data.radius )
+               << QgsPoint( Qgis::WkbType::PointZ, data.basePoint.x + std::cos( a1 ) * data.radius, data.basePoint.y + std::sin( a1 ) * data.radius )
+               << QgsPoint( Qgis::WkbType::PointZ, data.basePoint.x + std::cos( a2 ) * data.radius, data.basePoint.y + std::sin( a2 ) * data.radius )
              );
 
   return true;
@@ -1592,7 +1589,7 @@ void QgsDwgImporter::addArc( const DRW_Arc &data )
   QgsCircularString c;
   if ( !circularStringFromArc( data, c ) )
   {
-    LOG( tr( "Could not create circular string from  %2 [%1]" )
+    LOG( tr( "Could not create circular string from %2 [%1]" )
          .arg( QString::fromUtf8( CPLGetLastErrorMsg() ), tr( "arc" ) )
        );
     return;
@@ -1635,9 +1632,9 @@ void QgsDwgImporter::addCircle( const DRW_Circle &data )
 
   QgsCircularString c;
   c.setPoints( QgsPointSequence()
-               << QgsPoint( QgsWkbTypes::PointZ, data.basePoint.x - data.radius, data.basePoint.y, data.basePoint.z )
-               << QgsPoint( QgsWkbTypes::PointZ, data.basePoint.x + data.radius, data.basePoint.y, data.basePoint.z )
-               << QgsPoint( QgsWkbTypes::PointZ, data.basePoint.x - data.radius, data.basePoint.y, data.basePoint.z )
+               << QgsPoint( Qgis::WkbType::PointZ, data.basePoint.x - data.radius, data.basePoint.y, data.basePoint.z )
+               << QgsPoint( Qgis::WkbType::PointZ, data.basePoint.x + data.radius, data.basePoint.y, data.basePoint.z )
+               << QgsPoint( Qgis::WkbType::PointZ, data.basePoint.x - data.radius, data.basePoint.y, data.basePoint.z )
              );
 
   if ( !createFeature( layer, f, c ) )
@@ -1660,7 +1657,7 @@ bool QgsDwgImporter::curveFromLWPolyline( const DRW_LWPolyline &data, QgsCompoun
   const size_t vertexnum = data.vertlist.size();
   if ( vertexnum == 0 )
   {
-    QgsDebugMsg( QStringLiteral( "polyline without points" ) );
+    QgsDebugError( QStringLiteral( "polyline without points" ) );
     return false;
   }
 
@@ -1674,7 +1671,7 @@ bool QgsDwgImporter::curveFromLWPolyline( const DRW_LWPolyline &data, QgsCompoun
     Q_ASSERT( data.vertlist[i0] );
     QgsDebugMsgLevel( QStringLiteral( "%1: %2,%3 bulge:%4" ).arg( i ).arg( data.vertlist[i0]->x ).arg( data.vertlist[i0]->y ).arg( data.vertlist[i0]->bulge ), 5 );
 
-    const QgsPoint p( QgsWkbTypes::PointZ, data.vertlist[i0]->x, data.vertlist[i0]->y, data.elevation );
+    const QgsPoint p( Qgis::WkbType::PointZ, data.vertlist[i0]->x, data.vertlist[i0]->y, data.elevation );
     s << p;
 
     const bool hasBulge( data.vertlist[i0]->bulge != 0.0 );
@@ -1710,7 +1707,7 @@ bool QgsDwgImporter::curveFromLWPolyline( const DRW_LWPolyline &data, QgsCompoun
       const double r = c / 2.0 / std::sin( a );
       const double h = r * ( 1 - std::cos( a ) );
 
-      s << QgsPoint( QgsWkbTypes::PointZ,
+      s << QgsPoint( Qgis::WkbType::PointZ,
                      data.vertlist[i0]->x + 0.5 * dx + h * dy / c,
                      data.vertlist[i0]->y + 0.5 * dy - h * dx / c,
                      data.elevation );
@@ -1726,7 +1723,7 @@ void QgsDwgImporter::addLWPolyline( const DRW_LWPolyline &data )
   const size_t vertexnum = data.vertlist.size();
   if ( vertexnum == 0 )
   {
-    QgsDebugMsg( QStringLiteral( "LWPolyline without vertices" ) );
+    QgsDebugError( QStringLiteral( "LWPolyline without vertices" ) );
     return;
   }
 
@@ -1741,8 +1738,8 @@ void QgsDwgImporter::addLWPolyline( const DRW_LWPolyline &data )
     const size_t i0 = i % vertexnum;
     const size_t i1 = ( i + 1 ) % vertexnum;
 
-    const QgsPoint p0( QgsWkbTypes::PointZ, data.vertlist[i0]->x, data.vertlist[i0]->y, data.elevation );
-    const QgsPoint p1( QgsWkbTypes::PointZ, data.vertlist[i1]->x, data.vertlist[i1]->y, data.elevation );
+    const QgsPoint p0( Qgis::WkbType::PointZ, data.vertlist[i0]->x, data.vertlist[i0]->y, data.elevation );
+    const QgsPoint p1( Qgis::WkbType::PointZ, data.vertlist[i1]->x, data.vertlist[i1]->y, data.elevation );
     const double staWidth = data.vertlist[i0]->stawidth == 0.0 ? data.width : data.vertlist[i0]->stawidth;
     const double endWidth = data.vertlist[i0]->endwidth == 0.0 ? data.width : data.vertlist[i0]->endwidth;
     const bool hasBulge( data.vertlist[i0]->bulge != 0.0 );
@@ -1804,7 +1801,7 @@ void QgsDwgImporter::addLWPolyline( const DRW_LWPolyline &data )
 
     if ( p0 == p1 )
     {
-      QgsDebugMsg( QStringLiteral( "i:%1,%2 empty segment skipped" ).arg( i0 ).arg( i1 ) );
+      QgsDebugMsgLevel( QStringLiteral( "i:%1,%2 empty segment skipped" ).arg( i0 ).arg( i1 ), 2 );
       continue;
     }
 
@@ -1826,7 +1823,7 @@ void QgsDwgImporter::addLWPolyline( const DRW_LWPolyline &data )
         const double r = c / 2.0 / std::sin( a );
         const double h = r * ( 1 - std::cos( a ) );
 
-        s << QgsPoint( QgsWkbTypes::PointZ,
+        s << QgsPoint( Qgis::WkbType::PointZ,
                        p0.x() + 0.5 * dx + h * dy / c,
                        p0.y() + 0.5 * dy - h * dx / c,
                        data.elevation );
@@ -1866,7 +1863,7 @@ void QgsDwgImporter::addLWPolyline( const DRW_LWPolyline &data )
                    );
       ls->addZValue( data.elevation );
       poly.setExteriorRing( ls );
-      // QgsDebugMsg( QStringLiteral( "write poly:%1" ).arg( poly.asWkt() ) );
+      // QgsDebugMsgLevel( QStringLiteral( "write poly:%1" ).arg( poly.asWkt() ), 2 );
 
       if ( !createFeature( layer, f, poly ) )
       {
@@ -1910,7 +1907,7 @@ void QgsDwgImporter::addLWPolyline( const DRW_LWPolyline &data )
 
     setPoint( dfn, f, QStringLiteral( "ext" ), data.extPoint );
 
-    // QgsDebugMsg( QStringLiteral( "write curve:%1" ).arg( cc.asWkt() ) );
+    // QgsDebugMsgLevel( QStringLiteral( "write curve:%1" ).arg( cc.asWkt() ), 2 );
 
     if ( !createFeature( layer, f, cc ) )
     {
@@ -1926,7 +1923,7 @@ void QgsDwgImporter::addPolyline( const DRW_Polyline &data )
   const size_t vertexnum = data.vertlist.size();
   if ( vertexnum == 0 )
   {
-    QgsDebugMsg( QStringLiteral( "Polyline without vertices" ) );
+    QgsDebugError( QStringLiteral( "Polyline without vertices" ) );
     return;
   }
 
@@ -1941,8 +1938,8 @@ void QgsDwgImporter::addPolyline( const DRW_Polyline &data )
     const size_t i0 = i % vertexnum;
     const size_t i1 = ( i + 1 ) % vertexnum;
 
-    const QgsPoint p0( QgsWkbTypes::PointZ, data.vertlist[i0]->basePoint.x, data.vertlist[i0]->basePoint.y, data.vertlist[i0]->basePoint.z );
-    const QgsPoint p1( QgsWkbTypes::PointZ, data.vertlist[i1]->basePoint.x, data.vertlist[i1]->basePoint.y, data.vertlist[i1]->basePoint.z );
+    const QgsPoint p0( Qgis::WkbType::PointZ, data.vertlist[i0]->basePoint.x, data.vertlist[i0]->basePoint.y, data.vertlist[i0]->basePoint.z );
+    const QgsPoint p1( Qgis::WkbType::PointZ, data.vertlist[i1]->basePoint.x, data.vertlist[i1]->basePoint.y, data.vertlist[i1]->basePoint.z );
     const double staWidth = data.vertlist[i0]->endwidth == 0.0 ? data.defendwidth : data.vertlist[i0]->stawidth;
     const double endWidth = data.vertlist[i0]->stawidth == 0.0 ? data.defstawidth : data.vertlist[i0]->endwidth;
     const bool hasBulge( data.vertlist[i0]->bulge != 0.0 );
@@ -1997,7 +1994,7 @@ void QgsDwgImporter::addPolyline( const DRW_Polyline &data )
 
         setPoint( dfn, f, QStringLiteral( "ext" ), data.extPoint );
 
-        // QgsDebugMsg( QStringLiteral( "write curve:%1" ).arg( cc.asWkt() ) );
+        // QgsDebugMsgLevel( QStringLiteral( "write curve:%1" ).arg( cc.asWkt() ), 2 );
 
         if ( !createFeature( layer, f, cc ) )
         {
@@ -2029,7 +2026,7 @@ void QgsDwgImporter::addPolyline( const DRW_Polyline &data )
         const double r = c / 2.0 / std::sin( a );
         const double h = r * ( 1 - std::cos( a ) );
 
-        s << QgsPoint( QgsWkbTypes::PointZ,
+        s << QgsPoint( Qgis::WkbType::PointZ,
                        p0.x() + 0.5 * dx + h * dy / c,
                        p0.y() + 0.5 * dy - h * dx / c,
                        p0.z() + 0.5 * dz );
@@ -2073,7 +2070,7 @@ void QgsDwgImporter::addPolyline( const DRW_Polyline &data )
       s.last().addZValue( p0.z() );
       ls->setPoints( s );
       poly.setExteriorRing( ls );
-      // QgsDebugMsg( QStringLiteral( "write poly:%1" ).arg( poly.asWkt() ) );
+      // QgsDebugMsgLevel( QStringLiteral( "write poly:%1" ).arg( poly.asWkt() ), 2 );
 
       if ( !createFeature( layer, f, poly ) )
       {
@@ -2117,7 +2114,7 @@ void QgsDwgImporter::addPolyline( const DRW_Polyline &data )
 
     setPoint( dfn, f, QStringLiteral( "ext" ), data.extPoint );
 
-    // QgsDebugMsg( QStringLiteral( "write curve:%1" ).arg( cc.asWkt() ) );
+    // QgsDebugMsgLevel( QStringLiteral( "write curve:%1" ).arg( cc.asWkt() ), 2 );
 
     if ( !createFeature( layer, f, cc ) )
     {
@@ -2291,9 +2288,9 @@ bool QgsDwgImporter::lineFromSpline( const DRW_Spline &data, QgsLineString &l )
 {
   if ( data.degree < 1 || data.degree > 3 )
   {
-    QgsDebugMsg( QStringLiteral( "%1: unknown spline degree %2" )
-                 .arg( data.handle, 0, 16 )
-                 .arg( data.degree ) );
+    QgsDebugError( QStringLiteral( "%1: unknown spline degree %2" )
+                   .arg( data.handle, 0, 16 )
+                   .arg( data.degree ) );
     return false;
   }
 
@@ -2412,7 +2409,7 @@ void QgsDwgImporter::addInsert( const DRW_Insert &data )
   SETDOUBLE( colspace );
   SETDOUBLE( rowspace );
 
-  const QgsPoint p( QgsWkbTypes::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
+  const QgsPoint p( Qgis::WkbType::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
 
   if ( !createFeature( layer, f, p ) )
   {
@@ -2455,10 +2452,10 @@ void QgsDwgImporter::addSolid( const DRW_Solid &data )
   // pt1 pt2
   // pt3 pt4
   QgsPointSequence s;
-  s << QgsPoint( QgsWkbTypes::PointZ,   data.basePoint.x,   data.basePoint.y, data.basePoint.z );
-  s << QgsPoint( QgsWkbTypes::PointZ,    data.secPoint.x,    data.secPoint.y, data.basePoint.z );
-  s << QgsPoint( QgsWkbTypes::PointZ, data.forthPoint.x, data.forthPoint.y, data.basePoint.z );
-  s << QgsPoint( QgsWkbTypes::PointZ,  data.thirdPoint.x,  data.thirdPoint.y, data.basePoint.z );
+  s << QgsPoint( Qgis::WkbType::PointZ,   data.basePoint.x,   data.basePoint.y, data.basePoint.z );
+  s << QgsPoint( Qgis::WkbType::PointZ,    data.secPoint.x,    data.secPoint.y, data.basePoint.z );
+  s << QgsPoint( Qgis::WkbType::PointZ, data.forthPoint.x, data.forthPoint.y, data.basePoint.z );
+  s << QgsPoint( Qgis::WkbType::PointZ,  data.thirdPoint.x,  data.thirdPoint.y, data.basePoint.z );
   s << s[0];
 
   QgsLineString *ls = new QgsLineString();
@@ -2501,7 +2498,7 @@ void QgsDwgImporter::addMText( const DRW_MText &data )
 
   setPoint( dfn, f, QStringLiteral( "ext" ), data.extPoint );
 
-  const QgsPoint p( QgsWkbTypes::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
+  const QgsPoint p( Qgis::WkbType::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z );
 
   if ( !createFeature( layer, f, p ) )
   {
@@ -2541,7 +2538,7 @@ void QgsDwgImporter::addText( const DRW_Text &data )
 
   setPoint( dfn, f, QStringLiteral( "ext" ), data.extPoint );
 
-  const QgsPoint p( QgsWkbTypes::PointZ,
+  const QgsPoint p( Qgis::WkbType::PointZ,
                     ( data.alignH > 0 || data.alignV > 0 ) ? data.secPoint.x : data.basePoint.x,
                     ( data.alignH > 0 || data.alignV > 0 ) ? data.secPoint.y : data.basePoint.y,
                     ( data.alignH > 0 || data.alignV > 0 ) ? data.secPoint.z : data.basePoint.z );
@@ -2659,8 +2656,8 @@ void QgsDwgImporter::addHatch( const DRW_Hatch *pdata )
       {
         QgsLineString *ls = new QgsLineString();
         ls->setPoints( QgsPointSequence()
-                       << QgsPoint( QgsWkbTypes::PointZ, l->basePoint.x, l->basePoint.y, l->basePoint.z )
-                       << QgsPoint( QgsWkbTypes::PointZ, l->secPoint.x, l->secPoint.y, l->secPoint.z ) );
+                       << QgsPoint( Qgis::WkbType::PointZ, l->basePoint.x, l->basePoint.y, l->basePoint.z )
+                       << QgsPoint( Qgis::WkbType::PointZ, l->secPoint.x, l->secPoint.y, l->secPoint.z ) );
 
         if ( j > 0 )
           ls->moveVertex( QgsVertexId( 0, 0, 0 ), cc->endPoint() );
@@ -2689,16 +2686,16 @@ void QgsDwgImporter::addHatch( const DRW_Hatch *pdata )
       }
       else
       {
-        QgsDebugMsg( QStringLiteral( "unknown obj %1.%2: %3" ).arg( i ).arg( j ).arg( typeid( *entity ).name() ) );
+        QgsDebugError( QStringLiteral( "unknown obj %1.%2: %3" ).arg( i ).arg( j ).arg( typeid( *entity ).name() ) );
       }
 
 #if 0
-      QgsDebugMsg( QStringLiteral( "curve %1.%2\n  start %3\n  end   %4\n  compare %5" )
-                   .arg( i ).arg( j )
-                   .arg( cc->startPoint().asWkt() )
-                   .arg( cc->endPoint().asWkt() )
-                   .arg( cc->startPoint() == cc->endPoint() )
-                 );
+      QgsDebugMsgLevel( QStringLiteral( "curve %1.%2\n  start %3\n  end   %4\n  compare %5" )
+                        .arg( i ).arg( j )
+                        .arg( cc->startPoint().asWkt() )
+                        .arg( cc->endPoint().asWkt() )
+                        .arg( cc->startPoint() == cc->endPoint() ), 2
+                      );
 #endif
     }
 
@@ -2706,12 +2703,12 @@ void QgsDwgImporter::addHatch( const DRW_Hatch *pdata )
 
     if ( i == 0 )
     {
-      // QgsDebugMsg( QStringLiteral( "set exterior ring:%1" ).arg( cc->asWkt() ) );
+      // QgsDebugMsgLevel( QStringLiteral( "set exterior ring:%1" ).arg( cc->asWkt() ), 2 );
       p.setExteriorRing( cc );
     }
     else
     {
-      // QgsDebugMsg( QStringLiteral( "set interior ring:%1" ).arg( cc->asWkt() ) );
+      // QgsDebugMsgLevel( QStringLiteral( "set interior ring:%1" ).arg( cc->asWkt() ), 2 );
       p.addInteriorRing( cc );
     }
   }
@@ -2742,8 +2739,8 @@ void QgsDwgImporter::addLine( const DRW_Line &data )
   QgsLineString l;
 
   l.setPoints( QgsPointSequence()
-               << QgsPoint( QgsWkbTypes::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z )
-               << QgsPoint( QgsWkbTypes::PointZ, data.secPoint.x, data.secPoint.y, data.secPoint.z ) );
+               << QgsPoint( Qgis::WkbType::PointZ, data.basePoint.x, data.basePoint.y, data.basePoint.z )
+               << QgsPoint( Qgis::WkbType::PointZ, data.secPoint.x, data.secPoint.y, data.secPoint.z ) );
 
   if ( !createFeature( layer, f, l ) )
   {
@@ -2795,7 +2792,7 @@ bool QgsDwgImporter::expandInserts( QString &error )
   OGRLayerH blocks = OGR_DS_GetLayerByName( mDs.get(), "blocks" );
   if ( !blocks )
   {
-    QgsDebugMsg( QStringLiteral( "could not open layer 'blocks'" ) );
+    QgsDebugError( QStringLiteral( "could not open layer 'blocks'" ) );
     return false;
   }
 
@@ -2806,7 +2803,7 @@ bool QgsDwgImporter::expandInserts( QString &error )
   const int handleIdx = OGR_FD_GetFieldIndex( dfn, "handle" );
   if ( nameIdx < 0 || handleIdx < 0 )
   {
-    QgsDebugMsg( QStringLiteral( "not all fields found (nameIdx=%1 handleIdx=%2)" ).arg( nameIdx ).arg( handleIdx ) );
+    QgsDebugError( QStringLiteral( "not all fields found (nameIdx=%1 handleIdx=%2)" ).arg( nameIdx ).arg( handleIdx ) );
     return false;
   }
 
@@ -2829,7 +2826,7 @@ bool QgsDwgImporter::expandInserts( QString &error )
     const QgsGeometry g( QgsOgrUtils::ogrGeometryToQgsGeometry( ogrG ) );
     if ( g.isNull() )
     {
-      QgsDebugMsg( QStringLiteral( "%1: could not copy geometry" ).arg( OGR_F_GetFID( f.get() ) ) );
+      QgsDebugError( QStringLiteral( "%1: could not copy geometry" ).arg( OGR_F_GetFID( f.get() ) ) );
       continue;
     }
 
@@ -2842,11 +2839,11 @@ bool QgsDwgImporter::expandInserts( QString &error )
 
 bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
 {
-  QgsDebugMsg( QString( "expanding block:%1" ).arg( block ) );
+  QgsDebugMsgLevel( QString( "expanding block:%1" ).arg( block ), 2 );
   OGRLayerH inserts = OGR_DS_ExecuteSQL( mDs.get(), QStringLiteral( "SELECT * FROM inserts WHERE block=%1" ).arg( block ).toUtf8().constData(), nullptr, nullptr );
   if ( !inserts )
   {
-    QgsDebugMsg( QStringLiteral( "could not query layer 'inserts'" ) );
+    QgsDebugError( QStringLiteral( "could not query layer 'inserts'" ) );
     return false;
   }
 
@@ -2864,15 +2861,15 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
   const int linewidthIdx = OGR_FD_GetFieldIndex( dfn, "linewidth" );
   if ( xscaleIdx < 0 || yscaleIdx < 0 || zscaleIdx < 0 || angleIdx < 0 || nameIdx < 0 || layerIdx < 0 || linetypeIdx < 0 || colorIdx < 0 || linewidthIdx < 0 )
   {
-    QgsDebugMsg( QStringLiteral( "not all fields found (nameIdx=%1 xscaleIdx=%2 yscaleIdx=%3 zscaleIdx=%4 angleIdx=%5 layerIdx=%6 linetypeIdx=%7 color=%8 linewidthIdx=%9)" )
-                 .arg( nameIdx )
-                 .arg( xscaleIdx ).arg( yscaleIdx ).arg( zscaleIdx )
-                 .arg( angleIdx )
-                 .arg( layerIdx )
-                 .arg( linetypeIdx )
-                 .arg( colorIdx )
-                 .arg( linewidthIdx )
-               );
+    QgsDebugError( QStringLiteral( "not all fields found (nameIdx=%1 xscaleIdx=%2 yscaleIdx=%3 zscaleIdx=%4 angleIdx=%5 layerIdx=%6 linetypeIdx=%7 color=%8 linewidthIdx=%9)" )
+                   .arg( nameIdx )
+                   .arg( xscaleIdx ).arg( yscaleIdx ).arg( zscaleIdx )
+                   .arg( angleIdx )
+                   .arg( layerIdx )
+                   .arg( linetypeIdx )
+                   .arg( colorIdx )
+                   .arg( linewidthIdx )
+                 );
     return false;
   }
 
@@ -2895,7 +2892,7 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
     }
     else if ( i % 1000 == 0 )
     {
-      QgsDebugMsg( QStringLiteral( "%1: expanding insert %2/%3…" ).arg( block, 0, 16 ).arg( i ).arg( n ) );
+      QgsDebugMsgLevel( QStringLiteral( "%1: expanding insert %2/%3…" ).arg( block, 0, 16 ).arg( i ).arg( n ), 2 );
     }
 
     insert.reset( OGR_L_GetNextFeature( inserts ) );
@@ -2905,14 +2902,14 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
     OGRGeometryH ogrG = OGR_F_GetGeometryRef( insert.get() );
     if ( !ogrG )
     {
-      QgsDebugMsg( QStringLiteral( "%1: insert without geometry" ).arg( OGR_F_GetFID( insert.get() ) ) );
+      QgsDebugError( QStringLiteral( "%1: insert without geometry" ).arg( OGR_F_GetFID( insert.get() ) ) );
       continue;
     }
 
     const QgsGeometry g( QgsOgrUtils::ogrGeometryToQgsGeometry( ogrG ) );
     if ( g.isNull() )
     {
-      QgsDebugMsg( QStringLiteral( "%1: could not copy geometry" ).arg( OGR_F_GetFID( insert.get() ) ) );
+      QgsDebugError( QStringLiteral( "%1: could not copy geometry" ).arg( OGR_F_GetFID( insert.get() ) ) );
       continue;
     }
 
@@ -2927,14 +2924,14 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
     const QString blockLinetype = QString::fromUtf8( OGR_F_GetFieldAsString( insert.get(), linetypeIdx ) );
     if ( blockLinetype == QLatin1String( "1" ) )
     {
-      QgsDebugMsg( QStringLiteral( "blockLinetype == 1" ) );
+      QgsDebugMsgLevel( QStringLiteral( "blockLinetype == 1" ), 2 );
     }
     const double blockLinewidth = OGR_F_GetFieldAsDouble( insert.get(), linewidthIdx );
 
     const int handle = mBlockNames.value( name, -1 );
     if ( handle < 0 )
     {
-      QgsDebugMsg( QStringLiteral( "Block '%1' not found" ).arg( name ) );
+      QgsDebugError( QStringLiteral( "Block '%1' not found" ).arg( name ) );
       continue;
     }
 
@@ -2961,7 +2958,7 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
       OGRLayerH src = OGR_DS_ExecuteSQL( mDs.get(), QStringLiteral( "SELECT * FROM %1 WHERE block=%2" ).arg( name ).arg( handle ).toUtf8().constData(), nullptr, nullptr );
       if ( !src )
       {
-        QgsDebugMsg( QStringLiteral( "%1: could not open layer %1" ).arg( name ) );
+        QgsDebugError( QStringLiteral( "%1: could not open layer %1" ).arg( name ) );
         continue;
       }
 
@@ -2976,9 +2973,9 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
       const int colorIdx = OGR_FD_GetFieldIndex( dfn, "color" );
       if ( blockIdx < 0 || layerIdx < 0 || colorIdx < 0 )
       {
-        QgsDebugMsg( QStringLiteral( "%1: fields not found (blockIdx=%2, layerIdx=%3 colorIdx=%4)" )
-                     .arg( name ).arg( blockIdx ).arg( layerIdx ).arg( colorIdx )
-                   );
+        QgsDebugError( QStringLiteral( "%1: fields not found (blockIdx=%2, layerIdx=%3 colorIdx=%4)" )
+                       .arg( name ).arg( blockIdx ).arg( layerIdx ).arg( colorIdx )
+                     );
         OGR_DS_ReleaseResultSet( mDs.get(), src );
         continue;
       }
@@ -2998,7 +2995,7 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
       {
         if ( j % 1000 == 0 )
         {
-          QgsDebugMsg( QStringLiteral( "%1.%2: %3/%4 copied" ).arg( block, 0, 16 ).arg( handle, 0, 16 ).arg( j ).arg( n ) );
+          QgsDebugMsgLevel( QStringLiteral( "%1.%2: %3/%4 copied" ).arg( block, 0, 16 ).arg( handle, 0, 16 ).arg( j ).arg( n ), 2 );
         }
 
         f.reset( OGR_L_GetNextFeature( src ) );
@@ -3011,33 +3008,33 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
         ogrG = OGR_F_GetGeometryRef( f.get() );
         if ( !ogrG )
         {
-          QgsDebugMsg( QStringLiteral( "%1/%2: geometryless feature skipped" ).arg( name ).arg( fid ) );
+          QgsDebugMsgLevel( QStringLiteral( "%1/%2: geometryless feature skipped" ).arg( name ).arg( fid ), 2 );
           continue;
         }
 
         QgsGeometry g( QgsOgrUtils::ogrGeometryToQgsGeometry( ogrG ) );
         if ( g.isNull() )
         {
-          QgsDebugMsg( QStringLiteral( "%1: could not copy geometry" ).arg( fid ) );
+          QgsDebugError( QStringLiteral( "%1: could not copy geometry" ).arg( fid ) );
           continue;
         }
 
         if ( g.transform( t ) != Qgis::GeometryOperationResult::Success )
         {
-          QgsDebugMsg( QStringLiteral( "%1/%2: could not transform geometry" ).arg( name ).arg( fid ) );
+          QgsDebugError( QStringLiteral( "%1/%2: could not transform geometry" ).arg( name ).arg( fid ) );
           continue;
         }
 
         const QByteArray wkb = g.constGet()->asWkb();
         if ( OGR_G_CreateFromWkb( ( unsigned char * ) wkb.constData(), nullptr, &ogrG, wkb.size() ) != OGRERR_NONE )
         {
-          QgsDebugMsg( QStringLiteral( "%1/%2: could not create ogr geometry" ).arg( name ).arg( fid ) );
+          QgsDebugError( QStringLiteral( "%1/%2: could not create ogr geometry" ).arg( name ).arg( fid ) );
           continue;
         }
 
         if ( OGR_F_SetGeometryDirectly( f.get(), ogrG ) != OGRERR_NONE )
         {
-          QgsDebugMsg( QStringLiteral( "%1/%2: could not assign geometry" ).arg( name ).arg( fid ) );
+          QgsDebugError( QStringLiteral( "%1/%2: could not assign geometry" ).arg( name ).arg( fid ) );
           continue;
         }
 
@@ -3087,7 +3084,7 @@ bool QgsDwgImporter::expandInserts( QString &error, int block, QTransform base )
 
     if ( !expandInserts( error, handle, t ) )
     {
-      QgsDebugMsg( QString( "%1: Expanding %2 failed" ).arg( block ).arg( handle ) );
+      QgsDebugError( QString( "%1: Expanding %2 failed" ).arg( block ).arg( handle ) );
     }
   }
 
@@ -3151,16 +3148,22 @@ void QgsDwgImporter::cleanText( QString &res )
   {
     const QString prev( res );
 
-    res = res.replace( QRegularExpression( "\\\\f[0-9A-Za-z| ]{0,};" ),                          QString( "" ) );            // font setting
-    res = res.replace( QRegularExpression( "([^\\\\]|^){" ),                                     QStringLiteral( "\\1" ) );  // grouping
-    res = res.replace( QRegularExpression( "([^\\\\])}" ),                                       QStringLiteral( "\\1" ) );
-    res = res.replace( QRegularExpression( "([^\\\\]|^)\\\\[loLOkx]" ),                          QStringLiteral( "\\1" ) );  // underline, overstrike, strike through
-    res = res.replace( QRegularExpression( "([^\\\\]|^)\\\\[HhWwAaCcQq]\\d*(\\.\\d*)?[xX]?;?" ), QStringLiteral( "\\1" ) );  // text height, width, alignment, color and slanting
-    res = res.replace( QRegularExpression( "([^\\\\]|^)\\\\[ACQ]\\d+;" ),                        QStringLiteral( "\\1" ) );  // alignment, color and slanting
+    const thread_local QRegularExpression fontSettingRe( QStringLiteral( "\\\\f[0-9A-Za-z| ]{0,};" ) );
+    res = res.replace( fontSettingRe, QString( "" ) ); // font setting
+    const thread_local QRegularExpression groupingRe( QStringLiteral( "([^\\\\]|^){" ) );
+    res = res.replace( groupingRe, QStringLiteral( "\\1" ) );  // grouping
+    const thread_local QRegularExpression groupingRe2( QStringLiteral( "([^\\\\])}" ) );
+    res = res.replace( groupingRe2, QStringLiteral( "\\1" ) );
+    const thread_local QRegularExpression textDecorationRe( QStringLiteral( "([^\\\\]|^)\\\\[loLOkx]" ) );
+    res = res.replace( textDecorationRe, QStringLiteral( "\\1" ) );  // underline, overstrike, strike through
+    const thread_local QRegularExpression textSizeRe( QStringLiteral( "([^\\\\]|^)\\\\[HhWwAaCcQq]\\d*(\\.\\d*)?[xX]?;?" ) );
+    res = res.replace( textSizeRe, QStringLiteral( "\\1" ) );  // text height, width, alignment, color and slanting
+    const thread_local QRegularExpression alignmentRe( QStringLiteral( "([^\\\\]|^)\\\\[ACQ]\\d+;" ) );
+    res = res.replace( alignmentRe, QStringLiteral( "\\1" ) );  // alignment, color and slanting
 
     if ( res == prev )
       break;
   }
 
-  // QgsDebugMsg( QStringLiteral( "%1 => %2" ).arg( s.c_str() ).arg( res ) );
+  // QgsDebugMsgLevel( QStringLiteral( "%1 => %2" ).arg( s.c_str() ).arg( res ), 2 );
 }

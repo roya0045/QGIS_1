@@ -67,8 +67,6 @@ include_directories(
 )
 
 include_directories (SYSTEM
-  ${PROJ_INCLUDE_DIR}
-  ${GDAL_INCLUDE_DIR}
   ${ODBC_INCLUDE_DIRS}
   ${QCA_INCLUDE_DIR}
   ${QTKEYCHAIN_INCLUDE_DIR}
@@ -81,8 +79,12 @@ add_library(provider_hana_a STATIC ${HANA_SRCS} ${HANA_HDRS})
 target_compile_features(provider_hana PRIVATE cxx_std_17)
 target_compile_features(provider_hana_a PRIVATE cxx_std_17)
 
-target_compile_definitions(provider_hana PUBLIC ODBC_STATIC)
-target_compile_definitions(provider_hana_a PUBLIC ODBC_STATIC)
+target_compile_definitions(provider_hana
+    PRIVATE
+        $<TARGET_PROPERTY:odbccpp_static,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_definitions(provider_hana_a
+    PRIVATE
+        $<TARGET_PROPERTY:odbccpp_static,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(provider_hana
   qgis_core

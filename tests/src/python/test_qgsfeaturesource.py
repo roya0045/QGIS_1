@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for QgsFeatureSource.
 
 .. note:: This program is free software; you can redistribute it and/or modify
@@ -9,20 +8,21 @@ the Free Software Foundation; either version 2 of the License, or
 __author__ = '(C) 2017 by Nyall Dawson'
 __date__ = '26/04/2017'
 __copyright__ = 'Copyright 2017, The QGIS Project'
-import qgis  # NOQA
 
-import os
 
-from qgis.core import (QgsVectorLayer,
-                       QgsFeature,
-                       QgsGeometry,
-                       QgsPointXY,
-                       QgsProject,
-                       QgsFeatureRequest,
-                       QgsWkbTypes,
-                       QgsCoordinateReferenceSystem)
-from qgis.PyQt.QtCore import QVariant
-from qgis.testing import start_app, unittest
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsFeature,
+    QgsFeatureRequest,
+    QgsGeometry,
+    QgsPointXY,
+    QgsProject,
+    QgsVectorLayer,
+    QgsWkbTypes,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
 start_app()
 
 
@@ -50,7 +50,7 @@ def createLayerWithFivePoints():
     return layer
 
 
-class TestQgsFeatureSource(unittest.TestCase):
+class TestQgsFeatureSource(QgisTestCase):
 
     def testUniqueValues(self):
         """
@@ -102,20 +102,20 @@ class TestQgsFeatureSource(unittest.TestCase):
         self.assertEqual(new_layer.fields(), layer.fields())
         self.assertEqual(new_layer.crs(), layer.crs())
         self.assertEqual(new_layer.featureCount(), 5)
-        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Type.Point)
         new_features = {f[0]: f for f in new_layer.getFeatures()}
         for id, f in original_features.items():
             self.assertEqual(new_features[id].attributes(), f.attributes())
             self.assertEqual(new_features[id].geometry().asWkt(), f.geometry().asWkt())
 
         # materialize with no geometry
-        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
+        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.Flag.NoGeometry)
         new_layer = layer.materialize(request)
         self.assertEqual(new_layer.fields(), layer.fields())
         self.assertFalse(new_layer.crs().isValid())
         self.assertFalse(new_layer.isSpatial())
         self.assertEqual(new_layer.featureCount(), 5)
-        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.NoGeometry)
+        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Type.NoGeometry)
         new_features = {f[0]: f for f in new_layer.getFeatures()}
         for id, f in original_features.items():
             self.assertEqual(new_features[id].attributes(), f.attributes())
@@ -126,7 +126,7 @@ class TestQgsFeatureSource(unittest.TestCase):
         self.assertEqual(new_layer.fields(), layer.fields())
         self.assertEqual(new_layer.crs().authid(), 'EPSG:3785')
         self.assertEqual(new_layer.featureCount(), 5)
-        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Type.Point)
         new_features = {f[0]: f for f in new_layer.getFeatures()}
 
         expected_geometry = {1: 'Point (111319 222684)',
@@ -146,7 +146,7 @@ class TestQgsFeatureSource(unittest.TestCase):
         self.assertEqual(new_layer.fields().at(1), layer.fields().at(2))
         self.assertEqual(new_layer.crs(), layer.crs())
         self.assertEqual(new_layer.featureCount(), 5)
-        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Point)
+        self.assertEqual(new_layer.wkbType(), QgsWkbTypes.Type.Point)
         new_features = {f.attributes()[0]: f for f in new_layer.getFeatures()}
         for id, f in original_features.items():
             self.assertEqual(new_features[id].attributes()[0], f.attributes()[0])

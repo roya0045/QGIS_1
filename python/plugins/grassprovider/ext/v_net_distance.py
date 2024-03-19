@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     v_net_distance.py
@@ -38,8 +36,8 @@ def processCommand(alg, parameters, context, feedback):
     lineLayer = alg.exportedLayers['input']
     fromLayer = alg.exportedLayers['flayer']
     toLayer = alg.exportedLayers['tlayer']
-    intLayer = 'bufnet' + os.path.basename(getTempFilename())
-    netLayer = 'net' + os.path.basename(getTempFilename())
+    intLayer = 'bufnet' + os.path.basename(getTempFilename(context=context))
+    netLayer = 'net' + os.path.basename(getTempFilename(context=context))
     threshold = alg.parameterAsDouble(parameters, 'threshold', context)
 
     # Create the v.net connect command for from_layer integration

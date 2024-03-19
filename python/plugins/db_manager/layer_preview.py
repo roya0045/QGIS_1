@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
 Name                 : DB Manager
@@ -34,13 +32,13 @@ from .db_plugins.plugin import Table
 class LayerPreview(QgsMapCanvas):
 
     def __init__(self, parent=None):
-        super(LayerPreview, self).__init__(parent)
+        super().__init__(parent)
         self.parent = parent
         self.setCanvasColor(QColor(255, 255, 255))
 
         self.item = None
         self.dirty = False
-        self.currentLayerId = None
+        self.current_layer = None
 
         # reuse settings from QGIS
         settings = QgsSettings()
@@ -91,7 +89,7 @@ class LayerPreview(QgsMapCanvas):
 
     def _loadTablePreview(self, table, limit=False):
         """ if has geometry column load to map canvas """
-        with OverrideCursor(Qt.WaitCursor):
+        with OverrideCursor(Qt.CursorShape.WaitCursor):
             self.freeze()
             vl = None
 
@@ -103,11 +101,11 @@ class LayerPreview(QgsMapCanvas):
                         self.parent.tabs.setCurrentWidget(self.parent.info)
                         self.parent.infoBar.pushMessage(
                             QApplication.translate("DBManagerPlugin", "Unable to find a valid unique field"),
-                            Qgis.Warning, self.parent.iface.messageTimeout())
+                            Qgis.MessageLevel.Warning, self.parent.iface.messageTimeout())
                         return
 
                     uri = table.database().uri()
-                    uri.setDataSource("", u"(SELECT * FROM %s LIMIT 1000)" % table.quotedName(), table.geomColumn, "",
+                    uri.setDataSource("", "(SELECT * FROM %s LIMIT 1000)" % table.quotedName(), table.geomColumn, "",
                                       uniqueField.name)
                     provider = table.database().dbplugin().providerName()
                     vl = QgsVectorLayer(uri.uri(False), table.name, provider)
@@ -118,19 +116,13 @@ class LayerPreview(QgsMapCanvas):
                     vl.deleteLater()
                     vl = None
 
-            # remove old layer (if any) and set new
-            if self.currentLayerId:
-                if not QgsProject.instance().layerTreeRoot().findLayer(self.currentLayerId):
-                    QgsProject.instance().removeMapLayers([self.currentLayerId])
-
             if vl and vl.isValid():
-                self.setLayers([vl])
-                QgsProject.instance().addMapLayers([vl], False)
+                self.current_layer = vl
+                self.setLayers([self.current_layer])
                 self.zoomToFullExtent()
-                self.currentLayerId = vl.id()
             else:
                 self.setLayers([])
-                self.currentLayerId = None
+                self.current_layer = None
 
             self.freeze(False)
             super().refresh()

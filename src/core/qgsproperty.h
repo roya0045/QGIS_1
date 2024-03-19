@@ -17,9 +17,7 @@
 
 #include "qgis_core.h"
 #include "qgis_sip.h"
-#include "qgsexpression.h"
 #include "qgsexpressioncontext.h"
-#include "qgscolorramp.h"
 
 #include <QVariant>
 #include <QHash>
@@ -42,7 +40,6 @@ class QgsPropertyPrivate;
  * handles descriptive names and help text for using the property. Definitions
  * can use one of the predefined standard templates to simplify definition of
  * commonly used property types, such as colors and blend modes.
- * \since QGIS 3.0
  */
 class CORE_EXPORT QgsPropertyDefinition
 {
@@ -225,21 +222,11 @@ class CORE_EXPORT QgsPropertyDefinition
  *
  * QgsProperty objects are implicitly shared and can be inexpensively copied.
  *
- * \since QGIS 3.0
  */
 
 class CORE_EXPORT QgsProperty
 {
   public:
-
-    //! Property types
-    enum Type
-    {
-      InvalidProperty, //!< Invalid (not set) property
-      StaticProperty, //!< Static property (QgsStaticProperty)
-      FieldBasedProperty, //!< Field based property (QgsFieldBasedProperty)
-      ExpressionBasedProperty, //!< Expression based property (QgsExpressionBasedProperty)
-    };
 
     /**
      * Convert a map of QgsProperty to a map of QVariant
@@ -294,13 +281,29 @@ class CORE_EXPORT QgsProperty
     /**
      * Returns the property type.
      */
-    Type propertyType() const;
+    Qgis::PropertyType propertyType() const;
 
     /**
      * Returns whether the property is currently active.
      * \see setActive()
      */
     bool isActive() const;
+
+    /**
+     * Returns TRUE if the property is effectively a static value
+     * in the specified \a context.
+     *
+     * I.e. if the property type is QgsProperty::ExpressionBasedProperty with
+     * a fixed value expression ('some static value'), this method will return
+     * TRUE.
+     *
+     * \param context expression context
+     * \param staticValue will be set to evaluated static value if property is effectively a static value
+     * \returns TRUE if property is a static value
+     *
+     * \since QGIS 3.24
+     */
+    bool isStaticValueInContext( const QgsExpressionContext &context, QVariant &staticValue SIP_OUT ) const;
 
     /**
      * Sets whether the property is currently active.
@@ -538,27 +541,27 @@ class CORE_EXPORT QgsProperty
     QString definitionString;
     switch ( sipCpp->propertyType() )
     {
-      case QgsProperty::StaticProperty:
+      case Qgis::PropertyType::Static:
         typeString = QStringLiteral( "static" );
         definitionString = sipCpp->staticValue().toString();
         break;
 
-      case QgsProperty::FieldBasedProperty:
+      case Qgis::PropertyType::Field:
         typeString = QStringLiteral( "field" );
         definitionString = sipCpp->field();
         break;
 
-      case QgsProperty::ExpressionBasedProperty:
+      case Qgis::PropertyType::Expression:
         typeString = QStringLiteral( "expression" );
         definitionString = sipCpp->expressionString();
         break;
 
-      case QgsProperty::InvalidProperty:
+      case Qgis::PropertyType::Invalid:
         typeString = QStringLiteral( "invalid" );
         break;
     }
 
-    QString str = QStringLiteral( "<QgsProperty: %1%2%3>" ).arg( !sipCpp->isActive() && sipCpp->propertyType() != QgsProperty::InvalidProperty ? QStringLiteral( "INACTIVE " ) : QString(),
+    QString str = QStringLiteral( "<QgsProperty: %1%2%3>" ).arg( !sipCpp->isActive() && sipCpp->propertyType() != Qgis::PropertyType::Invalid ? QStringLiteral( "INACTIVE " ) : QString(),
                   typeString,
                   definitionString.isEmpty() ? QString() : QStringLiteral( " (%1)" ).arg( definitionString ) );
     sipRes = PyUnicode_FromString( str.toUtf8().constData() );

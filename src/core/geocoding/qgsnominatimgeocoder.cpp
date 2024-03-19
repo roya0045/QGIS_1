@@ -18,6 +18,8 @@
 #include "qgsgeocodercontext.h"
 #include "qgslogger.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
+#include "qgscoordinatetransform.h"
 #include <QDateTime>
 #include <QUrl>
 #include <QUrlQuery>
@@ -64,9 +66,9 @@ QgsFields QgsNominatimGeocoder::appendedFields() const
   return fields;
 }
 
-QgsWkbTypes::Type QgsNominatimGeocoder::wkbType() const
+Qgis::WkbType QgsNominatimGeocoder::wkbType() const
 {
-  return QgsWkbTypes::Point;
+  return Qgis::WkbType::Point;
 }
 
 QList<QgsGeocoderResult> QgsNominatimGeocoder::geocodeString( const QString &string, const QgsGeocoderContext &context, QgsFeedback *feedback ) const
@@ -83,7 +85,7 @@ QList<QgsGeocoderResult> QgsNominatimGeocoder::geocodeString( const QString &str
     }
     catch ( QgsCsException & )
     {
-      QgsDebugMsg( "Could not transform geocode bounds to WGS84" );
+      QgsDebugError( "Could not transform geocode bounds to WGS84" );
     }
   }
 
@@ -149,12 +151,9 @@ QUrl QgsNominatimGeocoder::requestUrl( const QString &address, const QgsRectangl
   QUrlQuery query;
   query.addQueryItem( QStringLiteral( "format" ), QStringLiteral( "json" ) );
   query.addQueryItem( QStringLiteral( "addressdetails" ), QStringLiteral( "1" ) );
-  if ( !bounds.isNull() )
+  if ( !bounds.isNull() && bounds.isFinite() )
   {
-    query.addQueryItem( QStringLiteral( "viewbox" ), QStringLiteral( "%1,%2,%3,%4" ).arg( bounds.xMinimum() )
-                        .arg( bounds.yMinimum() )
-                        .arg( bounds.xMaximum() )
-                        .arg( bounds.yMaximum() ) );
+    query.addQueryItem( QStringLiteral( "viewbox" ), bounds.toString( 7 ).replace( QLatin1String( " : " ), QLatin1String( "," ) ) );
   }
   if ( !mCountryCodes.isEmpty() )
   {

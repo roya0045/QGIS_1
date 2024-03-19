@@ -308,7 +308,7 @@ class QOCISpatialRowId: public QSharedData
     OCIRowid *id = nullptr;
 
   private:
-    QOCISpatialRowId( const QOCISpatialRowId &other ): QSharedData( other ) { Q_ASSERT( false ); }
+    QOCISpatialRowId( const QOCISpatialRowId &other ): QSharedData( other ), id( nullptr ) { Q_ASSERT( false ); }
     QOCISpatialRowId &operator= ( const QOCISpatialRowId & ) = delete;
 };
 
@@ -819,11 +819,13 @@ void QOCISpatialResultPrivate::outValues( QVector<QVariant> &values, IndicatorAr
 
     qOraOutValue( values[i], tmpStorage, err );
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QVariant::Type typ = values.at( i ).type();
+#else
+    QMetaType typ = values.at( i ).metaType();
+#endif
     if ( indicators[i] == -1 ) // NULL
       values[i] = QVariant( typ );
-    else
-      values[i] = QVariant( typ, values.at( i ).constData() );
   }
 }
 
@@ -3751,11 +3753,7 @@ bool QOCISpatialDriver::hasFeature( DriverFeature f ) const
 static void qParseOpts( const QString &options, QOCISpatialDriverPrivate *d )
 {
   ENTER
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  const QStringList opts( options.split( QLatin1Char( ';' ), QString::SkipEmptyParts ) );
-#else
   const QStringList opts( options.split( QLatin1Char( ';' ), Qt::SkipEmptyParts ) );
-#endif
   for ( int i = 0; i < opts.count(); ++i )
   {
     const QString tmp( opts.at( i ) );

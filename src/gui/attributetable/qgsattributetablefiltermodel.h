@@ -48,7 +48,8 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
       ShowSelected,     //!< Show only selected features
       ShowVisible,      //!< Show only visible features (depends on the map canvas)
       ShowFilteredList, //!< Show only features whose ids are on the filter list. {\see setFilteredFeatures}
-      ShowEdited        //!< Show only features which have unsaved changes
+      ShowEdited,       //!< Show only features which have unsaved changes
+      ShowInvalid,      //!< Show only features not respecting constraints (since QGIS 3.30)
     };
     Q_ENUM( FilterMode )
 
@@ -62,16 +63,21 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
     };
     Q_ENUM( ColumnType )
 
+    // *INDENT-OFF*
+
     /**
      * The additional roles defined by this filter model.
      * The values of these roles start just after the roles defined by
      * QgsAttributeTableModel so they do not conflict.
+     * \note Prior to QGIS 3.36 this was available as QgsAttributeTableFilterModel::Role
+     * \since QGIS 3.36
      */
-    enum Role
+    enum class CustomRole SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsAttributeTableFilterModel, Role ) : int
     {
-      TypeRole = QgsAttributeTableModel::UserRole //!< The type of a given column
+      Type SIP_MONKEYPATCH_COMPAT_NAME(TypeRole) = static_cast< int >( QgsAttributeTableModel::CustomRole::User ) //!< The type of a given column
     };
-
+    Q_ENUM( CustomRole )
+    // *INDENT-ON*
 
     /**
      * Make sure, the master model is already loaded, so the selection will get synchronized.
@@ -92,7 +98,6 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
      *
      * \param sourceModel The model
      *
-     * \since QGIS 2.0
      */
     void setSourceModel( QgsAttributeTableModel *sourceModel );
 
@@ -238,8 +243,10 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
      * Set the attribute table configuration to control which fields are shown,
      * in which order they are shown as well as if and where an action column
      * is shown.
+     * \param config attribute table config
+     * \param force default FALSE, if TRUE the attribute table configuration will be reset even if it is not changed.
      */
-    void setAttributeTableConfig( const QgsAttributeTableConfig &config );
+    void setAttributeTableConfig( const QgsAttributeTableConfig &config, bool force SIP_PYARGREMOVE = false );
 
     /**
      * Set the \a expression and the \a context to be stored in case of the features
@@ -248,6 +255,13 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
      * \since QGIS 3.10.3
      */
     void setFilterExpression( const QgsExpression &expression, const QgsExpressionContext &context );
+
+    /**
+     * Returns the stored filter expression string.
+     *
+     * \since QGIS 3.28.0
+     */
+    QString filterExpression() const { return mFilterExpression; };
 
   signals:
 

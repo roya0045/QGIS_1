@@ -89,8 +89,8 @@ void QgsAppMissingGridHandler::onMissingRequiredGrid( const QgsCoordinateReferen
   if ( !shouldWarnAboutPair( sourceCrs, destinationCrs ) )
     return;
 
-  const QString shortMessage = tr( "No transform available between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ),
-                               destinationCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ) );
+  const QString shortMessage = tr( "No transform available between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ),
+                               destinationCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ) );
 
   QString downloadMessage;
   const QString gridName = grid.shortName;
@@ -112,7 +112,7 @@ void QgsAppMissingGridHandler::onMissingRequiredGrid( const QgsCoordinateReferen
                                       grid.shortName );
 
   QgsMessageBar *bar = QgisApp::instance()->messageBar();
-  QgsMessageBarItem *widget = bar->createMessage( QString(), shortMessage );
+  QgsMessageBarItem *widget = QgsMessageBar::createMessage( QString(), shortMessage );
   QPushButton *detailsButton = new QPushButton( tr( "Details" ) );
   connect( detailsButton, &QPushButton::clicked, this, [longMessage, downloadMessage, bar, widget, gridName]
   {
@@ -136,8 +136,8 @@ void QgsAppMissingGridHandler::onMissingPreferredGrid( const QgsCoordinateRefere
   if ( !shouldWarnAboutPair( sourceCrs, destinationCrs ) )
     return;
 
-  const QString shortMessage = tr( "Cannot use preferred transform between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ),
-                               destinationCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ) );
+  const QString shortMessage = tr( "Cannot use preferred transform between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ),
+                               destinationCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ) );
 
   QString gridMessage;
   QString downloadMessage;
@@ -180,7 +180,7 @@ void QgsAppMissingGridHandler::onMissingPreferredGrid( const QgsCoordinateRefere
                               + gridMessage + accuracyMessage;
 
   QgsMessageBar *bar = QgisApp::instance()->messageBar();
-  QgsMessageBarItem *widget = bar->createMessage( QString(), shortMessage );
+  QgsMessageBarItem *widget = QgsMessageBar::createMessage( QString(), shortMessage );
   QPushButton *detailsButton = new QPushButton( tr( "Details" ) );
   connect( detailsButton, &QPushButton::clicked, this, [longMessage, downloadMessage, gridName, widget, bar]
   {
@@ -204,11 +204,11 @@ void QgsAppMissingGridHandler::onCoordinateOperationCreationError( const QgsCoor
   if ( !shouldWarnAboutPairForCurrentProject( sourceCrs, destinationCrs ) )
     return;
 
-  const QString shortMessage = tr( "No transform available between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ), destinationCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ) );
+  const QString shortMessage = tr( "No transform available between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ), destinationCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ) );
   const QString longMessage = tr( "<p>No transform is available between <i>%1</i> and <i>%2</i>.</p><p style=\"color: red\">%3</p>" ).arg( sourceCrs.userFriendlyIdentifier(), destinationCrs.userFriendlyIdentifier(), error );
 
   QgsMessageBar *bar = QgisApp::instance()->messageBar();
-  QgsMessageBarItem *widget = bar->createMessage( QString(), shortMessage );
+  QgsMessageBarItem *widget = QgsMessageBar::createMessage( QString(), shortMessage );
   QPushButton *detailsButton = new QPushButton( tr( "Details" ) );
   connect( detailsButton, &QPushButton::clicked, this, [longMessage]
   {
@@ -228,8 +228,8 @@ void QgsAppMissingGridHandler::onMissingGridUsedByContextHandler( const QgsCoord
   if ( !shouldWarnAboutPairForCurrentProject( sourceCrs, destinationCrs ) )
     return;
 
-  const QString shortMessage = tr( "Cannot use project transform between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ),
-                               destinationCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ) );
+  const QString shortMessage = tr( "Cannot use project transform between %1 and %2" ).arg( sourceCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ),
+                               destinationCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ) );
 
   QString gridMessage;
   QString downloadMessage;
@@ -265,7 +265,7 @@ void QgsAppMissingGridHandler::onMissingGridUsedByContextHandler( const QgsCoord
                               + tr( "<p>The operation specified for use in the project is:</p><p><code>%1</code></p>" ).arg( desired.proj ) ;
 
   QgsMessageBar *bar = QgisApp::instance()->messageBar();
-  QgsMessageBarItem *widget = bar->createMessage( QString(), shortMessage );
+  QgsMessageBarItem *widget = QgsMessageBar::createMessage( QString(), shortMessage );
   QPushButton *detailsButton = new QPushButton( tr( "Details" ) );
   connect( detailsButton, &QPushButton::clicked, this, [longMessage, gridName, downloadMessage, bar, widget]
   {
@@ -289,11 +289,11 @@ void QgsAppMissingGridHandler::onFallbackOperationOccurred( const QgsCoordinateR
   if ( !shouldWarnAboutBallparkPairForCurrentProject( sourceCrs, destinationCrs ) )
     return;
 
-  const QString shortMessage = tr( "Used a ballpark transform from %1 to %2" ).arg( sourceCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ), destinationCrs.userFriendlyIdentifier( QgsCoordinateReferenceSystem::ShortString ) );
+  const QString shortMessage = tr( "Used a ballpark transform from %1 to %2" ).arg( sourceCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ), destinationCrs.userFriendlyIdentifier( Qgis::CrsIdentifierType::ShortString ) );
   const QString longMessage = tr( "<p>An alternative, ballpark-only transform was used when transforming coordinates between <i>%1</i> and <i>%2</i>. The results may not match those obtained by using the preferred operation:</p><code>%3</code><p style=\"font-weight: bold\">Possibly an incorrect choice of operation was made for transformations between these reference systems. Check the Project Properties and ensure that the selected transform operations are applicable over the whole extent of the current project." ).arg( sourceCrs.userFriendlyIdentifier(), destinationCrs.userFriendlyIdentifier(), desired );
 
   QgsMessageBar *bar = QgisApp::instance()->messageBar();
-  QgsMessageBarItem *widget = bar->createMessage( QString(), shortMessage );
+  QgsMessageBarItem *widget = QgsMessageBar::createMessage( QString(), shortMessage );
   QPushButton *detailsButton = new QPushButton( tr( "Details" ) );
   connect( detailsButton, &QPushButton::clicked, this, [longMessage]
   {
@@ -317,7 +317,7 @@ void QgsAppMissingGridHandler::onDynamicToDynamicWarning( const QgsCoordinateRef
   const QString longMessage = tr( "<p>Transformation between %1 and %2 is not currently supported.</p><p><b>The results will be unpredictable and should not be used for high accuracy work.</b>" ).arg( sourceCrs.userFriendlyIdentifier(), destinationCrs.userFriendlyIdentifier() );
 
   QgsMessageBar *bar = QgisApp::instance()->messageBar();
-  QgsMessageBarItem *widget = bar->createMessage( QString(), shortMessage );
+  QgsMessageBarItem *widget = QgsMessageBar::createMessage( QString(), shortMessage );
   QPushButton *detailsButton = new QPushButton( tr( "Details" ) );
   connect( detailsButton, &QPushButton::clicked, this, [longMessage]
   {

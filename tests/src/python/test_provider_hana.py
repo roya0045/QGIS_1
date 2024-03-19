@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QGIS Unit tests for the SAP HANA provider.
 
 Read tests/README.md about writing/launching tests with HANA.
@@ -18,15 +17,14 @@ __copyright__ = 'Copyright 2019, The QGIS Project'
 
 import os
 
-from providertestbase import ProviderTestCase
-from PyQt5.QtCore import QVariant, QDate, QTime, QDateTime, QByteArray
+from qgis.PyQt.QtCore import QByteArray, QDate, QDateTime, QTime, QVariant
 from qgis.core import (
     NULL,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsDataSourceUri,
-    QgsFeatureRequest,
     QgsFeature,
+    QgsFeatureRequest,
     QgsField,
     QgsFieldConstraints,
     QgsGeometry,
@@ -37,8 +35,12 @@ from qgis.core import (
     QgsVectorDataProvider,
     QgsVectorLayer,
     QgsVectorLayerExporter,
-    QgsWkbTypes)
-from qgis.testing import start_app, unittest
+    QgsWkbTypes,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
+
+from providertestbase import ProviderTestCase
 from test_hana_utils import QgsHanaProviderUtils
 from utilities import unitTestDataPath
 
@@ -46,7 +48,7 @@ QGISAPP = start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
-class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
+class TestPyQgsHanaProvider(QgisTestCase, ProviderTestCase):
     # HANA connection object
     conn = None
     # Name of the schema
@@ -55,6 +57,7 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
+        super(TestPyQgsHanaProvider, cls).setUpClass()
         cls.uri = 'driver=\'/usr/sap/hdbclient/libodbcHDB.so\' host=localhost port=30015 user=SYSTEM ' \
                   'password=mypassword sslEnabled=true sslValidateCertificate=False'
         if 'QGIS_HANA_TEST_DB' in os.environ:
@@ -79,6 +82,7 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
 
         QgsHanaProviderUtils.cleanUp(cls.conn, cls.schemaName)
         cls.conn.close()
+        super(TestPyQgsHanaProvider, cls).tearDownClass()
 
     def createVectorLayer(self, conn_parameters, layer_name):
         layer = QgsHanaProviderUtils.createVectorLayer(self.uri + ' ' + conn_parameters, layer_name)
@@ -96,17 +100,17 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
     def getSource(self):
         # create temporary table for edit tests
         create_sql = f'CREATE TABLE "{self.schemaName}"."edit_data" ( ' \
-                     '"pk" INTEGER NOT NULL PRIMARY KEY,' \
-                     '"cnt" INTEGER,' \
-                     '"name" NVARCHAR(100), ' \
-                     '"name2" NVARCHAR(100), ' \
-                     '"num_char" NVARCHAR(100),' \
-                     '"dt" TIMESTAMP,' \
-                     '"date" DATE,' \
-                     '"time" TIME,' \
-                     '"geom" ST_POINT(4326))'
+            '"pk" INTEGER NOT NULL PRIMARY KEY,' \
+            '"cnt" INTEGER,' \
+            '"name" NVARCHAR(100), ' \
+            '"name2" NVARCHAR(100), ' \
+            '"num_char" NVARCHAR(100),' \
+            '"dt" TIMESTAMP,' \
+            '"date" DATE,' \
+            '"time" TIME,' \
+            '"geom" ST_POINT(4326))'
         insert_sql = f'INSERT INTO "{self.schemaName}"."edit_data" ("pk", "cnt", "name", "name2", "num_char", "dt", "date", ' \
-                     '"time", "geom") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ST_GeomFromEWKB(?)) '
+            '"time", "geom") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ST_GeomFromEWKB(?)) '
         insert_args = [
             [5, -200, None, 'NuLl', '5', '2020-05-04 12:13:14', '2020-05-02', '12:13:01',
              bytes.fromhex('0101000020E61000001D5A643BDFC751C01F85EB51B88E5340')],
@@ -134,7 +138,7 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
         QgsSettings().setValue('/qgis/compileExpressions', False)
 
     def uncompiledFilters(self):
-        filters = set([
+        filters = {
             '(name = \'Apple\') is not null',
             'false and NULL',
             'true and NULL',
@@ -180,19 +184,14 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
             'overlaps(buffer($geometry,1),geom_from_wkt( \'Polygon ((-75.1 76.1, -75.1 81.6, -68.8 81.6, -68.8 76.1, -75.1 76.1))\'))',
             'intersects(centroid($geometry),geom_from_wkt( \'Polygon ((-74.4 78.2, -74.4 79.1, -66.8 79.1, -66.8 78.2, -74.4 78.2))\'))',
             'intersects(point_on_surface($geometry),geom_from_wkt( \'Polygon ((-74.4 78.2, -74.4 79.1, -66.8 79.1, -66.8 78.2, -74.4 78.2))\'))',
-            '"dt" <= make_datetime(2020, 5, 4, 12, 13, 14)',
-            '"dt" < make_date(2020, 5, 4)',
             '"dt" = to_datetime(\'000www14ww13ww12www4ww5ww2020\',\'zzzwwwsswwmmwwhhwwwdwwMwwyyyy\')',
-            '"date" <= make_datetime(2020, 5, 4, 12, 13, 14)',
-            '"date" >= make_date(2020, 5, 4)',
             '"date" = to_date(\'www4ww5ww2020\',\'wwwdwwMwwyyyy\')',
-            '"time" >= make_time(12, 14, 14)',
-            '"time" = to_time(\'000www14ww13ww12www\',\'zzzwwwsswwmmwwhhwww\')'
-        ])
+            '"time" = to_time(\'000www14ww13ww12www\',\'zzzwwwsswwmmwwhhwww\')',
+        }
         return filters
 
     def partiallyCompiledFilters(self):
-        return set([])
+        return set()
 
     # HERE GO THE PROVIDER SPECIFIC TESTS
     def testMetadata(self):
@@ -202,21 +201,21 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
         self.assertEqual(metadata.abstract(), 'QGIS Test Table')
 
     def testDefaultValue(self):
-        self.source.setProviderProperty(QgsDataProvider.EvaluateDefaultValues, True)
+        self.source.setProviderProperty(QgsDataProvider.ProviderProperty.EvaluateDefaultValues, True)
         self.assertEqual(self.source.defaultValue(0), NULL)
         self.assertEqual(self.source.defaultValue(1), NULL)
         self.assertEqual(self.source.defaultValue(2), 'qgis')
         self.assertEqual(self.source.defaultValue(3), 'qgis')
         self.assertEqual(self.source.defaultValue(4), NULL)
-        self.source.setProviderProperty(QgsDataProvider.EvaluateDefaultValues, False)
+        self.source.setProviderProperty(QgsDataProvider.ProviderProperty.EvaluateDefaultValues, False)
 
     def testCompositeUniqueConstraints(self):
         create_sql = f'CREATE TABLE "{self.schemaName}"."unique_composite_constraints" ( ' \
-                     '"ID" INTEGER PRIMARY KEY,' \
-                     '"VAL1" INTEGER,' \
-                     '"VAL2" INTEGER,' \
-                     '"VAL3" INTEGER,' \
-                     'UNIQUE (VAL1, VAL2))'
+            '"ID" INTEGER PRIMARY KEY,' \
+            '"VAL1" INTEGER,' \
+            '"VAL2" INTEGER,' \
+            '"VAL3" INTEGER,' \
+            'UNIQUE (VAL1, VAL2))'
         QgsHanaProviderUtils.executeSQL(self.conn, create_sql)
 
         vl = self.createVectorLayer(f'table="{self.schemaName}"."unique_composite_constraints" sql=',
@@ -227,17 +226,17 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
         val1_field_idx = vl.fields().indexFromName('VAL1')
         val2_field_idx = vl.fields().indexFromName('VAL2')
         val3_field_idx = vl.fields().indexFromName('VAL3')
-        self.assertTrue(id_field_idx >= 0)
-        self.assertTrue(val1_field_idx >= 0)
-        self.assertTrue(val2_field_idx >= 0)
-        self.assertTrue(val3_field_idx >= 0)
-        self.assertTrue(bool(vl.fieldConstraints(id_field_idx) & QgsFieldConstraints.ConstraintUnique))
-        self.assertFalse(bool(vl.fieldConstraints(val1_field_idx) & QgsFieldConstraints.ConstraintUnique))
-        self.assertFalse(bool(vl.fieldConstraints(val2_field_idx) & QgsFieldConstraints.ConstraintUnique))
-        self.assertFalse(bool(vl.fieldConstraints(val3_field_idx) & QgsFieldConstraints.ConstraintUnique))
+        self.assertGreaterEqual(id_field_idx, 0)
+        self.assertGreaterEqual(val1_field_idx, 0)
+        self.assertGreaterEqual(val2_field_idx, 0)
+        self.assertGreaterEqual(val3_field_idx, 0)
+        self.assertTrue(bool(vl.fieldConstraints(id_field_idx) & QgsFieldConstraints.Constraint.ConstraintUnique))
+        self.assertFalse(bool(vl.fieldConstraints(val1_field_idx) & QgsFieldConstraints.Constraint.ConstraintUnique))
+        self.assertFalse(bool(vl.fieldConstraints(val2_field_idx) & QgsFieldConstraints.Constraint.ConstraintUnique))
+        self.assertFalse(bool(vl.fieldConstraints(val3_field_idx) & QgsFieldConstraints.Constraint.ConstraintUnique))
 
     def testQueryLayers(self):
-        def test_query(query, key, geometry, attribute_names, wkb_type=QgsWkbTypes.NoGeometry):
+        def test_query(query, key, geometry, attribute_names, wkb_type=QgsWkbTypes.Type.NoGeometry):
             uri = QgsDataSourceUri()
             uri.setSchema(self.schemaName)
             uri.setTable(query)
@@ -245,21 +244,21 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
             uri.setGeometryColumn(geometry)
             vl = self.createVectorLayer(uri.uri(False), 'testquery')
 
-            for capability in [QgsVectorDataProvider.SelectAtId,
-                               QgsVectorDataProvider.TransactionSupport,
-                               QgsVectorDataProvider.CircularGeometries,
-                               QgsVectorDataProvider.ReadLayerMetadata]:
+            for capability in [QgsVectorDataProvider.Capability.SelectAtId,
+                               QgsVectorDataProvider.Capability.TransactionSupport,
+                               QgsVectorDataProvider.Capability.CircularGeometries,
+                               QgsVectorDataProvider.Capability.ReadLayerMetadata]:
                 self.assertTrue(vl.dataProvider().capabilities() & capability)
 
-            for capability in [QgsVectorDataProvider.AddAttributes,
-                               QgsVectorDataProvider.ChangeAttributeValues,
-                               QgsVectorDataProvider.DeleteAttributes,
-                               QgsVectorDataProvider.RenameAttributes,
-                               QgsVectorDataProvider.AddFeatures,
-                               QgsVectorDataProvider.ChangeFeatures,
-                               QgsVectorDataProvider.DeleteFeatures,
-                               QgsVectorDataProvider.ChangeGeometries,
-                               QgsVectorDataProvider.FastTruncate]:
+            for capability in [QgsVectorDataProvider.Capability.AddAttributes,
+                               QgsVectorDataProvider.Capability.ChangeAttributeValues,
+                               QgsVectorDataProvider.Capability.DeleteAttributes,
+                               QgsVectorDataProvider.Capability.RenameAttributes,
+                               QgsVectorDataProvider.Capability.AddFeatures,
+                               QgsVectorDataProvider.Capability.ChangeFeatures,
+                               QgsVectorDataProvider.Capability.DeleteFeatures,
+                               QgsVectorDataProvider.Capability.ChangeGeometries,
+                               QgsVectorDataProvider.Capability.FastTruncate]:
                 self.assertFalse(vl.dataProvider().capabilities() & capability)
 
             fields = vl.dataProvider().fields()
@@ -267,11 +266,11 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
             for field_idx in vl.primaryKeyAttributes():
                 self.assertIn(fields[field_idx].name(), key.split(","))
                 self.assertEqual(len(vl.primaryKeyAttributes()) == 1,
-                                 bool(vl.fieldConstraints(field_idx) & QgsFieldConstraints.ConstraintUnique))
+                                 bool(vl.fieldConstraints(field_idx) & QgsFieldConstraints.Constraint.ConstraintUnique))
             if fields.count() > 0:
                 if vl.featureCount() == 0:
-                    self.assertEqual(QVariant(), vl.maximumValue(0))
-                    self.assertEqual(QVariant(), vl.minimumValue(0))
+                    self.assertEqual(NULL, vl.maximumValue(0))
+                    self.assertEqual(NULL, vl.minimumValue(0))
                 else:
                     vl.maximumValue(0)
                     vl.minimumValue(0)
@@ -279,27 +278,27 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
             self.assertFalse(vl.addFeatures([QgsFeature()]))
             self.assertFalse(vl.deleteFeatures([0]))
             self.assertEqual(wkb_type, vl.wkbType())
-            self.assertEqual(wkb_type == QgsWkbTypes.NoGeometry or wkb_type == QgsWkbTypes.Unknown,
+            self.assertEqual(wkb_type == QgsWkbTypes.Type.NoGeometry or wkb_type == QgsWkbTypes.Type.Unknown,
                              vl.extent().isNull())
 
-        test_query('(SELECT * FROM DUMMY)', None, None, ['DUMMY'], QgsWkbTypes.NoGeometry)
+        test_query('(SELECT * FROM DUMMY)', None, None, ['DUMMY'], QgsWkbTypes.Type.NoGeometry)
         test_query('(SELECT CAST(NULL AS INT) ID1, CAST(NULL AS INT) ID2, CAST(NULL AS ST_GEOMETRY) SHAPE FROM DUMMY)',
-                   'ID1,ID2', None, ['ID1', 'ID2', 'SHAPE'], QgsWkbTypes.NoGeometry)
+                   'ID1,ID2', None, ['ID1', 'ID2', 'SHAPE'], QgsWkbTypes.Type.NoGeometry)
         test_query('(SELECT CAST(1 AS INT) ID1, CAST(NULL AS BIGINT) ID2 FROM DUMMY)',
-                   'ID1', None, ['ID1', 'ID2'], QgsWkbTypes.NoGeometry)
+                   'ID1', None, ['ID1', 'ID2'], QgsWkbTypes.Type.NoGeometry)
         test_query('(SELECT CAST(NULL AS INT) ID1, CAST(NULL AS INT) ID2, CAST(NULL AS ST_GEOMETRY) SHAPE FROM DUMMY)',
-                   None, 'SHAPE', ['ID1', 'ID2'], QgsWkbTypes.Unknown)
+                   None, 'SHAPE', ['ID1', 'ID2'], QgsWkbTypes.Type.Unknown)
         test_query('(SELECT CAST(NULL AS INT) ID1, CAST(NULL AS BIGINT) ID2, CAST(NULL AS ST_GEOMETRY) SHAPE FROM '
-                   'DUMMY)', 'ID2', 'SHAPE', ['ID1', 'ID2'], QgsWkbTypes.Unknown)
+                   'DUMMY)', 'ID2', 'SHAPE', ['ID1', 'ID2'], QgsWkbTypes.Type.Unknown)
         test_query('(SELECT CAST(NULL AS INT) ID1, CAST(NULL AS ST_GEOMETRY) SHAPE1, CAST(NULL AS ST_GEOMETRY) SHAPE2 '
-                   'FROM DUMMY)', 'ID1', 'SHAPE1', ['ID1', 'SHAPE2'], QgsWkbTypes.Unknown)
+                   'FROM DUMMY)', 'ID1', 'SHAPE1', ['ID1', 'SHAPE2'], QgsWkbTypes.Type.Unknown)
         test_query(f'(SELECT "pk" AS "key", "cnt", "geom" AS "g" FROM "{self.schemaName}"."some_data")',
-                   'key', 'g', ['key', 'cnt'], QgsWkbTypes.Point)
+                   'key', 'g', ['key', 'cnt'], QgsWkbTypes.Type.Point)
 
     def testBooleanType(self):
         create_sql = f'CREATE TABLE "{self.schemaName}"."boolean_type" ( ' \
-                     '"id" INTEGER NOT NULL PRIMARY KEY,' \
-                     '"fld1" BOOLEAN)'
+            '"id" INTEGER NOT NULL PRIMARY KEY,' \
+            '"fld1" BOOLEAN)'
         insert_sql = f'INSERT INTO "{self.schemaName}"."boolean_type" ("id", "fld1") VALUES (?, ?)'
         insert_args = [[1, 'TRUE'], [2, 'FALSE'], [3, None]]
         self.prepareTestTable('boolean_type', create_sql, insert_sql, insert_args)
@@ -315,11 +314,11 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
 
     def testDecimalAndFloatTypes(self):
         create_sql = f'CREATE TABLE "{self.schemaName}"."decimal_and_float_type" ( ' \
-                     '"id" INTEGER NOT NULL PRIMARY KEY,' \
-                     '"decimal_field" DECIMAL(15,4),' \
-                     '"float_field" FLOAT(12))'
+            '"id" INTEGER NOT NULL PRIMARY KEY,' \
+            '"decimal_field" DECIMAL(15,4),' \
+            '"float_field" FLOAT(12))'
         insert_sql = f'INSERT INTO "{self.schemaName}"."decimal_and_float_type" ("id", "decimal_field", ' \
-                     f'"float_field") VALUES (?, ?, ?) '
+            f'"float_field") VALUES (?, ?, ?) '
         insert_args = [[1, 1.1234, 1.76543]]
         self.prepareTestTable('decimal_and_float_type', create_sql, insert_sql, insert_args)
 
@@ -346,12 +345,12 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
 
     def testDateTimeTypes(self):
         create_sql = f'CREATE TABLE "{self.schemaName}"."date_time_type" ( ' \
-                     '"id" INTEGER NOT NULL PRIMARY KEY,' \
-                     '"date_field" DATE,' \
-                     '"time_field" TIME,' \
-                     '"datetime_field" TIMESTAMP)'
+            '"id" INTEGER NOT NULL PRIMARY KEY,' \
+            '"date_field" DATE,' \
+            '"time_field" TIME,' \
+            '"datetime_field" TIMESTAMP)'
         insert_sql = f'INSERT INTO "{self.schemaName}"."date_time_type" ("id", "date_field", "time_field", "datetime_field") ' \
-                     'VALUES (?, ?, ?, ?)'
+            'VALUES (?, ?, ?, ?)'
         insert_args = [[1, '2004-03-04', '13:41:52', '2004-03-04 13:41:52']]
         self.prepareTestTable('date_time_type', create_sql, insert_sql, insert_args)
 
@@ -376,8 +375,8 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
 
     def testBinaryType(self):
         create_sql = f'CREATE TABLE "{self.schemaName}"."binary_type" ( ' \
-                     '"id" INTEGER NOT NULL PRIMARY KEY,' \
-                     '"blob" VARBINARY(114))'
+            '"id" INTEGER NOT NULL PRIMARY KEY,' \
+            '"blob" VARBINARY(114))'
         insert_sql = f'INSERT INTO "{self.schemaName}"."binary_type" ("id", "blob") VALUES (?, ?)'
         insert_args = [[1, QByteArray(b'YmludmFsdWU=')], [2, None]]
         self.prepareTestTable('binary_type', create_sql, insert_sql, insert_args)
@@ -394,8 +393,8 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
 
     def testBinaryTypeEdit(self):
         create_sql = f'CREATE TABLE "{self.schemaName}"."binary_type_edit" ( ' \
-                     '"id" INTEGER NOT NULL PRIMARY KEY,' \
-                     '"blob" VARBINARY(1000))'
+            '"id" INTEGER NOT NULL PRIMARY KEY,' \
+            '"blob" VARBINARY(1000))'
         insert_sql = f'INSERT INTO "{self.schemaName}"."binary_type_edit" ("id", "blob") VALUES (?, ?)'
         insert_args = [[1, QByteArray(b'YmJi')]]
         self.prepareTestTable('binary_type_edit', create_sql, insert_sql, insert_args)
@@ -427,11 +426,11 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
 
     def testGeometryAttributes(self):
         create_sql = f'CREATE TABLE "{self.schemaName}"."geometry_attribute" ( ' \
-                     'ID INTEGER NOT NULL PRIMARY KEY,' \
-                     'GEOM1 ST_GEOMETRY(4326),' \
-                     'GEOM2 ST_GEOMETRY(4326))'
+            'ID INTEGER NOT NULL PRIMARY KEY,' \
+            'GEOM1 ST_GEOMETRY(4326),' \
+            'GEOM2 ST_GEOMETRY(4326))'
         insert_sql = f'INSERT INTO "{self.schemaName}"."geometry_attribute" (ID, GEOM1, GEOM2) ' \
-                     f'VALUES (?, ST_GeomFromText(?, 4326), ST_GeomFromText(?, 4326)) '
+            f'VALUES (?, ST_GeomFromText(?, 4326), ST_GeomFromText(?, 4326)) '
         insert_args = [[1, 'POINT (1 2)', 'LINESTRING (0 0,1 1)']]
         self.prepareTestTable('geometry_attribute', create_sql, insert_sql, insert_args)
 
@@ -462,10 +461,10 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
 
             if primaryKey == "fldid":
                 constraints = QgsFieldConstraints()
-                constraints.setConstraint(QgsFieldConstraints.ConstraintNotNull,
-                                          QgsFieldConstraints.ConstraintOriginProvider)
-                constraints.setConstraint(QgsFieldConstraints.ConstraintUnique,
-                                          QgsFieldConstraints.ConstraintOriginProvider)
+                constraints.setConstraint(QgsFieldConstraints.Constraint.ConstraintNotNull,
+                                          QgsFieldConstraints.ConstraintOrigin.ConstraintOriginProvider)
+                constraints.setConstraint(QgsFieldConstraints.Constraint.ConstraintUnique,
+                                          QgsFieldConstraints.ConstraintOrigin.ConstraintOriginProvider)
                 fields[0].setConstraints(constraints)
 
             layer.startEditing()
@@ -490,11 +489,11 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
             QgsHanaProviderUtils.dropTableIfExists(self.conn, self.schemaName, 'import_data')
             uri = self.uri + f' key=\'{primaryKey}\' table="{self.schemaName}"."import_data" (geom) sql='
             error, message = QgsVectorLayerExporter.exportLayer(layer, uri, 'hana', crs)
-            self.assertEqual(error, QgsVectorLayerExporter.NoError)
+            self.assertEqual(error, QgsVectorLayerExporter.ExportError.NoError)
 
             import_layer = self.createVectorLayer(
                 f'key=\'{primaryKey}\' table="{self.schemaName}"."import_data" (geom) sql=', 'testimportedlayer')
-            self.assertEqual(import_layer.wkbType(), QgsWkbTypes.Point)
+            self.assertEqual(import_layer.wkbType(), QgsWkbTypes.Type.Point)
             self.assertEqual([f.name() for f in import_layer.fields()], attributeNames)
 
             features = [f.attributes() for f in import_layer.getFeatures()]
@@ -536,20 +535,25 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
         """Test filterRect which partially lies outside of the srs extent"""
         self.source.setSubsetString(None)
         extent = QgsRectangle(-103, 46, -25, 97)
-        result = set([f[self.pk_name] for f in self.source.getFeatures(QgsFeatureRequest().setFilterRect(extent))])
-        expected = set([1, 2, 4, 5])
-        assert set(expected) == result, f'Expected {expected} and got {result} when testing setFilterRect {extent}'
+        result = {f[self.pk_name] for f in self.source.getFeatures(QgsFeatureRequest().setFilterRect(extent))}
+        expected = {1, 2, 4, 5}
+        self.assertEqual(set(expected), result)
 
     def testEncodeDecodeUri(self):
         """Test HANA encode/decode URI"""
         md = QgsProviderRegistry.instance().providerMetadata('hana')
+        self.maxDiff = None
         self.assertEqual(md.decodeUri(
+            "connectionType=0 dsn='HANADB1' "
             "driver='/usr/sap/hdbclient/libodbcHDB.so' dbname='qgis_tests' host=localhost port=30015 "
             "user='myuser' password='mypwd' srid=2016 table=\"public\".\"gis\" (geom) type=MultiPolygon key='id' "
             "sslEnabled='true' sslCryptoProvider='commoncrypto' sslValidateCertificate='false' "
             "sslHostNameInCertificate='hostname.domain.com' sslKeyStore='mykey.pem' "
-            "sslTrustStore='server_root.crt' "),
+            "sslTrustStore='server_root.crt' "
+            "proxyEnabled='true' proxyHttp='true' proxyHost='h' proxyPort=2 proxyUsername='u' proxyPassword='p' "),
             {
+                'connectionType': '0',
+                'dsn': 'HANADB1',
                 'driver': '/usr/sap/hdbclient/libodbcHDB.so',
                 'dbname': 'qgis_tests',
                 'host': 'localhost',
@@ -568,9 +572,17 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
                 'sslHostNameInCertificate': 'hostname.domain.com',
                 'sslKeyStore': 'mykey.pem',
                 'sslTrustStore': 'server_root.crt',
-                'selectatid': False})
+                'selectatid': False,
+                'proxyEnabled': 'true',
+                'proxyHttp': 'true',
+                'proxyHost': 'h',
+                'proxyPort': '2',
+                'proxyUsername': 'u',
+                'proxyPassword': 'p'})
 
-        self.assertEqual(md.encodeUri({'driver': '/usr/sap/hdbclient/libodbcHDB.so',
+        self.assertEqual(md.encodeUri({'connectionType': '0',
+                                       'dsn': 'HANADB1',
+                                       'driver': '/usr/sap/hdbclient/libodbcHDB.so',
                                        'dbname': 'qgis_tests',
                                        'host': 'localhost',
                                        'port': '30015',
@@ -588,13 +600,20 @@ class TestPyQgsHanaProvider(unittest.TestCase, ProviderTestCase):
                                        'sslHostNameInCertificate': 'hostname.domain.com',
                                        'sslKeyStore': 'mykey.pem',
                                        'sslTrustStore': 'server_root.crt',
-                                       'selectatid': False}),
+                                       'selectatid': False,
+                                       'proxyEnabled': 'true',
+                                       'proxyHttp': 'false',
+                                       'proxyHost': 'h',
+                                       'proxyPort': '3',
+                                       'proxyUsername': 'u',
+                                       'proxyPassword': 'p'}),
                          "dbname='qgis_tests' driver='/usr/sap/hdbclient/libodbcHDB.so' user='myuser' password='mypwd' "
-                         "srid=2016 host='localhost' key='id' port='30015' selectatid='false' "
-                         "sslCryptoProvider='commoncrypto' sslEnabled='true' "
+                         "key='id' srid=2016 connectionType='0' dsn='HANADB1' host='localhost' port='30015' "
+                         "proxyEnabled='true' proxyHost='h' proxyHttp='false' proxyPassword='p' proxyPort='3' "
+                         "proxyUsername='u' selectatid='false' sslCryptoProvider='commoncrypto' sslEnabled='true' "
                          "sslHostNameInCertificate='hostname.domain.com' sslKeyStore='mykey.pem' "
-                         "sslTrustStore='server_root.crt' sslValidateCertificate='false' "
-                         "type='MultiPolygon' table=\"public\".\"gis\" (geom)")
+                         "sslTrustStore='server_root.crt' sslValidateCertificate='false' type='MultiPolygon' "
+                         "table=\"public\".\"gis\" (geom)")
 
 
 if __name__ == '__main__':

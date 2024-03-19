@@ -21,7 +21,7 @@
 #include <QVector>
 #include <QVector3D>
 #include <QImage>
-#include <Qt3DRender/QAttribute>
+#include <QMap>
 
 #include "qgis_3d.h"
 
@@ -66,7 +66,7 @@ class _3D_EXPORT Qgs3DExportObject
     void setType( ObjectType type ) { mType = type; }
 
     //! Returns whether object edges will look smooth
-    bool smoothEdges() { return mSmoothEdges; }
+    bool smoothEdges() const { return mSmoothEdges; }
     //! Sets whether triangles edges will look smooth
     void setSmoothEdges( bool smoothEdges ) { mSmoothEdges = smoothEdges; }
 
@@ -87,7 +87,7 @@ class _3D_EXPORT Qgs3DExportObject
     //! Sets the texture image used by the object
     void setTextureImage( const QImage &image ) { this->mTextureImage = image; };
     //! Returns the texture image used by the object
-    QImage textureImage() { return mTextureImage; }
+    QImage textureImage() const { return mTextureImage; }
 
     /**
      *
@@ -103,6 +103,18 @@ class _3D_EXPORT Qgs3DExportObject
     void saveTo( QTextStream &out, float scale, const QVector3D &center );
     //! saves the texture of the object and material information
     QString saveMaterial( QTextStream &mtlOut, const QString &folder );
+
+    //! Returns the vertex coordinates
+    QVector<float> vertexPosition() const { return mVertexPosition; }
+
+    //! Returns the vertex normal coordinates
+    QVector<float> normals() const { return mNormals;}
+
+    //! Returns the vertex texture coordinates
+    QVector<float> texturesUV() const { return mTexturesUV;}
+
+    //! Returns the vertex indexes
+    QVector<unsigned int> indexes() const { return mIndexes; }
 
   private:
     QString mName;

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 ###############################################################################
 #
 # CSW Client
@@ -30,7 +29,7 @@
 import xml.etree.ElementTree as etree
 
 from qgis.core import QgsSettings
-from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QListWidgetItem, QMessageBox
+from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QListWidgetItem, QMessageBox  # noqa
 
 from MetaSearch.util import (get_connections_from_file, get_ui_class,
                              prettify_xml)
@@ -57,13 +56,13 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
 
         if self.mode == 1:
             self.label.setText(self.tr('Load from file'))
-            self.buttonBox.button(QDialogButtonBox.Ok).setText(self.tr('Load'))
+            self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(self.tr('Load'))
         else:
             self.label.setText(self.tr('Save to file'))
-            self.buttonBox.button(QDialogButtonBox.Ok).setText(self.tr('Save'))
+            self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(self.tr('Save'))
             self.populate()
 
-        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
 
     def select_file(self):
         """select file ops"""
@@ -76,8 +75,8 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
                                                                 '.', label)
         else:
             slabel = self.tr('Load Connections')
-            self.filename, selected_filter = QFileDialog.getOpenFileName(self, slabel,
-                                                                         '.', label)
+            self.filename, selected_filter = QFileDialog.getOpenFileName(
+                self, slabel, '.', label)
 
         if not self.filename:
             return
@@ -91,7 +90,7 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
         if self.mode == 1:
             self.populate()
 
-        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
 
     def populate(self):
         """populate connections list from settings"""
@@ -112,9 +111,9 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
                 self.listConnections.clear()
                 return
 
-            for csw in doc.findall('csw'):
+            for catalog in doc.findall('csw'):
                 item = QListWidgetItem(self.listConnections)
-                item.setText(csw.attrib.get('name'))
+                item.setText(catalog.attrib.get('name'))
 
     def save(self, connections):
         """save connections ops"""
@@ -124,9 +123,11 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
 
         for conn in connections:
             url = self.settings.value('/MetaSearch/%s/url' % conn)
+            type_ = self.settings.value('/MetaSearch/%s/catalog-type' % conn)
             if url is not None:
                 connection = etree.SubElement(doc, 'csw')
                 connection.attrib['name'] = conn
+                connection.attrib['type'] = type_ or 'OGC CSW 2.0.2'
                 connection.attrib['url'] = url
 
         # write to disk
@@ -145,8 +146,8 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
 
         exml = etree.parse(self.filename).getroot()
 
-        for csw in exml.findall('csw'):
-            conn_name = csw.attrib.get('name')
+        for catalog in exml.findall('csw'):
+            conn_name = catalog.attrib.get('name')
 
             # process only selected connections
             if conn_name not in items:
@@ -154,16 +155,18 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
 
             # check for duplicates
             if conn_name in keys:
-                label = self.tr('File {0} exists. Overwrite?').format(conn_name)
+                label = self.tr('File {0} exists. Overwrite?').format(
+                    conn_name)
                 res = QMessageBox.warning(self, self.tr('Loading Connections'),
                                           label,
-                                          QMessageBox.Yes | QMessageBox.No)
-                if res != QMessageBox.Yes:
+                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if res != QMessageBox.StandardButton.Yes:
                     continue
 
             # no dups detected or overwrite is allowed
             url = '/MetaSearch/%s/url' % conn_name
-            self.settings.setValue(url, csw.attrib.get('url'))
+            self.settings.setValue(url, catalog.attrib.get('url'))
+            self.settings.setValue(url, catalog.attrib.get('catalog-type', 'OGC CSW 2.0.2'))
 
     def accept(self):
         """accept connections"""
@@ -184,7 +187,7 @@ class ManageConnectionsDialog(QDialog, BASE_CLASS):
         self.filename = None
         self.leFileName.clear()
         self.listConnections.clear()
-        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
 
     def reject(self):
         """back out of manage connections dialogue"""
