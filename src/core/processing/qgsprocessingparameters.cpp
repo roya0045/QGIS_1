@@ -6272,11 +6272,11 @@ QString QgsProcessingParameterFeatureSource::valueAsPythonString( const QVariant
         geometryCheckString = QStringLiteral( "QgsFeatureRequest.GeometryAbortOnInvalid" );
         break;
 
-      case QgsFeatureRequest::GeometryFixInvalidSkipOnFailure:
+      case Qgis::InvalidGeometryCheck::FixInvalidSkipOnFailure:
         geometryCheckString = QStringLiteral( "QgsFeatureRequest.GeometryFixInvalidSkipOnFailure" );
         break;
 
-      case QgsFeatureRequest::GeometryFixInvalidAbortOnFailure:
+      case Qgis::InvalidGeometryCheck::FixInvalidAbortOnFailure:
         geometryCheckString = QStringLiteral( "QgsFeatureRequest.GeometryFixInvalidAbortOnFailure" );
         break;
     }
