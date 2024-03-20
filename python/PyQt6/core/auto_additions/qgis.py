@@ -1279,6 +1279,14 @@ Qgis.RasterRendererFlag.baseClass = Qgis
 Qgis.RasterRendererFlags.baseClass = Qgis
 RasterRendererFlags = Qgis  # dirty hack since SIP seems to introduce the flags in module
 # monkey patching scoped based enum
+Qgis.RasterRendererCapability.UsesMultipleBands.__doc__ = "The renderer utilizes multiple raster bands for color data (note that alpha bands are not considered for this capability)"
+Qgis.RasterRendererCapability.__doc__ = "Raster renderer capabilities.\n\n.. versionadded:: 3.48\n\n" + '* ``UsesMultipleBands``: ' + Qgis.RasterRendererCapability.UsesMultipleBands.__doc__
+# --
+Qgis.RasterRendererCapability.baseClass = Qgis
+Qgis.RasterRendererCapabilities = lambda flags=0: Qgis.RasterRendererCapability(flags)
+Qgis.RasterRendererCapabilities.baseClass = Qgis
+RasterRendererCapabilities = Qgis  # dirty hack since SIP seems to introduce the flags in module
+# monkey patching scoped based enum
 Qgis.RasterAttributeTableFieldUsage.Generic.__doc__ = "Field usage Generic"
 Qgis.RasterAttributeTableFieldUsage.PixelCount.__doc__ = "Field usage PixelCount"
 Qgis.RasterAttributeTableFieldUsage.Name.__doc__ = "Field usage Name"
@@ -3230,9 +3238,16 @@ Qgis.RangeLimits.baseClass = Qgis
 # monkey patching scoped based enum
 Qgis.RasterElevationMode.FixedElevationRange.__doc__ = "Layer has a fixed elevation range"
 Qgis.RasterElevationMode.RepresentsElevationSurface.__doc__ = "Pixel values represent an elevation surface"
-Qgis.RasterElevationMode.__doc__ = "Raster layer elevation modes.\n\n.. versionadded:: 3.38\n\n" + '* ``FixedElevationRange``: ' + Qgis.RasterElevationMode.FixedElevationRange.__doc__ + '\n' + '* ``RepresentsElevationSurface``: ' + Qgis.RasterElevationMode.RepresentsElevationSurface.__doc__
+Qgis.RasterElevationMode.FixedRangePerBand.__doc__ = "Layer has a fixed elevation range per band"
+Qgis.RasterElevationMode.__doc__ = "Raster layer elevation modes.\n\n.. versionadded:: 3.38\n\n" + '* ``FixedElevationRange``: ' + Qgis.RasterElevationMode.FixedElevationRange.__doc__ + '\n' + '* ``RepresentsElevationSurface``: ' + Qgis.RasterElevationMode.RepresentsElevationSurface.__doc__ + '\n' + '* ``FixedRangePerBand``: ' + Qgis.RasterElevationMode.FixedRangePerBand.__doc__
 # --
 Qgis.RasterElevationMode.baseClass = Qgis
+# monkey patching scoped based enum
+Qgis.MeshElevationMode.FixedElevationRange.__doc__ = "Layer has a fixed elevation range"
+Qgis.MeshElevationMode.FromVertices.__doc__ = "Elevation should be taken from mesh vertices"
+Qgis.MeshElevationMode.__doc__ = "Mesh layer elevation modes.\n\n.. versionadded:: 3.38\n\n" + '* ``FixedElevationRange``: ' + Qgis.MeshElevationMode.FixedElevationRange.__doc__ + '\n' + '* ``FromVertices``: ' + Qgis.MeshElevationMode.FromVertices.__doc__
+# --
+Qgis.MeshElevationMode.baseClass = Qgis
 # monkey patching scoped based enum
 Qgis.NoConstraint = Qgis.BetweenLineConstraint.NoConstraint
 Qgis.NoConstraint.is_monkey_patched = True

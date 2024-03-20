@@ -54,6 +54,7 @@ class CORE_EXPORT QgsRasterLayerElevationProperties : public QgsMapLayerElevatio
     bool isVisibleInZRange( const QgsDoubleRange &range ) const override;
     QgsDoubleRange calculateZRange( QgsMapLayer *layer ) const override;
     bool showByDefaultInElevationProfilePlots() const override;
+    QgsMapLayerElevationProperties::Flags flags() const override;
 
     /**
      * Returns TRUE if the elevation properties are enabled, i.e. the raster layer values represent an elevation surface.
@@ -126,6 +127,30 @@ class CORE_EXPORT QgsRasterLayerElevationProperties : public QgsMapLayerElevatio
      * \since QGIS 3.38
      */
     void setFixedRange( const QgsDoubleRange &range );
+
+    /**
+     * Returns the fixed elevation range for each band.
+     *
+     * \note This is only considered when mode() is Qgis::RasterElevationMode::FixedRangePerBand.
+     *
+     * \note When a fixed range is set any zOffset() and zScale() is ignored.
+     *
+     * \see setFixedRangePerBand()
+     * \since QGIS 3.38
+     */
+    QMap<int, QgsDoubleRange> fixedRangePerBand() const;
+
+    /**
+     * Sets the fixed elevation range for each band.
+     *
+     * \note This is only considered when mode() is Qgis::RasterElevationMode::FixedRangePerBand.
+     *
+     * \note When a fixed range is set any zOffset() and zScale() is ignored.
+     *
+     * \see fixedRangePerBand()
+     * \since QGIS 3.38
+     */
+    void setFixedRangePerBand( const QMap<int, QgsDoubleRange> &ranges );
 
     /**
      * Returns the elevation range corresponding to a raw pixel value from the specified \a band.
@@ -239,6 +264,7 @@ class CORE_EXPORT QgsRasterLayerElevationProperties : public QgsMapLayerElevatio
     int mBandNumber = 1;
 
     QgsDoubleRange mFixedRange;
+    QMap< int, QgsDoubleRange > mRangePerBand;
 
 };
 
