@@ -439,6 +439,10 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
     bool mIgnoreSubsequentAutoRepeatUndo = false;
 
     friend class TestQgsMapToolCapture;
+
+    QMap<Qgis::WkbType,Qgis::CaptureTechnique> mCaptureTechniqueRegistry;
+
+
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS( QgsMapToolCapture::Capabilities )

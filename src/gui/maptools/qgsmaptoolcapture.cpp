@@ -152,6 +152,10 @@ void QgsMapToolCapture::currentLayerChanged( QgsMapLayer *layer )
   {
     return;
   }
+  elif ( mCaptureTechniqueRegistry.contains( vlayer->wkbType() ) )
+  {
+    setCurrentCaptureTechnique( mCaptureTechniqueRegistry.value( vlayer->wkbType(), Qgis::CaptureTechnique::StraightSegments ) );
+  }
 
   if ( vlayer->isSpatial() )
   {
@@ -466,6 +470,10 @@ void QgsMapToolCapture::setCurrentCaptureTechnique( Qgis::CaptureTechnique techn
   {
     clean();
     mCurrentShapeMapTool->activate( mCaptureMode, mCaptureLastPoint );
+  }
+  if (vlayer)
+  {
+    mCaptureTechniqueRegistry[vlayer->wkbType()] = technique;
   }
 }
 
