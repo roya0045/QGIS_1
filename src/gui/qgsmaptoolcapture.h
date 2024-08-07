@@ -444,6 +444,8 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
 
     friend class TestQgsMapToolCapture;
 
+    QMap<Qgis::WkbType,Qgis::CaptureTechnique> mCaptureTechniqueRegistry;
+
 
 };
 
