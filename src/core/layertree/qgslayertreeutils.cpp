@@ -706,7 +706,7 @@ QString QgsLayerTreeUtils::expressionForLegendKey( QgsLayerTreeNode *node, const
     QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( nodeLayer->layer() );
     if ( !layer )
       return QString();
-    if ( QgsFeatureRenderer *renderer = layer->renderer() )
+    if ( QgsFeatureRenderer *renderer = layer->renderer() ) // if layer style (from theme) is different in layout and canvas, cannot get expression, need to find ways to get appropriate render
     {
       bool ok = false;
       return ( renderer->legendKeyToExpression( legendKey, layer, ok ) );
