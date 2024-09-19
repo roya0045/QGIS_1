@@ -19,6 +19,7 @@
 #include "qgsproject.h"
 #include "qgslogger.h"
 #include "qgsrenderer.h"
+// #include "qgsmaplayerstyle.h"
 
 #include <QDomElement>
 #include <QTextStream>
@@ -704,9 +705,20 @@ QString QgsLayerTreeUtils::expressionForLegendKey( QgsLayerTreeNode *node, const
   {
     QgsLayerTreeLayer *nodeLayer = QgsLayerTree::toLayer( node );
     QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( nodeLayer->layer() );
+    
     if ( !layer )
       return QString();
-    if ( QgsFeatureRenderer *renderer = layer->renderer() ) // if layer style (from theme) is different in layout and canvas, cannot get expression, need to find ways to get appropriate render
+    /* if ( )
+     {
+      layerStyleOverridesToRender
+      QgsMapLayerStyleOverride styleOverride( layer );
+      if ( mLayerStyleOverrides.contains( layer->id() ) )
+        styleOverride.setOverrideStyle( mLayerStyleOverrides.value( layer->id() ) );
+    }
+    */
+    QgsFeatureRenderer *renderer = layer->render();
+
+    if ( renderer ) // if layer style (from theme) is different in layout and canvas, cannot get expression, need to find ways to get appropriate render
     {
       bool ok = false;
       return ( renderer->legendKeyToExpression( legendKey, layer, ok ) );
