@@ -685,8 +685,7 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
         {
           legendNode->setVisibility( ! isFirstNodeChecked ); // TO IMPLEMENT
         }
-      // if we call the original keyPress handler, the current item will be checked to the original state yet again
-      return;
+      }
     }
   }
 
