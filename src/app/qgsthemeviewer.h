@@ -91,7 +91,7 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
      * Sets a predefined list of layer Ids to process.
      * \since QGIS 3.26
      */
-    void setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme );
+    void setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme, const QMap<QString, QString> styles );
 
     /**
      * Allow non-spatial layers and empty groups to be show.
