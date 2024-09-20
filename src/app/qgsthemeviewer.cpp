@@ -97,36 +97,7 @@ void QgsThemeModel::forceRefresh()
 
 void QgsThemeModel::validateTheme( QString theme )
 {
-  QMap<QgsMapLayer *, QgsMapStyle> themeStyle;
-  QMap<QgsMapLayer *, QgsMapStyle>  currentStyle;
-  for layer 
-      if ( QgsMapLayer *layer = QgsLayerTree::toLayer( node->parent() )->layer() )
-      {
-        QString layerid = layer->id();
-        const QgsMapThemeCollection::MapThemeLayerRecord lrecord = mTheme.getRecord( layerid );
-        if ( lrecord.currentStyle != layer->styleManager()->currentStyle() )
-        {
-          themeStyle.insert( layer, lrecord.currentStyle );
-          currentStyle.insert( layer, layer->styleManager()->currentStyle() );
-        }
-      }
-  QMap<QString, QgsMapStyle>::const_iterator i;
-  for ( i = themeStyle.constBegin(); i != themeStyle.constEnd() ; ++i )
-  {
-    QgsMapLayer *layer = i.key();
-    if ( layer )
-      layer->styleManager()->setCurrentStyle( i.value() );
-  }
-
   forceRefresh();
-
-  QMap<QString, QgsMapStyle>::const_iterator i;
-  for ( i = currentStyle.constBegin(); i != currentStyle.constEnd() ; ++i )
-  {
-    QgsMapLayer *layer = i.key();
-    if ( layer )
-      layer->styleManager()->setCurrentStyle( i.value() );
-  }
 }
 
 void QgsThemeModel::changeLayerStyle( QgsLayerTreeNode *node, QString theme )
@@ -137,7 +108,7 @@ void QgsThemeModel::changeLayerStyle( QgsLayerTreeNode *node, QString theme )
   if ( !nodeLayer->layer() )
     return;
   const QgsMapLayerStyle lStyle = mTheme.getRecord( nodeLayer->layer()->id() ).currentStyle;
-
+  // not done ?
 }
 
 QgsThemeViewer::QgsThemeViewer( QWidget *parent )
@@ -270,9 +241,10 @@ void QgsThemeProxy::setShowAllNodes( bool show )
   invalidateFilter();
 }
 
-void QgsThemeProxy::setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme )
+void QgsThemeProxy::setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme, const QMap<QString, QString> styles )
 {
   mTheme = theme;
+  mLayerTreeModel.setLayerStyleOverrides( styles );
   invalidateFilter();
 }
 

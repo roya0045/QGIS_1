@@ -172,7 +172,10 @@ void QgsThemeManagerWidget::viewCurrentTheme() const
 {
   if ( !mThemeCollection->hasMapTheme( mCurrentTheme ) )
     return;
-  mThemeViewer->proxyModel()->setMapTheme( mThemeCollection->mapThemeState( mCurrentTheme ) );
+  const QgsMapThemeCollection::MapThemeRecord themeRecord = mThemeCollection->mapThemeState( mCurrentTheme );
+  const QMap<QString, QString> themeStyles = mThemeCollection->mapThemeStyleOverrides( mCurrentTheme );
+
+  mThemeViewer->proxyModel()->setMapTheme( themeRecord, themeStyles );
 }
 
 
