@@ -70,6 +70,13 @@ class GUI_EXPORT QgsPointCloudClassifiedRendererModel : public QAbstractItemMode
   signals:
     void categoriesChanged();
 
+    /**
+     * Signals emitted when a modified key is held and the state is toggled.
+     *
+     * \since QGIS 3.32
+     */
+    void toggleSelectedSymbols( const bool state );
+
   private:
     QgsPointCloudCategoryList mCategories;
     QMap< int, float > mPercentages;
@@ -126,6 +133,13 @@ class GUI_EXPORT QgsPointCloudClassifiedRendererWidget: public QgsPointCloudRend
     void changeCategoryColor();
     void changeCategoryOpacity();
     void changeCategoryPointSize();
+
+    /**
+     * Slot used to change the state of all selected items.
+     *
+     * \since QGIS 3.32
+     */
+    void toggleSelectedSymbols( const bool state );
   private:
     //! Sets default category and available classes
     void initialize();

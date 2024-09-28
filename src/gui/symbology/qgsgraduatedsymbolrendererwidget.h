@@ -68,6 +68,13 @@ class GUI_EXPORT QgsGraduatedSymbolRendererModel : public QAbstractItemModel
   signals:
     void rowsMoved();
 
+    /**
+     * Signals emitted when a modified key is held and the state is toggled.
+     *
+     * \since QGIS 3.32
+     */
+    void toggleSelectedSymbols( const bool state );
+
   private:
     QgsGraduatedSymbolRenderer *mRenderer = nullptr;
     QString mMimeFormat;
@@ -152,6 +159,13 @@ class GUI_EXPORT QgsGraduatedSymbolRendererWidget : public QgsRendererWidget, pr
     void selectionChanged( const QItemSelection &selected, const QItemSelection &deselected );
     void symmetryPointEditingFinished();
     void classifyGraduatedImpl();
+
+    /**
+     * Slot used to change the state of all selected items.
+     *
+     * \since QGIS 3.32
+     */
+    void toggleSelectedSymbols( const bool state );
 
   protected slots:
 
