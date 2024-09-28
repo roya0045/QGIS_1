@@ -202,7 +202,6 @@ void QgsLayerTreeView::modelRowsInserted( const QModelIndex &index, int start, i
   QgsLayerTreeNode *parentNode = index2node( index );
   if ( !parentNode )
     return;
-
   // Embedded widgets - replace placeholders in the model by actual widgets
   if ( layerTreeModel()->testFlag( QgsLayerTreeModel::UseEmbeddedWidgets ) && QgsLayerTree::isLayer( parentNode ) )
   {
@@ -426,11 +425,7 @@ QgsLayerTreeModelLegendNode *QgsLayerTreeView::currentLegendNode() const
 
 QList<QgsLayerTreeNode *> QgsLayerTreeView::selectedNodes( bool skipInternal ) const
 {
-  QModelIndexList mapped;
-  const QModelIndexList selected = selectionModel()->selectedIndexes();
-  mapped.reserve( selected.size() );
-  for ( const QModelIndex &index : selected )
-    mapped << mProxyModel->mapToSource( index );
+  QModelIndexList mapped = selectedTreeIndexes();
 
   return layerTreeModel()->indexes2nodes( mapped, skipInternal );
 }
@@ -480,15 +475,21 @@ QList<QgsLayerTreeModelLegendNode *> QgsLayerTreeView::selectedLegendNodes() con
 
 QList<QgsMapLayer *> QgsLayerTreeView::selectedLayersRecursive() const
 {
-  QModelIndexList mapped;
-  const QModelIndexList selected = selectionModel()->selectedIndexes();
-  mapped.reserve( selected.size() );
-  for ( const QModelIndex &index : selected )
-    mapped << mProxyModel->mapToSource( index );
+  QModelIndexList mapped = selectedTreeIndexes();
 
   const QList<QgsLayerTreeNode *> nodes = layerTreeModel()->indexes2nodes( mapped, false );
   const QSet<QgsMapLayer *> layersSet = QgsLayerTreeUtils::collectMapLayersRecursive( nodes );
   return qgis::setToList( layersSet );
+}
+
+const QModelIndexList QgsLayerTreeView::selectedTreeIndexes() const
+{
+  QModelIndexList mapped;
+  const QModelIndexList selected = selectionModel()->selectedTreeIndexes();
+  mapped.reserve( selected.size() );
+  for ( const QModelIndex &index : selected )
+    mapped << mProxyModel->mapToSource( index );
+  return mapped;
 }
 
 void QgsLayerTreeView::addIndicator( QgsLayerTreeNode *node, QgsLayerTreeViewIndicator *indicator )
@@ -864,7 +865,7 @@ bool QgsLayerTreeProxyModel::filterAcceptsRow( int sourceRow, const QModelIndex 
 
 bool QgsLayerTreeProxyModel::nodeShown( QgsLayerTreeNode *node ) const
 {
-  if ( !node )
+  if ( !node ) //symbol node
     return true;
 
   if ( node->nodeType() == QgsLayerTreeNode::NodeGroup )
