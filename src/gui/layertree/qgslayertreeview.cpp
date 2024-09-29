@@ -453,7 +453,7 @@ QList<QgsMapLayer *> QgsLayerTreeView::selectedLayersRecursive() const
 const QModelIndexList QgsLayerTreeView::selectedTreeIndexes() const
 {
   QModelIndexList mapped;
-  const QModelIndexList selected = selectionModel()->selectedTreeIndexes();
+  const QModelIndexList selected = selectionModel()->selectedIndexes();
   mapped.reserve( selected.size() );
   for ( const QModelIndex &index : selected )
     mapped << mProxyModel->mapToSource( index );
