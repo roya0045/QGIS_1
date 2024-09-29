@@ -38,7 +38,7 @@ QgsThemeModel::QgsThemeModel( QgsLayerTree *rootNode, QObject *parent)
 {
   setFlag( QgsLayerTreeModel::AllowLegendChangeState, false );
   setFlag( QgsLayerTreeModel::AllowNodeReorder, true );
-  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::refreshTheme );
+  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::resyncTheme );
 }
 
 QgsThemeModel::QgsThemeModel( QgsLayerTree *rootNode )
@@ -46,7 +46,7 @@ QgsThemeModel::QgsThemeModel( QgsLayerTree *rootNode )
 {
   setFlag( QgsLayerTreeModel::AllowLegendChangeState, false );
   setFlag( QgsLayerTreeModel::AllowNodeReorder, true );
-  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::refreshTheme );
+  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::resyncTheme );
 }
 
 QVariant QgsThemeModel::data( const QModelIndex &index, int role ) const
@@ -90,14 +90,9 @@ void QgsThemeModel::clearCachedData( QgsLayerTreeNode *node ) const
   node->removeCustomProperty( QStringLiteral( "cached_name" ) );
 }
 
-void QgsThemeModel::forceRefresh()
+void QgsThemeModel::resyncTheme()
 {
-  emit refreshTheme();
-}
-
-void QgsThemeModel::refreshTheme()
-{
-  forceRefresh();
+  
 }
 
 QgsThemeViewer::QgsThemeViewer( QWidget *parent )
