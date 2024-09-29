@@ -22,6 +22,7 @@
 #include "qgslayertreelayer.h"
 #include "qgslayertreemodellegendnode.h"
 #include "qgsmaplayerstylemanager.h"
+#include "qgsvectorlayer.h"
 #include <QDrag>
 #include <QDragEnterEvent>
 #include <QContextMenuEvent>
@@ -37,7 +38,7 @@ QgsThemeModel::QgsThemeModel( QgsLayerTree *rootNode, QObject *parent)
 {
   setFlag( QgsLayerTreeModel::AllowLegendChangeState, false );
   setFlag( QgsLayerTreeModel::AllowNodeReorder, true );
-  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::refreshLegend );
+  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::refreshTheme );
 }
 
 QgsThemeModel::QgsThemeModel( QgsLayerTree *rootNode )
@@ -45,7 +46,7 @@ QgsThemeModel::QgsThemeModel( QgsLayerTree *rootNode )
 {
   setFlag( QgsLayerTreeModel::AllowLegendChangeState, false );
   setFlag( QgsLayerTreeModel::AllowNodeReorder, true );
-  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::refreshLegend );
+  connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::refreshTheme );
 }
 
 QVariant QgsThemeModel::data( const QModelIndex &index, int role ) const
@@ -94,20 +95,9 @@ void QgsThemeModel::forceRefresh()
   emit refreshTheme();
 }
 
-void QgsThemeModel::validateTheme( QString theme )
+void QgsThemeModel::refreshTheme()
 {
   forceRefresh();
-}
-
-void QgsThemeModel::changeLayerStyle( QgsLayerTreeNode *node, QString theme )
-{
-  if ( !QgsLayerTree::isLayer( node ) )
-    return;
-    const QgsLayerTreeLayer *nodeLayer = QgsLayerTree::toLayer( node );
-  if ( !nodeLayer->layer() )
-    return;
-  const QgsMapLayerStyle lStyle = mTheme.getRecord( nodeLayer->layer()->id() ).currentStyle;
-  // not done ?
 }
 
 QgsThemeViewer::QgsThemeViewer( QWidget *parent )
@@ -222,12 +212,7 @@ void QgsThemeViewer::disconnectProxyModel()
   disconnect( mProxyModel, &QAbstractItemModel::rowsRemoved, this, &QgsThemeViewer::modelRowsRemoved );
 }
 
-void QgsThemeViewer::setProxyMapThemeRecord( const QgsMapThemeCollection::MapThemeRecord theme )
-{
-  mProxyModel->setMapTheme( theme );
-}
-
-QgsThemeProxy::QgsThemeProxy( QgsLayerTreeModel *treeModel, QObject *parent )
+QgsThemeProxy::QgsThemeProxy( QgsThemeModel *treeModel, QObject *parent )
   : QgsLayerTreeProxyModel( treeModel, parent )
 {
   mLayerTreeModel = treeModel;
@@ -243,7 +228,7 @@ void QgsThemeProxy::setShowAllNodes( bool show )
 void QgsThemeProxy::setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme, const QMap<QString, QString> styles )
 {
   mTheme = theme;
-  mLayerTreeModel.setLayerStyleOverrides( styles );
+  mLayerTreeModel->setLayerStyleOverrides( styles );
   invalidateFilter();
 }
 
@@ -308,7 +293,7 @@ bool QgsThemeProxy::legendNodeShown( QgsLayerTreeModelLegendNode *node ) const
   const QgsMapThemeCollection::MapThemeLayerRecord lrecord = mTheme.getRecord( node->layerNode()->layer()->id() );
   if( ! lrecord.usingLegendItems )
     return nodeShown( node->layerNode() );
-  else if ( lrecord.checkedLegendItems.contains( node->data( QgsLayerTreeModelLegendNode::RuleKeyRole ).toString() ) ) //applyMapThemeCheckedLegendNodesToLayer
+  else if ( lrecord.checkedLegendItems.contains( node->data( static_cast< int >(QgsLayerTreeModelLegendNode::CustomRole::RuleKey) ).toString() ) ) //applyMapThemeCheckedLegendNodesToLayer
    return true;
 
   return mShowAllNodes;

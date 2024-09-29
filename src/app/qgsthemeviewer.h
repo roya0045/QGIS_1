@@ -19,6 +19,7 @@
 #include <QObject>
 #include <QWidget>
 #include "qgslayertreeview.h"
+#include "qgslayertreemodel.h"
 #include "qgsmapthemecollection.h"
 
 class QMimeData;
@@ -77,21 +78,13 @@ class QgsThemeModel : public QgsLayerTreeModel
 
 class QgsThemeProxy :  public QgsLayerTreeProxyModel
 {
-  Q_OBJECT
-
+    Q_OBJECT
   public:
 
     /**
      * Constructs QgsThemeProxy with source model \a treeModel and a \a parent
      */
     QgsThemeProxy( QgsThemeModel *treeModel, QObject *parent );
-
-
-    /**
-     * Sets a predefined list of layer Ids to process.
-     * \since QGIS 3.26
-     */
-    void setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme, const QMap<QString, QString> styles );
 
     /**
      * Allow non-spatial layers and empty groups to be show.
@@ -105,6 +98,8 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
      * \since QGIS 3.26
      */
     void removeTheme(){ mHasTheme = false; }
+
+    void setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme, const QMap<QString, QString> styles );
 
   protected:
 
