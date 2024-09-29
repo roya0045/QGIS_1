@@ -103,7 +103,7 @@ void QgsThemeManagerWidget::setTheme( const int index )
     if ( !mThemeCollection->hasMapTheme( themename ) )
       return;
     mCurrentTheme = themename;
-    mThemeViewer->setProxyMapThemeRecord( mThemeCollection->mapThemeState( themename ) );
+    viewCurrentTheme();
     emit updateComboBox();
   }
 }
@@ -220,7 +220,7 @@ void QgsThemeManagerWidget::appendNodes( const QModelIndexList indexes )
             modRecord.usingLegendItems = true;
             modRecord.checkedLegendItems.clear();
           }
-          QString legendId= legendNode->data( QgsLayerTreeModelLegendNode::RuleKeyRole ).toString();
+          QString legendId= legendNode->data( static_cast< int >(QgsLayerTreeModelLegendNode::CustomRole::RuleKey) ).toString();
           // remove node to registry
           modRecord.checkedLegendItems.insert( legendId );
           theme.addLayerRecord( modRecord );
@@ -280,7 +280,7 @@ void QgsThemeManagerWidget::removeThemeNodes(  const QModelIndexList indexes )
             continue;
           const QgsMapThemeCollection::MapThemeLayerRecord lrecord = theme.getRecord( mapLayer->id() );
           QgsMapThemeCollection::MapThemeLayerRecord modRecord = lrecord;
-          QString legendId= legendNode->data( QgsLayerTreeModelLegendNode::RuleKeyRole ).toString();
+          QString legendId= legendNode->data( static_cast< int >(QgsLayerTreeModelLegendNode::CustomRole::RuleKey) ).toString();
           // remove node to registry
           if ( modRecord.checkedLegendItems.remove( legendId ) )
             theme.addLayerRecord( modRecord );
