@@ -71,7 +71,7 @@ class QgsThemeModel : public QgsLayerTreeModel
      * Handle incoming signal to refresh the legend.
      * \since QGIS 3.10
      */
-    void forceRefresh();
+    void resyncTheme();
 
 };
 
