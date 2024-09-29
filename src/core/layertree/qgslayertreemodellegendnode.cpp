@@ -40,6 +40,7 @@
 #include "qgslayertreelayer.h"
 #include "qgstextdocument.h"
 #include "qgstextdocumentmetrics.h"
+#include "qgsmaplayerstyle.h"
 
 #include <QBuffer>
 #include <optional>
@@ -983,14 +984,14 @@ QgsExpressionContextScope *QgsSymbolLegendNode::createSymbolScope() const
     if ( vl )
     {
       QgsMapLayerStyleOverride styleOverride( vl );
-      if ( modelstyle.contains( vl->id() ) )
+      if ( modelstyles.contains( vl->id() ) )
         styleOverride.setOverrideStyle( modelstyles.value( vl->id() ) );
 
-      QgsFeatureRenderer *renderer = layer->render();
+      QgsFeatureRenderer *renderer = vl->renderer();
       if ( renderer )
       {
         bool ok = false;
-        symbolExp = renderer->legendKeyToExpression( mItem.ruleKey(), layer, ok );
+        symbolExp = renderer->legendKeyToExpression( mItem.ruleKey(), vl, ok );
       }
       else
       {
