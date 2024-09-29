@@ -670,10 +670,6 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
       {
         isFirstNodeChecked = node->itemVisibilityChecked();
       }
-      else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
-      {
-         isFirstNodeChecked = legendNode->isVisibile(); // TO IMPLEMENT
-      }
  
       for ( const QModelIndex &index : selected )
       {
@@ -684,7 +680,7 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
         }
         else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
         {
-          legendNode->setVisibility( ! isFirstNodeChecked ); // TO IMPLEMENT
+          legendNode->toggleAllItems();
         }
       }
     }
