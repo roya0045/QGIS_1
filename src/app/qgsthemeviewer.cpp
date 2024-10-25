@@ -197,7 +197,8 @@ void QgsThemeViewer::contextMenuEvent( QContextMenuEvent *event )
 
 void QgsThemeViewer::showAllNodes( bool show )
 {
-  mProxyModel->setShowAllNodes( show );
+  if ( mProxyModel )
+    mProxyModel->setShowAllNodes( show );
 }
 
 
