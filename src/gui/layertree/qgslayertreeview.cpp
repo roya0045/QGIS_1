@@ -638,7 +638,7 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
         }
         else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
         {
-          legendNode->toggleAllItems();
+          legendNode->setData( isFirstNodeChecked ? Qt::Unchecked : Qt::Checked, Qt::CheckStateRole );
         }
       }
     }
