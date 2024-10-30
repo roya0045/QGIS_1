@@ -967,18 +967,16 @@ QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context,
     if ( label.isEmpty() )
     {
       const QString symLabel = symbolLabel();
-      if ( ! mLayerNode->labelExpression().isEmpty() )
+      if ( ! nodeExpression.isEmpty() )
         mLabel = QgsExpression::replaceExpressionText( "[%" + nodeExpression + "%]", &contextCopy );
-      else if ( mLabel.contains( "[%" ) )
-      {
-        const QString symLabel = symbolLabel();
+      else if ( symLabel.contains( "[%" ) )
         mLabel = QgsExpression::replaceExpressionText( symLabel, &contextCopy );
       return mLabel;
     }
     else
     {
       QString eLabel = label;
-      if ( ! mLayerNode->labelExpression().isEmpty() )
+      if ( ! nodeExpression.isEmpty() )
         eLabel = QgsExpression::replaceExpressionText( eLabel + "[%" + nodeExpression + "%]", &contextCopy );
       else if ( label.contains( "[%" ) )
         eLabel = QgsExpression::replaceExpressionText( eLabel, &contextCopy );
