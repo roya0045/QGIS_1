@@ -991,9 +991,34 @@ QgsExpressionContextScope *QgsSymbolLegendNode::createSymbolScope() const
   QgsExpressionContextScope *scope = new QgsExpressionContextScope( tr( "Symbol scope" ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_label" ), symbolLabel().remove( "[%" ).remove( "%]" ), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_id" ), mItem.ruleKey(), true ) );
-  scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "legend_item_expression" ), QVariant::fromValue( QgsLayerTreeUtils::expressionForLegendKey( mLayerNode, mItem.ruleKey() ) ), true ) );
-  if ( QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( mLayerNode->layer() ) )
-    scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_count" ), QVariant::fromValue( vl->featureCount( mItem.ruleKey() ) ), true ) );
+
+  if ( mLayerNode )
+  {
+    QString symbolExp;
+    QMap<QString, QString> modelstyles = model()->layerStyleOverrides();
+    QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( mLayerNode->layer() );
+
+    if ( vl )
+    {
+      QgsMapLayerStyleOverride styleOverride( vl );
+      if ( modelstyles.contains( vl->id() ) )
+        styleOverride.setOverrideStyle( modelstyles.value( vl->id() ) );
+
+      QgsFeatureRenderer *renderer = vl->renderer();
+      if ( renderer )
+      {
+        bool ok = false;
+        symbolExp = renderer->legendKeyToExpression( mItem.ruleKey(), vl, ok );
+      }
+      else
+      {
+        symbolExp = QString( "TRUE" );
+      }
+      scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "legend_item_expression" ), QVariant::fromValue( symbolExp ), true ) );
+      scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_count" ), QVariant::fromValue( vl->featureCount( mItem.ruleKey() ) ), true ) );
+    }
+  }
+
   return scope;
 }
 
