@@ -180,6 +180,14 @@ void QgsThemeManagerWidget::appendLayers( const QList<QgsMapLayer *> &layers )
   QgsMapThemeCollection::MapThemeRecord theme = mThemeCollection->mapThemeState( mCurrentTheme );
   for ( QgsMapLayer *layer : std::as_const( layers ) )
   {
+    
+      QgsLayerTreeModel *layerModel = layerTreeModel();
+  if ( !layer || !layerModel )
+    return;
+  QgsLayerTreeLayer *nodeLayer = layerModel->rootGroup()->findLayer( layer->id() );
+        QgsLayerTreeNode *parent = node->parent();
+    if ( QgsLayerTree::isGroup( parent ) )
+      return QgsLayerTree::toGroup( parent );
     QgsMapThemeCollection::MapThemeLayerRecord newRecord( layer );
     theme.addLayerRecord( newRecord );
   }
