@@ -688,6 +688,14 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
     int page() const;
 
     /**
+     * Returns the reference page of the item, should be different than page() when using expression to move the object.
+     * \see page()
+     *
+     * \since QGIS 3.32
+     */
+    int anchorPage() const {return mAnchorPage; }
+
+    /**
      * Returns the item's position (in layout units) relative to the top left corner of its current page.
      * \see page()
      * \see pagePositionWithUnits()
@@ -1378,6 +1386,8 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
     friend class QgsLayoutItemLegend;
     friend class QgsLayoutItemElevationProfile;
     friend class QgsCompositionConverter;
+
+    int mAnchorPage = 0;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS( QgsLayoutItem::Flags )
