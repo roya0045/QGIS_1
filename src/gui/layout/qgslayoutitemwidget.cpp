@@ -719,7 +719,7 @@ void QgsLayoutItemPropertiesWidget::setValuesForGuiPositionElements()
   mPosLockAspectRatio->resetRatio();
 
   if ( !mFreezePageSpin )
-    mPageSpinBox->setValue( mItem->page() + 1 );
+    mPageSpinBox->setValue( mItem->anchorPage() + 1 );
 
   block( false );
 }
