@@ -485,11 +485,12 @@ void QgsLayoutItem::attemptMove( const QgsLayoutPoint &p, bool useReferencePoint
     return;
   }
 
-  QgsLayoutPoint point = p;
-  if ( page >= 0 )
+  if ( page > -1 )
   {
-    point = mLayout->pageCollection()->pagePositionToAbsolute( page, p );
+    mAnchorPage = page;
   }
+
+  QgsLayoutPoint point = p;
 
   if ( includesFrame )
   {
@@ -506,6 +507,11 @@ void QgsLayoutItem::attemptMove( const QgsLayoutPoint &p, bool useReferencePoint
   }
 
   evaluatedPoint = applyDataDefinedPosition( evaluatedPoint );
+
+  if ( mDataDefinedProperties.isActive( QgsLayoutObject::PositionY ) )
+    evaluatedPoint.setY( evaluatedPoint.y() + mLayout->convertFromLayoutUnits( mLayout->pageCollection()->page( mAnchorPage )->pos().y(), evaluatedPoint.units() ).length() );
+  else if ( mAnchorPage > 0 )
+    evaluatedPoint = mLayout->pageCollection()->pagePositionToAbsolute( mAnchorPage, evaluatedPoint );
   const QPointF evaluatedPointLayoutUnits = mLayout->convertToLayoutUnits( evaluatedPoint );
   const QPointF topLeftPointLayoutUnits = adjustPointForReferencePosition( evaluatedPointLayoutUnits, rect().size(), mReferencePoint );
   if ( topLeftPointLayoutUnits == scenePos() && point.units() == mItemPosition.units() )
