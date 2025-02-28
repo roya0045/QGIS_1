@@ -140,12 +140,6 @@ class CORE_EXPORT QgsLayoutItemMapAtlasClippingSettings : public QObject
      */
     bool readXml( const QDomElement &element, const QDomDocument &doc, const QgsReadWriteContext &context );
 
-    /**
-     * Fetch the geometry to use for clipping
-     * \since QGIS 3.?
-     */
-    QgsGeometry clippingGeometry( const QgsCoordinateReferenceSystem crs ) const;
-
   signals:
 
     /**

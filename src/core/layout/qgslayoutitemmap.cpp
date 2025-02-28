@@ -1796,7 +1796,21 @@ QgsMapSettings QgsLayoutItemMap::mapSettings( const QgsRectangle &extent, QSizeF
 
   if ( mAtlasClippingSettings->enabled() && mLayout->reportContext().feature().isValid() ) // check valid expression override
   {
-    QgsGeometry clipGeom( atlasGeometry( jobMapSettings.destinationCrs() ) ); // check geom or override
+    QgsGeometry clipGeom;
+    QgsCoordinateReferenceSystem canvasCRS = jobMapSettings.destinationCrs();
+    if ( mDataDefinedProperties.isActive( QgsLayoutObject::ClipGeometryOverride ) )
+    {
+      QgsExpressionContext context = createExpressionContext();
+      //mDataDefinedProperties.prepare( context ); // needed?
+      clipGeom = mDataDefinedProperties.value( QgsLayoutObject::ClipGeometryOverride, context ).value<QgsGeometry>();
+      QgsCoordinateReferenceSystem layerCrs = mLayout->reportContext().layer()->crs();
+      if ( canvasCRS.isValid() && canvasCRS != layerCrs )
+        clipGeom.transform( QgsCoordinateTransform( layerCrs, canvasCRS, mLayout->project() ) );
+      if ( clipGeom.isNull() )
+        clipeom =  atlasGeometry( canvasCRS );
+    }
+    else
+      clipGeom = atlasGeometry( canvasCRS ); // check geom or override
     if ( QgsWkbTypes::geometryType( clipGeom.wkbType() ) != Qgis::GeometryType::Polygon )
       return jobMapSettings;
     QgsMapClippingRegion region( clipGeom );
@@ -3151,22 +3165,7 @@ QList<QgsMapLayer *> QgsLayoutItemMapAtlasClippingSettings::layersToClip() const
   return _qgis_listRefToRaw( mLayersToClip );
 }
 
-QgsGeometry QgsLayoutItemMapAtlasClippingSettings::clippingGeometry( const QgsCoordinateReferenceSystem crs ) const
-{
-  if ( mDataDefinedProperties.isActive( QgsLayoutObject::ClipGeometryOverride ) )
-  {
-    QgsExpressionContext context = createExpressionContext();
-    //mDataDefinedProperties.prepare( context ); // needed?
-    QgsGeometry geometry = mDataDefinedProperties.value( QgsLayoutObject::ClipGeometryOverride, context ).value<QgsGeometry>();
-    QgsCoordinateReferenceSystem layerCrs = mLayout->reportContext().layer()->crs();
-    if ( crs.isValid() && crs != layerCrs )
-      geometry.transform( QgsCoordinateTransform( layerCrs, crs, mLayout->project() ) );
-    if ( !geometry.isNull() )
-      return ( geometry );
-  }
 
-  return ( mLayout->reportContext().currentGeometry( crs ) );
-}
 
 void QgsLayoutItemMapAtlasClippingSettings::setLayersToClip( const QList< QgsMapLayer * > &layersToClip )
 {
