@@ -3151,6 +3151,23 @@ QList<QgsMapLayer *> QgsLayoutItemMapAtlasClippingSettings::layersToClip() const
   return _qgis_listRefToRaw( mLayersToClip );
 }
 
+QgsGeometry QgsLayoutItemMapAtlasClippingSettings::clippingGeometry( const QgsCoordinateReferenceSystem crs ) const
+{
+  if ( mDataDefinedProperties.isActive( QgsLayoutObject::ClipGeometryOverride ) )
+  {
+    QgsExpressionContext context = createExpressionContext();
+    //mDataDefinedProperties.prepare( context ); // needed?
+    QgsGeometry geometry = mDataDefinedProperties.value( QgsLayoutObject::ClipGeometryOverride, context ).value<QgsGeometry>();
+    QgsCoordinateReferenceSystem layerCrs = mLayout->reportContext().layer()->crs();
+    if ( crs.isValid() && crs != layerCrs )
+      geometry.transform( QgsCoordinateTransform( layerCrs, crs, mLayout->project() ) );
+    if ( !geometry.isNull() )
+      return ( geometry );
+  }
+
+  return ( mLayout->reportContext().currentGeometry( crs ) );
+}
+
 void QgsLayoutItemMapAtlasClippingSettings::setLayersToClip( const QList< QgsMapLayer * > &layersToClip )
 {
   mLayersToClip = _qgis_listRawToRef( layersToClip );
