@@ -248,6 +248,8 @@
   <tabstop>mItemClippingTypeComboBox</tabstop>
   <tabstop>mForceLabelsInsideItemCheckBox</tabstop>
  </tabstops>
- <resources/>
+ <resources>
+  <include location="../../../images/images.qrc"/>
+ </resources>
  <connections/>
 </ui>
