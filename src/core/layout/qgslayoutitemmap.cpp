@@ -1798,16 +1798,16 @@ QgsMapSettings QgsLayoutItemMap::mapSettings( const QgsRectangle &extent, QSizeF
   {
     QgsGeometry clipGeom;
     QgsCoordinateReferenceSystem canvasCRS = jobMapSettings.destinationCrs();
-    if ( mDataDefinedProperties.isActive( QgsLayoutObject::ClipGeometryOverride ) )
+    if ( mDataDefinedProperties.isActive( QgsLayoutObject::DataDefinedProperty::ClipGeometryOverride ) )
     {
       QgsExpressionContext context = createExpressionContext();
       //mDataDefinedProperties.prepare( context ); // needed?
-      clipGeom = mDataDefinedProperties.value( QgsLayoutObject::ClipGeometryOverride, context ).value<QgsGeometry>();
+      clipGeom = mDataDefinedProperties.value( QgsLayoutObject::DataDefinedProperty::ClipGeometryOverride, context, QVariant( atlasGeometry( canvasCRS ) ) ).value<QgsGeometry>();
       QgsCoordinateReferenceSystem layerCrs = mLayout->reportContext().layer()->crs();
       if ( canvasCRS.isValid() && canvasCRS != layerCrs )
         clipGeom.transform( QgsCoordinateTransform( layerCrs, canvasCRS, mLayout->project() ) );
       if ( clipGeom.isNull() )
-        clipeom =  atlasGeometry( canvasCRS );
+        clipGeom =  atlasGeometry( canvasCRS );
     }
     else
       clipGeom = atlasGeometry( canvasCRS ); // check geom or override
