@@ -2071,7 +2071,9 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
   mAtlasClippingTypeComboBox->addItem( tr( "Clip During Render Only" ), static_cast<int>( QgsMapClippingRegion::FeatureClippingType::ClipPainterOnly ) );
   mAtlasClippingTypeComboBox->addItem( tr( "Clip Feature Before Render" ), static_cast<int>( QgsMapClippingRegion::FeatureClippingType::ClipToIntersection ) );
   mAtlasClippingTypeComboBox->addItem( tr( "Render Intersecting Features Unchanged" ), static_cast<int>( QgsMapClippingRegion::FeatureClippingType::NoClipping ) );
+  registerDataDefinedButton( mClipGeometryOverrideDDBtn, QgsLayoutObject::DataDefinedProperty::AtlasGeometryOverride );
 
+  connect( mClipGeometryOverrideDDBtn, &QgsPropertyOverrideButton::changed, mMapItem, &QgsLayoutItemMap::refresh );
   for ( int i = 0; i < mAtlasClippingTypeComboBox->count(); ++i )
   {
     mItemClippingTypeComboBox->addItem( mAtlasClippingTypeComboBox->itemText( i ), mAtlasClippingTypeComboBox->itemData( i ) );
