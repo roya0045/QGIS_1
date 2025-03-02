@@ -622,19 +622,13 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
     if ( ! selected.isEmpty() )
     {    
       QModelIndex layerTreeIndex = mProxyModel->mapToSource( selected.at( 0 ) );
-      bool isFirstNodeChecked;
 
-      if ( QgsLayerTreeNode *node = layerTreeModel()->index2node( layerTreeIndex ) )
-      {
-        isFirstNodeChecked = node->itemVisibilityChecked();
-      }
- 
       for ( const QModelIndex &index : selected )
       {
         layerTreeIndex = mProxyModel->mapToSource( index );
         if ( QgsLayerTreeNode *node = layerTreeModel()->index2node( layerTreeIndex ) )
         {
-          node->setItemVisibilityChecked( ! isFirstNodeChecked );
+          node->setItemVisibilityChecked( ! node->isVisible() );
         }
         else if ( QgsLayerTreeModelLegendNode *legendNode = layerTreeModel()->index2legendNode( layerTreeIndex ) )
         {
