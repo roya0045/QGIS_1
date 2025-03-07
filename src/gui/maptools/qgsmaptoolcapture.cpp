@@ -152,7 +152,7 @@ void QgsMapToolCapture::currentLayerChanged( QgsMapLayer *layer )
   {
     return;
   }
-  elif ( mCaptureTechniqueRegistry.contains( vlayer->wkbType() ) )
+  else if ( mCaptureTechniqueRegistry.contains( vlayer->wkbType() ) )
   {
     setCurrentCaptureTechnique( mCaptureTechniqueRegistry.value( vlayer->wkbType(), Qgis::CaptureTechnique::StraightSegments ) );
   }
