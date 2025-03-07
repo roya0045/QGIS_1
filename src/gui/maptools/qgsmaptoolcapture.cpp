@@ -471,7 +471,7 @@ void QgsMapToolCapture::setCurrentCaptureTechnique( Qgis::CaptureTechnique techn
     clean();
     mCurrentShapeMapTool->activate( mCaptureMode, mCaptureLastPoint );
   }
-  if (vlayer)
+  if (QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer() ))
   {
     mCaptureTechniqueRegistry[vlayer->wkbType()] = technique;
   }
