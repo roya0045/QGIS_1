@@ -41,6 +41,8 @@
 #include "qgslayertreelayer.h"
 #include "qgstextdocument.h"
 #include "qgstextdocumentmetrics.h"
+#include "qgsmaplayerstyle.h"
+#include "qgssymbollayerutils.h"
 
 #include <QBuffer>
 #include <optional>
@@ -959,6 +961,7 @@ QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context,
 
   if ( vl )
   {
+
     QgsExpressionContext contextCopy = QgsExpressionContext( context );
     QgsExpressionContextScope *symbolScope = createSymbolScope();
     contextCopy.appendScope( symbolScope );
@@ -986,6 +989,7 @@ QString QgsSymbolLegendNode::evaluateLabel( const QgsExpressionContext &context,
   return mLabel;
 }
 
+
 QgsExpressionContextScope *QgsSymbolLegendNode::createSymbolScope() const
 {
   QgsExpressionContextScope *scope = new QgsExpressionContextScope( tr( "Symbol scope" ) );
@@ -1000,20 +1004,29 @@ QgsExpressionContextScope *QgsSymbolLegendNode::createSymbolScope() const
 
     if ( vl )
     {
-      QgsMapLayerStyleOverride styleOverride( vl );
-      if ( modelstyles.contains( vl->id() ) )
-        styleOverride.setOverrideStyle( modelstyles.value( vl->id() ) );
+      bool ok = false;
 
       QgsFeatureRenderer *renderer = vl->renderer();
       if ( renderer )
       {
-        bool ok = false;
         symbolExp = renderer->legendKeyToExpression( mItem.ruleKey(), vl, ok );
       }
       else
       {
         symbolExp = QString( "TRUE" );
       }
+      if ( symbolExp.isEmpty() && !ok )
+      {
+        QMap<QString, QString> modelstyles = model()->layerStyleOverrides();
+        if ( modelstyles.contains( vl->id() ) )
+        {
+          QString styleString = modelstyles.value( vl->id() );
+          QString parsedExpression = QgsSymbolLayerUtils::legendKeyToExpression( styleString, mItem.ruleKey(), &ok );
+          if ( parsedExpression.length() > 1 || ok )
+            symbolExp = parsedExpression;
+        }
+      }
+
       scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "legend_item_expression" ), QVariant::fromValue( symbolExp ), true ) );
       scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "symbol_count" ), QVariant::fromValue( vl->featureCount( mItem.ruleKey() ) ), true ) );
     }
@@ -1021,6 +1034,8 @@ QgsExpressionContextScope *QgsSymbolLegendNode::createSymbolScope() const
 
   return scope;
 }
+
+
 
 // -------------------------------------------------------------------------
 
