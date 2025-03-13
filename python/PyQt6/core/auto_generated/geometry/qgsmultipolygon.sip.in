@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/geometry/qgsmultipolygon.h                                  *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -82,6 +82,8 @@ Returns the polygon with the specified ``index``.
     bool addGeometries( const QVector< QgsAbstractGeometry * > &geometries /Transfer/ ) final;
     virtual bool insertGeometry( QgsAbstractGeometry *g /Transfer/, int index );
 
+    virtual QgsMultiPolygon *simplifyByDistance( double tolerance ) const /Factory/;
+
 
     virtual QgsMultiSurface *toCurveType() const /Factory/;
 
@@ -118,5 +120,5 @@ Returns the geometry converted to the more generic curve type :py:class:`QgsMult
  *                                                                      *
  * src/core/geometry/qgsmultipolygon.h                                  *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

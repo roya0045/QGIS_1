@@ -30,7 +30,6 @@ class DockModel : public QAbstractTableModel
     Q_OBJECT
 
   public:
-
     /**
      * Constructor
      * \param parent parent object
@@ -39,7 +38,7 @@ class DockModel : public QAbstractTableModel
 
     /**
      * \param errorList reference to the ErrorList where errors will be stored
-     * \since 3.38
+     * \since QGIS 3.38
      */
     void setErrors( const ErrorList &errorList );
 
@@ -101,7 +100,6 @@ class DockFilterModel : public QSortFilterProxyModel
     Q_OBJECT
 
   public:
-
     /**
      * Constructor
      * \param parent parent object
@@ -123,9 +121,7 @@ class DockFilterModel : public QSortFilterProxyModel
     void reload( const QModelIndex &index1, const QModelIndex &index2 );
 
   private:
-
     DockModel *mDockModel = nullptr;
-
 };
 
 #endif

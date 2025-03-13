@@ -159,6 +159,13 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
     QgsLegendModel *model();
 
     /**
+     * Returns the legend model.
+     *
+     * \note Not available in Python bindings
+     */
+    const QgsLegendModel *model() const SIP_SKIP;
+
+    /**
      * Sets whether the legend content should auto update to reflect changes in the project's
      * layer tree.
      * \see autoUpdateModel()
@@ -224,49 +231,49 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
     /**
      * Returns reference to modifiable legend style.
      */
-    QgsLegendStyle &rstyle( QgsLegendStyle::Style s );
+    QgsLegendStyle &rstyle( Qgis::LegendComponent s );
 
     /**
      * Returns legend style.
      */
-    QgsLegendStyle style( QgsLegendStyle::Style s ) const;
+    QgsLegendStyle style( Qgis::LegendComponent s ) const;
 
     /**
      * Sets the style of \a component to \a style for the legend.
      */
-    void setStyle( QgsLegendStyle::Style component, const QgsLegendStyle &style );
+    void setStyle( Qgis::LegendComponent component, const QgsLegendStyle &style );
 
     /**
      * Returns the font settings for a legend \a component.
      * \see setStyleFont()
      *
-     * \deprecated use QgsLegendStyle::textFormat() from style() instead.
+     * \deprecated QGIS 3.40. Use QgsLegendStyle::textFormat() from style() instead.
      */
-    Q_DECL_DEPRECATED QFont styleFont( QgsLegendStyle::Style component ) const SIP_DEPRECATED;
+    Q_DECL_DEPRECATED QFont styleFont( Qgis::LegendComponent component ) const SIP_DEPRECATED;
 
     /**
      * Sets the style \a font for a legend \a component.
      * \see styleFont()
      *
-     * \deprecated use QgsLegendStyle::setTextFormat() from style() instead.
+     * \deprecated QGIS 3.40. Use QgsLegendStyle::setTextFormat() from style() instead.
      */
-    Q_DECL_DEPRECATED void setStyleFont( QgsLegendStyle::Style component, const QFont &font ) SIP_DEPRECATED;
+    Q_DECL_DEPRECATED void setStyleFont( Qgis::LegendComponent component, const QFont &font ) SIP_DEPRECATED;
 
     /**
      * Set the \a margin for a legend \a component.
      */
-    void setStyleMargin( QgsLegendStyle::Style component, double margin );
+    void setStyleMargin( Qgis::LegendComponent component, double margin );
 
     /**
      * Set the \a margin for a particular \a side of a legend \a component.
      */
-    void setStyleMargin( QgsLegendStyle::Style component, QgsLegendStyle::Side side, double margin );
+    void setStyleMargin( Qgis::LegendComponent component, QgsLegendStyle::Side side, double margin );
 
     /**
      * Returns the spacing in-between lines in layout units.
      * \see setLineSpacing()
      *
-     * \deprecated use QgsLegendStyle::textFormat() from style() instead.
+     * \deprecated QGIS 3.40. Use QgsLegendStyle::textFormat() from style() instead.
      */
     Q_DECL_DEPRECATED double lineSpacing() const SIP_DEPRECATED;
 
@@ -274,7 +281,7 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
      * Sets the \a spacing in-between multiple lines.
      * \see lineSpacing()
      *
-     * \deprecated use QgsLegendStyle::setTextFormat() from style() instead.
+     * \deprecated QGIS 3.40. Use QgsLegendStyle::setTextFormat() from style() instead.
      */
     Q_DECL_DEPRECATED void setLineSpacing( double spacing ) SIP_DEPRECATED;
 
@@ -306,7 +313,7 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
      * Returns the legend font color.
      * \see setFontColor()
      *
-     * \deprecated use QgsLegendStyle::setTextFormat() from style() instead.
+     * \deprecated QGIS 3.40. Use QgsLegendStyle::setTextFormat() from style() instead.
      */
     Q_DECL_DEPRECATED QColor fontColor() const SIP_DEPRECATED;
 
@@ -314,7 +321,7 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
      * Sets the legend font \a color.
      * \see fontColor()
      *
-     * \deprecated use QgsLegendStyle::setTextFormat() from style() instead.
+     * \deprecated QGIS 3.40. Use QgsLegendStyle::setTextFormat() from style() instead.
      */
     Q_DECL_DEPRECATED void setFontColor( const QColor &color ) SIP_DEPRECATED;
 
@@ -344,7 +351,7 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
      * A symbol size of 0.0 indicates no maximum is set.
      *
      * \see maximumSymbolSize()
-     * \since QGIS 3.16
+     * \since QGIS 3.16:
      */
     void setMaximumSymbolSize( double size );
 
@@ -634,7 +641,10 @@ class CORE_EXPORT QgsLayoutItemLegend : public QgsLayoutItem
 
     void setModelStyleOverrides( const QMap<QString, QString> &overrides );
 
-    void ensureModelIsInitialized();
+    void ensureModelIsInitialized() const;
+
+    QgsLegendRenderer createRenderer() const;
+
     std::unique_ptr< QgsLegendModel > mLegendModel;
     std::unique_ptr< QgsLayerTree > mCustomLayerTree;
     bool mDeferLegendModelInitialization = true;

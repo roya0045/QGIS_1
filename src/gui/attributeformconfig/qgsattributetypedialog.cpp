@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsattributetypedialog.h"
+#include "moc_qgsattributetypedialog.cpp"
 #include "qgsproject.h"
 #include "qgslogger.h"
 #include "qgsfieldformatterregistry.h"
@@ -59,10 +60,9 @@ QgsAttributeTypeDialog::QgsAttributeTypeDialog( QgsVectorLayer *vl, int fieldIdx
       item->setFlags( item->flags() & ~Qt::ItemIsEnabled );
   }
 
-  connect( mWidgetTypeComboBox, static_cast< void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsAttributeTypeDialog::onCurrentWidgetChanged );
+  connect( mWidgetTypeComboBox, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsAttributeTypeDialog::onCurrentWidgetChanged );
 
-  if ( vl->fields().fieldOrigin( fieldIdx ) == Qgis::FieldOrigin::Join ||
-       vl->fields().fieldOrigin( fieldIdx ) == Qgis::FieldOrigin::Expression )
+  if ( vl->fields().fieldOrigin( fieldIdx ) == Qgis::FieldOrigin::Join || vl->fields().fieldOrigin( fieldIdx ) == Qgis::FieldOrigin::Expression || vl->fields().field( fieldIdx ).isReadOnly() )
   {
     isFieldEditableCheckBox->setEnabled( false );
   }
@@ -71,29 +71,25 @@ QgsAttributeTypeDialog::QgsAttributeTypeDialog( QgsVectorLayer *vl, int fieldIdx
   mExpressionWidget->setLayer( mLayer );
 
   mEditableExpressionButton->registerExpressionContextGenerator( this );
-  mEditableExpressionButton->init( static_cast< int >( QgsEditFormConfig::DataDefinedProperty::Editable ), mDataDefinedProperties.property( QgsEditFormConfig::DataDefinedProperty::Editable ), vl->editFormConfig().propertyDefinitions(), vl );
+  mEditableExpressionButton->init( static_cast<int>( QgsEditFormConfig::DataDefinedProperty::Editable ), mDataDefinedProperties.property( QgsEditFormConfig::DataDefinedProperty::Editable ), vl->editFormConfig().propertyDefinitions(), vl );
   mEditableExpressionButton->registerLinkedWidget( isFieldEditableCheckBox );
-  connect( mEditableExpressionButton, &QgsPropertyOverrideButton::changed, this, [ = ]
-  {
+  connect( mEditableExpressionButton, &QgsPropertyOverrideButton::changed, this, [=] {
     mDataDefinedProperties.setProperty( QgsEditFormConfig::DataDefinedProperty::Editable, mEditableExpressionButton->toProperty() );
   } );
 
   mAliasExpressionButton->registerExpressionContextGenerator( this );
-  mAliasExpressionButton->init( static_cast< int >( QgsEditFormConfig::DataDefinedProperty::Alias ), mDataDefinedProperties.property( QgsEditFormConfig::DataDefinedProperty::Alias ), vl->editFormConfig().propertyDefinitions(), vl );
-  connect( mAliasExpressionButton, &QgsPropertyOverrideButton::changed, this, [ = ]
-  {
+  mAliasExpressionButton->init( static_cast<int>( QgsEditFormConfig::DataDefinedProperty::Alias ), mDataDefinedProperties.property( QgsEditFormConfig::DataDefinedProperty::Alias ), vl->editFormConfig().propertyDefinitions(), vl );
+  connect( mAliasExpressionButton, &QgsPropertyOverrideButton::changed, this, [=] {
     mDataDefinedProperties.setProperty( QgsEditFormConfig::DataDefinedProperty::Alias, mAliasExpressionButton->toProperty() );
   } );
 
   connect( mExpressionWidget, &QgsExpressionLineEdit::expressionChanged, this, &QgsAttributeTypeDialog::defaultExpressionChanged );
-  connect( mUniqueCheckBox, &QCheckBox::toggled, this, [ = ]( bool checked )
-  {
+  connect( mUniqueCheckBox, &QCheckBox::toggled, this, [=]( bool checked ) {
     mCheckBoxEnforceUnique->setEnabled( checked );
     if ( !checked )
       mCheckBoxEnforceUnique->setChecked( false );
   } );
-  connect( notNullCheckBox, &QCheckBox::toggled, this, [ = ]( bool checked )
-  {
+  connect( notNullCheckBox, &QCheckBox::toggled, this, [=]( bool checked ) {
     mCheckBoxEnforceNotNull->setEnabled( checked );
     if ( !checked )
       mCheckBoxEnforceNotNull->setChecked( false );
@@ -179,13 +175,18 @@ const QVariantMap QgsAttributeTypeDialog::editorWidgetConfig()
   return QVariantMap();
 }
 
-void QgsAttributeTypeDialog::setEditorWidgetType( const QString &type )
+void QgsAttributeTypeDialog::setEditorWidgetType( const QString &type, bool forceWidgetRefresh )
 {
-
   mWidgetTypeComboBox->setCurrentIndex( mWidgetTypeComboBox->findData( type ) );
 
   if ( mEditorConfigWidgets.contains( type ) && mEditorConfigWidgets.value( type ) /* may be a null pointer */ )
   {
+    if ( forceWidgetRefresh )
+    {
+      // Force to reset the config, even if
+      // if the type matches the current one
+      mEditorConfigWidgets.value( type )->setConfig( mWidgetConfig );
+    }
     stackedWidget->setCurrentWidget( mEditorConfigWidgets[type] );
   }
   else
@@ -348,12 +349,12 @@ QgsExpressionContext QgsAttributeTypeDialog::createExpressionContext() const
 {
   QgsExpressionContext context;
   context
-      << QgsExpressionContextUtils::globalScope()
-      << QgsExpressionContextUtils::projectScope( QgsProject::instance() )
-      << QgsExpressionContextUtils::layerScope( mLayer )
-      << QgsExpressionContextUtils::formScope( )
-      << QgsExpressionContextUtils::parentFormScope( QgsFeature() )
-      << QgsExpressionContextUtils::mapToolCaptureScope( QList<QgsPointLocator::Match>() );
+    << QgsExpressionContextUtils::globalScope()
+    << QgsExpressionContextUtils::projectScope( QgsProject::instance() )
+    << QgsExpressionContextUtils::layerScope( mLayer )
+    << QgsExpressionContextUtils::formScope()
+    << QgsExpressionContextUtils::parentFormScope( QgsFeature() )
+    << QgsExpressionContextUtils::mapToolCaptureScope( QList<QgsPointLocator::Match>() );
 
   return context;
 }
@@ -379,7 +380,7 @@ void QgsAttributeTypeDialog::setApplyDefaultValueOnUpdate( bool applyDefaultValu
 
 Qgis::FieldDomainSplitPolicy QgsAttributeTypeDialog::splitPolicy() const
 {
-  return mSplitPolicyComboBox->currentData().value< Qgis::FieldDomainSplitPolicy >();
+  return mSplitPolicyComboBox->currentData().value<Qgis::FieldDomainSplitPolicy>();
 }
 
 void QgsAttributeTypeDialog::setSplitPolicy( Qgis::FieldDomainSplitPolicy policy )
@@ -390,7 +391,7 @@ void QgsAttributeTypeDialog::setSplitPolicy( Qgis::FieldDomainSplitPolicy policy
 
 Qgis::FieldDuplicatePolicy QgsAttributeTypeDialog::duplicatePolicy() const
 {
-  return mDuplicatePolicyComboBox->currentData().value< Qgis::FieldDuplicatePolicy >();
+  return mDuplicatePolicyComboBox->currentData().value<Qgis::FieldDuplicatePolicy>();
 }
 
 void QgsAttributeTypeDialog::setDuplicatePolicy( Qgis::FieldDuplicatePolicy policy )
@@ -495,7 +496,7 @@ void QgsAttributeTypeDialog::defaultExpressionChanged()
 void QgsAttributeTypeDialog::updateSplitPolicyLabel()
 {
   QString helperText;
-  switch ( mSplitPolicyComboBox->currentData().value< Qgis::FieldDomainSplitPolicy >() )
+  switch ( mSplitPolicyComboBox->currentData().value<Qgis::FieldDomainSplitPolicy>() )
   {
     case Qgis::FieldDomainSplitPolicy::DefaultValue:
       helperText = tr( "Resets the field by recalculating its default value." );
@@ -519,7 +520,7 @@ void QgsAttributeTypeDialog::updateSplitPolicyLabel()
 void QgsAttributeTypeDialog::updateDuplicatePolicyLabel()
 {
   QString helperText;
-  switch ( mDuplicatePolicyComboBox->currentData().value< Qgis::FieldDuplicatePolicy >() )
+  switch ( mDuplicatePolicyComboBox->currentData().value<Qgis::FieldDuplicatePolicy>() )
   {
     case Qgis::FieldDuplicatePolicy::DefaultValue:
       helperText = tr( "Resets the field by recalculating its default value." );

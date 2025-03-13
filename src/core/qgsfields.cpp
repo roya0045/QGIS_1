@@ -15,6 +15,7 @@
  ***************************************************************************/
 
 #include "qgsfields.h"
+#include "moc_qgsfields.cpp"
 #include "qgsfields_p.h"
 #include "qgsapplication.h"
 #include "qgsvariantutils.h"
@@ -42,6 +43,15 @@ QgsFields &QgsFields::operator =( const QgsFields &other )  //NOLINT
   return *this;
 }
 
+QgsFields::QgsFields( const QList<QgsField> &fields )
+{
+  d = new QgsFieldsPrivate();
+  for ( const QgsField &field : fields )
+  {
+    append( field );
+  }
+}
+
 QgsFields::~QgsFields() //NOLINT
 {}
 
@@ -67,6 +77,36 @@ bool QgsFields::append( const QgsField &field, Qgis::FieldOrigin origin, int ori
   d->fields.append( Field( field, origin, originIndex ) );
 
   d->nameToIndex.insert( field.name(), d->fields.count() - 1 );
+  return true;
+}
+
+bool QgsFields::append( const QList<QgsField> &fields, Qgis::FieldOrigin origin )
+{
+  for ( const QgsField &field : fields )
+  {
+    if ( d->nameToIndex.contains( field.name() ) )
+      return false;
+  }
+
+  for ( const QgsField &field : fields )
+  {
+    append( field, origin );
+  }
+  return true;
+}
+
+bool QgsFields::append( const QgsFields &fields )
+{
+  for ( const QgsField &field : fields )
+  {
+    if ( d->nameToIndex.contains( field.name() ) )
+      return false;
+  }
+
+  for ( int i = 0; i < fields.size(); ++ i )
+  {
+    append( fields.at( i ), fields.fieldOrigin( i ), fields.fieldOriginIndex( i ) );
+  }
   return true;
 }
 
@@ -364,14 +404,14 @@ QIcon QgsFields::iconForFieldType( QVariant::Type type, QVariant::Type subType, 
 
 int QgsFields::lookupField( const QString &fieldName ) const
 {
-  if ( fieldName.isEmpty() ) //shortcut
-    return -1;
-
   for ( int idx = 0; idx < count(); ++idx )
   {
     if ( d->fields[idx].field.name() == fieldName )
       return idx;
   }
+
+  if ( fieldName.isEmpty() )
+    return -1;
 
   for ( int idx = 0; idx < count(); ++idx )
   {

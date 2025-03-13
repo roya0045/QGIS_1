@@ -20,6 +20,8 @@
 #include "qgis_sip.h"
 #include "qgspanelwidget.h"
 
+#include <QDateTime>
+
 class QgsCodeEditor;
 class QgsFilterLineEdit;
 class QToolButton;
@@ -48,7 +50,6 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
     Q_OBJECT
 
   public:
-
     /**
      * Constructor for QgsCodeEditorWidget, wrapping the specified \a editor widget.
      *
@@ -57,13 +58,12 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
      * If an explicit \a messageBar is specified then it will be used to provide
      * feedback, otherwise an integrated message bar will be used.
      */
-    QgsCodeEditorWidget( QgsCodeEditor *editor SIP_TRANSFER,
-                         QgsMessageBar *messageBar = nullptr,
-                         QWidget *parent SIP_TRANSFERTHIS = nullptr );
+    QgsCodeEditorWidget( QgsCodeEditor *editor SIP_TRANSFER, QgsMessageBar *messageBar = nullptr, QWidget *parent SIP_TRANSFERTHIS = nullptr );
     ~QgsCodeEditorWidget() override;
 
     void resizeEvent( QResizeEvent *event ) override;
     void showEvent( QShowEvent *event ) override;
+    bool eventFilter( QObject *obj, QEvent *event ) override;
 
     /**
      * Returns the wrapped code editor.
@@ -114,6 +114,14 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
      */
     QString filePath() const { return mFilePath; }
 
+    /**
+     * Saves the code editor content into the file \a path.
+     * \returns FALSE if the file path has not previously been set, or if writing the file fails.
+     * \note When the path is empty, the content will be saved to the current file path if not empty.
+     * \since QGIS 3.38.2
+     */
+    bool save( const QString &path = QString() );
+
   public slots:
 
     /**
@@ -157,8 +165,19 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
     void triggerFind();
 
     /**
+     * Loads the file at the specified \a path into the widget, replacing the code editor's
+     * content with that from the file.
+     *
+     * This automatically sets the widget's filePath()
+     *
+     * Returns TRUE if the file was loaded successfully.
+     */
+    bool loadFile( const QString &path );
+
+    /**
      * Sets the widget's associated file \a path.
      *
+     * \see loadFile()
      * \see filePathChanged()
      * \see filePath()
      */
@@ -169,9 +188,24 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
      *
      * This requires that the widget has an associated filePath() set.
      *
+     * Optionally a target \a line and \a column number can be specified to open the editor
+     * at the corresponding location. (Not all external editors support this.) Line/column
+     * numbers of -1 indicate that the current cursor position should be used. A \a line
+     * number of 0 corresponds to the first line, and a column number of 0 corresponds to
+     * the first column.
+     *
      * \returns TRUE if the file was opened successfully.
      */
-    bool openInExternalEditor();
+    bool openInExternalEditor( int line = -1, int column = -1 );
+
+    /**
+     * Shares the contents of the code editor on GitHub Gist.
+     *
+     * Requires that the user has configured an API token with appropriate permission in advance.
+     *
+     * \returns FALSE if the user has not configured a GitHub personal access token.
+     */
+    bool shareOnGist( bool isPublic );
 
   signals:
 
@@ -188,6 +222,12 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
      */
     void filePathChanged( const QString &path );
 
+    /**
+     * Emitted when the widget loads in text from the associated file to bring in
+     * changes made externally to the file.
+     */
+    void loadedExternalChanges();
+
   private slots:
 
     bool findNext();
@@ -199,7 +239,6 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
     void replaceAll();
 
   private:
-
     void clearSearchHighlights();
     void addSearchHighlights();
     int searchFlags() const;
@@ -228,8 +267,9 @@ class GUI_EXPORT QgsCodeEditorWidget : public QgsPanelWidget
     QToolButton *mReplaceAllButton = nullptr;
     int mBlockSearching = 0;
     QgsMessageBar *mMessageBar = nullptr;
-    std::unique_ptr< QgsScrollBarHighlightController > mHighlightController;
+    std::unique_ptr<QgsScrollBarHighlightController> mHighlightController;
     QString mFilePath;
+    QDateTime mLastModified;
 };
 
 #endif // QGSCODEEDITORWIDGET_H

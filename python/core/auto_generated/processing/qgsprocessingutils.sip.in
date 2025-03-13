@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/processing/qgsprocessingutils.h                             *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -335,7 +335,7 @@ Normalizes a layer ``source`` string for safe comparison across different
 operating system environments.
 %End
 
-    static QString layerToStringIdentifier( const QgsMapLayer *layer ) /HoldGIL/;
+    static QString layerToStringIdentifier( const QgsMapLayer *layer, const QString &layerName = QString() ) /HoldGIL/;
 %Docstring
 Returns a string representation of the source for a ``layer``. The returned
 value is suitable for storage for subsequent executions of an algorithm
@@ -382,9 +382,6 @@ temporary layer store.
    this version of the :py:func:`~QgsProcessingUtils.createFeatureSink` function has an API designed around use from the
    SIP bindings. c++ code should call the other :py:func:`~QgsProcessingUtils.createFeatureSink` version.
 
-.. note::
-
-   available in Python bindings as :py:func:`~QgsProcessingUtils.createFeatureSink`
 %End
 
 
@@ -397,13 +394,14 @@ using the specified ``context``.
 .. versionadded:: 3.8
 %End
 
- static QgsRectangle combineLayerExtents( const QList<QgsMapLayer *> &layers, const QgsCoordinateReferenceSystem &crs = QgsCoordinateReferenceSystem() ) /Deprecated/;
+ static QgsRectangle combineLayerExtents( const QList<QgsMapLayer *> &layers, const QgsCoordinateReferenceSystem &crs = QgsCoordinateReferenceSystem() ) /Deprecated="Since 3.40. Use version with QgsProcessingContext argument instead."/;
 %Docstring
 Combines the extent of several map ``layers``. If specified, the target ``crs``
 will be used to transform the layer's extent to the desired output reference system.
 
-.. deprecated::
-   Use version with :py:class:`QgsProcessingContext` argument instead
+.. deprecated:: 3.40
+
+   Use version with :py:class:`QgsProcessingContext` argument instead.
 %End
 
     static QVariant generateIteratingDestination( const QVariant &input, const QVariant &id, QgsProcessingContext &context );
@@ -503,12 +501,11 @@ a conversion in this case and will return the target layer name in the ``layerNa
 :param preferredFormat: preferred format extension to use if conversion if required
 :param context: processing context
 :param feedback: feedback object
-:param layerName: will be set to the target layer name for multi-layer sources (e.g. Geopackage)
 :param featureLimit: can be used to place a limit on the maximum number of features read from the layer
 :param filterExpression: optional expression for filtering features read from the layer (since QGIS 3.32)
 
-:return: path to source layer, or nearly converted compatible layer
-
+:return: - path to source layer, or nearly converted compatible layer
+         - layerName: the target layer name for multi-layer sources (e.g. Geopackage)
 
 .. seealso:: :py:func:`convertToCompatibleFormat`
 
@@ -736,5 +733,5 @@ Returns the geometry check method for the source.
  *                                                                      *
  * src/core/processing/qgsprocessingutils.h                             *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

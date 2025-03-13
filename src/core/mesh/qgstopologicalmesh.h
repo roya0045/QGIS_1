@@ -233,6 +233,14 @@ class CORE_EXPORT QgsTopologicalMesh
     Changes flipEdge( int vertexIndex1, int vertexIndex2 );
 
     /**
+     * Check if Delaunay condition holds for given edge
+     * returns TRUE if delaunay condition holds FALSE otherwise
+     *
+     * \since QGIS 3.42
+     */
+    bool delaunayConditionForEdge( int vertexIndex1, int vertexIndex2 );
+
+    /**
      * Returns TRUE if faces separated by vertices with indexes \a vertexIndex1 and \a vertexIndex2 can be merged
      */
     bool canBeMerged( int vertexIndex1, int vertexIndex2 ) const;
@@ -330,6 +338,15 @@ class CORE_EXPORT QgsTopologicalMesh
 
     //! Checks the topology of the mesh \a mesh, if error occurs, this mesh can't be edited
     static QgsMeshEditingError checkTopology( const QgsMesh &mesh, int maxVerticesPerFace );
+
+    //! Returns vertex position in face
+    static inline int vertexPositionInFace( int vertexIndex, const QgsMeshFace &face )
+    {
+      return face.indexOf( vertexIndex );
+    }
+
+    //! Returns vertex position in face
+    static int vertexPositionInFace( const QgsMesh &mesh, int vertexIndex, int faceIndex );
 
   private:
 

@@ -25,6 +25,7 @@
 #include "qgsgeometrycollection.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsvectorlayerexporter.h"
+#include "moc_qgsvectorlayerexporter.cpp"
 #include "qgsproviderregistry.h"
 #include "qgsexception.h"
 #include "qgsvectordataprovider.h"
@@ -106,8 +107,9 @@ QgsVectorLayerExporter::QgsVectorLayerExporter( const QString &uri,
   // create an empty layer
   QString errMsg;
   QgsProviderRegistry *pReg = QgsProviderRegistry::instance();
+  QString uriUpdated;
   mError = pReg->createEmptyLayer( providerKey, uri, fields, geometryType, crs, overwrite, mOldToNewAttrIdx,
-                                   errMsg, !modifiedOptions.isEmpty() ? &modifiedOptions : nullptr );
+                                   errMsg, !modifiedOptions.isEmpty() ? &modifiedOptions : nullptr, uriUpdated );
 
   if ( errorCode() != Qgis::VectorExportResult::Success )
   {
@@ -126,20 +128,6 @@ QgsVectorLayerExporter::QgsVectorLayerExporter( const QString &uri,
 
   QgsDebugMsgLevel( QStringLiteral( "Created empty layer" ), 2 );
 
-  QString uriUpdated( uri );
-  // HACK sorry...
-  if ( providerKey == QLatin1String( "ogr" ) )
-  {
-    QString layerName;
-    if ( options.contains( QStringLiteral( "layerName" ) ) )
-      layerName = options.value( QStringLiteral( "layerName" ) ).toString();
-    if ( !layerName.isEmpty() )
-    {
-      uriUpdated += QLatin1String( "|layername=" );
-      uriUpdated += layerName;
-    }
-  }
-
   // Oracle specific HACK: we cannot guess the geometry type when there is no rows, so we need
   // to force it in the uri
   if ( providerKey == QLatin1String( "oracle" ) )
@@ -149,7 +137,7 @@ QgsVectorLayerExporter::QgsVectorLayerExporter( const QString &uri,
 
   const QgsDataProvider::ProviderOptions providerOptions;
   QgsVectorDataProvider *vectorProvider = qobject_cast< QgsVectorDataProvider * >( pReg->createProvider( providerKey, uriUpdated, providerOptions ) );
-  if ( !vectorProvider || !vectorProvider->isValid() || ( vectorProvider->capabilities() & QgsVectorDataProvider::AddFeatures ) == 0 )
+  if ( !vectorProvider || !vectorProvider->isValid() || ( vectorProvider->capabilities() & Qgis::VectorProviderCapability::AddFeatures ) == 0 )
   {
     mError = Qgis::VectorExportResult::ErrorInvalidLayer;
     mErrorMessage = QObject::tr( "Loading of layer failed" );
@@ -265,7 +253,7 @@ bool QgsVectorLayerExporter::flushBuffer()
     const QStringList errors = mProvider->errors();
     mProvider->clearErrors();
 
-    mErrorMessage = QObject::tr( "Creation error for features from #%1 to #%2. Provider errors was: \n%3" )
+    mErrorMessage = QObject::tr( "Creation error for features from #%1 to #%2. Provider errors were: \n%3" )
                     .arg( mFeatureBuffer.first().id() )
                     .arg( mFeatureBuffer.last().id() )
                     .arg( errors.join( QLatin1Char( '\n' ) ) );
@@ -285,7 +273,7 @@ bool QgsVectorLayerExporter::flushBuffer()
 bool QgsVectorLayerExporter::createSpatialIndex()
 {
   mCreateSpatialIndex = false;
-  if ( mProvider && ( mProvider->capabilities() & QgsVectorDataProvider::CreateSpatialIndex ) != 0 )
+  if ( mProvider && ( mProvider->capabilities() & Qgis::VectorProviderCapability::CreateSpatialIndex ) != 0 )
   {
     return mProvider->createSpatialIndex();
   }
@@ -536,7 +524,7 @@ QgsVectorLayerExporterTask::QgsVectorLayerExporterTask( QgsVectorLayer *layer, c
 
 QgsVectorLayerExporterTask *QgsVectorLayerExporterTask::withLayerOwnership( QgsVectorLayer *layer, const QString &uri, const QString &providerKey, const QgsCoordinateReferenceSystem &destinationCrs, const QMap<QString, QVariant> &options )
 {
-  std::unique_ptr< QgsVectorLayerExporterTask > newTask( new QgsVectorLayerExporterTask( layer, uri, providerKey, destinationCrs, options ) );
+  auto newTask = std::make_unique<QgsVectorLayerExporterTask>( layer, uri, providerKey, destinationCrs, options );
   newTask->mOwnsLayer = true;
   return newTask.release();
 }

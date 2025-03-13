@@ -162,10 +162,6 @@ class CORE_EXPORT QgsCoordinateReferenceSystemRegistry : public QObject
     /**
      * Returns a list of all known celestial bodies.
      *
-     * \warning This method requires PROJ 8.1 or later
-     *
-     * \throws QgsNotSupportedException on QGIS builds based on PROJ 8.0 or earlier.
-     *
      * \since QGIS 3.20
      */
     QList< QgsCelestialBody > celestialBodies() const;
@@ -292,9 +288,8 @@ class CORE_EXPORT QgsCoordinateReferenceSystemRegistry : public QObject
 
     bool insertProjection( const QString &projectionAcronym );
 
-    mutable QList< QgsCelestialBody > mCelestialBodies;
-    mutable QMap< QString, QgsProjOperation > mProjOperations;
-    mutable QSet< QString > mKnownAuthorities;
+    mutable QReadWriteLock mCrsDbRecordsLock;
+    mutable bool mCrsDbRecordsPopulated = false;
     mutable QList< QgsCrsDbRecord > mCrsDbRecords;
 
 };

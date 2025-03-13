@@ -18,6 +18,7 @@
 #include "qgsmeshrenderersettings.h"
 #include "qgscolorutils.h"
 #include "qgsunittypes.h"
+#include "qgscolorramp.h"
 
 bool QgsMeshRendererMeshSettings::isEnabled() const
 {
@@ -96,6 +97,7 @@ void QgsMeshRendererScalarSettings::setClassificationMinimumMaximum( double mini
 {
   mClassificationMinimum = minimum;
   mClassificationMaximum = maximum;
+  updateShader();
 }
 
 double QgsMeshRendererScalarSettings::opacity() const { return mOpacity; }
@@ -130,6 +132,12 @@ QDomElement QgsMeshRendererScalarSettings::writeXml( QDomDocument &doc, const Qg
       break;
   }
   elem.setAttribute( QStringLiteral( "interpolation-method" ), methodTxt );
+
+  if ( mRangeExtent != Qgis::MeshRangeExtent::WholeMesh )
+    elem.setAttribute( QStringLiteral( "range-extent" ), qgsEnumValueToKey( mRangeExtent ) );
+  if ( mRangeLimit != Qgis::MeshRangeLimit::NotSet )
+    elem.setAttribute( QStringLiteral( "range-limit" ), qgsEnumValueToKey( mRangeLimit ) );
+
   const QDomElement elemShader = mColorRampShader.writeXml( doc, context );
   elem.appendChild( elemShader );
 
@@ -156,6 +164,10 @@ void QgsMeshRendererScalarSettings::readXml( const QDomElement &elem, const QgsR
   {
     mDataResamplingMethod = DataResamplingMethod::NoResampling;
   }
+
+  mRangeExtent = qgsEnumKeyToValue( elem.attribute( "range-extent" ), Qgis::MeshRangeExtent::WholeMesh );
+  mRangeLimit = qgsEnumKeyToValue( elem.attribute( "range-limit" ), Qgis::MeshRangeLimit::NotSet );
+
   const QDomElement elemShader = elem.firstChildElement( QStringLiteral( "colorrampshader" ) );
   mColorRampShader.readXml( elemShader, context );
 
@@ -185,6 +197,17 @@ void QgsMeshRendererScalarSettings::setEdgeStrokeWidthUnit( Qgis::RenderUnit edg
 {
   mEdgeStrokeWidthUnit = edgeStrokeWidthUnit;
 }
+
+void QgsMeshRendererScalarSettings::updateShader()
+{
+
+  mColorRampShader.setMinimumValue( mClassificationMinimum );
+  mColorRampShader.setMaximumValue( mClassificationMaximum );
+
+  if ( !mColorRampShader.isEmpty() )
+    mColorRampShader.classifyColorRamp( mColorRampShader.sourceColorRamp()->count(), 1, QgsRectangle(), nullptr );
+}
+
 
 // ---------------------------------------------------------------------
 
@@ -815,7 +838,7 @@ void QgsMeshRendererVectorWindBarbSettings::setShaftLength( double shaftLength )
   mShaftLength = shaftLength;
 }
 
-Qgis::RenderUnit QgsMeshRendererVectorWindBarbSettings::shaftLengthUnits()
+Qgis::RenderUnit QgsMeshRendererVectorWindBarbSettings::shaftLengthUnits() const
 {
   return mShaftLengthUnits;
 }

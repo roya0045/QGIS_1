@@ -15,6 +15,7 @@
  ***************************************************************************/
 
 #include "qgslayoutitemmap.h"
+#include "moc_qgslayoutitemmap.cpp"
 #include "qgslayout.h"
 #include "qgslayoutrendercontext.h"
 #include "qgslayoutreportcontext.h"
@@ -188,7 +189,7 @@ void QgsLayoutItemMap::setScale( double scaleDenominator, bool forceUpdate )
 {
   double currentScaleDenominator = scale();
 
-  if ( qgsDoubleNear( scaleDenominator, currentScaleDenominator ) || qgsDoubleNear( scaleDenominator, 0.0 ) )
+  if ( qgsDoubleNear( scaleDenominator, currentScaleDenominator ) || qgsDoubleNear( scaleDenominator, 0.0 ) || qgsDoubleNear( currentScaleDenominator, 0 ) )
   {
     return;
   }
@@ -204,8 +205,12 @@ void QgsLayoutItemMap::setScale( double scaleDenominator, bool forceUpdate )
     QgsScaleCalculator calculator;
     calculator.setMapUnits( crs().mapUnits() );
     calculator.setDpi( 25.4 );  //QGraphicsView units are mm
-    scaleRatio = scaleDenominator / calculator.calculate( mExtent, rect().width() );
-    mExtent.scale( scaleRatio );
+    const double newScale = calculator.calculate( mExtent, rect().width() );
+    if ( !qgsDoubleNear( newScale, 0 ) )
+    {
+      scaleRatio = scaleDenominator / newScale;
+      mExtent.scale( scaleRatio );
+    }
   }
 
   invalidateCache();
@@ -228,12 +233,14 @@ void QgsLayoutItemMap::setExtent( const QgsRectangle &extent )
   //recalculate data defined scale and extents, since that may override extent
   refreshMapExtents();
 
-  //adjust height
-  QRectF currentRect = rect();
-
-  double newHeight = currentRect.width() * mExtent.height() / mExtent.width();
-
-  attemptSetSceneRect( QRectF( pos().x(), pos().y(), currentRect.width(), newHeight ) );
+  //adjust height, if possible
+  if ( mExtent.isFinite() && !mExtent.isEmpty() )
+  {
+    const QRectF currentRect = rect();
+    const double newHeight = mExtent.width() == 0 ? 0
+                             : currentRect.width() * mExtent.height() / mExtent.width();
+    attemptSetSceneRect( QRectF( pos().x(), pos().y(), currentRect.width(), newHeight ) );
+  }
   update();
 }
 
@@ -473,8 +480,12 @@ void QgsLayoutItemMap::zoomContent( double factor, QPointF point )
     QgsScaleCalculator calculator;
     calculator.setMapUnits( crs().mapUnits() );
     calculator.setDpi( 25.4 );  //QGraphicsView units are mm
-    double scaleRatio = scale() / calculator.calculate( mExtent, rect().width() );
-    mExtent.scale( scaleRatio );
+    const double newScale = calculator.calculate( mExtent, rect().width() );
+    if ( !qgsDoubleNear( newScale, 0 ) )
+    {
+      const double scaleRatio = scale() / newScale ;
+      mExtent.scale( scaleRatio );
+    }
   }
 
   //recalculate data defined scale and extents, since that may override zoom
@@ -1722,6 +1733,7 @@ QgsMapSettings QgsLayoutItemMap::mapSettings( const QgsRectangle &extent, QSizeF
     //if outputting layout, we disable optimisations like layer simplification by default, UNLESS the context specifically tells us to use them
     jobMapSettings.setFlag( Qgis::MapSettingsFlag::UseRenderingOptimization, mLayout->renderContext().simplifyMethod().simplifyHints() != Qgis::VectorRenderingSimplificationFlags( Qgis::VectorRenderingSimplificationFlag::NoSimplification ) );
     jobMapSettings.setSimplifyMethod( mLayout->renderContext().simplifyMethod() );
+    jobMapSettings.setMaskSettings( mLayout->renderContext().maskSettings() );
     jobMapSettings.setRendererUsage( Qgis::RendererUsage::Export );
   }
   else
@@ -1745,6 +1757,7 @@ QgsMapSettings QgsLayoutItemMap::mapSettings( const QgsRectangle &extent, QSizeF
   jobMapSettings.setFlag( Qgis::MapSettingsFlag::DrawSelection, mLayout->renderContext().flags() & QgsLayoutRenderContext::FlagDrawSelection );
   jobMapSettings.setFlag( Qgis::MapSettingsFlag::RenderPartialOutput, mLayout->renderContext().flags() & QgsLayoutRenderContext::FlagDisableTiledRasterLayerRenders );
   jobMapSettings.setFlag( Qgis::MapSettingsFlag::UseAdvancedEffects, mLayout->renderContext().flags() & QgsLayoutRenderContext::FlagUseAdvancedEffects );
+  jobMapSettings.setFlag( Qgis::MapSettingsFlag::AlwaysUseGlobalMasks, mLayout->renderContext().flags() & QgsLayoutRenderContext::FlagAlwaysUseGlobalMasks );
   jobMapSettings.setTransformContext( mLayout->project()->transformContext() );
   jobMapSettings.setPathResolver( mLayout->project()->pathResolver() );
 
@@ -1886,8 +1899,8 @@ QgsExpressionContext QgsLayoutItemMap::createExpressionContext() const
   const double mapScale = scale();
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "map_scale" ), mapScale, true ) );
 
-  scope->setVariable( QStringLiteral( "zoom_level" ), QgsVectorTileUtils::scaleToZoomLevel( mapScale, 0, 99999 ), true );
-  scope->setVariable( QStringLiteral( "vector_tile_zoom" ), QgsVectorTileUtils::scaleToZoom( mapScale ), true );
+  scope->setVariable( QStringLiteral( "zoom_level" ), !qgsDoubleNear( mapScale, 0 ) ? QgsVectorTileUtils::scaleToZoomLevel( mapScale, 0, 99999 ) : 0, true );
+  scope->setVariable( QStringLiteral( "vector_tile_zoom" ), !qgsDoubleNear( mapScale, 0 ) ? QgsVectorTileUtils::scaleToZoom( mapScale ) : 0, true );
 
   QgsRectangle currentExtent( extent() );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "map_extent" ), QVariant::fromValue( QgsGeometry::fromRect( currentExtent ) ), true ) );
@@ -2937,7 +2950,7 @@ void QgsLayoutItemMap::updateAtlasFeature()
       double newScale = calc.calculate( newExtent, rect().width() );
       newExtent.scale( originalScale / newScale );
     }
-    else if ( mAtlasScalingMode == Predefined )
+    else if ( mAtlasScalingMode == Predefined && !qgsDoubleNear( originalScale, 0 ) )
     {
       // choose one of the predefined scales
       double newWidth = originalExtent.width();
@@ -2958,7 +2971,10 @@ void QgsLayoutItemMap::updateAtlasFeature()
 
         //scale newExtent to match desired map scale
         //this is required for geographic coordinate systems, where the scale varies by extent
-        double newScale = calc.calculate( newExtent, rect().width() );
+        const double newScale = calc.calculate( newExtent, rect().width() );
+        if ( qgsDoubleNear( newScale, 0 ) )
+          continue;
+
         newExtent.scale( scales[i] / newScale );
 
         if ( ( newExtent.width() >= bounds.width() ) && ( newExtent.height() >= bounds.height() ) )
@@ -3013,7 +3029,7 @@ QgsRectangle QgsLayoutItemMap::computeAtlasRectangle()
   // Note: we cannot directly take the transformation of the bounding box, since transformations are not linear
   QgsGeometry g = mLayout->reportContext().currentGeometry( crs() );
   // Rotating the geometry, so the bounding box is correct wrt map rotation
-  if ( mEvaluatedMapRotation != 0.0 )
+  if ( !g.boundingBox().isEmpty() && mEvaluatedMapRotation != 0.0 )
   {
     QgsPointXY prevCenter = g.boundingBox().center();
     g.rotate( mEvaluatedMapRotation, g.boundingBox().center() );

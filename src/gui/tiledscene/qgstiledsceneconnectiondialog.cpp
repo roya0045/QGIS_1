@@ -14,8 +14,11 @@
  ***************************************************************************/
 
 #include "qgstiledsceneconnectiondialog.h"
+#include "moc_qgstiledsceneconnectiondialog.cpp"
 #include "qgstiledsceneconnection.h"
 #include "qgsgui.h"
+#include "qgssettings.h"
+
 #include <QMessageBox>
 #include <QPushButton>
 
@@ -36,6 +39,7 @@ QgsTiledSceneConnectionDialog::QgsTiledSceneConnectionDialog( QWidget *parent )
 void QgsTiledSceneConnectionDialog::setConnection( const QString &name, const QString &uri )
 {
   mEditName->setText( name );
+  mOriginalConnectionName = name;
 
   const QgsTiledSceneProviderConnection::Data conn = QgsTiledSceneProviderConnection::decodedUri( uri );
   mEditUrl->setText( conn.url );
@@ -54,7 +58,7 @@ QString QgsTiledSceneConnectionDialog::connectionUri() const
   conn.username = mAuthSettings->username();
   conn.password = mAuthSettings->password();
   conn.httpHeaders[QgsHttpHeaders::KEY_REFERER] = mEditReferer->text();
-  conn.authCfg = mAuthSettings->configId( );
+  conn.authCfg = mAuthSettings->configId();
 
   return QgsTiledSceneProviderConnection::encodedUri( conn );
 }
@@ -72,6 +76,16 @@ void QgsTiledSceneConnectionDialog::updateOkButtonState()
 
 void QgsTiledSceneConnectionDialog::accept()
 {
+  const QString newConnectionName = mEditName->text();
+
+  // on rename delete original entry first
+  if ( !mOriginalConnectionName.isNull() && mOriginalConnectionName != newConnectionName )
+  {
+    QgsSettings settings;
+    QgsTiledSceneProviderConnection( QString() ).remove( mOriginalConnectionName );
+    settings.sync();
+  }
+
   QDialog::accept();
 }
 

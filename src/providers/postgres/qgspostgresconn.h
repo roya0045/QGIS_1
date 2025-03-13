@@ -63,99 +63,105 @@ enum QgsPostgresPrimaryKeyType
 //! Schema properties structure
 struct QgsPostgresSchemaProperty
 {
-  QString name;
-  QString description;
-  QString owner;
+    QString name;
+    QString description;
+    QString owner;
 };
 
+//! Raster overview table properties structure
+struct QgsPostgresRasterOverviewLayerProperty
+{
+    QString schemaName;
+    QString tableName;
+};
 
 //! Layer Property structure
 // TODO: Fill to Postgres/PostGIS specifications
 struct QgsPostgresLayerProperty
 {
-  // Postgres/PostGIS layer properties
-  QList<Qgis::WkbType>          types;
-  QString                       schemaName;
-  QString                       tableName;
-  QString                       geometryColName;
-  QgsPostgresGeometryColumnType geometryColType;
-  QStringList                   pkCols;
-  QList<int>                    srids;
-  unsigned int                  nSpCols;
-  QString                       sql;
-  Qgis::PostgresRelKind         relKind = Qgis::PostgresRelKind::Unknown;
-  bool                          isRaster = false;
-  QString                       tableComment;
+    // Postgres/PostGIS layer properties
+    QList<Qgis::WkbType> types;
+    QString schemaName;
+    QString tableName;
+    QString geometryColName;
+    QgsPostgresGeometryColumnType geometryColType;
+    QStringList pkCols;
+    QList<int> srids;
+    unsigned int nSpCols;
+    QString sql;
+    Qgis::PostgresRelKind relKind = Qgis::PostgresRelKind::Unknown;
+    bool isRaster = false;
+    QString tableComment;
 
-  // TODO: rename this !
-  int size() const { Q_ASSERT( types.size() == srids.size() ); return types.size(); }
+    // TODO: rename this !
+    int size() const
+    {
+      Q_ASSERT( types.size() == srids.size() );
+      return types.size();
+    }
 
-  QString defaultName() const
-  {
-    QString n = tableName;
-    if ( nSpCols > 1 ) n += '.' + geometryColName;
-    return n;
-  }
+    QString defaultName() const
+    {
+      QString n = tableName;
+      if ( nSpCols > 1 )
+        n += '.' + geometryColName;
+      return n;
+    }
 
-  QgsPostgresLayerProperty at( int i ) const
-  {
-    QgsPostgresLayerProperty property;
+    QgsPostgresLayerProperty at( int i ) const
+    {
+      QgsPostgresLayerProperty property;
 
-    Q_ASSERT( i >= 0 && i < size() );
+      Q_ASSERT( i >= 0 && i < size() );
 
-    property.types << types[ i ];
-    property.srids << srids[ i ];
-    property.schemaName         = schemaName;
-    property.tableName          = tableName;
-    property.geometryColName    = geometryColName;
-    property.geometryColType    = geometryColType;
-    property.pkCols             = pkCols;
-    property.nSpCols            = nSpCols;
-    property.sql                = sql;
-    property.relKind            = relKind;
-    property.isRaster           = isRaster;
-    property.tableComment       = tableComment;
+      property.types << types[i];
+      property.srids << srids[i];
+      property.schemaName = schemaName;
+      property.tableName = tableName;
+      property.geometryColName = geometryColName;
+      property.geometryColType = geometryColType;
+      property.pkCols = pkCols;
+      property.nSpCols = nSpCols;
+      property.sql = sql;
+      property.relKind = relKind;
+      property.isRaster = isRaster;
+      property.tableComment = tableComment;
 
-    return property;
-  }
+      return property;
+    }
 
 #ifdef QGISDEBUG
-  QString toString() const
-  {
-    QString typeString;
-    const auto constTypes = types;
-    for ( const Qgis::WkbType type : constTypes )
+    QString toString() const
     {
-      if ( !typeString.isEmpty() )
-        typeString += '|';
-      typeString += QString::number( static_cast< quint32>( type ) );
-    }
-    QString sridString;
-    const auto constSrids = srids;
-    for ( const int srid : constSrids )
-    {
-      if ( !sridString.isEmpty() )
-        sridString += '|';
-      sridString += QString::number( srid );
-    }
+      QString typeString;
+      const auto constTypes = types;
+      for ( const Qgis::WkbType type : constTypes )
+      {
+        if ( !typeString.isEmpty() )
+          typeString += '|';
+        typeString += QString::number( static_cast<quint32>( type ) );
+      }
+      QString sridString;
+      const auto constSrids = srids;
+      for ( const int srid : constSrids )
+      {
+        if ( !sridString.isEmpty() )
+          sridString += '|';
+        sridString += QString::number( srid );
+      }
 
-    return QStringLiteral( "%1.%2.%3 type=%4 srid=%5 pkCols=%6 sql=%7 nSpCols=%8" )
-           .arg( schemaName,
-                 tableName,
-                 geometryColName,
-                 typeString,
-                 sridString,
-                 pkCols.join( QLatin1Char( '|' ) ),
-                 sql )
-           .arg( nSpCols );
-  }
+      return QStringLiteral( "%1.%2.%3 type=%4 srid=%5 pkCols=%6 sql=%7 nSpCols=%8" )
+        .arg( schemaName, tableName, geometryColName, typeString, sridString, pkCols.join( QLatin1Char( '|' ) ), sql )
+        .arg( nSpCols );
+    }
 #endif
 };
 
 class QgsPostgresResult
 {
   public:
-    explicit QgsPostgresResult( PGresult *result = nullptr ) : mRes( result ) {}
+    explicit QgsPostgresResult( PGresult *result = nullptr )
+      : mRes( result ) {}
     ~QgsPostgresResult();
 
     QgsPostgresResult &operator=( PGresult *result );
@@ -182,7 +188,6 @@ class QgsPostgresResult
 
   private:
     PGresult *mRes = nullptr;
-
 };
 
 struct PGException
@@ -205,6 +210,7 @@ struct PGException
 class QgsPoolPostgresConn
 {
     class QgsPostgresConn *mPgConn;
+
   public:
     QgsPoolPostgresConn( const QString &connInfo );
     ~QgsPoolPostgresConn();
@@ -214,17 +220,16 @@ class QgsPoolPostgresConn
 
 #include "qgsconfig.h"
 constexpr int sPostgresConQueryLogFilePrefixLength = CMAKE_SOURCE_DIR[sizeof( CMAKE_SOURCE_DIR ) - 1] == '/' ? sizeof( CMAKE_SOURCE_DIR ) + 1 : sizeof( CMAKE_SOURCE_DIR );
-#define QGS_QUERY_LOG_ORIGIN_PG_CON QString(QString( __FILE__ ).mid( sPostgresConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")")
-#define LoggedPQexecNR(_class, query) PQexecNR( query, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
-#define LoggedPQexec(_class, query) PQexec( query, true, true, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
-#define LoggedPQexecNoLogError(_class, query ) PQexec( query, false, true, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
+#define QGS_QUERY_LOG_ORIGIN_PG_CON QString( QString( __FILE__ ).mid( sPostgresConQueryLogFilePrefixLength ) + ':' + QString::number( __LINE__ ) + " (" + __FUNCTION__ + ")" )
+#define LoggedPQexecNR( _class, query ) PQexecNR( query, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
+#define LoggedPQexec( _class, query ) PQexec( query, true, true, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
+#define LoggedPQexecNoLogError( _class, query ) PQexec( query, false, true, _class, QGS_QUERY_LOG_ORIGIN_PG_CON )
 
 class QgsPostgresConn : public QObject
 {
     Q_OBJECT
 
   public:
-
     /**
      * Get a new PostgreSQL connection
      *
@@ -383,14 +388,11 @@ class QgsPostgresConn : public QObject
      * contained in the geometry_columns metatable
      * \param searchPublicOnly
      * \param allowGeometrylessTables
+     * \param allowRasterOverviewTables list raster layer overviews
      * \param schema restrict layers to layers within specified schema
      * \returns true if layers were fetched successfully
      */
-    bool supportedLayers( QVector<QgsPostgresLayerProperty> &layers,
-                          bool searchGeometryColumnsOnly = true,
-                          bool searchPublicOnly = true,
-                          bool allowGeometrylessTables = false,
-                          const QString &schema = QString() );
+    bool supportedLayers( QVector<QgsPostgresLayerProperty> &layers, bool searchGeometryColumnsOnly = true, bool searchPublicOnly = true, bool allowGeometrylessTables = false, bool allowRasterOverviewTables = false, const QString &schema = QString() );
 
     /**
      * Get the information about a supported layer
@@ -423,12 +425,12 @@ class QgsPostgresConn : public QObject
      * contained in the geometry_columns metatable
      * \param searchPublicOnly
      * \param allowGeometrylessTables
+     * \param allowRasterOverviewTables list raster layer overviews
      * \param schema restrict tables to those within specified schema
      * \param name restrict tables to those with specified name
      * \returns true if tables were successfully queried
      */
-    bool getTableInfo( bool searchGeometryColumnsOnly, bool searchPublicOnly, bool allowGeometrylessTables,
-                       const QString &schema = QString(), const QString &name = QString() );
+    bool getTableInfo( bool searchGeometryColumnsOnly, bool searchPublicOnly, bool allowGeometrylessTables, bool allowRasterOverviewTables = false, const QString &schema = QString(), const QString &name = QString() );
 
     qint64 getBinaryInt( QgsPostgresResult &queryResult, int row, int col );
 
@@ -477,6 +479,13 @@ class QgsPostgresConn : public QObject
     static bool allowProjectsInDatabase( const QString &connName );
     static void deleteConnection( const QString &connName );
     static bool allowMetadataInDatabase( const QString &connName );
+    static bool allowRasterOverviewTables( const QString &connName );
+
+    /**
+     * Duplicates \a src connection settings to a new \a dst connection.
+     * \since QGIS 3.40
+     */
+    static void duplicateConnection( const QString &src, const QString &dst );
 
     //! A connection needs to be locked when it uses transactions, see QgsPostgresConn::{begin,commit,rollback}
     void lock() { mLock.lock(); }
@@ -487,7 +496,6 @@ class QgsPostgresConn : public QObject
     int crsToSrid( const QgsCoordinateReferenceSystem &crs );
 
   private:
-
     int mRef;
     int mOpenCursors;
     PGconn *mConn = nullptr;
@@ -544,16 +552,12 @@ class QgsPostgresConn : public QObject
      * contained in the geometry_columns metatable
      * \param searchPublicOnly
      * \param allowGeometrylessTables
+     * \param allowRasterOverviewTables list raster layer overviews
      * \param schema restrict layers to layers within specified schema
      * \param table restrict tables to those with specified table
      * \returns true if layers were fetched successfully
      */
-    bool supportedLayersPrivate( QVector<QgsPostgresLayerProperty> &layers,
-                                 bool searchGeometryColumnsOnly = true,
-                                 bool searchPublicOnly = true,
-                                 bool allowGeometrylessTables = false,
-                                 const QString &schema = QString(),
-                                 const QString &table = QString() );
+    bool supportedLayersPrivate( QVector<QgsPostgresLayerProperty> &layers, bool searchGeometryColumnsOnly = true, bool searchPublicOnly = true, bool allowGeometrylessTables = false, bool allowRasterOverviewTables = false, const QString &schema = QString(), const QString &table = QString() );
 
     //! List of the supported layers
     QVector<QgsPostgresLayerProperty> mLayersSupported;

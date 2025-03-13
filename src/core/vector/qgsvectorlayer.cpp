@@ -24,6 +24,7 @@
 #include "qgis.h" //for globals
 #include "qgssettings.h"
 #include "qgsvectorlayer.h"
+#include "moc_qgsvectorlayer.cpp"
 #include "qgsactionmanager.h"
 #include "qgsapplication.h"
 #include "qgsconditionalstyle.h"
@@ -196,14 +197,14 @@ QgsVectorLayer::QgsVectorLayer( const QString &vectorLayerPath,
   if ( !vectorLayerPath.isEmpty() && !mProviderKey.isEmpty() )
   {
     QgsDataProvider::ProviderOptions providerOptions { options.transformContext };
-    QgsDataProvider::ReadFlags providerFlags = QgsDataProvider::ReadFlags();
+    Qgis::DataProviderReadFlags providerFlags;
     if ( options.loadDefaultStyle )
     {
-      providerFlags |= QgsDataProvider::FlagLoadDefaultStyle;
+      providerFlags |= Qgis::DataProviderReadFlag::LoadDefaultStyle;
     }
     if ( options.forceReadOnly )
     {
-      providerFlags |= QgsDataProvider::ForceReadOnly;
+      providerFlags |= Qgis::DataProviderReadFlag::ForceReadOnly;
       mDataSourceReadOnly = true;
     }
     setDataSource( vectorLayerPath, baseName, providerKey, providerOptions, providerFlags );
@@ -229,7 +230,7 @@ QgsVectorLayer::QgsVectorLayer( const QString &vectorLayerPath,
   }
 
   connect( this, &QgsVectorLayer::selectionChanged, this, [this] { triggerRepaint(); } );
-  connect( QgsProject::instance()->relationManager(), &QgsRelationManager::relationsLoaded, this, &QgsVectorLayer::onRelationsLoaded );
+  connect( QgsProject::instance()->relationManager(), &QgsRelationManager::relationsLoaded, this, &QgsVectorLayer::onRelationsLoaded ); // skip-keyword-check
 
   connect( this, &QgsVectorLayer::subsetStringChanged, this, &QgsMapLayer::configChanged );
   connect( this, &QgsVectorLayer::dataSourceChanged, this, &QgsVectorLayer::supportsEditingChanged );
@@ -839,7 +840,7 @@ QgsRectangle QgsVectorLayer::boundingBoxOfSelected() const
   retval.setNull();
 
   QgsFeature fet;
-  if ( mDataProvider->capabilities() & QgsVectorDataProvider::SelectAtId )
+  if ( mDataProvider->capabilities() & Qgis::VectorProviderCapability::SelectAtId )
   {
     QgsFeatureIterator fit = getFeatures( QgsFeatureRequest()
                                           .setFilterFids( mSelectedFeatureIds )
@@ -1365,12 +1366,9 @@ bool QgsVectorLayer::addFeature( QgsFeature &feature, Flags )
 
   bool success = mEditBuffer->addFeature( feature );
 
-  if ( success )
+  if ( success && mJoinBuffer->containsJoins() )
   {
-    updateExtents();
-
-    if ( mJoinBuffer->containsJoins() )
-      success = mJoinBuffer->addFeature( feature );
+    success = mJoinBuffer->addFeature( feature );
   }
 
   return success;
@@ -1516,7 +1514,7 @@ bool QgsVectorLayer::deleteSelectedFeatures( int *deletedCount, QgsVectorLayer::
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
-  if ( !isValid() || !mDataProvider || !( mDataProvider->capabilities() & QgsVectorDataProvider::DeleteFeatures ) )
+  if ( !isValid() || !mDataProvider || !( mDataProvider->capabilities() & Qgis::VectorProviderCapability::DeleteFeatures ) )
   {
     return false;
   }
@@ -1926,7 +1924,7 @@ bool QgsVectorLayer::readXml( const QDomNode &layer_node, QgsReadWriteContext &c
   QgsDataProvider::ProviderOptions options { context.transformContext() };
 
   mDataSourceReadOnly = mReadFlags & QgsMapLayer::FlagForceReadOnly;
-  QgsDataProvider::ReadFlags flags = providerReadFlags( layer_node, mReadFlags );
+  Qgis::DataProviderReadFlags flags = providerReadFlags( layer_node, mReadFlags );
 
   if ( ( mReadFlags & QgsMapLayer::FlagDontResolveLayers ) || !setDataProvider( mProviderKey, options, flags ) )
   {
@@ -2015,7 +2013,7 @@ bool QgsVectorLayer::readXml( const QDomNode &layer_node, QgsReadWriteContext &c
 
 
 void QgsVectorLayer::setDataSourcePrivate( const QString &dataSource, const QString &baseName, const QString &provider,
-    const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags )
+    const QgsDataProvider::ProviderOptions &options, Qgis::DataProviderReadFlags flags )
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
@@ -2034,7 +2032,7 @@ void QgsVectorLayer::setDataSourcePrivate( const QString &dataSource, const QStr
   setCoordinateSystem();
 
   bool loadDefaultStyleFlag = false;
-  if ( flags & QgsDataProvider::FlagLoadDefaultStyle )
+  if ( flags & Qgis::DataProviderReadFlag::LoadDefaultStyle )
   {
     loadDefaultStyleFlag = true;
   }
@@ -2064,7 +2062,7 @@ void QgsVectorLayer::setDataSourcePrivate( const QString &dataSource, const QStr
       loadDefaultStyle( defaultLoadedFlag );
     }
 
-    if ( loadDefaultStyleFlag && !defaultLoadedFlag && isSpatial() && mDataProvider->capabilities() & QgsVectorDataProvider::CreateRenderer )
+    if ( loadDefaultStyleFlag && !defaultLoadedFlag && isSpatial() && mDataProvider->capabilities() & Qgis::VectorProviderCapability::CreateRenderer )
     {
       // if we didn't load a default style for this layer, try to create a renderer directly from the data provider
       std::unique_ptr< QgsFeatureRenderer > defaultRenderer( mDataProvider->createRenderer() );
@@ -2085,7 +2083,7 @@ void QgsVectorLayer::setDataSourcePrivate( const QString &dataSource, const QStr
     if ( !mSetLegendFromStyle )
       setLegend( QgsMapLayerLegend::defaultVectorLegend( this ) );
 
-    if ( mDataProvider->capabilities() & QgsVectorDataProvider::CreateLabeling )
+    if ( mDataProvider->capabilities() & Qgis::VectorProviderCapability::CreateLabeling )
     {
       std::unique_ptr< QgsAbstractVectorLayerLabeling > defaultLabeling( mDataProvider->createLabeling() );
       if ( defaultLabeling )
@@ -2139,7 +2137,7 @@ QString QgsVectorLayer::loadDefaultStyle( bool &resultFlag )
     return styleXml ;
   }
 
-  if ( isSpatial() && mDataProvider->capabilities() & QgsVectorDataProvider::CreateRenderer )
+  if ( isSpatial() && mDataProvider->capabilities() & Qgis::VectorProviderCapability::CreateRenderer )
   {
     // otherwise try to create a renderer directly from the data provider
     std::unique_ptr< QgsFeatureRenderer > defaultRenderer( mDataProvider->createRenderer() );
@@ -2154,7 +2152,7 @@ QString QgsVectorLayer::loadDefaultStyle( bool &resultFlag )
   return QString();
 }
 
-bool QgsVectorLayer::setDataProvider( QString const &provider, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags )
+bool QgsVectorLayer::setDataProvider( QString const &provider, const QgsDataProvider::ProviderOptions &options, Qgis::DataProviderReadFlags flags )
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
@@ -2207,7 +2205,7 @@ bool QgsVectorLayer::setDataProvider( QString const &provider, const QgsDataProv
 
   if ( profile )
     profile->switchTask( tr( "Read layer metadata" ) );
-  if ( mDataProvider->capabilities() & QgsVectorDataProvider::ReadLayerMetadata )
+  if ( mDataProvider->capabilities() & Qgis::VectorProviderCapability::ReadLayerMetadata )
   {
     // we combine the provider metadata with the layer's existing metadata, so as not to reset any user customizations to the metadata
     // back to the default if a layer's data source is changed
@@ -2268,7 +2266,7 @@ bool QgsVectorLayer::setDataProvider( QString const &provider, const QgsDataProv
       QStringList stuff = match.capturedTexts();
       QString lName = stuff[1];
 
-      const QMap<QString, QgsMapLayer *> &layers = QgsProject::instance()->mapLayers();
+      const QMap<QString, QgsMapLayer *> &layers = QgsProject::instance()->mapLayers(); // skip-keyword-check
 
       QMap<QString, QgsMapLayer *>::const_iterator it;
       for ( it = layers.constBegin(); it != layers.constEnd() && ( *it )->name() != lName; ++it )
@@ -2448,8 +2446,6 @@ bool QgsVectorLayer::readSymbology( const QDomNode &layerNode, QString &errorMes
   {
     QgsReadWriteContextCategoryPopper p = context.enterCategory( tr( "Relations" ) );
 
-    const QgsPathResolver resolver { QgsProject::instance()->pathResolver() };
-
     // Restore referenced layers: relations where "this" is the child layer (the referencing part, that holds the FK)
     QDomNodeList referencedLayersNodeList = layerNode.toElement().elementsByTagName( QStringLiteral( "referencedLayers" ) );
     if ( referencedLayersNodeList.size() > 0 )
@@ -2459,7 +2455,7 @@ bool QgsVectorLayer::readSymbology( const QDomNode &layerNode, QString &errorMes
       {
         const QDomElement relationElement = relationNodes.at( i ).toElement();
 
-        mWeakRelations.push_back( QgsWeakRelation::readXml( this, QgsWeakRelation::Referencing, relationElement, resolver ) );
+        mWeakRelations.push_back( QgsWeakRelation::readXml( this, QgsWeakRelation::Referencing, relationElement, context.pathResolver() ) );
       }
     }
 
@@ -2471,7 +2467,7 @@ bool QgsVectorLayer::readSymbology( const QDomNode &layerNode, QString &errorMes
       for ( int i = 0; i < relationNodes.length(); ++i )
       {
         const QDomElement relationElement = relationNodes.at( i ).toElement();
-        mWeakRelations.push_back( QgsWeakRelation::readXml( this, QgsWeakRelation::Referenced, relationElement, resolver ) );
+        mWeakRelations.push_back( QgsWeakRelation::readXml( this, QgsWeakRelation::Referenced, relationElement, context.pathResolver() ) );
       }
     }
   }
@@ -2678,16 +2674,33 @@ bool QgsVectorLayer::readSymbology( const QDomNode &layerNode, QString &errorMes
       if ( categories.testFlag( Fields ) )
         mFieldConfigurationFlags[fieldName] = qgsFlagKeysToValue( fieldConfigElement.attribute( QStringLiteral( "configurationFlags" ) ), Qgis::FieldConfigurationFlag::NoFlag );
 
-      // Load editor widget configuration
+      // load editor widget configuration
       if ( categories.testFlag( Forms ) )
       {
         const QString widgetType = fieldWidgetElement.attribute( QStringLiteral( "type" ) );
         const QDomElement cfgElem = fieldConfigElement.elementsByTagName( QStringLiteral( "config" ) ).at( 0 ).toElement();
         const QDomElement optionsElem = cfgElem.childNodes().at( 0 ).toElement();
         QVariantMap optionsMap = QgsXmlUtils::readVariant( optionsElem ).toMap();
-        if ( widgetType == QLatin1String( "ValueRelation" ) )
+        // translate widget configuration strings
+        if ( widgetType == QStringLiteral( "ValueRelation" ) )
         {
           optionsMap[ QStringLiteral( "Value" ) ] = context.projectTranslator()->translate( QStringLiteral( "project:layers:%1:fields:%2:valuerelationvalue" ).arg( layerNode.namedItem( QStringLiteral( "id" ) ).toElement().text(), fieldName ), optionsMap[ QStringLiteral( "Value" ) ].toString() );
+        }
+        if ( widgetType == QStringLiteral( "ValueMap" ) )
+        {
+          if ( optionsMap[ QStringLiteral( "map" ) ].canConvert<QList<QVariant>>() )
+          {
+            QList<QVariant> translatedValueList;
+            const QList<QVariant> valueList = optionsMap[ QStringLiteral( "map" )].toList();
+            for ( int i = 0, row = 0; i < valueList.count(); i++, row++ )
+            {
+              QMap<QString, QVariant> translatedValueMap;
+              QString translatedKey = context.projectTranslator()->translate( QStringLiteral( "project:layers:%1:fields:%2:valuemapdescriptions" ).arg( layerNode.namedItem( QStringLiteral( "id" ) ).toElement().text(), fieldName ), valueList[i].toMap().constBegin().key() );
+              translatedValueMap.insert( translatedKey, valueList[i].toMap().constBegin().value() );
+              translatedValueList.append( translatedValueMap );
+            }
+            optionsMap.insert( QStringLiteral( "map" ), translatedValueList );
+          }
         }
         QgsEditorWidgetSetup setup = QgsEditorWidgetSetup( widgetType, optionsMap );
         mFieldWidgetSetups[fieldName] = setup;
@@ -2926,6 +2939,12 @@ bool QgsVectorLayer::readStyle( const QDomNode &node, QString &errorMessage,
         mDiagramRenderer = new QgsLinearlyInterpolatedDiagramRenderer();
         mDiagramRenderer->readXml( linearDiagramElem, context );
       }
+      QDomElement stackedDiagramElem = node.firstChildElement( QStringLiteral( "StackedDiagramRenderer" ) );
+      if ( !stackedDiagramElem.isNull() )
+      {
+        mDiagramRenderer = new QgsStackedDiagramRenderer();
+        mDiagramRenderer->readXml( stackedDiagramElem, context );
+      }
 
       if ( mDiagramRenderer )
       {
@@ -3006,37 +3025,40 @@ bool QgsVectorLayer::writeSymbology( QDomNode &node, QDomDocument &doc, QString 
   // Relation information for both referenced and referencing sides
   if ( categories.testFlag( Relations ) )
   {
-    // Store referenced layers: relations where "this" is the child layer (the referencing part, that holds the FK)
-    QDomElement referencedLayersElement = doc.createElement( QStringLiteral( "referencedLayers" ) );
-    node.appendChild( referencedLayersElement );
-
-    const QList<QgsRelation> referencingRelations { QgsProject::instance()->relationManager()->referencingRelations( this ) };
-    for ( const QgsRelation &rel : referencingRelations )
+    if ( QgsProject *p = project() )
     {
-      switch ( rel.type() )
+      // Store referenced layers: relations where "this" is the child layer (the referencing part, that holds the FK)
+      QDomElement referencedLayersElement = doc.createElement( QStringLiteral( "referencedLayers" ) );
+      node.appendChild( referencedLayersElement );
+
+      const QList<QgsRelation> referencingRelations { p->relationManager()->referencingRelations( this ) };
+      for ( const QgsRelation &rel : referencingRelations )
       {
-        case Qgis::RelationshipType::Normal:
-          QgsWeakRelation::writeXml( this, QgsWeakRelation::Referencing, rel, referencedLayersElement, doc );
-          break;
-        case Qgis::RelationshipType::Generated:
-          break;
+        switch ( rel.type() )
+        {
+          case Qgis::RelationshipType::Normal:
+            QgsWeakRelation::writeXml( this, QgsWeakRelation::Referencing, rel, referencedLayersElement, doc );
+            break;
+          case Qgis::RelationshipType::Generated:
+            break;
+        }
       }
-    }
 
-    // Store referencing layers: relations where "this" is the parent layer (the referenced part, that holds the FK)
-    QDomElement referencingLayersElement = doc.createElement( QStringLiteral( "referencingLayers" ) );
-    node.appendChild( referencedLayersElement );
+      // Store referencing layers: relations where "this" is the parent layer (the referenced part, that holds the FK)
+      QDomElement referencingLayersElement = doc.createElement( QStringLiteral( "referencingLayers" ) );
+      node.appendChild( referencedLayersElement );
 
-    const QList<QgsRelation> referencedRelations { QgsProject::instance()->relationManager()->referencedRelations( this ) };
-    for ( const QgsRelation &rel : referencedRelations )
-    {
-      switch ( rel.type() )
+      const QList<QgsRelation> referencedRelations { p->relationManager()->referencedRelations( this ) };
+      for ( const QgsRelation &rel : referencedRelations )
       {
-        case Qgis::RelationshipType::Normal:
-          QgsWeakRelation::writeXml( this, QgsWeakRelation::Referenced, rel, referencingLayersElement, doc );
-          break;
-        case Qgis::RelationshipType::Generated:
-          break;
+        switch ( rel.type() )
+        {
+          case Qgis::RelationshipType::Normal:
+            QgsWeakRelation::writeXml( this, QgsWeakRelation::Referenced, rel, referencingLayersElement, doc );
+            break;
+          case Qgis::RelationshipType::Generated:
+            break;
+        }
       }
     }
   }
@@ -3139,6 +3161,7 @@ bool QgsVectorLayer::writeSymbology( QDomNode &node, QDomDocument &doc, QString 
       constraintElem.setAttribute( QStringLiteral( "unique_strength" ), field.constraints().constraintStrength( QgsFieldConstraints::ConstraintUnique ) );
       constraintElem.setAttribute( QStringLiteral( "notnull_strength" ), field.constraints().constraintStrength( QgsFieldConstraints::ConstraintNotNull ) );
       constraintElem.setAttribute( QStringLiteral( "exp_strength" ), field.constraints().constraintStrength( QgsFieldConstraints::ConstraintExpression ) );
+
       constraintsElem.appendChild( constraintElem );
     }
     node.appendChild( constraintsElem );
@@ -3811,14 +3834,7 @@ bool QgsVectorLayer::deleteFeature( QgsFeatureId fid, QgsVectorLayer::DeleteCont
   if ( !mEditBuffer )
     return false;
 
-  bool res = deleteFeatureCascade( fid, context );
-
-  if ( res )
-  {
-    updateExtents();
-  }
-
-  return res;
+  return deleteFeatureCascade( fid, context );
 }
 
 bool QgsVectorLayer::deleteFeatures( const QgsFeatureIds &fids, QgsVectorLayer::DeleteContext *context )
@@ -3966,7 +3982,11 @@ bool QgsVectorLayer::commitChanges( bool stopEditing )
   updateFields();
 
   mDataProvider->updateExtents();
-  mDataProvider->leaveUpdateMode();
+
+  if ( stopEditing )
+  {
+    mDataProvider->leaveUpdateMode();
+  }
 
   // This second call is required because OGR provider with JSON
   // driver might have changed fields order after the call to
@@ -4394,7 +4414,7 @@ void QgsVectorLayer::destroyEditCommand()
   // and delete, so we add a dummy obsolete command to force this to occur.
   // Pushing the new command deletes the destroyed one, and since the new
   // command is obsolete it's automatically deleted by the undo stack.
-  std::unique_ptr< QUndoCommand > command = std::make_unique< QUndoCommand >();
+  auto command = std::make_unique< QUndoCommand >();
   command->setObsolete( true );
   undoStack()->push( command.release() );
 
@@ -5067,7 +5087,7 @@ void QgsVectorLayer::createEditBuffer()
   connect( mEditBuffer, &QgsVectorLayerEditBuffer::layerModified, this, &QgsVectorLayer::invalidateSymbolCountedFlag );
   connect( mEditBuffer, &QgsVectorLayerEditBuffer::layerModified, this, &QgsVectorLayer::layerModified ); // TODO[MD]: necessary?
   //connect( mEditBuffer, SIGNAL( layerModified() ), this, SLOT( triggerRepaint() ) ); // TODO[MD]: works well?
-  connect( mEditBuffer, &QgsVectorLayerEditBuffer::featureAdded, this, &QgsVectorLayer::featureAdded );
+  connect( mEditBuffer, &QgsVectorLayerEditBuffer::featureAdded, this, &QgsVectorLayer::onFeatureAdded );
   connect( mEditBuffer, &QgsVectorLayerEditBuffer::featureDeleted, this, &QgsVectorLayer::onFeatureDeleted );
   connect( mEditBuffer, &QgsVectorLayerEditBuffer::geometryChanged, this, &QgsVectorLayer::geometryChanged );
   connect( mEditBuffer, &QgsVectorLayerEditBuffer::attributeValueChanged, this, &QgsVectorLayer::attributeValueChanged );
@@ -5828,7 +5848,10 @@ QString QgsVectorLayer::htmlMetadata() const
     }
 
     // Extent
-    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" ) + tr( "Extent" ) + QStringLiteral( "</td><td>" ) + extent().toString() + QStringLiteral( "</td></tr>\n" );
+    // Try to display extent 3D by default. If empty (probably because the data is 2D), fallback to the 2D version
+    const QgsBox3D extentBox3D = extent3D();
+    const QString extentAsStr = !extentBox3D.isEmpty() ? extentBox3D.toString() : extent().toString();
+    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" ) + tr( "Extent" ) + QStringLiteral( "</td><td>" ) + extentAsStr + QStringLiteral( "</td></tr>\n" );
   }
 
   // feature count
@@ -5914,6 +5937,8 @@ QString QgsVectorLayer::htmlMetadata() const
   myMetadata += htmlFormatter.historySectionHtml( );
   myMetadata += QLatin1String( "<br><br>\n" );
 
+  myMetadata += customPropertyHtmlMetadata();
+
   myMetadata += QLatin1String( "\n</body>\n</html>\n" );
   return myMetadata;
 }
@@ -5948,9 +5973,20 @@ void QgsVectorLayer::onJoinedFieldsChanged()
   updateFields();
 }
 
+void QgsVectorLayer::onFeatureAdded( QgsFeatureId fid )
+{
+  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  updateExtents();
+
+  emit featureAdded( fid );
+}
+
 void QgsVectorLayer::onFeatureDeleted( QgsFeatureId fid )
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
+
+  updateExtents();
 
   if ( mEditCommandActive  || mCommitChangesActive )
   {
@@ -5989,7 +6025,10 @@ QList<QgsRelation> QgsVectorLayer::referencingRelations( int idx ) const
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
-  return QgsProject::instance()->relationManager()->referencingRelations( this, idx );
+  if ( QgsProject *p = project() )
+    return p->relationManager()->referencingRelations( this, idx );
+  else
+    return {};
 }
 
 QList<QgsWeakRelation> QgsVectorLayer::weakRelations() const
@@ -6092,19 +6131,18 @@ void QgsVectorLayer::emitDataChanged()
   if ( mDataChangedFired )
     return;
 
+  // If we are asked to fire dataChanged from a layer we depend on,
+  // be sure that this layer is not in the process of committing its changes, because
+  // we will be asked to fire dataChanged at the end of his commit, and we don't
+  // want to fire this signal more than necessary.
+  if ( QgsVectorLayer *layerWeDependUpon = qobject_cast<QgsVectorLayer *>( sender() );
+       layerWeDependUpon && layerWeDependUpon->mCommitChangesActive )
+    return;
+
   updateExtents(); // reset cached extent to reflect data changes
 
   mDataChangedFired = true;
   emit dataChanged();
-  mDataChangedFired = false;
-}
-
-void QgsVectorLayer::onAfterCommitChangesDependency()
-{
-  QGIS_PROTECT_QOBJECT_THREAD_ACCESS
-
-  mDataChangedFired = true;
-  reload();
   mDataChangedFired = false;
 }
 
@@ -6123,17 +6161,20 @@ bool QgsVectorLayer::setDependencies( const QSet<QgsMapLayerDependency> &oDeps )
   QSet<QgsMapLayerDependency> toAdd = deps - dependencies();
 
   // disconnect layers that are not present in the list of dependencies anymore
-  for ( const QgsMapLayerDependency &dep : std::as_const( mDependencies ) )
+  if ( QgsProject *p = project() )
   {
-    QgsVectorLayer *lyr = static_cast<QgsVectorLayer *>( QgsProject::instance()->mapLayer( dep.layerId() ) );
-    if ( !lyr )
-      continue;
-    disconnect( lyr, &QgsVectorLayer::featureAdded, this, &QgsVectorLayer::emitDataChanged );
-    disconnect( lyr, &QgsVectorLayer::featureDeleted, this, &QgsVectorLayer::emitDataChanged );
-    disconnect( lyr, &QgsVectorLayer::geometryChanged, this, &QgsVectorLayer::emitDataChanged );
-    disconnect( lyr, &QgsVectorLayer::dataChanged, this, &QgsVectorLayer::emitDataChanged );
-    disconnect( lyr, &QgsVectorLayer::repaintRequested, this, &QgsVectorLayer::triggerRepaint );
-    disconnect( lyr, &QgsVectorLayer::afterCommitChanges, this, &QgsVectorLayer::onAfterCommitChangesDependency );
+    for ( const QgsMapLayerDependency &dep : std::as_const( mDependencies ) )
+    {
+      QgsVectorLayer *lyr = static_cast<QgsVectorLayer *>( p->mapLayer( dep.layerId() ) );
+      if ( !lyr )
+        continue;
+      disconnect( lyr, &QgsVectorLayer::featureAdded, this, &QgsVectorLayer::emitDataChanged );
+      disconnect( lyr, &QgsVectorLayer::featureDeleted, this, &QgsVectorLayer::emitDataChanged );
+      disconnect( lyr, &QgsVectorLayer::geometryChanged, this, &QgsVectorLayer::emitDataChanged );
+      disconnect( lyr, &QgsVectorLayer::dataChanged, this, &QgsVectorLayer::emitDataChanged );
+      disconnect( lyr, &QgsVectorLayer::repaintRequested, this, &QgsVectorLayer::triggerRepaint );
+      disconnect( lyr, &QgsVectorLayer::afterCommitChanges, this, &QgsVectorLayer::emitDataChanged );
+    }
   }
 
   // assign new dependencies
@@ -6144,17 +6185,20 @@ bool QgsVectorLayer::setDependencies( const QSet<QgsMapLayerDependency> &oDeps )
   emit dependenciesChanged();
 
   // connect to new layers
-  for ( const QgsMapLayerDependency &dep : std::as_const( mDependencies ) )
+  if ( QgsProject *p = project() )
   {
-    QgsVectorLayer *lyr = static_cast<QgsVectorLayer *>( QgsProject::instance()->mapLayer( dep.layerId() ) );
-    if ( !lyr )
-      continue;
-    connect( lyr, &QgsVectorLayer::featureAdded, this, &QgsVectorLayer::emitDataChanged );
-    connect( lyr, &QgsVectorLayer::featureDeleted, this, &QgsVectorLayer::emitDataChanged );
-    connect( lyr, &QgsVectorLayer::geometryChanged, this, &QgsVectorLayer::emitDataChanged );
-    connect( lyr, &QgsVectorLayer::dataChanged, this, &QgsVectorLayer::emitDataChanged );
-    connect( lyr, &QgsVectorLayer::repaintRequested, this, &QgsVectorLayer::triggerRepaint );
-    connect( lyr, &QgsVectorLayer::afterCommitChanges, this, &QgsVectorLayer::onAfterCommitChangesDependency );
+    for ( const QgsMapLayerDependency &dep : std::as_const( mDependencies ) )
+    {
+      QgsVectorLayer *lyr = static_cast<QgsVectorLayer *>( p->mapLayer( dep.layerId() ) );
+      if ( !lyr )
+        continue;
+      connect( lyr, &QgsVectorLayer::featureAdded, this, &QgsVectorLayer::emitDataChanged );
+      connect( lyr, &QgsVectorLayer::featureDeleted, this, &QgsVectorLayer::emitDataChanged );
+      connect( lyr, &QgsVectorLayer::geometryChanged, this, &QgsVectorLayer::emitDataChanged );
+      connect( lyr, &QgsVectorLayer::dataChanged, this, &QgsVectorLayer::emitDataChanged );
+      connect( lyr, &QgsVectorLayer::repaintRequested, this, &QgsVectorLayer::triggerRepaint );
+      connect( lyr, &QgsVectorLayer::afterCommitChanges, this, &QgsVectorLayer::emitDataChanged );
+    }
   }
 
   // if new layers are present, emit a data change

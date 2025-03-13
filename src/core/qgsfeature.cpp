@@ -14,6 +14,7 @@ email                : sherman at mrcc.com
  ***************************************************************************/
 
 #include "qgsfeature.h"
+#include "moc_qgsfeature.cpp"
 #include "qgsfeature_p.h"
 #include "qgsfields.h"
 #include "qgsgeometry.h"
@@ -315,7 +316,7 @@ bool QgsFeature::isUnsetValue( int fieldIdx ) const
   if ( fieldIdx < 0 || fieldIdx >= d->attributes.count() )
     return false;
 
-  return d->attributes.at( fieldIdx ).userType() == QMetaType::type( "QgsUnsetAttributeValue" );
+  return d->attributes.at( fieldIdx ).userType() == qMetaTypeId<QgsUnsetAttributeValue>();
 }
 
 const QgsSymbol *QgsFeature::embeddedSymbol() const

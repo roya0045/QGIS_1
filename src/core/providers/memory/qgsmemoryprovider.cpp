@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include "qgsmemoryprovider.h"
+#include "moc_qgsmemoryprovider.cpp"
 #include "qgsmemoryfeatureiterator.h"
 
 #include "qgsfeature.h"
@@ -35,7 +36,7 @@
 #define TEXT_PROVIDER_KEY QStringLiteral( "memory" )
 #define TEXT_PROVIDER_DESCRIPTION QStringLiteral( "Memory provider" )
 
-QgsMemoryProvider::QgsMemoryProvider( const QString &uri, const ProviderOptions &options, QgsDataProvider::ReadFlags flags )
+QgsMemoryProvider::QgsMemoryProvider( const QString &uri, const ProviderOptions &options, Qgis::DataProviderReadFlags flags )
   : QgsVectorDataProvider( uri, options, flags )
 {
   // Initialize the geometry with the uri to support old style uri's
@@ -433,21 +434,22 @@ bool QgsMemoryProvider::addFeatures( QgsFeatureList &flist, Flags flags )
   {
     it->setId( mNextFeatureId );
     it->setValid( true );
-    if ( it->attributes().count() < fieldCount )
+    const int attributeCount = it->attributeCount();
+    if ( attributeCount < fieldCount )
     {
       // ensure features have the correct number of attributes by padding
       // them with null attributes for missing values
       QgsAttributes attributes = it->attributes();
-      for ( int i = it->attributes().count(); i < mFields.count(); ++i )
+      for ( int i = attributeCount; i < mFields.count(); ++i )
       {
         attributes.append( QgsVariantUtils::createNullVariant( mFields.at( i ).type() ) );
       }
       it->setAttributes( attributes );
     }
-    else if ( it->attributes().count() > fieldCount )
+    else if ( attributeCount > fieldCount )
     {
       // too many attributes
-      pushError( tr( "Feature has too many attributes (expecting %1, received %2)" ).arg( fieldCount ).arg( it->attributes().count() ) );
+      pushError( tr( "Feature has too many attributes (expecting %1, received %2)" ).arg( fieldCount ).arg( attributeCount ) );
       QgsAttributes attributes = it->attributes();
       attributes.resize( mFields.count() );
       it->setAttributes( attributes );
@@ -680,6 +682,9 @@ bool QgsMemoryProvider::changeAttributeValues( const QgsChangedAttributesMap &at
         continue;
 
       QVariant attrValue = it2.value();
+      if ( attrValue.userType() == qMetaTypeId< QgsUnsetAttributeValue >() )
+        continue;
+
       // Check attribute conversion
       const bool conversionError { ! QgsVariantUtils::isNull( attrValue )
                                    && ! mFields.at( it2.key() ).convertCompatible( attrValue, &errorMessage ) };
@@ -764,6 +769,22 @@ bool QgsMemoryProvider::setSubsetString( const QString &theSQL, bool updateFeatu
   return true;
 }
 
+bool QgsMemoryProvider::supportsSubsetString() const
+{
+  return true;
+}
+
+QString QgsMemoryProvider::subsetStringDialect() const
+{
+  return tr( "QGIS expression" );
+}
+
+QString QgsMemoryProvider::subsetStringHelpUrl() const
+{
+  // unfortunately we can't access QgsHelp here, that's a GUI class!
+  return QString();
+}
+
 bool QgsMemoryProvider::createSpatialIndex()
 {
   if ( !mSpatialIndex )
@@ -784,11 +805,16 @@ Qgis::SpatialIndexPresence QgsMemoryProvider::hasSpatialIndex() const
   return mSpatialIndex ? Qgis::SpatialIndexPresence::Present : Qgis::SpatialIndexPresence::NotPresent;
 }
 
-QgsVectorDataProvider::Capabilities QgsMemoryProvider::capabilities() const
+Qgis::VectorProviderCapabilities QgsMemoryProvider::capabilities() const
 {
-  return AddFeatures | DeleteFeatures | ChangeGeometries |
-         ChangeAttributeValues | AddAttributes | DeleteAttributes | RenameAttributes | CreateSpatialIndex |
-         SelectAtId | CircularGeometries | FastTruncate;
+  Qgis::VectorProviderCapabilities caps { Qgis::VectorProviderCapability::AddFeatures | Qgis::VectorProviderCapability::DeleteFeatures |
+                                          Qgis::VectorProviderCapability::ChangeAttributeValues | Qgis::VectorProviderCapability::AddAttributes | Qgis::VectorProviderCapability::DeleteAttributes | Qgis::VectorProviderCapability::RenameAttributes |
+                                          Qgis::VectorProviderCapability::SelectAtId | Qgis::VectorProviderCapability::FastTruncate };
+  if ( mWkbType != Qgis::WkbType::NoGeometry )
+  {
+    caps |=  Qgis::VectorProviderCapability::CreateSpatialIndex | Qgis::VectorProviderCapability::CircularGeometries | Qgis::VectorProviderCapability::ChangeGeometries ;
+  }
+  return caps;
 }
 
 bool QgsMemoryProvider::truncate()
@@ -825,7 +851,7 @@ QIcon QgsMemoryProviderMetadata::icon() const
   return QgsApplication::getThemeIcon( QStringLiteral( "mIconMemory.svg" ) );
 }
 
-QgsDataProvider *QgsMemoryProviderMetadata::createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags )
+QgsDataProvider *QgsMemoryProviderMetadata::createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, Qgis::DataProviderReadFlags flags )
 {
   return new QgsMemoryProvider( uri, options, flags );
 }
@@ -834,5 +860,8 @@ QList<Qgis::LayerType> QgsMemoryProviderMetadata::supportedLayerTypes() const
 {
   return { Qgis::LayerType::Vector };
 }
+
+#undef TEXT_PROVIDER_KEY
+#undef TEXT_PROVIDER_DESCRIPTION
 
 ///@endcond

@@ -868,7 +868,9 @@ QgsSymbolLayer *QgsInterpolatedLineSymbolLayer::create( const QVariantMap &prope
 
 Qgis::SymbolLayerFlags QgsInterpolatedLineSymbolLayer::flags() const
 {
-  return Qgis::SymbolLayerFlag::DisableFeatureClipping;
+  return QgsLineSymbolLayer::flags()
+         | Qgis::SymbolLayerFlag::DisableFeatureClipping
+         | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 QVariantMap QgsInterpolatedLineSymbolLayer::properties() const
@@ -963,12 +965,12 @@ QString QgsInterpolatedLineSymbolLayer::endValueExpressionForWidth() const
   return mDataDefinedProperties.property( QgsSymbolLayer::Property::LineEndWidthValue ).asExpression();
 }
 
-void QgsInterpolatedLineSymbolLayer::setWidthUnit( Qgis::RenderUnit strokeWidthUnit )
+void QgsInterpolatedLineSymbolLayer::setWidthUnit( Qgis::RenderUnit strokeWidthUnit ) // cppcheck-suppress duplInheritedMember
 {
   mLineRender.mStrokeWidthUnit = strokeWidthUnit;
 }
 
-Qgis::RenderUnit QgsInterpolatedLineSymbolLayer::widthUnit() const {return mLineRender.widthUnit();}
+Qgis::RenderUnit QgsInterpolatedLineSymbolLayer::widthUnit() const {return mLineRender.widthUnit();} // cppcheck-suppress duplInheritedMember
 
 void QgsInterpolatedLineSymbolLayer::setInterpolatedWidth( const QgsInterpolatedLineWidth &interpolatedLineWidth )
 {

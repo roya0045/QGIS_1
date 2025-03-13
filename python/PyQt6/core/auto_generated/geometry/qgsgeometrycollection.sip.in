@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/geometry/qgsgeometrycollection.h                            *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -171,7 +171,7 @@ to the caller.
 %End
 
     void normalize() final /HoldGIL/;
-    virtual void transform( const QgsCoordinateTransform &ct, Qgis::TransformDirection d = Qgis::TransformDirection::Forward, bool transformZ = false ) throw( QgsCsException );
+    virtual void transform( const QgsCoordinateTransform &ct, Qgis::TransformDirection d = Qgis::TransformDirection::Forward, bool transformZ = false );
 
     virtual void transform( const QTransform &t, double zTranslate = 0.0, double zScale = 1.0, double mTranslate = 0.0, double mScale = 1.0 );
 
@@ -267,6 +267,7 @@ Returns a geometry without curves. Caller takes ownership
 
     virtual const QgsAbstractGeometry *simplifiedTypeRef() const /HoldGIL/;
 
+    virtual QgsGeometryCollection *simplifyByDistance( double tolerance ) const /Factory/;
 
     virtual bool transform( QgsAbstractGeometryTransformer *transformer, QgsFeedback *feedback = 0 );
 
@@ -386,5 +387,5 @@ Reads a collection from a WKT string.
  *                                                                      *
  * src/core/geometry/qgsgeometrycollection.h                            *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

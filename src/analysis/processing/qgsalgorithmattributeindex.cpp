@@ -66,7 +66,7 @@ QgsAttributeIndexAlgorithm *QgsAttributeIndexAlgorithm::createInstance() const
 
 void QgsAttributeIndexAlgorithm::initAlgorithm( const QVariantMap & )
 {
-  addParameter( new QgsProcessingParameterVectorLayer( QStringLiteral( "INPUT" ), QObject::tr( "Input layer" ), QList<int> { static_cast< int >( Qgis::ProcessingSourceType::Vector ) } ) );
+  addParameter( new QgsProcessingParameterVectorLayer( QStringLiteral( "INPUT" ), QObject::tr( "Input layer" ), QList<int> { static_cast<int>( Qgis::ProcessingSourceType::Vector ) } ) );
   addParameter( new QgsProcessingParameterField( QStringLiteral( "FIELD" ), QObject::tr( "Attribute to index" ), QVariant(), QStringLiteral( "INPUT" ) ) );
 
   addOutput( new QgsProcessingOutputVectorLayer( QStringLiteral( "OUTPUT" ), QObject::tr( "Indexed layer" ) ) );
@@ -91,7 +91,7 @@ QVariantMap QgsAttributeIndexAlgorithm::processAlgorithm( const QVariantMap &par
   else
   {
     const int providerIndex = layer->fields().fieldOriginIndex( fieldIndex );
-    if ( provider->capabilities() & QgsVectorDataProvider::CreateAttributeIndex )
+    if ( provider->capabilities() & Qgis::VectorProviderCapability::CreateAttributeIndex )
     {
       if ( !provider->createAttributeIndex( providerIndex ) )
       {

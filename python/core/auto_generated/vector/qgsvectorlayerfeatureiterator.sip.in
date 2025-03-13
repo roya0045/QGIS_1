@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/vector/qgsvectorlayerfeatureiterator.h                      *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -75,10 +75,13 @@ Returns the layer id of the source layer.
 };
 
 
-typedef QgsAbstractFeatureIteratorFromSource<QgsVectorLayerFeatureSource> QgsAbstractFeatureIteratorFromSourceQgsVectorLayerFeatureSourceBase;
+typedef QgsAbstractFeatureIteratorFromSource<QgsVectorLayerFeatureSource> QgsAbstractFeatureIteratorFromSourceQgsVectorLayerFeatureSourceBase /NoTypeName/;
 
 class QgsVectorLayerFeatureIterator : QgsAbstractFeatureIteratorFromSourceQgsVectorLayerFeatureSourceBase
 {
+%Docstring(signature="appended")
+A feature iterator which iterates over features from a :py:class:`QgsVectorLayer`.
+%End
 
 %TypeHeaderCode
 #include "qgsvectorlayerfeatureiterator.h"
@@ -212,5 +215,5 @@ the QgsVectorLayerSelectedFeatureSource will not be reflected.
  *                                                                      *
  * src/core/vector/qgsvectorlayerfeatureiterator.h                      *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

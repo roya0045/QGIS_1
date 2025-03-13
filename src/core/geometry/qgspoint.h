@@ -93,14 +93,11 @@ class CORE_EXPORT QgsPoint: public QgsAbstractGeometry
       sipIsErr = 0;
 
       QgsPointXY *p = reinterpret_cast<QgsPointXY *>( sipConvertToType( a0, sipType_QgsPointXY, 0, SIP_NOT_NONE, &state, &sipIsErr ) );
-      if ( sipIsErr )
-      {
-        sipReleaseType( p, sipType_QgsPointXY, state );
-      }
-      else
+      if ( !sipIsErr )
       {
         sipCpp = new sipQgsPoint( QgsPoint( *p ) );
       }
+      sipReleaseType( p, sipType_QgsPointXY, state );
     }
     else if ( sipCanConvertToType( a0, sipType_QPointF, SIP_NOT_NONE ) && a1 == Py_None && a2 == Py_None && a3 == Py_None && a4 == Py_None )
     {
@@ -108,14 +105,11 @@ class CORE_EXPORT QgsPoint: public QgsAbstractGeometry
       sipIsErr = 0;
 
       QPointF *p = reinterpret_cast<QPointF *>( sipConvertToType( a0, sipType_QPointF, 0, SIP_NOT_NONE, &state, &sipIsErr ) );
-      if ( sipIsErr )
-      {
-        sipReleaseType( p, sipType_QPointF, state );
-      }
-      else
+      if ( !sipIsErr )
       {
         sipCpp = new sipQgsPoint( QgsPoint( *p ) );
       }
+      sipReleaseType( p, sipType_QPointF, state );
     }
     else if (
       ( a0 == Py_None || PyFloat_AsDouble( a0 ) != -1.0 || !PyErr_Occurred() ) &&
@@ -563,6 +557,7 @@ class CORE_EXPORT QgsPoint: public QgsAbstractGeometry
     int dimension() const override SIP_HOLDGIL;
     QgsPoint *clone() const override SIP_FACTORY;
     QgsPoint *snappedToGrid( double hSpacing, double vSpacing, double dSpacing = 0, double mSpacing = 0, bool removeRedundantPoints = false ) const override SIP_FACTORY;
+    QgsPoint *simplifyByDistance( double tolerance ) const override SIP_FACTORY;
     bool removeDuplicateNodes( double epsilon = 4 * std::numeric_limits<double>::epsilon(), bool useZValues = false ) override;
     void clear() override;
     bool fromWkb( QgsConstWkbPtr &wkb ) override;

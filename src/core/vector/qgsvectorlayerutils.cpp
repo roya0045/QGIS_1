@@ -127,13 +127,12 @@ QList<double> QgsVectorLayerUtils::getDoubleValues( const QgsVectorLayer *layer,
   if ( nullCount )
     *nullCount = 0;
 
-  QList<QVariant> variantValues = getValues( layer, fieldOrExpression, ok, selectedOnly, feedback );
+  const QList<QVariant> variantValues = getValues( layer, fieldOrExpression, ok, selectedOnly, feedback );
   if ( !ok )
     return values;
 
   bool convertOk;
-  const auto constVariantValues = variantValues;
-  for ( const QVariant &value : constVariantValues )
+  for ( const QVariant &value : variantValues )
   {
     double val = value.toDouble( &convertOk );
     if ( convertOk )
@@ -165,7 +164,7 @@ bool QgsVectorLayerUtils::valueExists( const QgsVectorLayer *layer, int fieldInd
   // If it's a joined field search the value in the source layer
   if ( fields.fieldOrigin( fieldIndex ) == Qgis::FieldOrigin::Join )
   {
-    int srcFieldIndex;
+    int srcFieldIndex = -1;
     const QgsVectorLayerJoinInfo *joinInfo { layer->joinBuffer()->joinForFieldIndex( fieldIndex, fields, srcFieldIndex ) };
     if ( ! joinInfo )
     {
@@ -577,7 +576,7 @@ QgsFeatureList QgsVectorLayerUtils::createFeatures( const QgsVectorLayer *layer,
         QString providerDefault = layer->dataProvider()->defaultValueClause( providerIndex );
         if ( !providerDefault.isEmpty() )
         {
-          v = providerDefault;
+          v = QgsUnsetAttributeValue( providerDefault );
           checkUnique = false;
         }
       }
@@ -743,7 +742,7 @@ void QgsVectorLayerUtils::matchAttributesToFields( QgsFeature &feature, const Qg
   else
   {
     // no field name mapping in feature, just use order
-    const int lengthDiff = feature.attributes().count() - fields.count();
+    const int lengthDiff = feature.attributeCount() - fields.count();
     if ( lengthDiff > 0 )
     {
       // truncate extra attributes
@@ -755,7 +754,8 @@ void QgsVectorLayerUtils::matchAttributesToFields( QgsFeature &feature, const Qg
       // add missing null attributes
       QgsAttributes attributes = feature.attributes();
       attributes.reserve( fields.count() );
-      for ( int i = feature.attributes().count(); i < fields.count(); ++i )
+      const int attributeCount = feature.attributeCount();
+      for ( int i = attributeCount; i < fields.count(); ++i )
       {
         attributes.append( QgsVariantUtils::createNullVariant( fields.at( i ).type() ) );
       }
@@ -890,8 +890,8 @@ bool _fieldIsEditable( const QgsVectorLayer *layer, int fieldIndex, const QgsFea
          !layer->editFormConfig().readOnly( fieldIndex ) &&
          // Provider permissions
          layer->dataProvider() &&
-         ( ( layer->dataProvider()->capabilities() & QgsVectorDataProvider::ChangeAttributeValues ) ||
-           ( layer->dataProvider()->capabilities() & QgsVectorDataProvider::AddFeatures  && ( FID_IS_NULL( feature.id() ) || FID_IS_NEW( feature.id() ) ) ) )  &&
+         ( ( layer->dataProvider()->capabilities() & Qgis::VectorProviderCapability::ChangeAttributeValues ) ||
+           ( layer->dataProvider()->capabilities() & Qgis::VectorProviderCapability::AddFeatures  && ( FID_IS_NULL( feature.id() ) || FID_IS_NEW( feature.id() ) ) ) )  &&
          // Field must not be read only
          !layer->fields().at( fieldIndex ).isReadOnly();
 }
@@ -914,8 +914,8 @@ bool QgsVectorLayerUtils::fieldIsReadOnly( const QgsVectorLayer *layer, int fiel
     if ( !layer->isEditable() ||
          layer->editFormConfig().readOnly( fieldIndex ) ||
          !layer->dataProvider() ||
-         ( !( layer->dataProvider()->capabilities() & QgsVectorDataProvider::ChangeAttributeValues )
-           && !( layer->dataProvider()->capabilities() & QgsVectorDataProvider::AddFeatures ) ) ||
+         ( !( layer->dataProvider()->capabilities() & Qgis::VectorProviderCapability::ChangeAttributeValues )
+           && !( layer->dataProvider()->capabilities() & Qgis::VectorProviderCapability::AddFeatures ) ) ||
          layer->fields().at( fieldIndex ).isReadOnly() )
       return true;
 

@@ -57,14 +57,7 @@ class CORE_EXPORT QgsColorRampShader : public QgsRasterShaderFunction
 
     ~QgsColorRampShader() override;
 
-    /**
-     * Copy constructor
-     */
     QgsColorRampShader( const QgsColorRampShader &other );
-
-    /**
-     * Assignment operator
-     */
     QgsColorRampShader &operator=( const QgsColorRampShader &other );
 
     bool operator==( const QgsColorRampShader &other ) const
@@ -82,13 +75,18 @@ class CORE_EXPORT QgsColorRampShader : public QgsRasterShaderFunction
       return true;
     }
 
+    bool operator!=( const QgsColorRampShader &other ) const
+    {
+      return !( *this == other );
+    }
+
     //An entry for classification based upon value.
     //Such a classification is typically used for
     //single band layers where a pixel value represents
     //not a color but a quantity, e.g. temperature or elevation
     struct ColorRampItem
     {
-      //! default constructor
+
       ColorRampItem() = default;
       //! convenience constructor
       ColorRampItem( double val, const QColor &col, const QString &lbl = QString() )

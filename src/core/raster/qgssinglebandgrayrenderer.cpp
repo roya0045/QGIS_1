@@ -82,7 +82,7 @@ QgsRasterRenderer *QgsSingleBandGrayRenderer::create( const QDomElement &elem, Q
     r->setContrastEnhancement( ce );
   }
 
-  std::unique_ptr< QgsColorRampLegendNodeSettings > legendSettings = std::make_unique< QgsColorRampLegendNodeSettings >();
+  auto legendSettings = std::make_unique< QgsColorRampLegendNodeSettings >();
   legendSettings->readXml( elem, QgsReadWriteContext() );
   r->setLegendSettings( legendSettings.release() );
 
@@ -99,7 +99,7 @@ QgsRasterBlock *QgsSingleBandGrayRenderer::block( int bandNo, const QgsRectangle
   Q_UNUSED( bandNo )
   QgsDebugMsgLevel( QStringLiteral( "width = %1 height = %2" ).arg( width ).arg( height ), 4 );
 
-  std::unique_ptr< QgsRasterBlock > outputBlock( new QgsRasterBlock() );
+  auto outputBlock = std::make_unique<QgsRasterBlock>();
   if ( !mInput )
   {
     return outputBlock.release();
@@ -457,4 +457,24 @@ void QgsSingleBandGrayRenderer::setLegendSettings( QgsColorRampLegendNodeSetting
   if ( settings == mLegendSettings.get() )
     return;
   mLegendSettings.reset( settings );
+}
+
+bool QgsSingleBandGrayRenderer::refresh( const QgsRectangle &extent, const QList<double> &min, const QList<double> &max, bool forceRefresh )
+{
+  if ( !needsRefresh( extent ) && !forceRefresh )
+  {
+    return false;
+  }
+
+  bool refreshed = false;
+  if ( mContrastEnhancement && mContrastEnhancement->contrastEnhancementAlgorithm() != QgsContrastEnhancement::NoEnhancement &&
+       min.size() >= 1 && max.size() >= 1 )
+  {
+    mLastRectangleUsedByRefreshContrastEnhancementIfNeeded = extent;
+    mContrastEnhancement->setMinimumValue( min[0] );
+    mContrastEnhancement->setMaximumValue( max[0] );
+    refreshed = true;
+  }
+
+  return refreshed;
 }

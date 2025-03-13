@@ -31,6 +31,7 @@
 #include "qgspainting.h"
 #include "qgsfillsymbol.h"
 #include "qgslinesymbol.h"
+#include "qgsmarkersymbol.h"
 #include "qgsunittypes.h"
 
 #include <mutex>
@@ -471,7 +472,7 @@ QgsGeometry QgsCallout::calloutLineToPart( const QgsGeometry &labelGeometry, con
     case Qgis::GeometryType::Point:
     case Qgis::GeometryType::Line:
     {
-      line = labelGeos.shortestLine( evaluatedPartAnchor );
+      line = QgsGeometry( labelGeos.shortestLine( evaluatedPartAnchor ) );
       break;
     }
 
@@ -486,16 +487,16 @@ QgsGeometry QgsCallout::calloutLineToPart( const QgsGeometry &labelGeometry, con
       switch ( anchor )
       {
         case QgsCallout::PoleOfInaccessibility:
-          line = labelGeos.shortestLine( evaluatedPartAnchorGeom.poleOfInaccessibility( std::max( evaluatedPartAnchor->boundingBox().width(), evaluatedPartAnchor->boundingBox().height() ) / 20.0 ) ); // really rough (but quick) pole of inaccessibility
+          line = QgsGeometry( labelGeos.shortestLine( evaluatedPartAnchorGeom.poleOfInaccessibility( std::max( evaluatedPartAnchor->boundingBox().width(), evaluatedPartAnchor->boundingBox().height() ) / 20.0 ) ) ); // really rough (but quick) pole of inaccessibility
           break;
         case QgsCallout::PointOnSurface:
-          line = labelGeos.shortestLine( evaluatedPartAnchorGeom.pointOnSurface() );
+          line = QgsGeometry( labelGeos.shortestLine( evaluatedPartAnchorGeom.pointOnSurface() ) );
           break;
         case QgsCallout::PointOnExterior:
-          line = labelGeos.shortestLine( evaluatedPartAnchor );
+          line = QgsGeometry( labelGeos.shortestLine( evaluatedPartAnchor ) );
           break;
         case QgsCallout::Centroid:
-          line = labelGeos.shortestLine( evaluatedPartAnchorGeom.centroid() );
+          line = QgsGeometry( labelGeos.shortestLine( evaluatedPartAnchorGeom.centroid() ) );
           break;
       }
       break;
@@ -554,7 +555,7 @@ QgsSimpleLineCallout::QgsSimpleLineCallout( const QgsSimpleLineCallout &other )
 
 QgsCallout *QgsSimpleLineCallout::create( const QVariantMap &properties, const QgsReadWriteContext &context )
 {
-  std::unique_ptr< QgsSimpleLineCallout > callout = std::make_unique< QgsSimpleLineCallout >();
+  auto callout = std::make_unique< QgsSimpleLineCallout >();
   callout->readProperties( properties, context );
   return callout.release();
 }
@@ -761,9 +762,9 @@ QgsManhattanLineCallout::QgsManhattanLineCallout( const QgsManhattanLineCallout 
 }
 
 
-QgsCallout *QgsManhattanLineCallout::create( const QVariantMap &properties, const QgsReadWriteContext &context )
+QgsCallout *QgsManhattanLineCallout::create( const QVariantMap &properties, const QgsReadWriteContext &context ) // cppcheck-suppress duplInheritedMember
 {
-  std::unique_ptr< QgsManhattanLineCallout > callout = std::make_unique< QgsManhattanLineCallout >();
+  auto callout = std::make_unique< QgsManhattanLineCallout >();
   callout->readProperties( properties, context );
   return callout.release();
 }
@@ -801,9 +802,9 @@ QgsCurvedLineCallout::QgsCurvedLineCallout( const QgsCurvedLineCallout &other )
 
 }
 
-QgsCallout *QgsCurvedLineCallout::create( const QVariantMap &properties, const QgsReadWriteContext &context )
+QgsCallout *QgsCurvedLineCallout::create( const QVariantMap &properties, const QgsReadWriteContext &context ) // cppcheck-suppress duplInheritedMember
 {
-  std::unique_ptr< QgsCurvedLineCallout > callout = std::make_unique< QgsCurvedLineCallout >();
+  auto callout = std::make_unique< QgsCurvedLineCallout >();
   callout->readProperties( properties, context );
 
   callout->setCurvature( properties.value( QStringLiteral( "curvature" ), 0.1 ).toDouble() );
@@ -1042,6 +1043,7 @@ QgsBalloonCallout::~QgsBalloonCallout() = default;
 QgsBalloonCallout::QgsBalloonCallout( const QgsBalloonCallout &other )
   : QgsCallout( other )
   , mFillSymbol( other.mFillSymbol ? other.mFillSymbol->clone() : nullptr )
+  , mMarkerSymbol( other.mMarkerSymbol ? other.mMarkerSymbol->clone() : nullptr )
   , mOffsetFromAnchorDistance( other.mOffsetFromAnchorDistance )
   , mOffsetFromAnchorUnit( other.mOffsetFromAnchorUnit )
   , mOffsetFromAnchorScale( other.mOffsetFromAnchorScale )
@@ -1059,7 +1061,7 @@ QgsBalloonCallout::QgsBalloonCallout( const QgsBalloonCallout &other )
 
 QgsCallout *QgsBalloonCallout::create( const QVariantMap &properties, const QgsReadWriteContext &context )
 {
-  std::unique_ptr< QgsBalloonCallout > callout = std::make_unique< QgsBalloonCallout >();
+  auto callout = std::make_unique< QgsBalloonCallout >();
   callout->readProperties( properties, context );
   return callout.release();
 }
@@ -1081,6 +1083,11 @@ QVariantMap QgsBalloonCallout::properties( const QgsReadWriteContext &context ) 
   if ( mFillSymbol )
   {
     props[ QStringLiteral( "fillSymbol" ) ] = QgsSymbolLayerUtils::symbolProperties( mFillSymbol.get() );
+  }
+
+  if ( mMarkerSymbol )
+  {
+    props[ QStringLiteral( "markerSymbol" ) ] = QgsSymbolLayerUtils::symbolProperties( mMarkerSymbol.get() );
   }
 
   props[ QStringLiteral( "offsetFromAnchor" ) ] = mOffsetFromAnchorDistance;
@@ -1105,13 +1112,25 @@ void QgsBalloonCallout::readProperties( const QVariantMap &props, const QgsReadW
 {
   QgsCallout::readProperties( props, context );
 
-  const QString fillSymbolDef = props.value( QStringLiteral( "fillSymbol" ) ).toString();
-  QDomDocument doc( QStringLiteral( "symbol" ) );
-  doc.setContent( fillSymbolDef );
-  const QDomElement symbolElem = doc.firstChildElement( QStringLiteral( "symbol" ) );
-  std::unique_ptr< QgsFillSymbol > fillSymbol( QgsSymbolLayerUtils::loadSymbol< QgsFillSymbol >( symbolElem, context ) );
-  if ( fillSymbol )
-    mFillSymbol = std::move( fillSymbol );
+  {
+    const QString fillSymbolDef = props.value( QStringLiteral( "fillSymbol" ) ).toString();
+    QDomDocument doc( QStringLiteral( "symbol" ) );
+    doc.setContent( fillSymbolDef );
+    const QDomElement symbolElem = doc.firstChildElement( QStringLiteral( "symbol" ) );
+    std::unique_ptr< QgsFillSymbol > fillSymbol( QgsSymbolLayerUtils::loadSymbol< QgsFillSymbol >( symbolElem, context ) );
+    if ( fillSymbol )
+      mFillSymbol = std::move( fillSymbol );
+  }
+
+  {
+    const QString markerSymbolDef = props.value( QStringLiteral( "markerSymbol" ) ).toString();
+    QDomDocument doc( QStringLiteral( "symbol" ) );
+    doc.setContent( markerSymbolDef );
+    const QDomElement symbolElem = doc.firstChildElement( QStringLiteral( "symbol" ) );
+    std::unique_ptr< QgsMarkerSymbol > markerSymbol( QgsSymbolLayerUtils::loadSymbol< QgsMarkerSymbol >( symbolElem, context ) );
+    if ( markerSymbol )
+      mMarkerSymbol = std::move( markerSymbol );
+  }
 
   mOffsetFromAnchorDistance = props.value( QStringLiteral( "offsetFromAnchor" ), 0 ).toDouble();
   mOffsetFromAnchorUnit = QgsUnitTypes::decodeRenderUnit( props.value( QStringLiteral( "offsetFromAnchorUnit" ) ).toString() );
@@ -1134,6 +1153,8 @@ void QgsBalloonCallout::startRender( QgsRenderContext &context )
   QgsCallout::startRender( context );
   if ( mFillSymbol )
     mFillSymbol->startRender( context );
+  if ( mMarkerSymbol )
+    mMarkerSymbol->startRender( context );
 }
 
 void QgsBalloonCallout::stopRender( QgsRenderContext &context )
@@ -1141,6 +1162,8 @@ void QgsBalloonCallout::stopRender( QgsRenderContext &context )
   QgsCallout::stopRender( context );
   if ( mFillSymbol )
     mFillSymbol->stopRender( context );
+  if ( mMarkerSymbol )
+    mMarkerSymbol->stopRender( context );
 }
 
 QSet<QString> QgsBalloonCallout::referencedFields( const QgsRenderContext &context ) const
@@ -1148,6 +1171,8 @@ QSet<QString> QgsBalloonCallout::referencedFields( const QgsRenderContext &conte
   QSet<QString> fields = QgsCallout::referencedFields( context );
   if ( mFillSymbol )
     fields.unite( mFillSymbol->usedAttributes( context ) );
+  if ( mMarkerSymbol )
+    fields.unite( mMarkerSymbol->usedAttributes( context ) );
   return fields;
 }
 
@@ -1161,10 +1186,29 @@ void QgsBalloonCallout::setFillSymbol( QgsFillSymbol *symbol )
   mFillSymbol.reset( symbol );
 }
 
+QgsMarkerSymbol *QgsBalloonCallout::markerSymbol()
+{
+  return mMarkerSymbol.get();
+}
+
+void QgsBalloonCallout::setMarkerSymbol( QgsMarkerSymbol *symbol )
+{
+  mMarkerSymbol.reset( symbol );
+}
+
 void QgsBalloonCallout::draw( QgsRenderContext &context, const QRectF &rect, const double, const QgsGeometry &anchor, QgsCalloutContext &calloutContext )
 {
   bool destinationIsPinned = false;
   QgsGeometry line = calloutLineToPart( QgsGeometry::fromRect( rect ), anchor.constGet(), context, calloutContext, destinationIsPinned );
+
+  if ( mMarkerSymbol )
+  {
+    if ( const QgsLineString *ls = qgsgeometry_cast< const QgsLineString * >( line.constGet() ) )
+    {
+      QgsPoint anchorPoint = ls->endPoint();
+      mMarkerSymbol->renderPoint( anchorPoint.toQPointF(), nullptr, context );
+    }
+  }
 
   double offsetFromAnchor = mOffsetFromAnchorDistance;
   if ( dataDefinedProperties().isActive( QgsCallout::Property::OffsetFromAnchor ) )

@@ -30,9 +30,6 @@ class CORE_EXPORT QgsDoubleBoxScaleBarRenderer: public QgsScaleBarRenderer
 {
   public:
 
-    /**
-     * Constructor for QgsDoubleBoxScaleBarRenderer.
-     */
     QgsDoubleBoxScaleBarRenderer() = default;
 
     QString id() const override;
@@ -45,6 +42,7 @@ class CORE_EXPORT QgsDoubleBoxScaleBarRenderer: public QgsScaleBarRenderer
                const QgsScaleBarSettings &settings,
                const QgsScaleBarRenderer::ScaleBarContext &scaleContext ) const override;
 
+    bool applyDefaultSettings( QgsScaleBarSettings &settings ) const override;
 };
 
 #endif // QGSDOUBLEBOXSCALEBARRENDERER_H

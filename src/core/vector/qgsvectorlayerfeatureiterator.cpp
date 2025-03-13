@@ -138,11 +138,8 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
   : QgsAbstractFeatureIteratorFromSource<QgsVectorLayerFeatureSource>( source, ownSource, request )
   , mFetchedFid( false )
 {
-  if ( mRequest.destinationCrs().isValid() && mRequest.destinationCrs() != mSource->mCrs )
-  {
-    mTransform = QgsCoordinateTransform( mSource->mCrs, mRequest.destinationCrs(), mRequest.transformContext() );
-    mHasValidTransform = mTransform.isValid();
-  }
+  mTransform = mRequest.calculateTransform( mSource->mCrs );
+  mHasValidTransform = mTransform.isValid();
 
   // prepare spatial filter geometries for optimal speed
   // since the mDistanceWithin* constraint member variables are all in the DESTINATION CRS,
@@ -238,8 +235,9 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
   // but we remove any destination CRS parameter - that is handled in QgsVectorLayerFeatureIterator,
   // not at the provider level. Otherwise virtual fields depending on geometry would have incorrect
   // values
-  if ( mRequest.destinationCrs().isValid() )
+  if ( mRequest.coordinateTransform().isValid() || mRequest.destinationCrs().isValid() )
   {
+    mProviderRequest.setCoordinateTransform( QgsCoordinateTransform() );
     mProviderRequest.setDestinationCrs( QgsCoordinateReferenceSystem(), mRequest.transformContext() );
   }
 
@@ -854,14 +852,14 @@ void QgsVectorLayerFeatureIterator::prepareExpression( int fieldIdx )
   const QList<QgsExpressionFieldBuffer::ExpressionField> &exps = mSource->mExpressionFieldBuffer->expressions();
 
   const int oi = mSource->mFields.fieldOriginIndex( fieldIdx );
-  std::unique_ptr<QgsExpression> exp = std::make_unique<QgsExpression>( exps[oi].cachedExpression );
+  auto exp = std::make_unique<QgsExpression>( exps[oi].cachedExpression );
 
   QgsDistanceArea da;
-  da.setSourceCrs( mSource->mCrs, QgsProject::instance()->transformContext() );
-  da.setEllipsoid( QgsProject::instance()->ellipsoid() );
+  da.setSourceCrs( mSource->mCrs, QgsProject::instance()->transformContext() ); // skip-keyword-check
+  da.setEllipsoid( QgsProject::instance()->ellipsoid() ); // skip-keyword-check
   exp->setGeomCalculator( &da );
-  exp->setDistanceUnits( QgsProject::instance()->distanceUnits() );
-  exp->setAreaUnits( QgsProject::instance()->areaUnits() );
+  exp->setDistanceUnits( QgsProject::instance()->distanceUnits() ); // skip-keyword-check
+  exp->setAreaUnits( QgsProject::instance()->areaUnits() ); // skip-keyword-check
 
   if ( !mExpressionContext )
     createExpressionContext();
@@ -1233,6 +1231,7 @@ void QgsVectorLayerFeatureIterator::FetchJoinInfo::addJoinedAttributesDirect( Qg
   request.setSubsetOfAttributes( joinedAttributeIndices );
   request.setFilterExpression( subsetString );
   request.setLimit( 1 );
+  request.setRequestMayBeNested( true );
   QgsFeatureIterator fi = joinSource->getFeatures( request );
 
   // get first feature
@@ -1339,7 +1338,7 @@ void QgsVectorLayerFeatureIterator::createExpressionContext()
 {
   mExpressionContext = std::make_unique< QgsExpressionContext >();
   mExpressionContext->appendScope( QgsExpressionContextUtils::globalScope() );
-  mExpressionContext->appendScope( QgsExpressionContextUtils::projectScope( QgsProject::instance() ) );
+  mExpressionContext->appendScope( QgsExpressionContextUtils::projectScope( QgsProject::instance() ) ); // skip-keyword-check
   mExpressionContext->appendScope( new QgsExpressionContextScope( mSource->mLayerScope ) );
   mExpressionContext->setFeedback( mRequest.feedback() );
 }

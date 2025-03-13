@@ -17,6 +17,7 @@
 
 #include "qgsapplication.h"
 #include "qgsdelattrdialog.h"
+#include "moc_qgsdelattrdialog.cpp"
 #include "qgsfields.h"
 #include "qgsvectordataprovider.h"
 #include "qgsvectorlayer.h"
@@ -29,7 +30,7 @@ QgsDelAttrDialog::QgsDelAttrDialog( const QgsVectorLayer *vl )
 
   if ( vl )
   {
-    const bool canDeleteAttributes = vl->dataProvider()->capabilities() & QgsVectorDataProvider::DeleteAttributes;
+    const bool canDeleteAttributes = vl->dataProvider()->capabilities() & Qgis::VectorProviderCapability::DeleteAttributes;
     listBox2->clear();
     const QgsFields layerAttributes = vl->fields();
     for ( int idx = 0; idx < layerAttributes.count(); ++idx )

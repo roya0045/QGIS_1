@@ -44,11 +44,12 @@ class TestQgsFontMarkerSymbol : public QgsTest
     Q_OBJECT
 
   public:
-    TestQgsFontMarkerSymbol() : QgsTest( QStringLiteral( "Font Marker Tests" ), QStringLiteral( "symbol_fontmarker" ) ) {}
+    TestQgsFontMarkerSymbol()
+      : QgsTest( QStringLiteral( "Font Marker Tests" ), QStringLiteral( "symbol_fontmarker" ) ) {}
 
   private slots:
-    void initTestCase();// will be called before the first testfunction is executed.
-    void cleanupTestCase();// will be called after the last testfunction was executed.
+    void initTestCase();    // will be called before the first testfunction is executed.
+    void cleanupTestCase(); // will be called after the last testfunction was executed.
 
     void fontMarkerSymbol();
     void fontMarkerSymbolStyle();
@@ -58,9 +59,10 @@ class TestQgsFontMarkerSymbol : public QgsTest
     void opacityWithDataDefinedColor();
     void dataDefinedOpacity();
     void massiveFont();
+    void fontMarkerSymbolVerticalAnchor();
 
   private:
-    bool mTestHasError =  false ;
+    bool mTestHasError = false;
 
     QgsMapSettings mMapSettings;
     QgsVectorLayer *mpPointsLayer = nullptr;
@@ -89,8 +91,7 @@ void TestQgsFontMarkerSymbol::initTestCase()
   //
   const QString pointFileName = mTestDataDir + "points.shp";
   const QFileInfo pointFileInfo( pointFileName );
-  mpPointsLayer = new QgsVectorLayer( pointFileInfo.filePath(),
-                                      pointFileInfo.completeBaseName(), QStringLiteral( "ogr" ) );
+  mpPointsLayer = new QgsVectorLayer( pointFileInfo.filePath(), pointFileInfo.completeBaseName(), QStringLiteral( "ogr" ) );
 
   //setup symbol
   mFontMarkerLayer = new QgsFontMarkerSymbolLayer();
@@ -104,7 +105,6 @@ void TestQgsFontMarkerSymbol::initTestCase()
   // and is more light weight
   //
   mMapSettings.setLayers( QList<QgsMapLayer *>() << mpPointsLayer );
-
 }
 void TestQgsFontMarkerSymbol::cleanupTestCase()
 {
@@ -254,6 +254,22 @@ void TestQgsFontMarkerSymbol::massiveFont()
   const bool result = QGSRENDERMAPSETTINGSCHECK( "fontmarker_largesize", "fontmarker_largesize", mMapSettings, 30 );
   mFontMarkerLayer->setDataDefinedProperties( QgsPropertyCollection() );
   QVERIFY( result );
+}
+
+void TestQgsFontMarkerSymbol::fontMarkerSymbolVerticalAnchor()
+{
+  mFontMarkerLayer->setColor( Qt::blue );
+  const QFont font = QgsFontUtils::getStandardTestFont( QStringLiteral( "Bold" ) );
+  mFontMarkerLayer->setFontFamily( font.family() );
+  mFontMarkerLayer->setCharacter( QChar( 'A' ) );
+  mFontMarkerLayer->setSize( 12 );
+  mMapSettings.setExtent( mpPointsLayer->extent() );
+  mMapSettings.setOutputDpi( 96 );
+  QGSVERIFYRENDERMAPSETTINGSCHECK( "fontmarker", "fontmarker", mMapSettings, 30 );
+  mFontMarkerLayer->setVerticalAnchorPoint( Qgis::VerticalAnchorPoint::Bottom );
+  QGSVERIFYRENDERMAPSETTINGSCHECK( "fontmarker_vertical_anchor_bottom", "fontmarker_vertical_anchor_bottom", mMapSettings, 30 );
+  mFontMarkerLayer->setVerticalAnchorPoint( Qgis::VerticalAnchorPoint::Baseline );
+  QGSVERIFYRENDERMAPSETTINGSCHECK( "fontmarker_vertical_anchor_baseline", "fontmarker_vertical_anchor_baseline", mMapSettings, 30 );
 }
 
 QGSTEST_MAIN( TestQgsFontMarkerSymbol )

@@ -15,6 +15,7 @@
 
 #include "qgsapplication.h"
 #include "qgscolorramplegendnode.h"
+#include "moc_qgscolorramplegendnode.cpp"
 #include "qgscolorrampimpl.h"
 #include "qgslegendsettings.h"
 #include "qgslayertreemodel.h"
@@ -27,9 +28,11 @@
 #include <QPalette>
 #include <QBuffer>
 
-QgsColorRampLegendNode::QgsColorRampLegendNode( QgsLayerTreeLayer *nodeLayer, QgsColorRamp *ramp, const QString &minimumLabel, const QString &maximumLabel, QObject *parent )
+QgsColorRampLegendNode::QgsColorRampLegendNode( QgsLayerTreeLayer *nodeLayer, QgsColorRamp *ramp, const QString &minimumLabel, const QString &maximumLabel, QObject *parent, const QString &key, const QString &parentKey )
   : QgsLayerTreeModelLegendNode( nodeLayer, parent )
   , mRamp( ramp )
+  , mKey( key )
+  , mParentKey( parentKey )
 {
   mSettings.setMinimumLabel( minimumLabel );
   mSettings.setMaximumLabel( maximumLabel );
@@ -37,12 +40,14 @@ QgsColorRampLegendNode::QgsColorRampLegendNode( QgsLayerTreeLayer *nodeLayer, Qg
   init( nodeLayer );
 }
 
-QgsColorRampLegendNode::QgsColorRampLegendNode( QgsLayerTreeLayer *nodeLayer, QgsColorRamp *ramp, const QgsColorRampLegendNodeSettings &settings, double minimumValue, double maximumValue, QObject *parent )
+QgsColorRampLegendNode::QgsColorRampLegendNode( QgsLayerTreeLayer *nodeLayer, QgsColorRamp *ramp, const QgsColorRampLegendNodeSettings &settings, double minimumValue, double maximumValue, QObject *parent, const QString &key, const QString &parentKey )
   : QgsLayerTreeModelLegendNode( nodeLayer, parent )
   , mRamp( ramp )
   , mSettings( settings )
   , mMinimumValue( minimumValue )
   , mMaximumValue( maximumValue )
+  , mKey( key )
+  , mParentKey( parentKey )
 {
   init( nodeLayer );
 }
@@ -178,7 +183,10 @@ QVariant QgsColorRampLegendNode::data( int role ) const
   {
     return QgsLayerTreeModelLegendNode::ColorRampLegend;
   }
-
+  else if ( role == static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::RuleKey ) )
+    return mKey;
+  else if ( role == static_cast< int >( QgsLayerTreeModelLegendNode::CustomRole::ParentRuleKey ) )
+    return mParentKey;
   return QVariant();
 }
 
@@ -214,7 +222,7 @@ QSizeF QgsColorRampLegendNode::drawSymbol( const QgsLegendSettings &settings, It
     context = tempRenderContext.get();
   }
 
-  const QgsTextFormat format = mSettings.textFormat().isValid() ? mSettings.textFormat() : settings.style( QgsLegendStyle::SymbolLabel ).textFormat();
+  const QgsTextFormat format = mSettings.textFormat().isValid() ? mSettings.textFormat() : settings.style( Qgis::LegendComponent::SymbolLabel ).textFormat();
   const QString minLabel = labelForMinimum();
   const QString maxLabel = labelForMaximum();
 
@@ -343,8 +351,8 @@ QSizeF QgsColorRampLegendNode::drawSymbol( const QgsLegendSettings &settings, It
       // NOTE -- while the below calculations use the flipped margins from the style, that's only done because
       // those are the only margins we expose and use for now! (and we expose them as generic margins, not side-specific
       // ones) TODO when/if we expose other margin settings, these should be reversed...
-      const double labelYMin = currentYCoord + rampHeight + settings.style( QgsLegendStyle::Symbol ).margin( QgsLegendStyle::Right )
-                               + settings.style( QgsLegendStyle::SymbolLabel ).margin( QgsLegendStyle::Left );
+      const double labelYMin = currentYCoord + rampHeight + settings.style( Qgis::LegendComponent::Symbol ).margin( QgsLegendStyle::Right )
+                               + settings.style( Qgis::LegendComponent::SymbolLabel ).margin( QgsLegendStyle::Left );
       const double labelHeight = std::max( QgsTextRenderer::textHeight( *context, format, QStringList() << minLabel ),
                                            QgsTextRenderer::textHeight( *context, format, QStringList() << maxLabel ) ) / dotsPerMM;
       switch ( settings.symbolAlignment() )
@@ -374,8 +382,8 @@ QSizeF QgsColorRampLegendNode::drawSymbol( const QgsLegendSettings &settings, It
       // we only need this when we are calculating the size of the node, not at render time
       labelHeight = std::max( QgsTextRenderer::textHeight( *context, format, QStringList() << minLabel ),
                               QgsTextRenderer::textHeight( *context, format, QStringList() << maxLabel ) ) / context->scaleFactor()
-                    + settings.style( QgsLegendStyle::Symbol ).margin( QgsLegendStyle::Right )
-                    + settings.style( QgsLegendStyle::SymbolLabel ).margin( QgsLegendStyle::Left );
+                    + settings.style( Qgis::LegendComponent::Symbol ).margin( QgsLegendStyle::Right )
+                    + settings.style( Qgis::LegendComponent::SymbolLabel ).margin( QgsLegendStyle::Left );
     }
   }
 
@@ -414,7 +422,7 @@ QSizeF QgsColorRampLegendNode::drawSymbolText( const QgsLegendSettings &settings
     context = tempRenderContext.get();
   }
 
-  const QgsTextFormat format = mSettings.textFormat().isValid() ? mSettings.textFormat() : settings.style( QgsLegendStyle::SymbolLabel ).textFormat();
+  const QgsTextFormat format = mSettings.textFormat().isValid() ? mSettings.textFormat() : settings.style( Qgis::LegendComponent::SymbolLabel ).textFormat();
 
   const QString minLabel = labelForMinimum();
   const QString maxLabel = labelForMaximum();
@@ -444,8 +452,8 @@ QSizeF QgsColorRampLegendNode::drawSymbolText( const QgsLegendSettings &settings
       case Qt::AlignLeft:
       default:
         labelXMin = ctx->columnLeft + std::max( rampWidth, ctx->maxSiblingSymbolWidth )
-                    + settings.style( QgsLegendStyle::Symbol ).margin( QgsLegendStyle::Right )
-                    + settings.style( QgsLegendStyle::SymbolLabel ).margin( QgsLegendStyle::Left );
+                    + settings.style( Qgis::LegendComponent::Symbol ).margin( QgsLegendStyle::Right )
+                    + settings.style( Qgis::LegendComponent::SymbolLabel ).margin( QgsLegendStyle::Left );
         labelXMax = ctx->columnRight;
         break;
 
@@ -455,16 +463,16 @@ QSizeF QgsColorRampLegendNode::drawSymbolText( const QgsLegendSettings &settings
         // those are the only margins we expose and use for now! (and we expose them as generic margins, not side-specific
         // ones) TODO when/if we expose other margin settings, these should be reversed...
         labelXMax = ctx->columnRight - std::max( rampWidth, ctx->maxSiblingSymbolWidth )
-                    - settings.style( QgsLegendStyle::Symbol ).margin( QgsLegendStyle::Right )
-                    - settings.style( QgsLegendStyle::SymbolLabel ).margin( QgsLegendStyle::Left );
+                    - settings.style( Qgis::LegendComponent::Symbol ).margin( QgsLegendStyle::Right )
+                    - settings.style( Qgis::LegendComponent::SymbolLabel ).margin( QgsLegendStyle::Left );
         break;
     }
 
     const QRectF textRect( labelXMin * dotsPerMM, currentYCoord * dotsPerMM, ( labelXMax - labelXMin ) * dotsPerMM, rampHeight * dotsPerMM );
-    QgsTextRenderer::drawText( textRect, 0, QgsTextRenderer::convertQtHAlignment( settings.style( QgsLegendStyle::SymbolLabel ).alignment() ),
+    QgsTextRenderer::drawText( textRect, 0, QgsTextRenderer::convertQtHAlignment( settings.style( Qgis::LegendComponent::SymbolLabel ).alignment() ),
                                QStringList() << ( mSettings.direction() == QgsColorRampLegendNodeSettings::MinimumToMaximum ? maxLabel : minLabel ),
                                *context, format, true, Qgis::TextVerticalAlignment::Top );
-    QgsTextRenderer::drawText( textRect, 0, QgsTextRenderer::convertQtHAlignment( settings.style( QgsLegendStyle::SymbolLabel ).alignment() ),
+    QgsTextRenderer::drawText( textRect, 0, QgsTextRenderer::convertQtHAlignment( settings.style( Qgis::LegendComponent::SymbolLabel ).alignment() ),
                                QStringList() << ( mSettings.direction() == QgsColorRampLegendNodeSettings::MinimumToMaximum ? minLabel : maxLabel ),
                                *context, format, true, Qgis::TextVerticalAlignment::Bottom );
   }

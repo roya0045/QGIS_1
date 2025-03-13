@@ -15,6 +15,7 @@
 
 #include "qgseditformconfig_p.h"
 #include "qgseditformconfig.h"
+#include "moc_qgseditformconfig.cpp"
 #include "qgsnetworkcontentfetcherregistry.h"
 #include "qgspathresolver.h"
 #include "qgsproject.h"
@@ -85,7 +86,7 @@ void QgsEditFormConfig::onRelationsLoaded()
     if ( !rel )
       continue;
 
-    rel->init( QgsProject::instance()->relationManager() );
+    rel->init( QgsProject::instance()->relationManager() ); // skip-keyword-check
   }
 }
 
@@ -237,6 +238,8 @@ bool QgsEditFormConfig::readOnly( int idx ) const
   {
     if ( d->mFields.fieldOrigin( idx ) == Qgis::FieldOrigin::Join
          || d->mFields.fieldOrigin( idx ) == Qgis::FieldOrigin::Expression )
+      return true;
+    if ( d->mFields.at( idx ).isReadOnly() )
       return true;
     return !d->mFieldEditables.value( d->mFields.at( idx ).name(), true );
   }
@@ -514,7 +517,7 @@ void QgsEditFormConfig::readXml( const QDomNode &node, QgsReadWriteContext &cont
   }
 }
 
-void QgsEditFormConfig::fixLegacyConfig( QDomElement &el )
+void QgsEditFormConfig::fixLegacyConfig( QDomElement &el ) const
 {
   // recursive method to move widget config into attribute element config
 

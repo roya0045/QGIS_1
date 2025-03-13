@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgstiledscenelayerelevationproperties.h"
+#include "moc_qgstiledscenelayerelevationproperties.cpp"
 #include "qgstiledscenelayer.h"
 
 QgsTiledSceneLayerElevationProperties::QgsTiledSceneLayerElevationProperties( QObject *parent )
@@ -47,7 +48,7 @@ bool QgsTiledSceneLayerElevationProperties::readXml( const QDomElement &element,
 
 QgsTiledSceneLayerElevationProperties *QgsTiledSceneLayerElevationProperties::clone() const
 {
-  std::unique_ptr< QgsTiledSceneLayerElevationProperties > res = std::make_unique< QgsTiledSceneLayerElevationProperties >( nullptr );
+  auto res = std::make_unique< QgsTiledSceneLayerElevationProperties >( nullptr );
   res->copyCommonProperties( this );
 
   return res.release();

@@ -14,18 +14,31 @@
  ***************************************************************************/
 
 #include "qgscodeeditordockwidget.h"
+#include "moc_qgscodeeditordockwidget.cpp"
 #include "qgsdockablewidgethelper.h"
 
-QgsCodeEditorDockWidget::QgsCodeEditorDockWidget( const QString &windowGeometrySettingsKey, bool usePersistentWidget )
+QgsCodeEditorDockWidget::QgsCodeEditorDockWidget( const QString &dockId, bool usePersistentWidget )
   : QWidget( nullptr )
 {
-  mDockableWidgetHelper = new QgsDockableWidgetHelper( true, tr( "Code Editor" ),
-      this, QgsDockableWidgetHelper::sOwnerWindow, Qt::BottomDockWidgetArea, QStringList(), true, windowGeometrySettingsKey, usePersistentWidget );
+  QgsDockableWidgetHelper::Options options = QgsDockableWidgetHelper::Option::RaiseTab;
+  if ( usePersistentWidget )
+    options.setFlag( QgsDockableWidgetHelper::Option::PermanentWidget );
+
+  mDockableWidgetHelper = new QgsDockableWidgetHelper(
+    tr( "Code Editor" ),
+    this,
+    QgsDockableWidgetHelper::sOwnerWindow,
+    dockId,
+    QStringList(),
+    QgsDockableWidgetHelper::OpeningMode::RespectSetting,
+    true,
+    Qt::BottomDockWidgetArea,
+    options
+  );
 
   mDockToggleButton = mDockableWidgetHelper->createDockUndockToolButton();
   mDockToggleButton->setToolTip( tr( "Dock Code Editor" ) );
-  connect( mDockableWidgetHelper, &QgsDockableWidgetHelper::closed, this, [ = ]()
-  {
+  connect( mDockableWidgetHelper, &QgsDockableWidgetHelper::closed, this, [=]() {
     close();
   } );
 

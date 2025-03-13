@@ -103,7 +103,7 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      */
     QgsRasterDataProvider( const QString &uri,
                            const QgsDataProvider::ProviderOptions &providerOptions = QgsDataProvider::ProviderOptions(),
-                           QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() );
+                           Qgis::DataProviderReadFlags flags = Qgis::DataProviderReadFlags() );
 
     QgsRasterDataProvider *clone() const override = 0;
 
@@ -112,7 +112,7 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      */
     virtual Qgis::RasterProviderCapabilities providerCapabilities() const;
 
-    /* It makes no sense to set input on provider */
+    // It makes no sense to set input on provider
     bool setInput( QgsRasterInterface *input ) override { Q_UNUSED( input ) return false; }
 
     QgsRectangle extent() const override = 0;
@@ -138,68 +138,9 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
 
     /**
      * Returns a string color name representation of a color interpretation.
+     * It is translated since QGIS 3.40
      */
-    QString colorName( Qgis::RasterColorInterpretation colorInterpretation ) const
-    {
-      // Modified copy from GDAL
-      switch ( colorInterpretation )
-      {
-        case Qgis::RasterColorInterpretation::Undefined:
-          return QStringLiteral( "Undefined" );
-
-        case Qgis::RasterColorInterpretation::GrayIndex:
-          return QStringLiteral( "Gray" );
-
-        case Qgis::RasterColorInterpretation::PaletteIndex:
-          return QStringLiteral( "Palette" );
-
-        case Qgis::RasterColorInterpretation::RedBand:
-          return QStringLiteral( "Red" );
-
-        case Qgis::RasterColorInterpretation::GreenBand:
-          return QStringLiteral( "Green" );
-
-        case Qgis::RasterColorInterpretation::BlueBand:
-          return QStringLiteral( "Blue" );
-
-        case Qgis::RasterColorInterpretation::AlphaBand:
-          return QStringLiteral( "Alpha" );
-
-        case Qgis::RasterColorInterpretation::HueBand:
-          return QStringLiteral( "Hue" );
-
-        case Qgis::RasterColorInterpretation::SaturationBand:
-          return QStringLiteral( "Saturation" );
-
-        case Qgis::RasterColorInterpretation::LightnessBand:
-          return QStringLiteral( "Lightness" );
-
-        case Qgis::RasterColorInterpretation::CyanBand:
-          return QStringLiteral( "Cyan" );
-
-        case Qgis::RasterColorInterpretation::MagentaBand:
-          return QStringLiteral( "Magenta" );
-
-        case Qgis::RasterColorInterpretation::YellowBand:
-          return QStringLiteral( "Yellow" );
-
-        case Qgis::RasterColorInterpretation::BlackBand:
-          return QStringLiteral( "Black" );
-
-        case Qgis::RasterColorInterpretation::YCbCr_YBand:
-          return QStringLiteral( "YCbCr_Y" );
-
-        case Qgis::RasterColorInterpretation::YCbCr_CbBand:
-          return QStringLiteral( "YCbCr_Cb" );
-
-        case Qgis::RasterColorInterpretation::YCbCr_CrBand:
-          return QStringLiteral( "YCbCr_Cr" );
-
-        case Qgis::RasterColorInterpretation::ContinuousPalette:
-          return QStringLiteral( "Continuous Palette" );
-      }
-      return QString();
-    }
+    QString colorName( Qgis::RasterColorInterpretation colorInterpretation ) const;
 
     //! Reload data (data could change)
     virtual bool reload() { return true; }
@@ -215,6 +156,15 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * Read band offset for raster value
      */
     virtual double bandOffset( int bandNo ) const { Q_UNUSED( bandNo ) return 0.0; }
+
+    /**
+     * Returns the maximum tile size in pixels for the data provider.
+     * By default, the maximum tile size is set to QgsRasterIterator::DEFAULT_MAXIMUM_TILE_WIDTH x
+     * QgsRasterIterator::DEFAULT_MAXIMUM_TILE_HEIGHT but can be overridden in subclasses (e.g. WMS
+     * can retrieve that information from the GetCapabilities document).
+     * \since QGIS 3.40
+     */
+    virtual QSize maximumTileSize() const { return QSize( QgsRasterIterator::DEFAULT_MAXIMUM_TILE_WIDTH, QgsRasterIterator::DEFAULT_MAXIMUM_TILE_HEIGHT ); }
 
     // TODO: remove or make protected all readBlock working with void*
 
@@ -440,7 +390,8 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
     /**
      * Checks whether the provider is in editing mode, i.e. raster write operations will be accepted.
      * By default providers are not editable. Use setEditable() method to enable/disable editing.
-     * \see setEditable(), writeBlock()
+     * \see setEditable()
+     * \see writeBlock()
      */
     virtual bool isEditable() const { return false; }
 
@@ -451,7 +402,8 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * \note Only some providers support editing mode and even those may fail to turn
      * the underlying data source into editing mode, so it is necessary to check the return
      * value whether the operation was successful.
-     * \see isEditable(), writeBlock()
+     * \see isEditable()
+     * \see writeBlock()
      */
     virtual bool setEditable( bool enabled ) { Q_UNUSED( enabled ) return false; }
 
@@ -481,7 +433,8 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      *
      * Writing is supported only by some data providers. Provider has to be in editing mode
      * in order to allow write operations.
-     * \see isEditable(), setEditable()
+     * \see isEditable()
+     * \see setEditable()
      * \returns TRUE on success
      */
     bool writeBlock( QgsRasterBlock *block, int band, int xOffset = 0, int yOffset = 0 );
@@ -671,34 +624,18 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
     bool isProviderResamplingEnabled() const { return mProviderResamplingEnabled; }
 
     /**
-     * Resampling method for provider-level resampling.
-     * \since QGIS 3.16
-     */
-    enum class ResamplingMethod
-    {
-      Nearest, //!< Nearest-neighbour resampling
-      Bilinear, //!< Bilinear (2x2 kernel) resampling
-      Cubic,//!< Cubic Convolution Approximation (4x4 kernel) resampling
-      CubicSpline, //!< Cubic B-Spline Approximation (4x4 kernel)
-      Lanczos, //!< Lanczos windowed sinc interpolation (6x6 kernel)
-      Average, //!< Average resampling
-      Mode, //!< Mode (selects the value which appears most often of all the sampled points)
-      Gauss //!< Gauss blurring
-    };
-
-    /**
      * Set resampling method to apply for zoomed-in operations.
      *
      * \return TRUE if success
      * \since QGIS 3.16
      */
-    virtual bool setZoomedInResamplingMethod( ResamplingMethod method ) { Q_UNUSED( method ); return false; }
+    virtual bool setZoomedInResamplingMethod( Qgis::RasterResamplingMethod method ) { Q_UNUSED( method ); return false; }
 
     /**
      * Returns resampling method for zoomed-in operations.
      * \since QGIS 3.16
      */
-    ResamplingMethod zoomedInResamplingMethod() const { return mZoomedInResamplingMethod; }
+    Qgis::RasterResamplingMethod zoomedInResamplingMethod() const { return mZoomedInResamplingMethod; }
 
     /**
      * Set resampling method to apply for zoomed-out operations.
@@ -706,13 +643,13 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
      * \return TRUE if success
      * \since QGIS 3.16
      */
-    virtual bool setZoomedOutResamplingMethod( ResamplingMethod method ) { Q_UNUSED( method ); return false; }
+    virtual bool setZoomedOutResamplingMethod( Qgis::RasterResamplingMethod  method ) { Q_UNUSED( method ); return false; }
 
     /**
      * Returns resampling method for zoomed-out operations.
      * \since QGIS 3.16
      */
-    ResamplingMethod zoomedOutResamplingMethod() const { return mZoomedOutResamplingMethod; }
+    Qgis::RasterResamplingMethod  zoomedOutResamplingMethod() const { return mZoomedOutResamplingMethod; }
 
     /**
      * Sets maximum oversampling factor for zoomed-out operations.
@@ -733,7 +670,7 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
     void writeXml( QDomDocument &doc, QDomElement &parentElem ) const override;
 
     /**
-     * Returns the (possibly NULL) attribute table for the specified \a bandNumber.
+     * Returns the (possibly NULLPTR) attribute table for the specified \a bandNumber.
      *
      * \since QGIS 3.30
      */
@@ -741,7 +678,7 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
 
     /**
      * Set the attribute table to \a attributeTable for the specified \a bandNumber,
-     * if the \a attributeTable is NULL any existing attribute table for the specified
+     * if the \a attributeTable is NULLPTR any existing attribute table for the specified
      * band will be removed.
      *
      * \note Ownership of the attribute table is transferred to the provider.
@@ -874,10 +811,10 @@ class CORE_EXPORT QgsRasterDataProvider : public QgsDataProvider, public QgsRast
     bool mProviderResamplingEnabled = false;
 
     //! Resampling method for zoomed in pixel extraction
-    ResamplingMethod mZoomedInResamplingMethod = ResamplingMethod::Nearest;
+    Qgis::RasterResamplingMethod mZoomedInResamplingMethod = Qgis::RasterResamplingMethod::Nearest;
 
     //! Resampling method for zoomed out pixel extraction
-    ResamplingMethod mZoomedOutResamplingMethod = ResamplingMethod::Nearest;
+    Qgis::RasterResamplingMethod mZoomedOutResamplingMethod = Qgis::RasterResamplingMethod::Nearest;
 
     //! Maximum boundary for oversampling (to avoid too much data traffic). Default: 2.0
     double mMaxOversampling = 2.0;

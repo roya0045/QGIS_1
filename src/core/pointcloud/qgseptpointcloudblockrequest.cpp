@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgseptpointcloudblockrequest.h"
+#include "moc_qgseptpointcloudblockrequest.cpp"
 
 #include "qgstiledownloadmanager.h"
 #include "qgseptdecoder.h"
@@ -30,7 +31,7 @@
 
 ///@cond PRIVATE
 
-QgsEptPointCloudBlockRequest::QgsEptPointCloudBlockRequest( const IndexedPointCloudNode &node, const QString &uri, const QString &dataType,
+QgsEptPointCloudBlockRequest::QgsEptPointCloudBlockRequest( const QgsPointCloudNodeId &node, const QString &uri, const QString &dataType,
     const QgsPointCloudAttributeCollection &attributes, const QgsPointCloudAttributeCollection &requestedAttributes,
     const QgsVector3D &scale, const QgsVector3D &offset, const QgsPointCloudExpression &filterExpression, const QgsRectangle &filterRect )
   : QgsPointCloudBlockRequest( node, uri, attributes, requestedAttributes, scale, offset, filterExpression, filterRect ),
@@ -75,7 +76,7 @@ void QgsEptPointCloudBlockRequest::blockFinishedLoading()
         QgsPointCloudRequest req;
         req.setAttributes( mRequestedAttributes );
         req.setFilterRect( mFilterRect );
-        QgsPointCloudIndex::storeNodeDataToCacheStatic( mBlock.get(), mNode, req, mFilterExpression, mUri );
+        QgsAbstractPointCloudIndex::storeNodeDataToCacheStatic( mBlock.get(), mNode, req, mFilterExpression, mUri );
       }
     }
     catch ( std::exception &e )

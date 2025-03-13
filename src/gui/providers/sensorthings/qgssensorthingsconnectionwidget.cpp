@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgssensorthingsconnectionwidget.h"
+#include "moc_qgssensorthingsconnectionwidget.cpp"
 #include "qgsproviderregistry.h"
 #include "qgssensorthingsprovider.h"
 
@@ -27,6 +28,9 @@ QgsSensorThingsConnectionWidget::QgsSensorThingsConnectionWidget( QWidget *paren
 
   connect( mEditUrl, &QLineEdit::textChanged, this, &QgsSensorThingsConnectionWidget::validate );
   connect( mEditUrl, &QLineEdit::textChanged, this, &QgsSensorThingsConnectionWidget::changed );
+
+  // only auth config supported, not basic auth
+  mAuthSettings->removeBasicSettings();
 
   connect( mAuthSettings, &QgsAuthSettingsWidget::configIdChanged, this, &QgsSensorThingsConnectionWidget::changed );
   connect( mAuthSettings, &QgsAuthSettingsWidget::usernameChanged, this, &QgsSensorThingsConnectionWidget::changed );

@@ -211,6 +211,13 @@ typedef QSet<int> QgsAttributeIds;
  * attribute operators, “BBOX, Disjoint, Intersects, Touches, Crosses, Contains, Overlaps, Within”
  * spatial binary operators and the QGIS local “geomFromWKT, geomFromGML”
  * geometry constructor functions.
+
+ * Also note:
+ *
+ * - You can use various functions available in the QGIS Expression list,
+ *   however the function must exist server side and have the same name and arguments to work.
+ * - Use the special ``@geometry`` parameter to provide the layer geometry column as input
+ *   into the spatial binary operators e.g ``intersects(@geometry, geomFromWKT('POINT (5 6)'))``
  *
  * \subsection oapif OGC API Features data provider (oapif)
  *
@@ -229,13 +236,6 @@ typedef QSet<int> QgsAttributeIds;
  * - pageSize=number: number of features to retrieve in a single request
  * - maxNumFeatures=number: maximum number of features to retrieve (possibly across several multiple paging requests)
  * - hideDownloadProgressDialog=1: to hide the download progress dialog.
- *
- * Also note:
- *
- * - You can use various functions available in the QGIS Expression list,
- *   however the function must exist server side and have the same name and arguments to work.
- * - Use the special $geometry parameter to provide the layer geometry column as input
- *   into the spatial binary operators e.g intersects($geometry, geomFromWKT('POINT (5 6)'))
  *
  * \subsection delimitedtext Delimited text file data provider (delimitedtext)
  *
@@ -577,9 +577,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
 
     ~QgsVectorLayer() override;
 
-    //! QgsVectorLayer cannot be copied.
     QgsVectorLayer( const QgsVectorLayer &rhs ) = delete;
-    //! QgsVectorLayer cannot be copied.
     QgsVectorLayer &operator=( QgsVectorLayer const &rhs ) = delete;
 
 #ifdef SIP_RUN
@@ -1291,7 +1289,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * by a call to startEditing(). Changes made to features using this method are not committed
      * to the underlying data provider until a commitChanges() call is made. Any uncommitted
      * changes can be discarded by calling rollBack().
-     * \deprecated since QGIS 3.12 - will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
+     * \deprecated QGIS 3.12. Will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
      */
     Q_DECL_DEPRECATED Qgis::GeometryOperationResult addRing( const QVector<QgsPointXY> &ring, QgsFeatureId *featureId = nullptr ) SIP_DEPRECATED;
 
@@ -1356,7 +1354,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * by a call to startEditing(). Changes made to features using this method are not committed
      * to the underlying data provider until a commitChanges() call is made. Any uncommitted
      * changes can be discarded by calling rollBack().
-     * \deprecated since QGIS 3.12 - will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
+     * \deprecated QGIS 3.12. Will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
      */
     Q_DECL_DEPRECATED Qgis::GeometryOperationResult addPart( const QList<QgsPointXY> &ring ) SIP_DEPRECATED;
 
@@ -1380,7 +1378,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * by a call to startEditing(). Changes made to features using this method are not committed
      * to the underlying data provider until a commitChanges() call is made. Any uncommitted
      * changes can be discarded by calling rollBack().
-     * \deprecated since QGIS 3.12 - will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
+     * \deprecated QGIS 3.12. Will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
      */
     Q_DECL_DEPRECATED Qgis::GeometryOperationResult addPart( const QVector<QgsPointXY> &ring ) SIP_PYNAME( addPartV2 ) SIP_DEPRECATED;
 #endif
@@ -1446,7 +1444,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * by a call to startEditing(). Changes made to features using this method are not committed
      * to the underlying data provider until a commitChanges() call is made. Any uncommitted
      * changes can be discarded by calling rollBack().
-     * \deprecated since QGIS 3.12 - will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
+     * \deprecated QGIS 3.12. Will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
      */
     Q_DECL_DEPRECATED Qgis::GeometryOperationResult splitParts( const QVector<QgsPointXY> &splitLine, bool topologicalEditing = false ) SIP_DEPRECATED;
 
@@ -1489,7 +1487,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * by a call to startEditing(). Changes made to features using this method are not committed
      * to the underlying data provider until a commitChanges() call is made. Any uncommitted
      * changes can be discarded by calling rollBack().
-     * \deprecated since QGIS 3.12 - will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
+     * \deprecated QGIS 3.12. Will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
      */
     Q_DECL_DEPRECATED Qgis::GeometryOperationResult splitFeatures( const QVector<QgsPointXY> &splitLine, bool topologicalEditing = false ) SIP_DEPRECATED;
 
@@ -1567,7 +1565,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * by a call to startEditing(). Changes made to features using this method are not committed
      * to the underlying data provider until a commitChanges() call is made. Any uncommitted
      * changes can be discarded by calling rollBack().
-     * \deprecated since QGIS 3.12 - will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
+     * \deprecated QGIS 3.12. Will be removed in QGIS 4.0. Use the variant which accepts QgsPoint objects instead of QgsPointXY.
      */
     Q_DECL_DEPRECATED int addTopologicalPoints( const QgsPointXY &p )  SIP_DEPRECATED;
 
@@ -1898,25 +1896,25 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
 
     /**
      * A set of attributes that are not advertised in WMS requests with QGIS server.
-     * \deprecated since QGIS 3.16, use fields().configurationFlags() instead
+     * \deprecated QGIS 3.16. Use fields().configurationFlags() instead.
      */
     Q_DECL_DEPRECATED QSet<QString> excludeAttributesWms() const SIP_DEPRECATED;
 
     /**
      * A set of attributes that are not advertised in WMS requests with QGIS server.
-     * \deprecated since QGIS 3.16, use setFieldConfigurationFlag instead
+     * \deprecated QGIS 3.16. Use setFieldConfigurationFlag() instead.
      */
     Q_DECL_DEPRECATED void setExcludeAttributesWms( const QSet<QString> &att ) SIP_DEPRECATED;
 
     /**
      * A set of attributes that are not advertised in WFS requests with QGIS server.
-     * \deprecated since QGIS 3.16, use fields().configurationFlags() instead
+     * \deprecated QGIS 3.16. Use fields().configurationFlags() instead.
      */
     Q_DECL_DEPRECATED QSet<QString> excludeAttributesWfs() const SIP_DEPRECATED;
 
     /**
      * A set of attributes that are not advertised in WFS requests with QGIS server.
-     * \deprecated since QGIS 3.16, use setFieldConfigurationFlag instead
+     * \deprecated QGIS 3.16. Use setFieldConfigurationFlag() instead.
      */
     Q_DECL_DEPRECATED void setExcludeAttributesWfs( const QSet<QString> &att ) SIP_DEPRECATED;
 
@@ -2063,7 +2061,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
 
     /**
      * Draws a vertex symbol at (screen) coordinates x, y. (Useful to assist vertex editing.)
-     * \deprecated Use the equivalent QgsSymbolLayerUtils::drawVertexMarker function instead
+     * \deprecated QGIS 3.40. Use the equivalent QgsSymbolLayerUtils::drawVertexMarker function instead.
      */
     Q_DECL_DEPRECATED static void drawVertexMarker( double x, double y, QPainter &p, Qgis::VertexMarkerType type, int vertexSize );
 
@@ -2193,14 +2191,22 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
     Qgis::FieldConfigurationFlags fieldConfigurationFlags( int index ) const;
 
     /**
-     * \copydoc editorWidgetSetup
+     * Sets the editor widget \a setup for the field at the specified \a index.
+     *
+     * The editor widget setup defines which QgsFieldFormatter and editor widget will be used
+     * for the field.
+     *
+     * \see editorWidgetSetup()
      */
     void setEditorWidgetSetup( int index, const QgsEditorWidgetSetup &setup );
 
     /**
-     * The editor widget setup defines which QgsFieldFormatter and editor widget will be used
-     * for the field at `index`.
+     * Returns the editor widget setup for the field at the specified \a index.
      *
+     * The editor widget setup defines which QgsFieldFormatter and editor widget will be used
+     * for the field.
+     *
+     * \see setEditorWidgetSetup()
      */
     QgsEditorWidgetSetup editorWidgetSetup( int index ) const;
 
@@ -2550,7 +2556,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
     void selectionChanged( const QgsFeatureIds &selected, const QgsFeatureIds &deselected, bool clearAndSelect );
 
     /**
-     * Emitted whenever the allowCommitChanged() property of this layer changes.
+     * Emitted whenever the allowCommit() property of this layer changes.
      *
      * \since QGIS 3.4
      */
@@ -2631,7 +2637,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * Emitted when a feature has been deleted.
      *
      * If you do expensive operations in a slot connected to this, you should prefer to use
-     * featuresDeleted( const QgsFeatureIds& ).
+     * featuresDeleted().
      *
      * \param fid The id of the feature which has been deleted
      */
@@ -2791,12 +2797,12 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
     void onFeatureCounterCompleted();
     void onFeatureCounterTerminated();
     void onJoinedFieldsChanged();
+    void onFeatureAdded( QgsFeatureId fid );
     void onFeatureDeleted( QgsFeatureId fid );
     void onRelationsLoaded();
     void onSymbolsCounted();
     void onDirtyTransaction( const QString &sql, const QString &name );
     void emitDataChanged();
-    void onAfterCommitChangesDependency();
 
   private:
     void updateDefaultValues( QgsFeatureId fid, QgsFeature feature = QgsFeature(), QgsExpressionContext *context = nullptr );
@@ -2818,7 +2824,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * \param options provider options
      * \param flags provider flags, since QGIS 3.16
      */
-    bool setDataProvider( QString const &provider, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() );
+    bool setDataProvider( QString const &provider, const QgsDataProvider::ProviderOptions &options, Qgis::DataProviderReadFlags flags = Qgis::DataProviderReadFlags() );
 
     /**
      * Updates the data source of the layer. The layer's renderer and legend will be preserved only
@@ -2831,7 +2837,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * \see dataSourceChanged()
      * \since QGIS 3.20
      */
-    void setDataSourcePrivate( const QString &dataSource, const QString &baseName, const QString &provider, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags ) override;
+    void setDataSourcePrivate( const QString &dataSource, const QString &baseName, const QString &provider, const QgsDataProvider::ProviderOptions &options, Qgis::DataProviderReadFlags flags ) override;
 
     //! Read labeling from SLD
     void readSldLabeling( const QDomNode &node );

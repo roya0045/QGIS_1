@@ -16,6 +16,7 @@
 #include <QIcon>
 
 #include "qgsmaplayermodel.h"
+#include "moc_qgsmaplayermodel.cpp"
 #include "qgsproject.h"
 #include "qgsvectorlayer.h"
 #include "qgsiconutils.h"
@@ -24,7 +25,7 @@
 
 QgsMapLayerModel::QgsMapLayerModel( const QList<QgsMapLayer *> &layers, QObject *parent, QgsProject *project )
   : QAbstractItemModel( parent )
-  , mProject( project ? project : QgsProject::instance() )
+  , mProject( project ? project : QgsProject::instance() ) // skip-keyword-check
 {
   connect( mProject, static_cast < void ( QgsProject::* )( const QStringList & ) >( &QgsProject::layersWillBeRemoved ), this, &QgsMapLayerModel::removeLayers );
   addLayers( layers );
@@ -32,7 +33,7 @@ QgsMapLayerModel::QgsMapLayerModel( const QList<QgsMapLayer *> &layers, QObject 
 
 QgsMapLayerModel::QgsMapLayerModel( QObject *parent, QgsProject *project )
   : QAbstractItemModel( parent )
-  , mProject( project ? project : QgsProject::instance() )
+  , mProject( project ? project : QgsProject::instance() ) // skip-keyword-check
 {
   connect( mProject, &QgsProject::layersAdded, this, &QgsMapLayerModel::addLayers );
   connect( mProject, static_cast < void ( QgsProject::* )( const QStringList & ) >( &QgsProject::layersWillBeRemoved ), this, &QgsMapLayerModel::removeLayers );
@@ -41,6 +42,8 @@ QgsMapLayerModel::QgsMapLayerModel( QObject *parent, QgsProject *project )
 
 void QgsMapLayerModel::setProject( QgsProject *project )
 {
+  if ( mProject == ( project ? project : QgsProject::instance() ) ) // skip-keyword-check
+    return;
 
   // remove layers from previous project
   if ( mProject )
@@ -50,7 +53,7 @@ void QgsMapLayerModel::setProject( QgsProject *project )
     disconnect( mProject, static_cast < void ( QgsProject::* )( const QStringList & ) >( &QgsProject::layersWillBeRemoved ), this, &QgsMapLayerModel::removeLayers );
   }
 
-  mProject = project ? project : QgsProject::instance();
+  mProject = project ? project : QgsProject::instance(); // skip-keyword-check
 
   connect( mProject, &QgsProject::layersAdded, this, &QgsMapLayerModel::addLayers );
   connect( mProject, static_cast < void ( QgsProject::* )( const QStringList & ) >( &QgsProject::layersWillBeRemoved ), this, &QgsMapLayerModel::removeLayers );
@@ -512,7 +515,7 @@ bool QgsMapLayerModel::canDropMimeData( const QMimeData *data, Qt::DropAction ac
 
 QMimeData *QgsMapLayerModel::mimeData( const QModelIndexList &indexes ) const
 {
-  std::unique_ptr< QMimeData > mimeData = std::make_unique< QMimeData >();
+  auto mimeData = std::make_unique< QMimeData >();
 
   QByteArray encodedData;
   QDataStream stream( &encodedData, QIODevice::WriteOnly );

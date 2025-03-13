@@ -59,16 +59,7 @@ macro(ADD_GRASSLIB GRASS_BUILD_VERSION)
       )
     endif()
 
-    if (BUILD_WITH_QT6)
-      QT6_WRAP_UI (GRASS_LIBRARY_UIS_H
-	../qgsgrassoptionsbase.ui
-      )
-    else()
-      QT5_WRAP_UI (GRASS_LIBRARY_UIS_H
-	../qgsgrassoptionsbase.ui
-      )
-    endif()
-
+    qt_wrap_ui(GRASS_LIBRARY_UIS_H ../qgsgrassoptionsbase.ui)
 
     add_library(qgisgrass${GRASS_BUILD_VERSION} SHARED
       ${GRASS_LIBRARY_SRCS}
@@ -142,6 +133,9 @@ macro(ADD_GRASSLIB GRASS_BUILD_VERSION)
     endif()
 
     target_link_libraries(qgisgrass${GRASS_BUILD_VERSION} ${GRASS_TARGET_LINK_LIBRARIES${GRASS_BUILD_VERSION}})
+	  if(WITH_POSTGRESQL)
+	    target_link_libraries(qgisgrass${GRASS_BUILD_VERSION} PostgreSQL::PostgreSQL)
+	  endif()
 
     if (WITH_GUI)
       target_link_libraries(qgisgrass${GRASS_BUILD_VERSION}

@@ -3,9 +3,8 @@
  *                                                                      *
  * src/3d/qgscameracontroller.h                                         *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
-
 
 
 
@@ -17,17 +16,12 @@ class QgsCameraController : QObject
 {
 %Docstring(signature="appended")
 Object that controls camera movement based on user input
-
-.. note::
-
-   Not available in Python bindings
 %End
 
 %TypeHeaderCode
 #include "qgscameracontroller.h"
 %End
   public:
-
     ~QgsCameraController();
 
 
@@ -95,7 +89,7 @@ yaw angle in degrees.
 .. versionadded:: 3.4
 %End
 
-    void setCameraPose( const QgsCameraPose &camPose );
+    void setCameraPose( const QgsCameraPose &camPose, bool force = false );
 %Docstring
 Sets camera pose
 
@@ -180,11 +174,51 @@ Rotates the camera on itself.
 .. versionadded:: 3.30
 %End
 
+    void rotateCameraAroundPivot( float newPitch, float newHeading, const QVector3D &pivotPoint );
+%Docstring
+Rotates the camera around the pivot point (in world coordinates)
+to the given new pitch and heading angle.
+
+.. versionadded:: 3.42
+%End
+
+    void zoomCameraAroundPivot( const QVector3D &oldCameraPosition, double zoomFactor, const QVector3D &pivotPoint );
+%Docstring
+Zooms camera by given zoom factor (>1 one means zoom in)
+while keeping the pivot point (given in world coordinates) at the
+same screen coordinates after the zoom.
+
+.. versionadded:: 3.42
+%End
+
     bool willHandleKeyEvent( QKeyEvent *event );
 %Docstring
 Returns ``True`` if the camera controller will handle the specified key ``event``,
 preventing it from being instead handled by parents of the 3D window before
 the controller ever receives it.
+%End
+
+    void setOrigin( const QgsVector3D &origin );
+%Docstring
+Reacts to the shift of origin of the scene, updating camera pose and
+any other member variables so that the origin stays at the same position
+relative to other entities.
+
+.. versionadded:: 3.42
+%End
+
+    void setInputHandlersEnabled( bool enable );
+%Docstring
+Sets whether the camera controller responds to mouse and keyboard events
+
+.. versionadded:: 3.42
+%End
+
+    bool hasInputHandlersEnabled() const;
+%Docstring
+Returns whether the camera controller responds to mouse and keyboard events
+
+.. versionadded:: 3.44
 %End
 
   public slots:
@@ -249,5 +283,5 @@ Emitted when the camera rotation center changes
  *                                                                      *
  * src/3d/qgscameracontroller.h                                         *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

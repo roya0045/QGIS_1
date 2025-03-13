@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/providers/qgsabstractdatabaseproviderconnection.h           *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -373,6 +373,7 @@ This information is calculated from the geometry columns types.
       SinglePoint,
       SingleLineString,
       SinglePolygon,
+      PolyhedralSurfaces,
     };
 
     typedef QFlags<QgsAbstractDatabaseProviderConnection::GeometryColumnCapability> GeometryColumnCapabilities;
@@ -563,7 +564,6 @@ Renames an existing field.
 
    it is responsibility of the caller to handle open layers and registry entries.
 
-
 :raises QgsProviderConnectionException: if any errors are encountered.
 
 .. versionadded:: 3.28
@@ -592,11 +592,34 @@ Executes raw ``sql`` and returns the (possibly empty) list of results in a multi
 
     virtual QgsVectorLayer *createSqlVectorLayer( const SqlVectorLayerOptions &options ) const throw( QgsProviderConnectionException ) /Factory/;
 %Docstring
-Creates and returns a (possibly invalid) vector layer based on the ``sql`` statement and optional ``options``.
+Creates and returns a (possibly invalid) vector layer based on a SQL statement and ``options``.
+
+The :py:func:`~QgsAbstractDatabaseProviderConnection.validateSqlVectorLayer` method can be used in advance to test whether the options are valid
+for the provider, and retrieve a user-friendly explanation if not.
 
 :raises QgsProviderConnectionException: if any errors are encountered or if SQL layer creation is not supported.
 
+.. seealso:: :py:func:`validateSqlVectorLayer`
+
 .. versionadded:: 3.22
+%End
+
+    virtual bool validateSqlVectorLayer( const SqlVectorLayerOptions &options, QString &message /Out/ ) const throw( QgsProviderConnectionException );
+%Docstring
+Validates the SQL query ``options`` to determine if it is possible to create a vector layer based on a SQL statement and ``options``.
+
+The base class method returns ``True`` and does not do any checks.
+
+:param options: SQL statement and options
+
+:return: - ``True`` if the SQL is valid for the provider.
+         - message: a translated, user-friendly explanation if the SQL is not valid for the provider.
+
+:raises QgsProviderConnectionException: if any errors are encountered or if SQL layer creation is not supported.
+
+.. seealso:: :py:func:`createSqlVectorLayer`
+
+.. versionadded:: 3.44
 %End
 
     virtual SqlVectorLayerOptions sqlOptions( const QString &layerSource ) throw( QgsProviderConnectionException );
@@ -1033,6 +1056,8 @@ Checks if ``capability`` is supported.
 
 
 
+
+
 };
 
 QFlags<QgsAbstractDatabaseProviderConnection::Capability> operator|(QgsAbstractDatabaseProviderConnection::Capability f1, QFlags<QgsAbstractDatabaseProviderConnection::Capability> f2);
@@ -1043,5 +1068,5 @@ QFlags<QgsAbstractDatabaseProviderConnection::Capability> operator|(QgsAbstractD
  *                                                                      *
  * src/core/providers/qgsabstractdatabaseproviderconnection.h           *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

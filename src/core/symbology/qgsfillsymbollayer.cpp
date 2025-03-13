@@ -225,7 +225,7 @@ QgsSymbolLayer *QgsSimpleFillSymbolLayer::create( const QVariantMap &props )
   if ( props.contains( QStringLiteral( "joinstyle" ) ) )
     penJoinStyle = QgsSymbolLayerUtils::decodePenJoinStyle( props[QStringLiteral( "joinstyle" )].toString() );
 
-  std::unique_ptr< QgsSimpleFillSymbolLayer > sl = std::make_unique< QgsSimpleFillSymbolLayer >( color, style, strokeColor, strokeStyle, strokeWidth, penJoinStyle );
+  auto sl = std::make_unique< QgsSimpleFillSymbolLayer >( color, style, strokeColor, strokeStyle, strokeWidth, penJoinStyle );
   sl->setOffset( offset );
   if ( props.contains( QStringLiteral( "border_width_unit" ) ) )
   {
@@ -256,6 +256,11 @@ QgsSymbolLayer *QgsSimpleFillSymbolLayer::create( const QVariantMap &props )
 QString QgsSimpleFillSymbolLayer::layerType() const
 {
   return QStringLiteral( "SimpleFill" );
+}
+
+Qgis::SymbolLayerFlags QgsSimpleFillSymbolLayer::flags() const
+{
+  return QgsFillSymbolLayer::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 void QgsSimpleFillSymbolLayer::startRender( QgsSymbolRenderContext &context )
@@ -371,7 +376,7 @@ QVariantMap QgsSimpleFillSymbolLayer::properties() const
 
 QgsSimpleFillSymbolLayer *QgsSimpleFillSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsSimpleFillSymbolLayer > sl = std::make_unique< QgsSimpleFillSymbolLayer >( mColor, mBrushStyle, mStrokeColor, mStrokeStyle, mStrokeWidth, mPenJoinStyle );
+  auto sl = std::make_unique< QgsSimpleFillSymbolLayer >( mColor, mBrushStyle, mStrokeColor, mStrokeStyle, mStrokeWidth, mPenJoinStyle );
   sl->setOffset( mOffset );
   sl->setOffsetUnit( mOffsetUnit );
   sl->setOffsetMapUnitScale( mOffsetMapUnitScale );
@@ -499,7 +504,7 @@ QgsSymbolLayer *QgsSimpleFillSymbolLayer::createFromSld( QDomElement &element )
   offset.setY( offset.y() * scaleFactor );
   strokeWidth = strokeWidth * scaleFactor;
 
-  std::unique_ptr< QgsSimpleFillSymbolLayer > sl = std::make_unique< QgsSimpleFillSymbolLayer >( color, fillStyle, strokeColor, strokeStyle, strokeWidth );
+  auto sl = std::make_unique< QgsSimpleFillSymbolLayer >( color, fillStyle, strokeColor, strokeStyle, strokeWidth );
   sl->setOutputUnit( sldUnitSize );
   sl->setOffset( offset );
   return sl.release();
@@ -672,7 +677,7 @@ QgsSymbolLayer *QgsGradientFillSymbolLayer::create( const QVariantMap &props )
   }
 
   //create a new gradient fill layer with desired properties
-  std::unique_ptr< QgsGradientFillSymbolLayer > sl = std::make_unique< QgsGradientFillSymbolLayer >( color, color2, colorType, type, coordinateMode, gradientSpread );
+  auto sl = std::make_unique< QgsGradientFillSymbolLayer >( color, color2, colorType, type, coordinateMode, gradientSpread );
   sl->setOffset( offset );
   if ( props.contains( QStringLiteral( "offset_unit" ) ) )
     sl->setOffsetUnit( QgsUnitTypes::decodeRenderUnit( props[QStringLiteral( "offset_unit" )].toString() ) );
@@ -689,6 +694,11 @@ QgsSymbolLayer *QgsGradientFillSymbolLayer::create( const QVariantMap &props )
   sl->restoreOldDataDefinedProperties( props );
 
   return sl.release();
+}
+
+Qgis::SymbolLayerFlags QgsGradientFillSymbolLayer::flags() const
+{
+  return QgsFillSymbolLayer::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 void QgsGradientFillSymbolLayer::setColorRamp( QgsColorRamp *ramp )
@@ -1041,7 +1051,7 @@ QVariantMap QgsGradientFillSymbolLayer::properties() const
 
 QgsGradientFillSymbolLayer *QgsGradientFillSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsGradientFillSymbolLayer > sl = std::make_unique< QgsGradientFillSymbolLayer >( mColor, mColor2, mGradientColorType, mGradientType, mCoordinateMode, mGradientSpread );
+  auto sl = std::make_unique< QgsGradientFillSymbolLayer >( mColor, mColor2, mGradientColorType, mGradientType, mCoordinateMode, mGradientSpread );
   if ( mGradientRamp )
     sl->setColorRamp( mGradientRamp->clone() );
   sl->setReferencePoint1( mReferencePoint1 );
@@ -1171,7 +1181,7 @@ QgsSymbolLayer *QgsShapeburstFillSymbolLayer::create( const QVariantMap &props )
   }
 
   //create a new shapeburst fill layer with desired properties
-  std::unique_ptr< QgsShapeburstFillSymbolLayer > sl = std::make_unique< QgsShapeburstFillSymbolLayer >( color, color2, colorType, blurRadius, useWholeShape, maxDistance );
+  auto sl = std::make_unique< QgsShapeburstFillSymbolLayer >( color, color2, colorType, blurRadius, useWholeShape, maxDistance );
   sl->setOffset( offset );
   if ( props.contains( QStringLiteral( "offset_unit" ) ) )
   {
@@ -1206,6 +1216,11 @@ QgsSymbolLayer *QgsShapeburstFillSymbolLayer::create( const QVariantMap &props )
 QString QgsShapeburstFillSymbolLayer::layerType() const
 {
   return QStringLiteral( "ShapeburstFill" );
+}
+
+Qgis::SymbolLayerFlags QgsShapeburstFillSymbolLayer::flags() const
+{
+  return QgsFillSymbolLayer::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 void QgsShapeburstFillSymbolLayer::setColorRamp( QgsColorRamp *ramp )
@@ -1360,8 +1375,8 @@ void QgsShapeburstFillSymbolLayer::renderPolygon( const QPolygonF &points, const
   if ( context.renderContext().feedback() && context.renderContext().feedback()->isCanceled() )
     return;
 
-  std::unique_ptr< QImage > fillImage = std::make_unique< QImage >( imWidth,
-                                        imHeight, QImage::Format_ARGB32_Premultiplied );
+  auto fillImage = std::make_unique< QImage >( imWidth,
+                   imHeight, QImage::Format_ARGB32_Premultiplied );
   if ( fillImage->isNull() )
   {
     QgsMessageLog::logMessage( QObject::tr( "Could not allocate sufficient memory for shapeburst fill" ) );
@@ -1372,7 +1387,7 @@ void QgsShapeburstFillSymbolLayer::renderPolygon( const QPolygonF &points, const
     return;
 
   //also create an image to store the alpha channel
-  std::unique_ptr< QImage > alphaImage = std::make_unique< QImage >( fillImage->width(), fillImage->height(), QImage::Format_ARGB32_Premultiplied );
+  auto alphaImage = std::make_unique< QImage >( fillImage->width(), fillImage->height(), QImage::Format_ARGB32_Premultiplied );
   if ( alphaImage->isNull() )
   {
     QgsMessageLog::logMessage( QObject::tr( "Could not allocate sufficient memory for shapeburst fill" ) );
@@ -1696,7 +1711,7 @@ QVariantMap QgsShapeburstFillSymbolLayer::properties() const
 
 QgsShapeburstFillSymbolLayer *QgsShapeburstFillSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsShapeburstFillSymbolLayer > sl = std::make_unique< QgsShapeburstFillSymbolLayer >( mColor, mColor2, mColorType, mBlurRadius, mUseWholeShape, mMaxDistance );
+  auto sl = std::make_unique< QgsShapeburstFillSymbolLayer >( mColor, mColor2, mColorType, mBlurRadius, mUseWholeShape, mMaxDistance );
   if ( mGradientRamp )
   {
     sl->setColorRamp( mGradientRamp->clone() );
@@ -2148,6 +2163,7 @@ void QgsSVGFillSymbolLayer::startRender( QgsSymbolRenderContext &context )
 
   if ( mStroke )
   {
+    mStroke->setRenderHints( mStroke->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
     mStroke->startRender( context.renderContext(), context.fields() );
   }
 }
@@ -2415,7 +2431,7 @@ QgsSymbolLayer *QgsSVGFillSymbolLayer::createFromSld( QDomElement &element )
       angle = d;
   }
 
-  std::unique_ptr< QgsSVGFillSymbolLayer > sl = std::make_unique< QgsSVGFillSymbolLayer >( path, size, angle );
+  auto sl = std::make_unique< QgsSVGFillSymbolLayer >( path, size, angle );
   sl->setOutputUnit( sldUnitSize );
   sl->setSvgFillColor( fillColor );
   sl->setSvgStrokeColor( strokeColor );
@@ -2691,7 +2707,6 @@ QImage QgsLinePatternFillSymbolLayer::toTiledPatternImage() const
   layerClone->drawPreviewIcon( symbolContext, pixmap.size() );
   painter.end();
   return pixmap.toImage();
-  return QImage();
 }
 
 double QgsLinePatternFillSymbolLayer::estimateMaxBleed( const QgsRenderContext & ) const
@@ -2748,7 +2763,7 @@ QgsMapUnitScale QgsLinePatternFillSymbolLayer::mapUnitScale() const
 
 QgsSymbolLayer *QgsLinePatternFillSymbolLayer::create( const QVariantMap &properties )
 {
-  std::unique_ptr< QgsLinePatternFillSymbolLayer > patternLayer = std::make_unique< QgsLinePatternFillSymbolLayer >();
+  auto patternLayer = std::make_unique< QgsLinePatternFillSymbolLayer >();
 
   //default values
   double lineAngle = 45;
@@ -3118,6 +3133,7 @@ bool QgsLinePatternFillSymbolLayer::applyPattern( const QgsSymbolRenderContext &
   lineRenderContext.setFlag( Qgis::RenderContextFlag::RenderingSubSymbol );
   lineRenderContext.setDisabledSymbolLayersV2( context.renderContext().disabledSymbolLayersV2() );
 
+  fillLineSymbol->setRenderHints( fillLineSymbol->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
   fillLineSymbol->startRender( lineRenderContext, context.fields() );
 
   QVector<QPolygonF> polygons;
@@ -3162,7 +3178,7 @@ void QgsLinePatternFillSymbolLayer::startRender( QgsSymbolRenderContext &context
 {
   // if we are using a vector based output, we need to render points as vectors
   // (OR if the line has data defined symbology, in which case we need to evaluate this line-by-line)
-  mRenderUsingLines = context.renderContext().forceVectorOutput()
+  mRenderUsingLines = context.forceVectorRendering()
                       || ( mFillLineSymbol && mFillLineSymbol->hasDataDefinedProperties() )
                       || mClipMode != Qgis::LineClipMode::ClipPainterOnly
                       || mDataDefinedProperties.isActive( QgsSymbolLayer::Property::LineClipping );
@@ -3176,6 +3192,7 @@ void QgsLinePatternFillSymbolLayer::startRender( QgsSymbolRenderContext &context
 
   if ( mRenderUsingLines && mFillLineSymbol )
   {
+    mFillLineSymbol->setRenderHints( mFillLineSymbol->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
     mFillLineSymbol->startRender( context.renderContext(), context.fields() );
     mFillLineSymbolRenderStarted = true;
   }
@@ -3202,6 +3219,7 @@ void QgsLinePatternFillSymbolLayer::renderPolygon( const QPolygonF &points, cons
 
   if ( !mFillLineSymbolRenderStarted && mFillLineSymbol )
   {
+    mFillLineSymbol->setRenderHints( mFillLineSymbol->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
     mFillLineSymbol->startRender( context.renderContext(), context.fields() );
     mFillLineSymbolRenderStarted = true;
   }
@@ -3269,12 +3287,14 @@ void QgsLinePatternFillSymbolLayer::renderPolygon( const QPolygonF &points, cons
     case Qgis::LineClipMode::ClipToIntersection:
     {
       shapePolygon = std::make_unique< QgsPolygon >();
-      shapePolygon->setExteriorRing( QgsLineString::fromQPolygonF( points ) );
+      std::unique_ptr< QgsLineString > fromPolygon = QgsLineString::fromQPolygonF( points );
+      shapePolygon->setExteriorRing( fromPolygon.release() );
       if ( rings )
       {
         for ( const QPolygonF &ring : *rings )
         {
-          shapePolygon->addInteriorRing( QgsLineString::fromQPolygonF( ring ) );
+          std::unique_ptr< QgsLineString > fromRing = QgsLineString::fromQPolygonF( ring );
+          shapePolygon->addInteriorRing( fromRing.release() );
         }
       }
       shapeEngine.reset( QgsGeometry::createGeometryEngine( shapePolygon.get() ) );
@@ -3569,7 +3589,7 @@ QgsSymbolLayer *QgsLinePatternFillSymbolLayer::createFromSld( QDomElement &eleme
   size = size * scaleFactor;
   lineWidth = lineWidth * scaleFactor;
 
-  std::unique_ptr< QgsLinePatternFillSymbolLayer > sl = std::make_unique< QgsLinePatternFillSymbolLayer >();
+  auto sl = std::make_unique< QgsLinePatternFillSymbolLayer >();
   sl->setOutputUnit( sldUnitSize );
   sl->setColor( lineColor );
   sl->setLineWidth( lineWidth );
@@ -3690,7 +3710,7 @@ QgsMapUnitScale QgsPointPatternFillSymbolLayer::mapUnitScale() const
 
 QgsSymbolLayer *QgsPointPatternFillSymbolLayer::create( const QVariantMap &properties )
 {
-  std::unique_ptr< QgsPointPatternFillSymbolLayer > layer = std::make_unique< QgsPointPatternFillSymbolLayer >();
+  auto layer = std::make_unique< QgsPointPatternFillSymbolLayer >();
   if ( properties.contains( QStringLiteral( "distance_x" ) ) )
   {
     layer->setDistanceX( properties[QStringLiteral( "distance_x" )].toDouble() );
@@ -3880,6 +3900,7 @@ bool QgsPointPatternFillSymbolLayer::applyPattern( const QgsSymbolRenderContext 
     pointRenderContext.setExpressionContext( context.renderContext().expressionContext() );
     pointRenderContext.setFlag( Qgis::RenderContextFlag::RenderingSubSymbol );
 
+    mMarkerSymbol->setRenderHints( mMarkerSymbol->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
     mMarkerSymbol->startRender( pointRenderContext, context.fields() );
 
     //render points on distance grid
@@ -3937,7 +3958,7 @@ void QgsPointPatternFillSymbolLayer::startRender( QgsSymbolRenderContext &contex
 {
   // if we are using a vector based output, we need to render points as vectors
   // (OR if the marker has data defined symbology, in which case we need to evaluate this point-by-point)
-  mRenderUsingMarkers = context.renderContext().forceVectorOutput()
+  mRenderUsingMarkers = context.forceVectorRendering()
                         || ( mMarkerSymbol && mMarkerSymbol->hasDataDefinedProperties() )
                         || mDataDefinedProperties.isActive( QgsSymbolLayer::Property::MarkerClipping )
                         || mDataDefinedProperties.isActive( QgsSymbolLayer::Property::RandomOffsetX )
@@ -3957,7 +3978,8 @@ void QgsPointPatternFillSymbolLayer::startRender( QgsSymbolRenderContext &contex
 
   if ( mRenderUsingMarkers && mMarkerSymbol )
   {
-    mMarkerSymbol->startRender( context.renderContext() );
+    mMarkerSymbol->setRenderHints( mMarkerSymbol->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
+    mMarkerSymbol->startRender( context.renderContext(), context.fields() );
     mMarkerSymbolRenderStarted = true;
   }
 }
@@ -4001,7 +4023,8 @@ void QgsPointPatternFillSymbolLayer::renderPolygon( const QPolygonF &points, con
 
   if ( !mMarkerSymbolRenderStarted && mMarkerSymbol )
   {
-    mMarkerSymbol->startRender( context.renderContext() );
+    mMarkerSymbol->setRenderHints( mMarkerSymbol->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
+    mMarkerSymbol->startRender( context.renderContext(), context.fields() );
     mMarkerSymbolRenderStarted = true;
   }
 
@@ -4110,12 +4133,14 @@ void QgsPointPatternFillSymbolLayer::renderPolygon( const QPolygonF &points, con
     case Qgis::MarkerClipMode::CompletelyWithin:
     {
       shapePolygon = std::make_unique< QgsPolygon >();
-      shapePolygon->setExteriorRing( QgsLineString::fromQPolygonF( points ) );
+      std::unique_ptr< QgsLineString > fromPolygon = QgsLineString::fromQPolygonF( points );
+      shapePolygon->setExteriorRing( fromPolygon.release() );
       if ( rings )
       {
         for ( const QPolygonF &ring : *rings )
         {
-          shapePolygon->addInteriorRing( QgsLineString::fromQPolygonF( ring ) );
+          std::unique_ptr< QgsLineString > fromRing = QgsLineString::fromQPolygonF( ring );
+          shapePolygon->addInteriorRing( fromRing.release() );
         }
       }
       shapeEngine.reset( QgsGeometry::createGeometryEngine( shapePolygon.get() ) );
@@ -4519,12 +4544,12 @@ QgsSymbolLayer *QgsPointPatternFillSymbolLayer::createFromSld( QDomElement &elem
   QgsSymbolLayerList layers;
   layers.append( simpleMarkerSl );
 
-  std::unique_ptr< QgsMarkerSymbol > marker = std::make_unique< QgsMarkerSymbol >( layers );
+  auto marker = std::make_unique< QgsMarkerSymbol >( layers );
 
   // Converts from GeoServer "graphic-margin": symbol size must be added and margin doubled
   const double markerSize { marker->size() };
 
-  std::unique_ptr< QgsPointPatternFillSymbolLayer > pointPatternFillSl = std::make_unique< QgsPointPatternFillSymbolLayer >();
+  auto pointPatternFillSl = std::make_unique< QgsPointPatternFillSymbolLayer >();
   pointPatternFillSl->setSubSymbol( marker.release() );
   // This may not be correct in all cases, TODO: check "uom"
   pointPatternFillSl->setDistanceXUnit( Qgis::RenderUnit::Pixels );
@@ -4759,7 +4784,7 @@ QgsCentroidFillSymbolLayer::~QgsCentroidFillSymbolLayer() = default;
 
 QgsSymbolLayer *QgsCentroidFillSymbolLayer::create( const QVariantMap &properties )
 {
-  std::unique_ptr< QgsCentroidFillSymbolLayer > sl = std::make_unique< QgsCentroidFillSymbolLayer >();
+  auto sl = std::make_unique< QgsCentroidFillSymbolLayer >();
 
   if ( properties.contains( QStringLiteral( "point_on_surface" ) ) )
     sl->setPointOnSurface( properties[QStringLiteral( "point_on_surface" )].toInt() != 0 );
@@ -4793,6 +4818,7 @@ QColor QgsCentroidFillSymbolLayer::color() const
 
 void QgsCentroidFillSymbolLayer::startRender( QgsSymbolRenderContext &context )
 {
+  mMarker->setRenderHints( mMarker->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
   mMarker->startRender( context.renderContext(), context.fields() );
 }
 
@@ -4951,7 +4977,7 @@ QVariantMap QgsCentroidFillSymbolLayer::properties() const
 
 QgsCentroidFillSymbolLayer *QgsCentroidFillSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsCentroidFillSymbolLayer > x = std::make_unique< QgsCentroidFillSymbolLayer >();
+  auto x = std::make_unique< QgsCentroidFillSymbolLayer >();
   x->mAngle = mAngle;
   x->mColor = mColor;
   x->setSubSymbol( mMarker->clone() );
@@ -4980,9 +5006,9 @@ QgsSymbolLayer *QgsCentroidFillSymbolLayer::createFromSld( QDomElement &element 
 
   QgsSymbolLayerList layers;
   layers.append( l );
-  std::unique_ptr< QgsMarkerSymbol > marker( new QgsMarkerSymbol( layers ) );
+  auto marker = std::make_unique<QgsMarkerSymbol>( layers );
 
-  std::unique_ptr< QgsCentroidFillSymbolLayer > sl = std::make_unique< QgsCentroidFillSymbolLayer >();
+  auto sl = std::make_unique< QgsCentroidFillSymbolLayer >();
   sl->setSubSymbol( marker.release() );
   sl->setPointOnAllParts( false );
   return sl.release();
@@ -5120,7 +5146,7 @@ QgsSymbolLayer *QgsRasterFillSymbolLayer::create( const QVariantMap &properties 
   {
     width = properties[QStringLiteral( "width" )].toDouble();
   }
-  std::unique_ptr< QgsRasterFillSymbolLayer > symbolLayer = std::make_unique< QgsRasterFillSymbolLayer >( imagePath );
+  auto symbolLayer = std::make_unique< QgsRasterFillSymbolLayer >( imagePath );
   symbolLayer->setCoordinateMode( mode );
   symbolLayer->setOpacity( alpha );
   symbolLayer->setOffset( offset );
@@ -5177,10 +5203,10 @@ QgsSymbolLayer *QgsRasterFillSymbolLayer::createFromSld( QDomElement &element )
   // Try to correct the path, this is a wild guess but we have not access to the SLD path here.
   if ( ! QFile::exists( path ) )
   {
-    path = QgsProject::instance()->pathResolver().readPath( path );
+    path = QgsProject::instance()->pathResolver().readPath( path ); // skip-keyword-check
   }
 
-  std::unique_ptr< QgsRasterFillSymbolLayer> sl = std::make_unique< QgsRasterFillSymbolLayer>( path );
+  auto sl = std::make_unique< QgsRasterFillSymbolLayer>( path );
 
   return sl.release();
 }
@@ -5206,6 +5232,11 @@ bool QgsRasterFillSymbolLayer::setSubSymbol( QgsSymbol *symbol )
 QString QgsRasterFillSymbolLayer::layerType() const
 {
   return QStringLiteral( "RasterFill" );
+}
+
+Qgis::SymbolLayerFlags QgsRasterFillSymbolLayer::flags() const
+{
+  return QgsImageFillSymbolLayer::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 void QgsRasterFillSymbolLayer::renderPolygon( const QPolygonF &points, const QVector<QPolygonF> *rings, QgsSymbolRenderContext &context )
@@ -5277,7 +5308,7 @@ QVariantMap QgsRasterFillSymbolLayer::properties() const
 
 QgsRasterFillSymbolLayer *QgsRasterFillSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsRasterFillSymbolLayer > sl = std::make_unique< QgsRasterFillSymbolLayer >( mImageFilePath );
+  auto sl = std::make_unique< QgsRasterFillSymbolLayer >( mImageFilePath );
   sl->setCoordinateMode( mCoordinateMode );
   sl->setOpacity( mOpacity );
   sl->setOffset( mOffset );
@@ -5511,7 +5542,7 @@ QgsSymbolLayer *QgsRandomMarkerFillSymbolLayer::create( const QVariantMap &prope
     seed = uniformDist( mt );
   }
 
-  std::unique_ptr< QgsRandomMarkerFillSymbolLayer > sl = std::make_unique< QgsRandomMarkerFillSymbolLayer >( pointCount, countMethod, densityArea, seed );
+  auto sl = std::make_unique< QgsRandomMarkerFillSymbolLayer >( pointCount, countMethod, densityArea, seed );
 
   if ( properties.contains( QStringLiteral( "density_area_unit" ) ) )
     sl->setDensityAreaUnit( QgsUnitTypes::decodeRenderUnit( properties[QStringLiteral( "density_area_unit" )].toString() ) );
@@ -5544,6 +5575,7 @@ QColor QgsRandomMarkerFillSymbolLayer::color() const
 
 void QgsRandomMarkerFillSymbolLayer::startRender( QgsSymbolRenderContext &context )
 {
+  mMarker->setRenderHints( mMarker->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
   mMarker->startRender( context.renderContext(), context.fields() );
 }
 
@@ -5598,7 +5630,8 @@ void QgsRandomMarkerFillSymbolLayer::render( QgsRenderContext &context, const QV
       QgsPolygon *poly = qgsgeometry_cast< QgsPolygon * >( geom.get() );
       for ( const QPolygonF &ring : part.rings )
       {
-        poly->addInteriorRing( QgsLineString::fromQPolygonF( ring ) );
+        std::unique_ptr< QgsLineString > fromRing = QgsLineString::fromQPolygonF( ring );
+        poly->addInteriorRing( fromRing.release() );
       }
     }
     if ( !geom.isGeosValid() )
@@ -5706,7 +5739,7 @@ QVariantMap QgsRandomMarkerFillSymbolLayer::properties() const
 
 QgsRandomMarkerFillSymbolLayer *QgsRandomMarkerFillSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsRandomMarkerFillSymbolLayer > res = std::make_unique< QgsRandomMarkerFillSymbolLayer >( mPointCount, mCountMethod, mDensityArea, mSeed );
+  auto res = std::make_unique< QgsRandomMarkerFillSymbolLayer >( mPointCount, mCountMethod, mDensityArea, mSeed );
   res->mAngle = mAngle;
   res->mColor = mColor;
   res->setDensityAreaUnit( mDensityAreaUnit );

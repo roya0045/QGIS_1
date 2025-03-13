@@ -25,6 +25,7 @@
 #include <QElapsedTimer>
 
 #include "qgsmeshlayerrenderer.h"
+#include "moc_qgsmeshlayerrenderer.cpp"
 
 #include "qgslogger.h"
 #include "qgsmeshlayer.h"
@@ -43,6 +44,7 @@
 #include "qgsruntimeprofiler.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgsmeshlayerelevationproperties.h"
+#include "qgsrenderedlayerstatistics.h"
 
 QgsMeshLayerRenderer::QgsMeshLayerRenderer(
   QgsMeshLayer *layer,
@@ -158,6 +160,45 @@ QgsMeshLayerRenderer::QgsMeshLayerRenderer(
   prepareLabeling( layer, attrs );
 
   mClippingRegions = QgsMapClippingUtils::collectClippingRegionsForLayer( *renderContext(), layer );
+
+  if ( !context.testFlag( Qgis::RenderContextFlag::RenderPreviewJob )
+       && !( context.flags() & Qgis::RenderContextFlag::Render3DMap ) )
+  {
+    const QgsMeshDatasetIndex activeDatasetIndex = layer->activeScalarDatasetIndex( context );
+
+    if ( activeDatasetIndex.isValid() )
+    {
+      QgsMeshRendererScalarSettings scalarRendererSettings = mRendererSettings.scalarSettings( activeDatasetIndex.group() );
+      const double previousMin = scalarRendererSettings.classificationMinimum();
+      const double previousMax = scalarRendererSettings.classificationMaximum();
+
+      if ( scalarRendererSettings.extent() == Qgis::MeshRangeExtent::UpdatedCanvas &&
+           scalarRendererSettings.limits() == Qgis::MeshRangeLimit::MinimumMaximum )
+      {
+        double min, max;
+
+        const bool found  = layer->minimumMaximumActiveScalarDataset( context.extent(), activeDatasetIndex, min, max );
+
+        if ( found )
+        {
+          if ( previousMin != min || previousMax != max )
+          {
+
+            scalarRendererSettings.setClassificationMinimumMaximum( min, max );
+            mRendererSettings.setScalarSettings( activeDatasetIndex.group(), scalarRendererSettings );
+
+            QgsRenderedLayerStatistics *layerStatistics = new QgsRenderedLayerStatistics( layer->id(), previousMin, previousMax );
+
+            layerStatistics->setBoundingBox( context.extent() );
+            layerStatistics->setMaximum( 0, max );
+            layerStatistics->setMinimum( 0, min );
+
+            appendRenderedItemDetails( layerStatistics );
+          }
+        }
+      }
+    }
+  }
 
   mPreparationTime = timer.elapsed();
 }

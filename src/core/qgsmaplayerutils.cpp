@@ -91,14 +91,14 @@ QgsRectangle QgsMapLayerUtils::combinedExtent( const QList<QgsMapLayer *> &layer
 
 QgsAbstractDatabaseProviderConnection *QgsMapLayerUtils::databaseConnection( const QgsMapLayer *layer )
 {
-  if ( ! layer || ! layer->dataProvider() )
+  if ( !layer )
   {
     return nullptr;
   }
 
   try
   {
-    QgsProviderMetadata *providerMetadata = QgsProviderRegistry::instance()->providerMetadata( layer->dataProvider()->name() );
+    QgsProviderMetadata *providerMetadata = QgsProviderRegistry::instance()->providerMetadata( layer->providerType() );
     if ( ! providerMetadata )
     {
       return nullptr;
@@ -109,7 +109,10 @@ QgsAbstractDatabaseProviderConnection *QgsMapLayerUtils::databaseConnection( con
   }
   catch ( const QgsProviderConnectionException &ex )
   {
-    QgsDebugError( QStringLiteral( "Error retrieving database connection for layer %1: %2" ).arg( layer->name(), ex.what() ) );
+    if ( !ex.what().contains( QLatin1String( "createConnection" ) ) )
+    {
+      QgsDebugError( QStringLiteral( "Error retrieving database connection for layer %1: %2" ).arg( layer->name(), ex.what() ) );
+    }
     return nullptr;
   }
 }
@@ -165,4 +168,21 @@ QString QgsMapLayerUtils::launderLayerName( const QString &name )
   laundered.replace( sRxRemoveChars, QString() );
 
   return laundered;
+}
+
+bool QgsMapLayerUtils::isOpenStreetMapLayer( QgsMapLayer *layer )
+{
+  if ( layer->providerType() == QLatin1String( "wms" ) )
+  {
+    if ( const QgsProviderMetadata *metadata = layer->providerMetadata() )
+    {
+      QVariantMap details = metadata->decodeUri( layer->source() );
+      QUrl url( details.value( QStringLiteral( "url" ) ).toString() );
+      if ( url.host().endsWith( QLatin1String( ".openstreetmap.org" ) ) || url.host().endsWith( QLatin1String( ".osm.org" ) ) )
+      {
+        return true;
+      }
+    }
+  }
+  return false;
 }

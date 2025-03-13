@@ -29,6 +29,7 @@
 #include "qgsfillsymbol.h"
 #include "qgsfontmanager.h"
 #include "qgscolorutils.h"
+#include "qgspainting.h"
 
 #include <QPainter>
 #include <QSvgRenderer>
@@ -40,21 +41,7 @@
 
 #include <cmath>
 
-Q_GUI_EXPORT extern int qt_defaultDpiX();
-Q_GUI_EXPORT extern int qt_defaultDpiY();
-
 static constexpr int MAX_FONT_CHARACTER_SIZE_IN_PIXELS = 500;
-
-static void _fixQPictureDPI( QPainter *p )
-{
-  // QPicture makes an assumption that we drawing to it with system DPI.
-  // Then when being drawn, it scales the painter. The following call
-  // negates the effect. There is no way of setting QPicture's DPI.
-  // See QTBUG-20361
-  p->scale( static_cast< double >( qt_defaultDpiX() ) / p->device()->logicalDpiX(),
-            static_cast< double >( qt_defaultDpiY() ) / p->device()->logicalDpiY() );
-}
-
 
 //////
 
@@ -676,7 +663,8 @@ bool QgsSimpleMarkerSymbolLayerBase::shapeToPolygon( Qgis::MarkerShape shape, QP
               << QPointF( inner_r * std::sin( DEG2RAD( 135.0 ) ), - inner_r * std::cos( DEG2RAD( 135.0 ) ) )
               << QPointF( std::sin( DEG2RAD( 90 ) ), - std::cos( DEG2RAD( 90 ) ) )
               << QPointF( inner_r * std::sin( DEG2RAD( 45.0 ) ), - inner_r * std::cos( DEG2RAD( 45.0 ) ) )
-              << QPointF( std::sin( DEG2RAD( 0 ) ), - std::cos( DEG2RAD( 0 ) ) );
+              << QPointF( std::sin( DEG2RAD( 0 ) ), - std::cos( DEG2RAD( 0 ) ) )
+              << QPointF( inner_r * std::sin( DEG2RAD( 315.0 ) ), - inner_r * std::cos( DEG2RAD( 315.0 ) ) );
       return true;
     }
 
@@ -1066,11 +1054,11 @@ QgsSymbolLayer *QgsSimpleMarkerSymbolLayer::create( const QVariantMap &props )
 
   if ( props.contains( QStringLiteral( "horizontal_anchor_point" ) ) )
   {
-    m->setHorizontalAnchorPoint( QgsMarkerSymbolLayer::HorizontalAnchorPoint( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
+    m->setHorizontalAnchorPoint( static_cast< Qgis::HorizontalAnchorPoint >( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
   }
   if ( props.contains( QStringLiteral( "vertical_anchor_point" ) ) )
   {
-    m->setVerticalAnchorPoint( QgsMarkerSymbolLayer::VerticalAnchorPoint( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
+    m->setVerticalAnchorPoint( static_cast< Qgis::VerticalAnchorPoint >( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
   }
 
   if ( props.contains( QStringLiteral( "cap_style" ) ) )
@@ -1087,6 +1075,11 @@ QgsSymbolLayer *QgsSimpleMarkerSymbolLayer::create( const QVariantMap &props )
 QString QgsSimpleMarkerSymbolLayer::layerType() const
 {
   return QStringLiteral( "SimpleMarker" );
+}
+
+Qgis::SymbolLayerFlags QgsSimpleMarkerSymbolLayer::flags() const
+{
+  return QgsSimpleMarkerSymbolLayerBase::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 void QgsSimpleMarkerSymbolLayer::startRender( QgsSymbolRenderContext &context )
@@ -1124,7 +1117,7 @@ void QgsSimpleMarkerSymbolLayer::startRender( QgsSymbolRenderContext &context )
   // use caching only when:
   // - size, rotation, shape, color, stroke color is not data-defined
   // - drawing to screen (not printer)
-  mUsingCache = !hasDataDefinedRotation && !hasDataDefinedSize && !context.renderContext().forceVectorOutput()
+  mUsingCache = !hasDataDefinedRotation && !hasDataDefinedSize && !context.forceVectorRendering()
                 && !mDataDefinedProperties.isActive( QgsSymbolLayer::Property::Name ) && !mDataDefinedProperties.isActive( QgsSymbolLayer::Property::FillColor ) && !mDataDefinedProperties.isActive( QgsSymbolLayer::Property::StrokeColor )
                 && !mDataDefinedProperties.isActive( QgsSymbolLayer::Property::StrokeWidth ) && !mDataDefinedProperties.isActive( QgsSymbolLayer::Property::StrokeStyle )
                 && !mDataDefinedProperties.isActive( QgsSymbolLayer::Property::JoinStyle );
@@ -1386,8 +1379,8 @@ QVariantMap QgsSimpleMarkerSymbolLayer::properties() const
   map[QStringLiteral( "outline_width_map_unit_scale" )] = QgsSymbolLayerUtils::encodeMapUnitScale( mStrokeWidthMapUnitScale );
   map[QStringLiteral( "joinstyle" )] = QgsSymbolLayerUtils::encodePenJoinStyle( mPenJoinStyle );
   map[QStringLiteral( "cap_style" )] = QgsSymbolLayerUtils::encodePenCapStyle( mPenCapStyle );
-  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( mHorizontalAnchorPoint );
-  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( mVerticalAnchorPoint );
+  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( static_cast< int >( mHorizontalAnchorPoint ) );
+  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( static_cast< int >( mVerticalAnchorPoint ) );
   return map;
 }
 
@@ -1908,11 +1901,11 @@ QgsSymbolLayer *QgsFilledMarkerSymbolLayer::create( const QVariantMap &props )
     m->setSizeMapUnitScale( QgsSymbolLayerUtils::decodeMapUnitScale( props[QStringLiteral( "size_map_unit_scale" )].toString() ) );
   if ( props.contains( QStringLiteral( "horizontal_anchor_point" ) ) )
   {
-    m->setHorizontalAnchorPoint( QgsMarkerSymbolLayer::HorizontalAnchorPoint( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
+    m->setHorizontalAnchorPoint( static_cast< Qgis::HorizontalAnchorPoint >( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
   }
   if ( props.contains( QStringLiteral( "vertical_anchor_point" ) ) )
   {
-    m->setVerticalAnchorPoint( QgsMarkerSymbolLayer::VerticalAnchorPoint( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
+    m->setVerticalAnchorPoint( static_cast< Qgis::VerticalAnchorPoint >( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
   }
 
   m->setSubSymbol( QgsFillSymbol::createSimple( props ) );
@@ -1931,6 +1924,7 @@ void QgsFilledMarkerSymbolLayer::startRender( QgsSymbolRenderContext &context )
 {
   if ( mFill )
   {
+    mFill->setRenderHints( mFill->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
     mFill->startRender( context.renderContext(), context.fields() );
   }
 
@@ -1945,6 +1939,20 @@ void QgsFilledMarkerSymbolLayer::stopRender( QgsSymbolRenderContext &context )
   }
 }
 
+void QgsFilledMarkerSymbolLayer::startFeatureRender( const QgsFeature &, QgsRenderContext &context )
+{
+  installMasks( context, true );
+
+  // The base class version passes this on to the subsymbol, but we deliberately don't do that here.
+}
+
+void QgsFilledMarkerSymbolLayer::stopFeatureRender( const QgsFeature &, QgsRenderContext &context )
+{
+  removeMasks( context, true );
+
+  // The base class version passes this on to the subsymbol, but we deliberately don't do that here.
+}
+
 QVariantMap QgsFilledMarkerSymbolLayer::properties() const
 {
   QVariantMap map;
@@ -1957,8 +1965,8 @@ QVariantMap QgsFilledMarkerSymbolLayer::properties() const
   map[QStringLiteral( "offset_unit" )] = QgsUnitTypes::encodeUnit( mOffsetUnit );
   map[QStringLiteral( "offset_map_unit_scale" )] = QgsSymbolLayerUtils::encodeMapUnitScale( mOffsetMapUnitScale );
   map[QStringLiteral( "scale_method" )] = QgsSymbolLayerUtils::encodeScaleMethod( mScaleMethod );
-  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( mHorizontalAnchorPoint );
-  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( mVerticalAnchorPoint );
+  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( static_cast< int >( mHorizontalAnchorPoint ) );
+  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( static_cast< int >( mVerticalAnchorPoint ) );
 
   if ( mFill )
   {
@@ -2107,6 +2115,20 @@ QgsSvgMarkerSymbolLayer::QgsSvgMarkerSymbolLayer( const QString &path, double si
   setPath( path );
 }
 
+QgsSvgMarkerSymbolLayer::QgsSvgMarkerSymbolLayer( const QgsSvgMarkerSymbolLayer &other )
+  : QgsMarkerSymbolLayer( other )
+  , mPath( other.mPath )
+  , mDefaultAspectRatio( other.mDefaultAspectRatio )
+  , mFixedAspectRatio( other.mFixedAspectRatio )
+  , mHasFillParam( other.mHasFillParam )
+  , mStrokeColor( other.mStrokeColor )
+  , mStrokeWidth( other.mStrokeWidth )
+  , mParameters( other.mParameters )
+  , mStrokeWidthUnit( other.mStrokeWidthUnit )
+  , mStrokeWidthMapUnitScale( other.mStrokeWidthMapUnitScale )
+{
+}
+
 QgsSvgMarkerSymbolLayer::~QgsSvgMarkerSymbolLayer() = default;
 
 QgsSymbolLayer *QgsSvgMarkerSymbolLayer::create( const QVariantMap &props )
@@ -2189,11 +2211,11 @@ QgsSymbolLayer *QgsSvgMarkerSymbolLayer::create( const QVariantMap &props )
 
   if ( props.contains( QStringLiteral( "horizontal_anchor_point" ) ) )
   {
-    m->setHorizontalAnchorPoint( QgsMarkerSymbolLayer::HorizontalAnchorPoint( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
+    m->setHorizontalAnchorPoint( static_cast< Qgis::HorizontalAnchorPoint >( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
   }
   if ( props.contains( QStringLiteral( "vertical_anchor_point" ) ) )
   {
-    m->setVerticalAnchorPoint( QgsMarkerSymbolLayer::VerticalAnchorPoint( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
+    m->setVerticalAnchorPoint( static_cast< Qgis::VerticalAnchorPoint >( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
   }
 
   m->restoreOldDataDefinedProperties( props );
@@ -2313,6 +2335,11 @@ QString QgsSvgMarkerSymbolLayer::layerType() const
   return QStringLiteral( "SvgMarker" );
 }
 
+Qgis::SymbolLayerFlags QgsSvgMarkerSymbolLayer::flags() const
+{
+  return QgsMarkerSymbolLayer::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
+}
+
 void QgsSvgMarkerSymbolLayer::startRender( QgsSymbolRenderContext &context )
 {
   QgsMarkerSymbolLayer::startRender( context ); // get anchor point expressions
@@ -2405,7 +2432,7 @@ void QgsSvgMarkerSymbolLayer::renderPoint( QPointF point, QgsSymbolRenderContext
   bool fitsInCache = true;
   bool usePict = true;
   const bool rasterizeSelected = !mHasFillParam || mDataDefinedProperties.isActive( QgsSymbolLayer::Property::Name );
-  if ( ( !context.renderContext().forceVectorOutput() && !rotated ) || ( useSelectedColor && rasterizeSelected ) )
+  if ( ( !context.forceVectorRendering() && !rotated ) || ( useSelectedColor && rasterizeSelected ) )
   {
     QImage img = QgsApplication::svgCache()->svgAsImage( path, width * devicePixelRatio, fillColor, strokeColor, strokeWidth,
                  context.renderContext().scaleFactor(), fitsInCache, aspectRatio,
@@ -2454,13 +2481,11 @@ void QgsSvgMarkerSymbolLayer::renderPoint( QPointF point, QgsSymbolRenderContext
   {
     p->setOpacity( context.opacity() );
     const QPicture pct = QgsApplication::svgCache()->svgAsPicture( path, width, fillColor, strokeColor, strokeWidth,
-                         context.renderContext().scaleFactor(), context.renderContext().forceVectorOutput(), aspectRatio,
+                         context.renderContext().scaleFactor(), context.forceVectorRendering(), aspectRatio,
                          ( context.renderContext().flags() & Qgis::RenderContextFlag::RenderBlocking ), evaluatedParameters );
     if ( pct.width() > 1 )
     {
-      const QgsScopedQPainterState painterPictureState( p );
-      _fixQPictureDPI( p );
-      p->drawPicture( 0, 0, pct );
+      QgsPainting::drawPicture( p, QPointF( 0, 0 ), pct );
     }
   }
 
@@ -2602,8 +2627,8 @@ QVariantMap QgsSvgMarkerSymbolLayer::properties() const
   map[QStringLiteral( "outline_width" )] = QString::number( mStrokeWidth );
   map[QStringLiteral( "outline_width_unit" )] = QgsUnitTypes::encodeUnit( mStrokeWidthUnit );
   map[QStringLiteral( "outline_width_map_unit_scale" )] = QgsSymbolLayerUtils::encodeMapUnitScale( mStrokeWidthMapUnitScale );
-  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( mHorizontalAnchorPoint );
-  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( mVerticalAnchorPoint );
+  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( static_cast< int >( mHorizontalAnchorPoint ) );
+  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( static_cast< int >( mVerticalAnchorPoint ) );
 
   map[QStringLiteral( "parameters" )] = QgsProperty::propertyMapToVariantMap( mParameters );
 
@@ -2619,25 +2644,7 @@ bool QgsSvgMarkerSymbolLayer::usesMapUnits() const
 
 QgsSvgMarkerSymbolLayer *QgsSvgMarkerSymbolLayer::clone() const
 {
-  QgsSvgMarkerSymbolLayer *m = new QgsSvgMarkerSymbolLayer( mPath, mSize, mAngle );
-  m->setFixedAspectRatio( mFixedAspectRatio );
-  m->setColor( mColor );
-  m->setStrokeColor( mStrokeColor );
-  m->setStrokeWidth( mStrokeWidth );
-  m->setStrokeWidthUnit( mStrokeWidthUnit );
-  m->setStrokeWidthMapUnitScale( mStrokeWidthMapUnitScale );
-  m->setOffset( mOffset );
-  m->setOffsetUnit( mOffsetUnit );
-  m->setOffsetMapUnitScale( mOffsetMapUnitScale );
-  m->setSizeUnit( mSizeUnit );
-  m->setSizeMapUnitScale( mSizeMapUnitScale );
-  m->setHorizontalAnchorPoint( mHorizontalAnchorPoint );
-  m->setVerticalAnchorPoint( mVerticalAnchorPoint );
-  m->setParameters( mParameters );
-
-  copyDataDefinedProperties( m );
-  copyPaintEffect( m );
-  return m;
+  return new QgsSvgMarkerSymbolLayer( *this );
 }
 
 void QgsSvgMarkerSymbolLayer::setOutputUnit( Qgis::RenderUnit unit )
@@ -3051,7 +3058,7 @@ QgsSymbolLayer *QgsRasterMarkerSymbolLayer::create( const QVariantMap &props )
   if ( props.contains( QStringLiteral( "scale_method" ) ) )
     scaleMethod = QgsSymbolLayerUtils::decodeScaleMethod( props[QStringLiteral( "scale_method" )].toString() );
 
-  std::unique_ptr< QgsRasterMarkerSymbolLayer > m = std::make_unique< QgsRasterMarkerSymbolLayer >( path, size, angle, scaleMethod );
+  auto m = std::make_unique< QgsRasterMarkerSymbolLayer >( path, size, angle, scaleMethod );
   m->setCommonProperties( props );
   return m.release();
 }
@@ -3079,11 +3086,11 @@ void QgsRasterMarkerSymbolLayer::setCommonProperties( const QVariantMap &propert
 
   if ( properties.contains( QStringLiteral( "horizontal_anchor_point" ) ) )
   {
-    setHorizontalAnchorPoint( QgsMarkerSymbolLayer::HorizontalAnchorPoint( properties[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
+    setHorizontalAnchorPoint( static_cast< Qgis::HorizontalAnchorPoint >( properties[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
   }
   if ( properties.contains( QStringLiteral( "vertical_anchor_point" ) ) )
   {
-    setVerticalAnchorPoint( QgsMarkerSymbolLayer::VerticalAnchorPoint( properties[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
+    setVerticalAnchorPoint( static_cast< Qgis::VerticalAnchorPoint >( properties[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
   }
 
   restoreOldDataDefinedProperties( properties );
@@ -3124,7 +3131,7 @@ bool QgsRasterMarkerSymbolLayer::setPreservedAspectRatio( bool par )
 
 double QgsRasterMarkerSymbolLayer::updateDefaultAspectRatio()
 {
-  if ( mDefaultAspectRatio == 0.0 )
+  if ( mDefaultAspectRatio == 0.0 && !mPath.isEmpty() )
   {
     const QSize size = QgsApplication::imageCache()->originalSize( mPath );
     mDefaultAspectRatio = ( !size.isNull() && size.isValid() && size.width() > 0 ) ? static_cast< double >( size.height() ) / static_cast< double >( size.width() ) : 0.0;
@@ -3135,6 +3142,11 @@ double QgsRasterMarkerSymbolLayer::updateDefaultAspectRatio()
 QString QgsRasterMarkerSymbolLayer::layerType() const
 {
   return QStringLiteral( "RasterMarker" );
+}
+
+Qgis::SymbolLayerFlags QgsRasterMarkerSymbolLayer::flags() const
+{
+  return QgsMarkerSymbolLayer::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 void QgsRasterMarkerSymbolLayer::renderPoint( QPointF point, QgsSymbolRenderContext &context )
@@ -3361,14 +3373,19 @@ QVariantMap QgsRasterMarkerSymbolLayer::properties() const
   map[QStringLiteral( "offset_unit" )] = QgsUnitTypes::encodeUnit( mOffsetUnit );
   map[QStringLiteral( "offset_map_unit_scale" )] = QgsSymbolLayerUtils::encodeMapUnitScale( mOffsetMapUnitScale );
   map[QStringLiteral( "scale_method" )] = QgsSymbolLayerUtils::encodeScaleMethod( mScaleMethod );
-  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( mHorizontalAnchorPoint );
-  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( mVerticalAnchorPoint );
+  map[QStringLiteral( "horizontal_anchor_point" )] = QString::number( static_cast< int >( mHorizontalAnchorPoint ) );
+  map[QStringLiteral( "vertical_anchor_point" )] = QString::number( static_cast< int >( mVerticalAnchorPoint ) );
   return map;
 }
 
 QgsRasterMarkerSymbolLayer *QgsRasterMarkerSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsRasterMarkerSymbolLayer > m = std::make_unique< QgsRasterMarkerSymbolLayer >( mPath, mSize, mAngle );
+  auto m = std::make_unique< QgsRasterMarkerSymbolLayer >();
+  m->mPath = mPath;
+  m->mDefaultAspectRatio = mDefaultAspectRatio;
+  m->mSize = mSize;
+  m->mAngle = mAngle;
+  // other members are copied by:
   copyCommonProperties( m.get() );
   return m.release();
 }
@@ -3521,9 +3538,9 @@ QgsSymbolLayer *QgsFontMarkerSymbolLayer::create( const QVariantMap &props )
   if ( props.contains( QStringLiteral( "joinstyle" ) ) )
     m->setPenJoinStyle( QgsSymbolLayerUtils::decodePenJoinStyle( props[QStringLiteral( "joinstyle" )].toString() ) );
   if ( props.contains( QStringLiteral( "horizontal_anchor_point" ) ) )
-    m->setHorizontalAnchorPoint( QgsMarkerSymbolLayer::HorizontalAnchorPoint( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
+    m->setHorizontalAnchorPoint( static_cast< Qgis::HorizontalAnchorPoint >( props[ QStringLiteral( "horizontal_anchor_point" )].toInt() ) );
   if ( props.contains( QStringLiteral( "vertical_anchor_point" ) ) )
-    m->setVerticalAnchorPoint( QgsMarkerSymbolLayer::VerticalAnchorPoint( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
+    m->setVerticalAnchorPoint( static_cast< Qgis::VerticalAnchorPoint >( props[ QStringLiteral( "vertical_anchor_point" )].toInt() ) );
 
   m->restoreOldDataDefinedProperties( props );
 
@@ -3533,6 +3550,11 @@ QgsSymbolLayer *QgsFontMarkerSymbolLayer::create( const QVariantMap &props )
 QString QgsFontMarkerSymbolLayer::layerType() const
 {
   return QStringLiteral( "FontMarker" );
+}
+
+Qgis::SymbolLayerFlags QgsFontMarkerSymbolLayer::flags() const
+{
+  return QgsMarkerSymbolLayer::flags() | Qgis::SymbolLayerFlag::CanCalculateMaskGeometryPerFeature;
 }
 
 void QgsFontMarkerSymbolLayer::startRender( QgsSymbolRenderContext &context )
@@ -3573,7 +3595,21 @@ void QgsFontMarkerSymbolLayer::startRender( QgsSymbolRenderContext &context )
   mFont.setPixelSize( std::max( 2, static_cast< int >( std::round( sizePixels ) ) ) );
   mFontMetrics.reset( new QFontMetrics( mFont ) );
   mChrWidth = mFontMetrics->horizontalAdvance( mString );
-  mChrOffset = QPointF( mChrWidth / 2.0, -mFontMetrics->ascent() / 2.0 );
+  switch ( mVerticalAnchorPoint )
+  {
+    case Qgis::VerticalAnchorPoint::Baseline:
+    {
+      mChrOffset = QPointF( mChrWidth / 2.0, -sizePixels / 2.0 );
+      break;
+    }
+    case Qgis::VerticalAnchorPoint::Top:
+    case Qgis::VerticalAnchorPoint::Bottom:
+    case Qgis::VerticalAnchorPoint::Center:
+    {
+      mChrOffset = QPointF( mChrWidth / 2.0, -mFontMetrics->ascent() / 2.0 );
+      break;
+    }
+  }
   mOrigSize = mSize; // save in case the size would be data defined
 
   // use caching only when not using a data defined character
@@ -3606,7 +3642,22 @@ QString QgsFontMarkerSymbolLayer::characterToRender( QgsSymbolRenderContext &con
     if ( stringToRender != mString )
     {
       charWidth = mFontMetrics->horizontalAdvance( stringToRender );
-      charOffset = QPointF( charWidth / 2.0, -mFontMetrics->ascent() / 2.0 );
+      switch ( mVerticalAnchorPoint )
+      {
+        case Qgis::VerticalAnchorPoint::Baseline:
+        {
+          const double sizePixels = context.renderContext().convertToPainterUnits( mSize, mSizeUnit, mSizeMapUnitScale );
+          charOffset = QPointF( charWidth / 2.0, -sizePixels / 2.0 );
+          break;
+        }
+        case Qgis::VerticalAnchorPoint::Top:
+        case Qgis::VerticalAnchorPoint::Bottom:
+        case Qgis::VerticalAnchorPoint::Center:
+        {
+          charOffset = QPointF( charWidth / 2.0, -mFontMetrics->ascent() / 2.0 );
+          break;
+        }
+      }
     }
   }
   return stringToRender;
@@ -3834,8 +3885,8 @@ QVariantMap QgsFontMarkerSymbolLayer::properties() const
   props[QStringLiteral( "offset" )] = QgsSymbolLayerUtils::encodePoint( mOffset );
   props[QStringLiteral( "offset_unit" )] = QgsUnitTypes::encodeUnit( mOffsetUnit );
   props[QStringLiteral( "offset_map_unit_scale" )] = QgsSymbolLayerUtils::encodeMapUnitScale( mOffsetMapUnitScale );
-  props[QStringLiteral( "horizontal_anchor_point" )] = QString::number( mHorizontalAnchorPoint );
-  props[QStringLiteral( "vertical_anchor_point" )] = QString::number( mVerticalAnchorPoint );
+  props[QStringLiteral( "horizontal_anchor_point" )] = QString::number( static_cast< int >( mHorizontalAnchorPoint ) );
+  props[QStringLiteral( "vertical_anchor_point" )] = QString::number( static_cast< int >( mVerticalAnchorPoint ) );
   return props;
 }
 
@@ -4036,7 +4087,7 @@ QgsAnimatedMarkerSymbolLayer::QgsAnimatedMarkerSymbolLayer( const QString &path,
 
 QgsAnimatedMarkerSymbolLayer::~QgsAnimatedMarkerSymbolLayer() = default;
 
-QgsSymbolLayer *QgsAnimatedMarkerSymbolLayer::create( const QVariantMap &properties )
+QgsSymbolLayer *QgsAnimatedMarkerSymbolLayer::create( const QVariantMap &properties ) // cppcheck-suppress duplInheritedMember
 {
   QString path;
   double size = DEFAULT_RASTERMARKER_SIZE;
@@ -4049,7 +4100,7 @@ QgsSymbolLayer *QgsAnimatedMarkerSymbolLayer::create( const QVariantMap &propert
   if ( properties.contains( QStringLiteral( "angle" ) ) )
     angle = properties[QStringLiteral( "angle" )].toDouble();
 
-  std::unique_ptr< QgsAnimatedMarkerSymbolLayer > m = std::make_unique< QgsAnimatedMarkerSymbolLayer >( path, size, angle );
+  auto m = std::make_unique< QgsAnimatedMarkerSymbolLayer >( path, size, angle );
   m->setFrameRate( properties.value( QStringLiteral( "frameRate" ), QStringLiteral( "10" ) ).toDouble() );
 
   m->setCommonProperties( properties );
@@ -4070,7 +4121,7 @@ QVariantMap QgsAnimatedMarkerSymbolLayer::properties() const
 
 QgsAnimatedMarkerSymbolLayer *QgsAnimatedMarkerSymbolLayer::clone() const
 {
-  std::unique_ptr< QgsAnimatedMarkerSymbolLayer > m = std::make_unique< QgsAnimatedMarkerSymbolLayer >( mPath, mSize, mAngle );
+  auto m = std::make_unique< QgsAnimatedMarkerSymbolLayer >( mPath, mSize, mAngle );
   m->setFrameRate( mFrameRateFps );
   copyCommonProperties( m.get() );
   return m.release();

@@ -15,6 +15,8 @@
  *                                                                         *
  ***************************************************************************/
 #include "qgsvectorlayerprofilegenerator.h"
+#include "qgsabstractgeometry.h"
+#include "qgspolyhedralsurface.h"
 #include "qgsprofilerequest.h"
 #include "qgscurve.h"
 #include "qgsvectorlayer.h"
@@ -179,7 +181,7 @@ QgsProfileSnapResult QgsVectorLayerProfileResults::snapPointToIndividualFeatures
   return res;
 }
 
-void QgsVectorLayerProfileResults::visitFeaturesAtPoint( const QgsProfilePoint &point, double maximumPointDistanceDelta, double maximumPointElevationDelta, double maximumSurfaceElevationDelta,  const std::function< void( QgsFeatureId, double delta, double distance, double elevation ) > &visitor, bool visitWithin )
+void QgsVectorLayerProfileResults::visitFeaturesAtPoint( const QgsProfilePoint &point, double maximumPointDistanceDelta, double maximumPointElevationDelta, double maximumSurfaceElevationDelta,  const std::function< void( QgsFeatureId, double delta, double distance, double elevation ) > &visitor, bool visitWithin ) const
 {
   // TODO -- add spatial index if performance is an issue
 
@@ -334,7 +336,7 @@ void QgsVectorLayerProfileResults::visitFeaturesAtPoint( const QgsProfilePoint &
   }
 }
 
-void QgsVectorLayerProfileResults::visitFeaturesInRange( const QgsDoubleRange &distanceRange, const QgsDoubleRange &elevationRange, const std::function<void ( QgsFeatureId )> &visitor )
+void QgsVectorLayerProfileResults::visitFeaturesInRange( const QgsDoubleRange &distanceRange, const QgsDoubleRange &elevationRange, const std::function<void ( QgsFeatureId )> &visitor ) const
 {
   // TODO -- add spatial index if performance is an issue
   const QgsRectangle profileRange( distanceRange.lower(), elevationRange.lower(), distanceRange.upper(), elevationRange.upper() );
@@ -673,7 +675,7 @@ QgsVectorLayerProfileGenerator::QgsVectorLayerProfileGenerator( QgsVectorLayer *
   , mProfileCurve( request.profileCurve() ? request.profileCurve()->clone() : nullptr )
   , mTerrainProvider( request.terrainProvider() ? request.terrainProvider()->clone() : nullptr )
   , mTolerance( request.tolerance() )
-  , mSourceCrs( layer->crs() )
+  , mSourceCrs( layer->crs3D() )
   , mTargetCrs( request.crs() )
   , mTransformContext( request.transformContext() )
   , mExtent( layer->extent() )
@@ -685,6 +687,8 @@ QgsVectorLayerProfileGenerator::QgsVectorLayerProfileGenerator( QgsVectorLayer *
   , mBinding( qgis::down_cast< QgsVectorLayerElevationProperties * >( layer->elevationProperties() )->binding() )
   , mExtrusionEnabled( qgis::down_cast< QgsVectorLayerElevationProperties * >( layer->elevationProperties() )->extrusionEnabled() )
   , mExtrusionHeight( qgis::down_cast< QgsVectorLayerElevationProperties * >( layer->elevationProperties() )->extrusionHeight() )
+  , mCustomToleranceEnabled( qgis::down_cast< QgsVectorLayerElevationProperties * >( layer->elevationProperties() )->customToleranceEnabled() )
+  , mCustomTolerance( qgis::down_cast< QgsVectorLayerElevationProperties * >( layer->elevationProperties() )->customTolerance() )
   , mExpressionContext( request.expressionContext() )
   , mFields( layer->fields() )
   , mDataDefinedProperties( layer->elevationProperties()->dataDefinedProperties() )
@@ -720,6 +724,72 @@ bool QgsVectorLayerProfileGenerator::generateProfile( const QgsProfileGeneration
   if ( !mProfileCurve || mFeedback->isCanceled() )
     return false;
 
+  if ( QgsLineString *profileLine =
+         qgsgeometry_cast<QgsLineString *>( mProfileCurve.get() ) )
+  {
+    // The profile generation code can't deal with curves that enter a single
+    // point multiple times. We handle this for line strings by splitting them
+    // into multiple parts, each with no repeated points, and computing the
+    // profile for each by itself.
+    std::unique_ptr< QgsCurve > origCurve = std::move( mProfileCurve );
+    std::unique_ptr< QgsVectorLayerProfileResults > totalResults;
+    double distanceProcessed = 0;
+
+    QVector<QgsLineString *> disjointParts = profileLine->splitToDisjointXYParts();
+    for ( int i = 0; i < disjointParts.size(); i++ )
+    {
+      mProfileCurve.reset( disjointParts[i] );
+      if ( !generateProfileInner() )
+      {
+        mProfileCurve = std::move( origCurve );
+
+        // Free the rest of the parts
+        for ( int j = i + 1; j < disjointParts.size(); j++ )
+          delete disjointParts[j];
+
+        return false;
+      }
+
+      if ( !totalResults )
+        // Use the first result set as a base
+        totalResults.reset( mResults.release() );
+      else
+      {
+        // Merge the results, shifting them by distanceProcessed
+        totalResults->mRawPoints.append( mResults->mRawPoints );
+        totalResults->minZ = std::min( totalResults->minZ, mResults->minZ );
+        totalResults->maxZ = std::max( totalResults->maxZ, mResults->maxZ );
+        for ( auto it = mResults->mDistanceToHeightMap.constKeyValueBegin();
+              it != mResults->mDistanceToHeightMap.constKeyValueEnd();
+              ++it )
+        {
+          totalResults->mDistanceToHeightMap[it->first + distanceProcessed] = it->second;
+        }
+        for ( auto it = mResults->features.constKeyValueBegin();
+              it != mResults->features.constKeyValueEnd();
+              ++it )
+        {
+          for ( QgsVectorLayerProfileResults::Feature feature : it->second )
+          {
+            feature.crossSectionGeometry.translate( distanceProcessed, 0 );
+            totalResults->features[it->first].push_back( feature );
+          }
+        }
+      }
+
+      distanceProcessed += mProfileCurve->length();
+    }
+
+    mProfileCurve = std::move( origCurve );
+    mResults.reset( totalResults.release() );
+    return true;
+  }
+
+  return generateProfileInner();
+}
+
+bool QgsVectorLayerProfileGenerator::generateProfileInner( const QgsProfileGenerationContext & )
+{
   // we need to transform the profile curve to the vector's CRS
   mTransformedCurve.reset( mProfileCurve->clone() );
   mLayerToTargetTransform = QgsCoordinateTransform( mSourceCrs, mTargetCrs, mTransformContext );
@@ -750,13 +820,13 @@ bool QgsVectorLayerProfileGenerator::generateProfile( const QgsProfileGeneration
   mProfileCurveEngine.reset( new QgsGeos( mProfileCurve.get() ) );
   mProfileCurveEngine->prepareGeometry();
 
-  if ( mTolerance == 0.0 ) // geos does not handle very well buffer with 0 size
+  if ( tolerance() == 0.0 ) // geos does not handle very well buffer with 0 size
   {
     mProfileBufferedCurve = std::unique_ptr<QgsAbstractGeometry>( mProfileCurve->clone() );
   }
   else
   {
-    mProfileBufferedCurve = std::unique_ptr<QgsAbstractGeometry>( mProfileCurveEngine->buffer( mTolerance, 8, Qgis::EndCapStyle::Flat, Qgis::JoinStyle::Round, 2 ) );
+    mProfileBufferedCurve = std::unique_ptr<QgsAbstractGeometry>( mProfileCurveEngine->buffer( tolerance(), 8, Qgis::EndCapStyle::Flat, Qgis::JoinStyle::Round, 2 ) );
   }
 
   mProfileBufferedCurveEngine.reset( new QgsGeos( mProfileBufferedCurve.get() ) );
@@ -806,8 +876,8 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPoints()
 {
   // get features from layer
   QgsFeatureRequest request;
-  request.setDestinationCrs( mTargetCrs, mTransformContext );
-  request.setDistanceWithin( QgsGeometry( mProfileCurve->clone() ), mTolerance );
+  request.setCoordinateTransform( QgsCoordinateTransform( mSourceCrs, mTargetCrs, mTransformContext ) );
+  request.setDistanceWithin( QgsGeometry( mProfileCurve->clone() ), tolerance() );
   request.setSubsetOfAttributes( mDataDefinedProperties.referencedFields( mExpressionContext ), mFields );
   request.setFeedback( mFeedback.get() );
 
@@ -942,15 +1012,15 @@ void QgsVectorLayerProfileGenerator::processIntersectionCurve( const QgsLineStri
   // create geometries from vector data
   if ( mExtrusionEnabled )
   {
-    std::unique_ptr< QgsLineString > ring = std::make_unique< QgsLineString >( newX, newY, newZ );
-    std::unique_ptr< QgsLineString > extrudedRing = std::make_unique< QgsLineString >( newX, newY, extrudedZ );
+    auto ring = std::make_unique< QgsLineString >( newX, newY, newZ );
+    auto extrudedRing = std::make_unique< QgsLineString >( newX, newY, extrudedZ );
     std::unique_ptr< QgsLineString > reversedExtrusion( extrudedRing->reversed() );
     ring->append( reversedExtrusion.get() );
     ring->close();
     resultFeature.geometry = QgsGeometry( new QgsPolygon( ring.release() ) );
 
-    std::unique_ptr< QgsLineString > distanceVHeightRing = std::make_unique< QgsLineString >( newDistance, newZ );
-    std::unique_ptr< QgsLineString > extrudedDistanceVHeightRing = std::make_unique< QgsLineString >( newDistance, extrudedZ );
+    auto distanceVHeightRing = std::make_unique< QgsLineString >( newDistance, newZ );
+    auto extrudedDistanceVHeightRing = std::make_unique< QgsLineString >( newDistance, extrudedZ );
     std::unique_ptr< QgsLineString > reversedDistanceVHeightExtrusion( extrudedDistanceVHeightRing->reversed() );
     distanceVHeightRing->append( reversedDistanceVHeightExtrusion.get() );
     distanceVHeightRing->close();
@@ -970,9 +1040,9 @@ bool QgsVectorLayerProfileGenerator::generateProfileForLines()
   // get features from layer
   QgsFeatureRequest request;
   request.setDestinationCrs( mTargetCrs, mTransformContext );
-  if ( mTolerance > 0 )
+  if ( tolerance() > 0 )
   {
-    request.setDistanceWithin( QgsGeometry( mProfileCurve->clone() ), mTolerance );
+    request.setDistanceWithin( QgsGeometry( mProfileCurve->clone() ), tolerance() );
   }
   else
   {
@@ -1157,15 +1227,15 @@ void QgsVectorLayerProfileGenerator::processTriangleIntersectForLine( const QgsP
 
   if ( mExtrusionEnabled )
   {
-    std::unique_ptr< QgsLineString > ring = std::make_unique< QgsLineString >( newX, newY, newZ );
-    std::unique_ptr< QgsLineString > extrudedRing = std::make_unique< QgsLineString >( newX, newY, extrudedZ );
+    auto ring = std::make_unique< QgsLineString >( newX, newY, newZ );
+    auto extrudedRing = std::make_unique< QgsLineString >( newX, newY, extrudedZ );
     std::unique_ptr< QgsLineString > reversedExtrusion( extrudedRing->reversed() );
     ring->append( reversedExtrusion.get() );
     ring->close();
     transformedParts.append( QgsGeometry( new QgsPolygon( ring.release() ) ) );
 
-    std::unique_ptr< QgsLineString > distanceVHeightRing = std::make_unique< QgsLineString >( newDistance, newZ );
-    std::unique_ptr< QgsLineString > extrudedDistanceVHeightRing = std::make_unique< QgsLineString >( newDistance, extrudedZ );
+    auto distanceVHeightRing = std::make_unique< QgsLineString >( newDistance, newZ );
+    auto extrudedDistanceVHeightRing = std::make_unique< QgsLineString >( newDistance, extrudedZ );
     std::unique_ptr< QgsLineString > reversedDistanceVHeightExtrusion( extrudedDistanceVHeightRing->reversed() );
     distanceVHeightRing->append( reversedDistanceVHeightExtrusion.get() );
     distanceVHeightRing->close();
@@ -1262,9 +1332,9 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPolygons()
   // get features from layer
   QgsFeatureRequest request;
   request.setDestinationCrs( mTargetCrs, mTransformContext );
-  if ( mTolerance > 0 )
+  if ( tolerance() > 0 )
   {
-    request.setDistanceWithin( QgsGeometry( mProfileCurve->clone() ), mTolerance );
+    request.setDistanceWithin( QgsGeometry( mProfileCurve->clone() ), tolerance() );
   }
   else
   {
@@ -1335,7 +1405,7 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPolygons()
     if ( mFeedback->isCanceled() )
       return;
 
-    if ( mTolerance > 0.0 ) // if the tolerance is not 0.0 we will have a polygon / polygon intersection, we do not need tessellation
+    if ( tolerance() > 0.0 ) // if the tolerance is not 0.0 we will have a polygon / polygon intersection, we do not need tessellation
     {
       QString error;
       if ( mProfileBufferedCurveEngine->intersects( clampedPolygon.get(), &error ) )
@@ -1375,8 +1445,12 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPolygons()
           intersection.reset( mProfileBufferedCurveEngine->intersection( shiftedPoly.get(), &error ) );
           if ( intersection.get() )
             processTriangleLineIntersect( clampedPolygon.get(), intersection.get(), transformedParts, crossSectionParts );
+#ifdef QGISDEBUG
           else
+          {
             QgsDebugMsgLevel( QStringLiteral( "processPolygon after shift bad geom! error: %1" ).arg( error ), 0 );
+          }
+#endif
         }
       }
 
@@ -1387,7 +1461,7 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPolygons()
       if ( clampedPolygon->numInteriorRings() == 0 && clampedPolygon->exteriorRing() && clampedPolygon->exteriorRing()->numPoints() == 4 && clampedPolygon->exteriorRing()->isClosed() )
       {
         // special case -- polygon is already a triangle, so no need to tessellate
-        std::unique_ptr< QgsMultiPolygon > multiPolygon = std::make_unique< QgsMultiPolygon >();
+        auto multiPolygon = std::make_unique< QgsMultiPolygon >();
         multiPolygon->addGeometry( clampedPolygon.release() );
         tessellation = QgsGeometry( std::move( multiPolygon ) );
       }
@@ -1395,6 +1469,7 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPolygons()
       {
         const QgsRectangle bounds = clampedPolygon->boundingBox();
         QgsTessellator t( bounds, false, false, false, false );
+        t.setOutputZUp( true );
         t.addPolygon( *clampedPolygon, 0 );
 
         tessellation = QgsGeometry( t.asMultiPolygon() );
@@ -1495,7 +1570,25 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPolygons()
     {
       if ( mProfileBufferedCurveEngine->intersects( *it ) )
       {
-        processPolygon( qgsgeometry_cast< const QgsCurvePolygon * >( *it ), transformedParts, crossSectionParts, offset, wasCollinear );
+        if ( const QgsCurvePolygon *curvePolygon = qgsgeometry_cast< const QgsCurvePolygon * >( *it ) )
+        {
+          processPolygon( curvePolygon, transformedParts, crossSectionParts, offset, wasCollinear );
+        }
+        else if ( const QgsPolyhedralSurface *polySurface = qgsgeometry_cast< const QgsPolyhedralSurface * >( *it ) )
+        {
+          for ( int i = 0; i < polySurface->numPatches(); ++i )
+          {
+            const QgsPolygon *polygon = polySurface->patchN( i );
+            if ( mProfileBufferedCurveEngine->intersects( polygon ) )
+            {
+              processPolygon( polygon, transformedParts, crossSectionParts, offset, wasCollinear );
+            }
+          }
+        }
+        else
+        {
+          QgsDebugError( QStringLiteral( "Unhandled Geometry type: %1" ).arg( ( *it )->wktTypeStr() ) );
+        }
       }
     }
 
@@ -1534,7 +1627,12 @@ bool QgsVectorLayerProfileGenerator::generateProfileForPolygons()
   return true;
 }
 
-double QgsVectorLayerProfileGenerator::terrainHeight( double x, double y )
+double QgsVectorLayerProfileGenerator::tolerance() const
+{
+  return mCustomToleranceEnabled ? mCustomTolerance : mTolerance;
+}
+
+double QgsVectorLayerProfileGenerator::terrainHeight( double x, double y ) const
 {
   if ( !mTerrainProvider )
     return std::numeric_limits<double>::quiet_NaN();
@@ -1553,7 +1651,7 @@ double QgsVectorLayerProfileGenerator::terrainHeight( double x, double y )
   return mTerrainProvider->heightAt( x, y );
 }
 
-double QgsVectorLayerProfileGenerator::featureZToHeight( double x, double y, double z, double offset )
+double QgsVectorLayerProfileGenerator::featureZToHeight( double x, double y, double z, double offset ) const
 {
   switch ( mClamping )
   {
@@ -1590,7 +1688,7 @@ double QgsVectorLayerProfileGenerator::featureZToHeight( double x, double y, dou
   return ( std::isnan( z ) ? 0 : z ) * mScale + offset;
 }
 
-void QgsVectorLayerProfileGenerator::clampAltitudes( QgsLineString *lineString, const QgsPoint &centroid, double offset )
+void QgsVectorLayerProfileGenerator::clampAltitudes( QgsLineString *lineString, const QgsPoint &centroid, double offset ) const
 {
   for ( int i = 0; i < lineString->nCoordinates(); ++i )
   {
@@ -1642,7 +1740,7 @@ void QgsVectorLayerProfileGenerator::clampAltitudes( QgsLineString *lineString, 
   }
 }
 
-bool QgsVectorLayerProfileGenerator::clampAltitudes( QgsPolygon *polygon, double offset )
+bool QgsVectorLayerProfileGenerator::clampAltitudes( QgsPolygon *polygon, double offset ) const
 {
   if ( !polygon->is3D() )
     polygon->addZValue( 0 );

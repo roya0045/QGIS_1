@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/geometry/qgsmultipoint.h                                    *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -120,7 +120,7 @@ The multipoint Z and M type will be set based on the type of the first point in 
               break;
             }
 
-            std::unique_ptr< QgsPoint > point = std::make_unique< QgsPoint >( x, y );
+            auto point = std::make_unique< QgsPoint >( x, y );
             if ( elementSize > 2 )
             {
               element = PySequence_GetItem( value, 2 );
@@ -294,6 +294,8 @@ Returns the point with the specified ``index``.
 
     virtual bool isValid( QString &error /Out/, Qgis::GeometryValidityFlags flags = Qgis::GeometryValidityFlags() ) const /HoldGIL/;
 
+    virtual QgsMultiPoint *simplifyByDistance( double tolerance ) const /Factory/;
+
 
 
     virtual QgsMultiPoint *createEmptyWithSameType() const /Factory/;
@@ -321,5 +323,5 @@ Returns the point with the specified ``index``.
  *                                                                      *
  * src/core/geometry/qgsmultipoint.h                                    *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

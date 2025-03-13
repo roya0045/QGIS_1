@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include "qgscheckboxsearchwidgetwrapper.h"
+#include "moc_qgscheckboxsearchwidgetwrapper.cpp"
 
 #include "qgsfields.h"
 #include "qgscheckboxwidgetfactory.h"
@@ -42,8 +43,19 @@ QVariant QgsCheckboxSearchWidgetWrapper::value() const
 {
   QVariant v;
 
+  const QMetaType::Type fieldType = layer()->fields().at( mFieldIdx ).type();
+
   if ( mCheckBox )
-    v = mCheckBox->isChecked() ? config( QStringLiteral( "CheckedState" ), true ) : config( QStringLiteral( "UncheckedState" ), false );
+  {
+    if ( fieldType == QMetaType::Type::Bool )
+    {
+      v = mCheckBox->isChecked();
+    }
+    else
+    {
+      v = mCheckBox->isChecked() ? config( QStringLiteral( "CheckedState" ), true ) : config( QStringLiteral( "UncheckedState" ), false );
+    }
+  }
 
   return v;
 }
@@ -131,9 +143,7 @@ void QgsCheckboxSearchWidgetWrapper::setExpression( const QString &expression )
   const QString fieldName = layer()->fields().at( mFieldIdx ).name();
 
   const QString str = QStringLiteral( "%1 = '%3'" )
-                      .arg( QgsExpression::quotedColumnRef( fieldName ),
-                            exp.replace( '\'', QLatin1String( "''" ) )
-                          );
+                        .arg( QgsExpression::quotedColumnRef( fieldName ), exp.replace( '\'', QLatin1String( "''" ) ) );
   mExpression = str;
 }
 
@@ -166,5 +176,3 @@ void QgsCheckboxSearchWidgetWrapper::initWidget( QWidget *editor )
     connect( mCheckBox, &QCheckBox::stateChanged, this, &QgsCheckboxSearchWidgetWrapper::stateChanged );
   }
 }
-
-

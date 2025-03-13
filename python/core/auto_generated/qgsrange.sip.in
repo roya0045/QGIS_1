@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/qgsrange.h                                                  *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -141,12 +141,12 @@ Returns ``True`` if this range overlaps another range.
 
 
 
-typedef QgsRange<double> QgsRangedoubleBase;
+typedef QgsRange<double> QgsRangedoubleBase /NoTypeName/;
 
 class QgsDoubleRange : QgsRangedoubleBase
 {
 %Docstring(signature="appended")
-QgsRange which stores a range of double values.
+:py:class:`QgsRange` which stores a range of double values.
 
 .. seealso:: :py:class:`QgsIntRange`
 
@@ -210,7 +210,7 @@ Returns ``True`` if the range consists of all possible values.
 
 
 
-typedef QgsRange<int> QgsRangeintBase;
+typedef QgsRange<int> QgsRangeintBase /NoTypeName/;
 
 class QgsIntRange : QgsRangeintBase
 {
@@ -385,6 +385,8 @@ Returns ``True`` if this range contains a specified ``element``.
     bool overlaps( const QgsTemporalRange<T> &other ) const;
 %Docstring
 Returns ``True`` if this range overlaps another range.
+
+.. seealso:: :py:func:`contains`
 %End
 
     bool extend( const QgsTemporalRange<T> &other );
@@ -439,5 +441,5 @@ typedef QgsTemporalRange< QDateTime > QgsDateTimeRange;
  *                                                                      *
  * src/core/qgsrange.h                                                  *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

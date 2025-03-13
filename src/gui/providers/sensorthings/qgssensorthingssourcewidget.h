@@ -39,7 +39,6 @@ class QgsSensorThingsExpansionsModel : public QAbstractItemModel
     Q_OBJECT
 
   public:
-
     enum Column
     {
       Entity = 0,
@@ -60,14 +59,14 @@ class QgsSensorThingsExpansionsModel : public QAbstractItemModel
     QVariant headerData( int section, Qt::Orientation orientation, int role = Qt::DisplayRole ) const override;
     bool setData( const QModelIndex &index, const QVariant &value, int role ) override;
     bool insertRows( int position, int rows, const QModelIndex &parent = QModelIndex() ) override;
+    bool canRemoveRow( int row ) const;
     bool removeRows( int position, int rows, const QModelIndex &parent = QModelIndex() ) override;
 
-    void setExpansions( const QList< QgsSensorThingsExpansionDefinition> &expansions );
-    QList< QgsSensorThingsExpansionDefinition> expansions() const { return mExpansions; }
+    void setExpansions( const QList<QgsSensorThingsExpansionDefinition> &expansions );
+    QList<QgsSensorThingsExpansionDefinition> expansions() const { return mExpansions; }
 
   private:
-
-    QList< QgsSensorThingsExpansionDefinition> mExpansions;
+    QList<QgsSensorThingsExpansionDefinition> mExpansions;
 };
 
 class QgsSensorThingsFilterWidget : public QWidget
@@ -87,10 +86,8 @@ class QgsSensorThingsFilterWidget : public QWidget
     void setQuery();
 
   private:
-
     QString mFilter;
     Qgis::SensorThingsEntity mEntity = Qgis::SensorThingsEntity::Invalid;
-
 };
 
 
@@ -99,7 +96,6 @@ class QgsSensorThingsExpansionsDelegate : public QStyledItemDelegate
     Q_OBJECT
 
   public:
-
     QgsSensorThingsExpansionsDelegate( QObject *parent );
     void setBaseEntityType( Qgis::SensorThingsEntity type );
 
@@ -107,8 +103,8 @@ class QgsSensorThingsExpansionsDelegate : public QStyledItemDelegate
     QWidget *createEditor( QWidget *parent, const QStyleOptionViewItem & /*option*/, const QModelIndex &index ) const override;
     void setEditorData( QWidget *editor, const QModelIndex &index ) const override;
     void setModelData( QWidget *editor, QAbstractItemModel *model, const QModelIndex &index ) const override;
-  private:
 
+  private:
     Qgis::SensorThingsEntity mBaseEntityType = Qgis::SensorThingsEntity::Invalid;
 };
 
@@ -120,9 +116,10 @@ class QgsSensorThingsRemoveExpansionDelegate : public QStyledItemDelegate SIP_SK
   public:
     QgsSensorThingsRemoveExpansionDelegate( QObject *parent );
     bool eventFilter( QObject *obj, QEvent *event ) override;
+
   protected:
-    void paint( QPainter *painter,
-                const QStyleOptionViewItem &option, const QModelIndex &index ) const override;
+    void paint( QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index ) const override;
+
   private:
     void setHoveredIndex( const QModelIndex &index );
 
@@ -167,7 +164,7 @@ class QgsSensorThingsSourceWidget : public QgsProviderSourceWidget, protected Ui
     QgsSensorThingsExpansionsDelegate *mExpansionsTableDelegate = nullptr;
     QVariantMap mSourceParts;
     bool mIsValid = false;
-    QPointer< QgsSensorThingsConnectionPropertiesTask > mPropertiesTask;
+    QPointer<QgsSensorThingsConnectionPropertiesTask> mPropertiesTask;
 };
 
 ///@endcond

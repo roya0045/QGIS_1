@@ -107,6 +107,7 @@ class CORE_EXPORT QgsMultiLineString: public QgsMultiCurve
     bool addGeometry( QgsAbstractGeometry *g SIP_TRANSFER ) override;
     bool addGeometries( const QVector< QgsAbstractGeometry * > &geometries SIP_TRANSFER ) final;
     bool insertGeometry( QgsAbstractGeometry *g SIP_TRANSFER, int index ) override;
+    QgsMultiLineString *simplifyByDistance( double tolerance ) const override SIP_FACTORY;
 
     /**
      * Returns the geometry converted to the more generic curve type QgsMultiCurve
@@ -122,7 +123,7 @@ class CORE_EXPORT QgsMultiLineString: public QgsMultiCurve
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
      */
-    inline static const QgsMultiLineString *cast( const QgsAbstractGeometry *geom )
+    inline static const QgsMultiLineString *cast( const QgsAbstractGeometry *geom ) // cppcheck-suppress duplInheritedMember
     {
       if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == Qgis::WkbType::MultiLineString )
         return static_cast<const QgsMultiLineString *>( geom );

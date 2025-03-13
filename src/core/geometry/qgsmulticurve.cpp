@@ -209,6 +209,17 @@ bool QgsMultiCurve::insertGeometry( QgsAbstractGeometry *g, int index )
   return QgsGeometryCollection::insertGeometry( g, index );
 }
 
+QgsMultiCurve *QgsMultiCurve::simplifyByDistance( double tolerance ) const
+{
+  auto res = std::make_unique< QgsMultiCurve >();
+  res->reserve( mGeometries.size() );
+  for ( int i = 0; i < mGeometries.size(); ++i )
+  {
+    res->addGeometry( mGeometries.at( i )->simplifyByDistance( tolerance ) );
+  }
+  return res.release();
+}
+
 QgsMultiCurve *QgsMultiCurve::reversed() const
 {
   QgsMultiCurve *reversedMultiCurve = new QgsMultiCurve();
@@ -225,7 +236,7 @@ QgsMultiCurve *QgsMultiCurve::reversed() const
 
 QgsAbstractGeometry *QgsMultiCurve::boundary() const
 {
-  std::unique_ptr< QgsMultiPoint > multiPoint( new QgsMultiPoint() );
+  auto multiPoint = std::make_unique<QgsMultiPoint>();
   multiPoint->reserve( mGeometries.size() * 2 );
   for ( int i = 0; i < mGeometries.size(); ++i )
   {

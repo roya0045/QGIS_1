@@ -17,6 +17,7 @@
  ***************************************************************************/
 
 #include "qgsnetworkcontentfetcher.h"
+#include "moc_qgsnetworkcontentfetcher.cpp"
 #include "qgsnetworkaccessmanager.h"
 #include "qgssetrequestinitiator_p.h"
 #include "qgsmessagelog.h"
@@ -47,6 +48,7 @@ void QgsNetworkContentFetcher::fetchContent( const QUrl &url, const QString &aut
 void QgsNetworkContentFetcher::fetchContent( const QNetworkRequest &r, const QString &authcfg )
 {
   QNetworkRequest request( r );
+  request.setAttribute( QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy );
 
   mAuthCfg = authcfg;
   if ( !mAuthCfg.isEmpty() )

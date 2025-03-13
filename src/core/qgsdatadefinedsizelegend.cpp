@@ -15,6 +15,7 @@
 
 #include "qgsdatadefinedsizelegend.h"
 
+#include "qgslayertreemodellegendnode.h"
 #include "qgsproperty.h"
 #include "qgspropertytransformer.h"
 #include "qgssymbollayerutils.h"
@@ -29,7 +30,7 @@
 
 QgsDataDefinedSizeLegend::QgsDataDefinedSizeLegend()
 {
-  std::unique_ptr< QgsSimpleLineSymbolLayer > lineSymbolLayer = std::make_unique< QgsSimpleLineSymbolLayer >( QColor( 0, 0, 0 ), 0.2 );
+  auto lineSymbolLayer = std::make_unique< QgsSimpleLineSymbolLayer >( QColor( 0, 0, 0 ), 0.2 );
   mLineSymbol = std::make_unique< QgsLineSymbol >( QgsSymbolLayerList() << lineSymbolLayer.release() );
 }
 
@@ -124,9 +125,11 @@ void QgsDataDefinedSizeLegend::updateFromSymbolAndProperty( const QgsMarkerSymbo
 QgsLegendSymbolList QgsDataDefinedSizeLegend::legendSymbolList() const
 {
   QgsLegendSymbolList lst;
+  QVariant isDataDefinedSize( true );
   if ( !mTitleLabel.isEmpty() )
   {
     QgsLegendSymbolItem title( nullptr, mTitleLabel, QString() );
+    title.setUserData( static_cast<int>( QgsLayerTreeModelLegendNode::CustomRole::IsDataDefinedSize ), isDataDefinedSize );
     lst << title;
   }
 
@@ -136,6 +139,7 @@ QgsLegendSymbolList QgsDataDefinedSizeLegend::legendSymbolList() const
     {
       QgsLegendSymbolItem i;
       i.setDataDefinedSizeLegendSettings( new QgsDataDefinedSizeLegend( *this ) );
+      i.setUserData( static_cast<int>( QgsLayerTreeModelLegendNode::CustomRole::IsDataDefinedSize ), isDataDefinedSize );
       lst << i;
       break;
     }
@@ -146,6 +150,7 @@ QgsLegendSymbolList QgsDataDefinedSizeLegend::legendSymbolList() const
       for ( const SizeClass &cl : mSizeClasses )
       {
         QgsLegendSymbolItem si( mSymbol.get(), cl.label, QString() );
+        si.setUserData( static_cast<int>( QgsLayerTreeModelLegendNode::CustomRole::IsDataDefinedSize ), isDataDefinedSize );
         QgsMarkerSymbol *s = static_cast<QgsMarkerSymbol *>( si.symbol() );
         double size = cl.size;
         if ( mSizeScaleTransformer )

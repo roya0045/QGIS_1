@@ -37,13 +37,12 @@ namespace
 
     return escaped;
   }
-}
+} // namespace
 
 QString QgsHanaUtils::connectionInfo( const QgsDataSourceUri &uri )
 {
   QStringList connectionItems;
-  auto addItem = [&connectionItems]( const char *key, const QString & value, bool quoted = true )
-  {
+  auto addItem = [&connectionItems]( const char *key, const QString &value, bool quoted = true ) {
     if ( quoted )
       connectionItems << QStringLiteral( "%1='%2'" ).arg( key, value );
     else
@@ -190,6 +189,45 @@ QString QgsHanaUtils::toString( Qgis::DistanceUnit unit )
       return QStringLiteral( "nautical mile" );
     case Qgis::DistanceUnit::Inches:
       return QStringLiteral( "inch" );
+    case Qgis::DistanceUnit::ChainsInternational:
+    case Qgis::DistanceUnit::ChainsBritishBenoit1895A:
+    case Qgis::DistanceUnit::ChainsBritishBenoit1895B:
+    case Qgis::DistanceUnit::ChainsBritishSears1922Truncated:
+    case Qgis::DistanceUnit::ChainsBritishSears1922:
+    case Qgis::DistanceUnit::ChainsClarkes:
+    case Qgis::DistanceUnit::ChainsUSSurvey:
+    case Qgis::DistanceUnit::FeetBritish1865:
+    case Qgis::DistanceUnit::FeetBritish1936:
+    case Qgis::DistanceUnit::FeetBritishBenoit1895A:
+    case Qgis::DistanceUnit::FeetBritishBenoit1895B:
+    case Qgis::DistanceUnit::FeetBritishSears1922Truncated:
+    case Qgis::DistanceUnit::FeetBritishSears1922:
+    case Qgis::DistanceUnit::FeetClarkes:
+    case Qgis::DistanceUnit::FeetGoldCoast:
+    case Qgis::DistanceUnit::FeetIndian:
+    case Qgis::DistanceUnit::FeetIndian1937:
+    case Qgis::DistanceUnit::FeetIndian1962:
+    case Qgis::DistanceUnit::FeetIndian1975:
+    case Qgis::DistanceUnit::FeetUSSurvey:
+    case Qgis::DistanceUnit::LinksInternational:
+    case Qgis::DistanceUnit::LinksBritishBenoit1895A:
+    case Qgis::DistanceUnit::LinksBritishBenoit1895B:
+    case Qgis::DistanceUnit::LinksBritishSears1922Truncated:
+    case Qgis::DistanceUnit::LinksBritishSears1922:
+    case Qgis::DistanceUnit::LinksClarkes:
+    case Qgis::DistanceUnit::LinksUSSurvey:
+    case Qgis::DistanceUnit::YardsBritishBenoit1895A:
+    case Qgis::DistanceUnit::YardsBritishBenoit1895B:
+    case Qgis::DistanceUnit::YardsBritishSears1922Truncated:
+    case Qgis::DistanceUnit::YardsBritishSears1922:
+    case Qgis::DistanceUnit::YardsClarkes:
+    case Qgis::DistanceUnit::YardsIndian:
+    case Qgis::DistanceUnit::YardsIndian1937:
+    case Qgis::DistanceUnit::YardsIndian1962:
+    case Qgis::DistanceUnit::YardsIndian1975:
+    case Qgis::DistanceUnit::MilesUSSurvey:
+    case Qgis::DistanceUnit::Fathoms:
+    case Qgis::DistanceUnit::MetersGermanLegal:
     case Qgis::DistanceUnit::Unknown:
       return QStringLiteral( "<unknown>" );
   }
@@ -321,8 +359,7 @@ QVariant QgsHanaUtils::toVariant( const Timestamp &value )
   if ( value.isNull() )
     return QgsVariantUtils::createNullVariant( QMetaType::Type::QDateTime );
   else
-    return QVariant( QDateTime( QDate( value->year(), value->month(), value->day() ),
-                                QTime( value->hour(), value->minute(), value->second(), value->milliseconds() ) ) );
+    return QVariant( QDateTime( QDate( value->year(), value->month(), value->day() ), QTime( value->hour(), value->minute(), value->second(), value->milliseconds() ) ) );
 }
 
 QVariant QgsHanaUtils::toVariant( const String &value )
@@ -406,7 +443,7 @@ Qgis::WkbType QgsHanaUtils::toWkbType( const NS_ODBC::String &type, const NS_ODB
 QVersionNumber QgsHanaUtils::toHANAVersion( const QString &dbVersion )
 {
   QString version = dbVersion;
-  QStringList strs = version.replace( ' ', '.' ).split( '.' );
+  QStringList strs = version.replace( '-', '.' ).replace( ' ', '.' ).split( '.' );
 
   if ( strs.length() < 3 )
     return QVersionNumber( 0 );
@@ -421,7 +458,7 @@ constexpr int PLANAR_SRID_OFFSET = 1000000000;
 
 int QgsHanaUtils::toPlanarSRID( int srid )
 {
-  return srid  < PLANAR_SRID_OFFSET ? PLANAR_SRID_OFFSET + srid : srid;
+  return srid < PLANAR_SRID_OFFSET ? PLANAR_SRID_OFFSET + srid : srid;
 }
 
 bool QgsHanaUtils::convertField( QgsField &field )
@@ -487,16 +524,34 @@ bool QgsHanaUtils::convertField( QgsField &field )
       fieldPrec = 0;
       break;
     case QMetaType::Type::QString:
-      if ( fieldSize > 0 )
+      if ( field.typeName() == QLatin1String( "REAL_VECTOR" ) )
       {
-        if ( fieldSize <= 5000 )
-          fieldType = QStringLiteral( "NVARCHAR(%1)" ).arg( QString::number( fieldSize ) );
+        if ( fieldSize > 0 )
+          fieldType = QStringLiteral( "REAL_VECTOR(%1)" ).arg( QString::number( fieldSize ) );
         else
-          fieldType = QStringLiteral( "NCLOB" );
+          fieldType = QStringLiteral( "REAL_VECTOR" );
+      }
+      else if ( field.typeName() == QLatin1String( "ST_GEOMETRY" ) )
+      {
+        QVariant srid = field.metadata( Qgis::FieldMetadataProperty::CustomProperty );
+        if ( srid.isValid() && srid.toInt() >= 0 )
+          fieldType = QStringLiteral( "ST_GEOMETRY(%1)" ).arg( QString::number( srid.toInt() ) );
+        else
+          fieldType = QStringLiteral( "ST_GEOMETRY" );
       }
       else
-        fieldType = QStringLiteral( "NVARCHAR(5000)" );
-      fieldPrec = -1;
+      {
+        if ( fieldSize > 0 )
+        {
+          if ( fieldSize <= 5000 )
+            fieldType = QStringLiteral( "NVARCHAR(%1)" ).arg( QString::number( fieldSize ) );
+          else
+            fieldType = QStringLiteral( "NCLOB" );
+        }
+        else
+          fieldType = QStringLiteral( "NVARCHAR(5000)" );
+        fieldPrec = -1;
+      }
       break;
     case QMetaType::Type::QByteArray:
       if ( fieldSize >= 1 && fieldSize <= 5000 )

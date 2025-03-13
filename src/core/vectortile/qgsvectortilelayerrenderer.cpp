@@ -38,6 +38,7 @@ QgsVectorTileLayerRenderer::QgsVectorTileLayerRenderer( QgsVectorTileLayer *laye
   , mLayerName( layer->name() )
   , mDataProvider( qgis::down_cast< const QgsVectorTileDataProvider* >( layer->dataProvider() )->clone() )
   , mRenderer( layer->renderer()->clone() )
+  , mLayerBlendMode( layer->blendMode() )
   , mDrawTileBoundaries( layer->isTileBorderRenderingEnabled() )
   , mLabelsEnabled( layer->labelsEnabled() )
   , mFeedback( new QgsFeedback )
@@ -223,6 +224,15 @@ bool QgsVectorTileLayerRenderer::render()
       mErrors.append( asyncLoader->error() );
   }
 
+  // Register labels features when all tiles are fetched to ensure consistent labeling
+  if ( mLabelProvider )
+  {
+    for ( const auto &tile : mTileDataMap )
+    {
+      mLabelProvider->registerTileFeatures( tile, ctx );
+    }
+  }
+
   if ( ctx.flags() & Qgis::RenderContextFlag::DrawSelection )
     mRenderer->renderSelectedFeatures( mSelectedFeatures, ctx );
 
@@ -237,7 +247,16 @@ bool QgsVectorTileLayerRenderer::render()
 
 bool QgsVectorTileLayerRenderer::forceRasterRender() const
 {
-  return renderContext()->testFlag( Qgis::RenderContextFlag::UseAdvancedEffects ) && ( !qgsDoubleNear( mLayerOpacity, 1.0 ) );
+  if ( !renderContext()->testFlag( Qgis::RenderContextFlag::UseAdvancedEffects ) )
+    return false;
+
+  if ( !qgsDoubleNear( mLayerOpacity, 1.0 ) )
+    return true;
+
+  if ( mLayerBlendMode != QPainter::CompositionMode_SourceOver )
+    return true;
+
+  return false;
 }
 
 void QgsVectorTileLayerRenderer::decodeAndDrawTile( const QgsVectorTileRawData &rawTile )
@@ -299,8 +318,9 @@ void QgsVectorTileLayerRenderer::decodeAndDrawTile( const QgsVectorTileRawData &
     mTotalDrawTime += tDraw.elapsed();
   }
 
+  // Store tile for later use
   if ( mLabelProvider )
-    mLabelProvider->registerTileFeatures( tile, ctx );
+    mTileDataMap.insert( tile.id().toString(), tile );
 
   if ( mDrawTileBoundaries )
   {

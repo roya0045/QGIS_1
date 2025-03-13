@@ -53,14 +53,9 @@ class CORE_EXPORT QgsProcessingContext
     };
     Q_DECLARE_FLAGS( Flags, Flag )
 
-    /**
-     * Constructor for QgsProcessingContext.
-     */
     QgsProcessingContext();
 
-    //! QgsProcessingContext cannot be copied
     QgsProcessingContext( const QgsProcessingContext &other ) = delete;
-    //! QgsProcessingContext cannot be copied
     QgsProcessingContext &operator=( const QgsProcessingContext &other ) = delete;
 
     ~QgsProcessingContext();
@@ -263,7 +258,6 @@ class CORE_EXPORT QgsProcessingContext
           , project( project )
         {}
 
-        //! Default constructor
         LayerDetails() = default;
 
         /**
@@ -489,7 +483,7 @@ class CORE_EXPORT QgsProcessingContext
      * \note not available in Python bindings
      * \see setTransformErrorCallback()
      */
-    std::function< void( const QgsFeature & ) > transformErrorCallback() const { return mTransformErrorCallback; } SIP_SKIP
+    std::function< void( const QgsFeature & ) > transformErrorCallback() const SIP_SKIP { return mTransformErrorCallback; }
 
     /**
      * Returns the default encoding to use for newly created files.
@@ -607,7 +601,7 @@ class CORE_EXPORT QgsProcessingContext
     void setPreferredVectorFormat( const QString &format ) SIP_HOLDGIL { mPreferredVectorFormat = format; }
 
     /**
-     * Returns the preferred raster format to use for vector outputs.
+     * Returns the preferred raster format to use for raster outputs.
      *
      * This method returns a file extension to use when creating raster outputs (e.g. "tif"). Generally,
      * it is preferable to use the extension associated with a particular parameter, which can be retrieved through
@@ -627,7 +621,7 @@ class CORE_EXPORT QgsProcessingContext
     QString preferredRasterFormat() const SIP_HOLDGIL { return mPreferredRasterFormat; }
 
     /**
-     * Sets the preferred raster \a format to use for vector outputs.
+     * Sets the preferred raster \a format to use for raster outputs.
      *
      * This method sets a file extension to use when creating raster outputs (e.g. "tif"). Generally,
      * it is preferable to use the extension associated with a particular parameter, which can be retrieved through
@@ -799,6 +793,13 @@ class CORE_EXPORT QgsProcessingContext
      * \since QGIS 3.38
      */
     QgsProcessingModelResult &modelResult() SIP_SKIP { return mModelResult; }
+
+    /**
+     * Clears model results previously populated when the context was used to run a model algorithm.
+     *
+     * \since QGIS 3.42
+     */
+    void clearModelResult();
 
   private:
 

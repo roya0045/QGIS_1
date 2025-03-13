@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgstemporalnavigationobject.h"
+#include "moc_qgstemporalnavigationobject.cpp"
 #include "qgis.h"
 #include "qgstemporalutils.h"
 #include "qgsunittypes.h"
@@ -89,7 +90,7 @@ void QgsTemporalNavigationObject::setLooping( bool loopAnimation )
 
 QgsExpressionContextScope *QgsTemporalNavigationObject::createExpressionContextScope() const
 {
-  std::unique_ptr< QgsExpressionContextScope > scope = std::make_unique< QgsExpressionContextScope >( QStringLiteral( "temporal" ) );
+  auto scope = std::make_unique< QgsExpressionContextScope >( QStringLiteral( "temporal" ) );
   scope->setVariable( QStringLiteral( "frame_rate" ), mFramesPerSecond, true );
   scope->setVariable( QStringLiteral( "frame_number" ), mCurrentFrameNumber, true );
   scope->setVariable( QStringLiteral( "frame_duration" ), mFrameDuration, true );

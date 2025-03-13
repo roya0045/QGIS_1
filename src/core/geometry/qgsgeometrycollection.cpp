@@ -52,11 +52,11 @@ QgsGeometryCollection::QgsGeometryCollection( const QgsGeometryCollection &c ):
   }
 }
 
+// cppcheck-suppress operatorEqVarError
 QgsGeometryCollection &QgsGeometryCollection::operator=( const QgsGeometryCollection &c )
 {
   if ( &c != this )
   {
-    clearCache();
     QgsAbstractGeometry::operator=( c );
     int nGeoms = c.mGeometries.size();
     mGeometries.resize( nGeoms );
@@ -886,7 +886,7 @@ bool QgsGeometryCollection::isValid( QString &error, Qgis::GeometryValidityFlags
     return error.isEmpty();
   }
 
-  QgsGeos geos( this, /* tolerance = */ 0, /* allowInvalidSubGeom = */ false );
+  QgsGeos geos( this, /* precision = */ 0, /* flags = */ Qgis::GeosCreationFlag::RejectOnInvalidSubGeometry );
   bool res = geos.isValid( &error, flags & Qgis::GeometryValidityFlag::AllowSelfTouchingHoles, nullptr );
   if ( flags == 0 )
   {
@@ -1057,7 +1057,7 @@ void QgsGeometryCollection::swapXy()
 
 QgsGeometryCollection *QgsGeometryCollection::toCurveType() const
 {
-  std::unique_ptr< QgsGeometryCollection > newCollection( new QgsGeometryCollection() );
+  auto newCollection = std::make_unique<QgsGeometryCollection>();
   newCollection->reserve( mGeometries.size() );
   for ( QgsAbstractGeometry *geom : mGeometries )
   {
@@ -1072,6 +1072,17 @@ const QgsAbstractGeometry *QgsGeometryCollection::simplifiedTypeRef() const
     return mGeometries.at( 0 )->simplifiedTypeRef();
   else
     return this;
+}
+
+QgsGeometryCollection *QgsGeometryCollection::simplifyByDistance( double tolerance ) const
+{
+  auto res = std::make_unique< QgsGeometryCollection >();
+  res->reserve( mGeometries.size() );
+  for ( int i = 0; i < mGeometries.size(); ++i )
+  {
+    res->addGeometry( mGeometries.at( i )->simplifyByDistance( tolerance ) );
+  }
+  return res.release();
 }
 
 bool QgsGeometryCollection::transform( QgsAbstractGeometryTransformer *transformer, QgsFeedback *feedback )

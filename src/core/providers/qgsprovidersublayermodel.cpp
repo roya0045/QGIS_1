@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsprovidersublayermodel.h"
+#include "moc_qgsprovidersublayermodel.cpp"
 #include "qgsprovidersublayerdetails.h"
 #include "qgsiconutils.h"
 #include "qgsapplication.h"
@@ -45,7 +46,7 @@ void QgsProviderSublayerModelGroup::populateFromSublayers( const QList<QgsProvid
         QgsProviderSublayerModelGroup *nextChild = groupNode->findGroup( currentPath.constLast() );
         if ( !nextChild )
         {
-          std::unique_ptr< QgsProviderSublayerModelGroup > newNode = std::make_unique< QgsProviderSublayerModelGroup >( currentPath.constLast() );
+          auto newNode = std::make_unique< QgsProviderSublayerModelGroup >( currentPath.constLast() );
           groupNode = qgis::down_cast< QgsProviderSublayerModelGroup * >( groupNode->addChild( std::move( newNode ) ) );
         }
         else
@@ -79,6 +80,7 @@ QgsProviderSublayerModelNode *QgsProviderSublayerModelGroup::addChild( std::uniq
 
   QgsProviderSublayerModelNode *res = child.get();
   mChildren.emplace_back( std::move( child ) );
+  // cppcheck-suppress returnDanglingLifetime
   return res;
 }
 

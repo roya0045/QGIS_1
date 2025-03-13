@@ -236,6 +236,17 @@ bool QgsMultiPolygon::insertGeometry( QgsAbstractGeometry *g, int index )
   return QgsMultiSurface::insertGeometry( g, index );
 }
 
+QgsMultiPolygon *QgsMultiPolygon::simplifyByDistance( double tolerance ) const
+{
+  auto res = std::make_unique< QgsMultiPolygon >();
+  res->reserve( mGeometries.size() );
+  for ( int i = 0; i < mGeometries.size(); ++i )
+  {
+    res->addGeometry( mGeometries.at( i )->simplifyByDistance( tolerance ) );
+  }
+  return res.release();
+}
+
 QgsMultiSurface *QgsMultiPolygon::toCurveType() const
 {
   QgsMultiSurface *multiSurface = new QgsMultiSurface();
@@ -249,7 +260,7 @@ QgsMultiSurface *QgsMultiPolygon::toCurveType() const
 
 QgsAbstractGeometry *QgsMultiPolygon::boundary() const
 {
-  std::unique_ptr< QgsMultiLineString > multiLine( new QgsMultiLineString() );
+  auto multiLine = std::make_unique<QgsMultiLineString>();
   multiLine->reserve( mGeometries.size() );
   for ( int i = 0; i < mGeometries.size(); ++i )
   {

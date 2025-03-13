@@ -240,7 +240,7 @@ std::unique_ptr<PointSet> PointSet::extractShape( int nbPtSh, int imin, int imax
 {
   int i, j;
 
-  std::unique_ptr<PointSet> newShape = std::make_unique< PointSet >();
+  auto newShape = std::make_unique< PointSet >();
   newShape->type = GEOS_POLYGON;
   newShape->nbPoints = nbPtSh;
   newShape->x.resize( newShape->nbPoints );
@@ -716,7 +716,7 @@ void PointSet::extendLineByDistance( double startDistance, double endDistance, d
   invalidateGeos();
 }
 
-OrientedConvexHullBoundingBox PointSet::computeConvexHullOrientedBoundingBox( bool &ok )
+OrientedConvexHullBoundingBox PointSet::computeConvexHullOrientedBoundingBox( bool &ok ) const
 {
   ok = false;
   double bbox[4]; // xmin, ymin, xmax, ymax

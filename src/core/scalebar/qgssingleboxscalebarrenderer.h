@@ -31,9 +31,6 @@ class CORE_EXPORT QgsSingleBoxScaleBarRenderer: public QgsScaleBarRenderer
 {
   public:
 
-    /**
-     * Constructor for QgsSingleBoxScaleBarRenderer.
-     */
     QgsSingleBoxScaleBarRenderer() = default;
 
     QString id() const override;
@@ -46,6 +43,7 @@ class CORE_EXPORT QgsSingleBoxScaleBarRenderer: public QgsScaleBarRenderer
                const QgsScaleBarSettings &settings,
                const QgsScaleBarRenderer::ScaleBarContext &scaleContext ) const override;
 
+    bool applyDefaultSettings( QgsScaleBarSettings &settings ) const override;
 };
 
 #endif // QGSSINGLEBOXSCALEBARRENDERER_H

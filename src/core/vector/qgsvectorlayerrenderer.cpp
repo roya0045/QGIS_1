@@ -171,8 +171,6 @@ QgsVectorLayerRenderer::QgsVectorLayerRenderer( QgsVectorLayer *layer, QgsRender
     // set editing vertex markers style (main renderer only)
     mRenderer->setVertexMarkerAppearance( mVertexMarkerStyle, mVertexMarkerSize );
   }
-  if ( !mNoSetLayerExpressionContext )
-    renderContext()->expressionContext() << QgsExpressionContextUtils::layerScope( layer );
 
   for ( const std::unique_ptr< QgsFeatureRenderer > &renderer : mRenderers )
   {
@@ -225,6 +223,14 @@ QgsFeedback *QgsVectorLayerRenderer::feedback() const
 bool QgsVectorLayerRenderer::forceRasterRender() const
 {
   return mForceRasterRender;
+}
+
+Qgis::MapLayerRendererFlags QgsVectorLayerRenderer::flags() const
+{
+  Qgis::MapLayerRendererFlags res;
+  if ( mRenderer && mRenderer->flags().testFlag( Qgis::FeatureRendererFlag::AffectsLabeling ) )
+    res.setFlag( Qgis::MapLayerRendererFlag::AffectsLabeling );
+  return res;
 }
 
 bool QgsVectorLayerRenderer::render()
@@ -346,6 +352,7 @@ bool QgsVectorLayerRenderer::renderInternal( QgsFeatureRenderer *renderer, int r
     if ( mDiagramProvider )
       mDiagramProvider->setClipFeatureGeometry( mLabelClipFeatureGeom );
   }
+
   renderer->modifyRequestExtent( requestExtent, context );
 
   QgsFeatureRequest featureRequest = QgsFeatureRequest()
@@ -683,7 +690,7 @@ void QgsVectorLayerRenderer::drawRendererLevels( QgsFeatureRenderer *renderer, Q
   }
 
   QgsExpressionContextScope *symbolScope = QgsExpressionContextUtils::updateSymbolScope( nullptr, new QgsExpressionContextScope() );
-  std::unique_ptr< QgsExpressionContextScopePopper > scopePopper = std::make_unique< QgsExpressionContextScopePopper >( context.expressionContext(), symbolScope );
+  auto scopePopper = std::make_unique< QgsExpressionContextScopePopper >( context.expressionContext(), symbolScope );
 
 
   std::unique_ptr< QgsGeometryEngine > clipEngine;

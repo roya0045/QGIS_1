@@ -26,6 +26,7 @@
 #include <QScreen>
 
 #include "qgsgraduatedsymbolrendererwidget.h"
+#include "moc_qgsgraduatedsymbolrendererwidget.cpp"
 #include "qgspanelwidget.h"
 
 #include "qgsdatadefinedsizelegend.h"
@@ -62,7 +63,8 @@
 
 ///@cond PRIVATE
 
-QgsGraduatedSymbolRendererModel::QgsGraduatedSymbolRendererModel( QObject *parent, QScreen *screen ) : QAbstractItemModel( parent )
+QgsGraduatedSymbolRendererModel::QgsGraduatedSymbolRendererModel( QObject *parent, QScreen *screen )
+  : QAbstractItemModel( parent )
   , mMimeFormat( QStringLiteral( "application/x-qgsgraduatedsymbolrendererv2model" ) )
   , mScreen( screen )
 {
@@ -100,7 +102,8 @@ void QgsGraduatedSymbolRendererModel::setRenderer( QgsGraduatedSymbolRenderer *r
 
 void QgsGraduatedSymbolRendererModel::addClass( QgsSymbol *symbol )
 {
-  if ( !mRenderer ) return;
+  if ( !mRenderer )
+    return;
   int idx = mRenderer->ranges().size();
   beginInsertRows( QModelIndex(), idx, idx );
   mRenderer->addClass( symbol );
@@ -131,12 +134,13 @@ QgsRendererRange QgsGraduatedSymbolRendererModel::rendererRange( const QModelInd
 
 Qt::ItemFlags QgsGraduatedSymbolRendererModel::flags( const QModelIndex &index ) const
 {
+  // Flat list, to ease drop handling valid indexes are not dropEnabled
   if ( !index.isValid() )
   {
     return Qt::ItemIsDropEnabled;
   }
 
-  Qt::ItemFlags flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled | Qt::ItemIsUserCheckable;
+  Qt::ItemFlags flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled | Qt::ItemIsUserCheckable;
 
   if ( index.column() == 2 )
   {
@@ -153,7 +157,8 @@ Qt::DropActions QgsGraduatedSymbolRendererModel::supportedDropActions() const
 
 QVariant QgsGraduatedSymbolRendererModel::data( const QModelIndex &index, int role ) const
 {
-  if ( !index.isValid() || !mRenderer ) return QVariant();
+  if ( !index.isValid() || !mRenderer )
+    return QVariant();
 
   const QgsRendererRange range = mRenderer->ranges().value( index.row() );
 
@@ -168,7 +173,8 @@ QVariant QgsGraduatedSymbolRendererModel::data( const QModelIndex &index, int ro
       case 1:
       {
         int decimalPlaces = mRenderer->classificationMethod()->labelPrecision() + 2;
-        if ( decimalPlaces < 0 ) decimalPlaces = 0;
+        if ( decimalPlaces < 0 )
+          decimalPlaces = 0;
         return QString( QLocale().toString( range.lowerValue(), 'f', decimalPlaces ) + " - " + QLocale().toString( range.upperValue(), 'f', decimalPlaces ) );
       }
       case 2:
@@ -218,9 +224,9 @@ bool QgsGraduatedSymbolRendererModel::setData( const QModelIndex &index, const Q
 
   switch ( index.column() )
   {
-    case 1: // range
+    case 1:         // range
       return false; // range is edited in popup dialog
-    case 2: // label
+    case 2:         // label
       mRenderer->updateRangeLabel( index.row(), value.toString() );
       break;
     default:
@@ -301,11 +307,13 @@ QMimeData *QgsGraduatedSymbolRendererModel::mimeData( const QModelIndexList &ind
 
 bool QgsGraduatedSymbolRendererModel::dropMimeData( const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent )
 {
-  Q_UNUSED( row )
   Q_UNUSED( column )
-  if ( action != Qt::MoveAction ) return true;
+  Q_UNUSED( parent ) // Unused because only invalid indexes have Qt::ItemIsDropEnabled
+  if ( action != Qt::MoveAction )
+    return true;
 
-  if ( !data->hasFormat( mMimeFormat ) ) return false;
+  if ( !data->hasFormat( mMimeFormat ) )
+    return false;
 
   QByteArray encodedData = data->data( mMimeFormat );
   QDataStream stream( &encodedData, QIODevice::ReadOnly );
@@ -318,24 +326,32 @@ bool QgsGraduatedSymbolRendererModel::dropMimeData( const QMimeData *data, Qt::D
     rows.append( r );
   }
 
-  int to = parent.row();
+  // Items may come unsorted depending on selecion order
+  std::sort( rows.begin(), rows.end() );
+
+  int to = row;
+
   // to is -1 if dragged outside items, i.e. below any item,
   // then move to the last position
-  if ( to == -1 ) to = mRenderer->ranges().size(); // out of rang ok, will be decreased
+  if ( to == -1 )
+    to = mRenderer->ranges().size(); // out of rang ok, will be decreased
   for ( int i = rows.size() - 1; i >= 0; i-- )
   {
     QgsDebugMsgLevel( QStringLiteral( "move %1 to %2" ).arg( rows[i] ).arg( to ), 2 );
     int t = to;
     // moveCategory first removes and then inserts
-    if ( rows[i] < t ) t--;
+    if ( rows[i] < t )
+      t--;
     mRenderer->moveClass( rows[i], t );
     // current moved under another, shift its index up
     for ( int j = 0; j < i; j++ )
     {
-      if ( to < rows[j] && rows[i] > rows[j] ) rows[j] += 1;
+      if ( to < rows[j] && rows[i] > rows[j] )
+        rows[j] += 1;
     }
     // removed under 'to' so the target shifted down
-    if ( rows[i] < to ) to--;
+    if ( rows[i] < to )
+      to--;
   }
   emit dataChanged( createIndex( 0, 0 ), createIndex( mRenderer->ranges().size(), 0 ) );
   emit rowsMoved();
@@ -400,7 +416,8 @@ void QgsGraduatedSymbolRendererViewStyle::drawPrimitive( PrimitiveElement elemen
     opt.rect.setLeft( 0 );
     // draw always as line above, because we move item to that index
     opt.rect.setHeight( 0 );
-    if ( widget ) opt.rect.setRight( widget->width() );
+    if ( widget )
+      opt.rect.setRight( widget->width() );
     QProxyStyle::drawPrimitive( element, &opt, painter, widget );
     return;
   }
@@ -419,22 +436,17 @@ QgsRendererWidget *QgsGraduatedSymbolRendererWidget::create( QgsVectorLayer *lay
 QgsExpressionContext QgsGraduatedSymbolRendererWidget::createExpressionContext() const
 {
   QgsExpressionContext expContext;
-  expContext << QgsExpressionContextUtils::globalScope()
-             << QgsExpressionContextUtils::projectScope( QgsProject::instance() )
-             << QgsExpressionContextUtils::atlasScope( nullptr );
 
   if ( auto *lMapCanvas = mContext.mapCanvas() )
   {
-    expContext << QgsExpressionContextUtils::mapSettingsScope( lMapCanvas->mapSettings() )
-               << new QgsExpressionContextScope( lMapCanvas->expressionContextScope() );
-    if ( const QgsExpressionContextScopeGenerator *generator = dynamic_cast< const QgsExpressionContextScopeGenerator * >( lMapCanvas->temporalController() ) )
-    {
-      expContext << generator->createExpressionContextScope();
-    }
+    expContext = lMapCanvas->createExpressionContext();
   }
   else
   {
-    expContext << QgsExpressionContextUtils::mapSettingsScope( QgsMapSettings() );
+    expContext << QgsExpressionContextUtils::globalScope()
+               << QgsExpressionContextUtils::projectScope( QgsProject::instance() )
+               << QgsExpressionContextUtils::atlasScope( nullptr )
+               << QgsExpressionContextUtils::mapSettingsScope( QgsMapSettings() );
   }
 
   if ( auto *lVectorLayer = vectorLayer() )
@@ -461,7 +473,7 @@ QgsGraduatedSymbolRendererWidget::QgsGraduatedSymbolRendererWidget( QgsVectorLay
   }
   if ( !mRenderer )
   {
-    mRenderer = std::make_unique< QgsGraduatedSymbolRenderer >( QString(), QgsRangeList() );
+    mRenderer = std::make_unique<QgsGraduatedSymbolRenderer>( QString(), QgsRangeList() );
     if ( renderer )
       renderer->copyRendererData( mRenderer.get() );
   }
@@ -492,13 +504,13 @@ QgsGraduatedSymbolRendererWidget::QgsGraduatedSymbolRendererWidget( QgsVectorLay
   btnChangeGraduatedSymbol->registerExpressionContextGenerator( this );
 
   mSizeUnitWidget->setUnits(
-  {
-    Qgis::RenderUnit::Millimeters,
-    Qgis::RenderUnit::MapUnits,
-    Qgis::RenderUnit::Pixels,
-    Qgis::RenderUnit::Points,
-    Qgis::RenderUnit::Inches
-  } );
+    { Qgis::RenderUnit::Millimeters,
+      Qgis::RenderUnit::MapUnits,
+      Qgis::RenderUnit::Pixels,
+      Qgis::RenderUnit::Points,
+      Qgis::RenderUnit::Inches
+    }
+  );
 
   spinPrecision->setMinimum( QgsClassificationMethod::MIN_PRECISION );
   spinPrecision->setMaximum( QgsClassificationMethod::MAX_PRECISION );
@@ -509,7 +521,7 @@ QgsGraduatedSymbolRendererWidget::QgsGraduatedSymbolRendererWidget( QgsVectorLay
   btnColorRamp->setShowRandomColorRamp( true );
 
   // set project default color ramp
-  std::unique_ptr< QgsColorRamp > colorRamp( QgsProject::instance()->styleSettings()->defaultColorRamp() );
+  std::unique_ptr<QgsColorRamp> colorRamp( QgsProject::instance()->styleSettings()->defaultColorRamp() );
   if ( colorRamp )
   {
     btnColorRamp->setColorRamp( colorRamp.get() );
@@ -561,10 +573,10 @@ QgsGraduatedSymbolRendererWidget::QgsGraduatedSymbolRendererWidget( QgsVectorLay
     methodComboBox->blockSignals( false );
   }
 
-  connect( mExpressionWidget, static_cast < void ( QgsFieldExpressionWidget::* )( const QString & ) >( &QgsFieldExpressionWidget::fieldChanged ), this, &QgsGraduatedSymbolRendererWidget::graduatedColumnChanged );
+  connect( mExpressionWidget, static_cast<void ( QgsFieldExpressionWidget::* )( const QString & )>( &QgsFieldExpressionWidget::fieldChanged ), this, &QgsGraduatedSymbolRendererWidget::graduatedColumnChanged );
   connect( viewGraduated, &QAbstractItemView::doubleClicked, this, &QgsGraduatedSymbolRendererWidget::rangesDoubleClicked );
   connect( viewGraduated, &QAbstractItemView::clicked, this, &QgsGraduatedSymbolRendererWidget::rangesClicked );
-  connect( viewGraduated, &QTreeView::customContextMenuRequested,  this, &QgsGraduatedSymbolRendererWidget::contextMenuViewCategories );
+  connect( viewGraduated, &QTreeView::customContextMenuRequested, this, &QgsGraduatedSymbolRendererWidget::contextMenuViewCategories );
 
   connect( btnGraduatedClassify, &QAbstractButton::clicked, this, &QgsGraduatedSymbolRendererWidget::classifyGraduated );
   connect( btnChangeGraduatedSymbol, &QgsSymbolButton::changed, this, &QgsGraduatedSymbolRendererWidget::changeGraduatedSymbol );
@@ -603,7 +615,7 @@ QgsGraduatedSymbolRendererWidget::QgsGraduatedSymbolRendererWidget( QgsVectorLay
   mHistogramWidget->setLayer( mLayer );
   mHistogramWidget->setRenderer( mRenderer.get() );
   connect( mHistogramWidget, &QgsGraduatedHistogramWidget::rangesModified, this, &QgsGraduatedSymbolRendererWidget::refreshRanges );
-  connect( mExpressionWidget, static_cast < void ( QgsFieldExpressionWidget::* )( const QString & ) >( &QgsFieldExpressionWidget::fieldChanged ), mHistogramWidget, &QgsHistogramWidget::setSourceFieldExp );
+  connect( mExpressionWidget, static_cast<void ( QgsFieldExpressionWidget::* )( const QString & )>( &QgsFieldExpressionWidget::fieldChanged ), mHistogramWidget, &QgsHistogramWidget::setSourceFieldExp );
 
   mExpressionWidget->registerExpressionContextGenerator( this );
 
@@ -802,7 +814,7 @@ void QgsGraduatedSymbolRendererWidget::updateUiFromRenderer( bool updateCount )
       break;
     }
   }
-  toggleMethodWidgets( static_cast< MethodMode>( methodComboBox->currentData().toInt() ) );
+  toggleMethodWidgets( static_cast<MethodMode>( methodComboBox->currentData().toInt() ) );
   methodComboBox->blockSignals( false );
 
   viewGraduated->resizeColumnToContents( 0 );
@@ -824,7 +836,7 @@ void QgsGraduatedSymbolRendererWidget::graduatedColumnChanged( const QString &fi
 
 void QgsGraduatedSymbolRendererWidget::methodComboBox_currentIndexChanged( int )
 {
-  const MethodMode newMethod = static_cast< MethodMode >( methodComboBox->currentData().toInt() );
+  const MethodMode newMethod = static_cast<MethodMode>( methodComboBox->currentData().toInt() );
   toggleMethodWidgets( newMethod );
   switch ( newMethod )
   {
@@ -865,7 +877,7 @@ void QgsGraduatedSymbolRendererWidget::updateMethodParameters()
   clearParameterWidgets();
 
   const QString methodId = cboGraduatedMode->currentData().toString();
-  QgsClassificationMethod *method = QgsApplication::classificationMethodRegistry()->method( methodId );
+  std::unique_ptr< QgsClassificationMethod > method = QgsApplication::classificationMethodRegistry()->method( methodId );
   Q_ASSERT( method );
 
   // need more context?
@@ -922,7 +934,7 @@ void QgsGraduatedSymbolRendererWidget::clearParameterWidgets()
   while ( mParametersLayout->rowCount() )
   {
     QFormLayout::TakeRowResult row = mParametersLayout->takeRow( 0 );
-    for ( QLayoutItem *item : {row.labelItem, row.fieldItem} )
+    for ( QLayoutItem *item : { row.labelItem, row.fieldItem } )
       if ( item )
       {
         QWidget *widget = item->widget();
@@ -1006,7 +1018,7 @@ void QgsGraduatedSymbolRendererWidget::applyChangeToSymbol()
   emit widgetChanged();
 }
 
-void QgsGraduatedSymbolRendererWidget::symmetryPointEditingFinished( )
+void QgsGraduatedSymbolRendererWidget::symmetryPointEditingFinished()
 {
   const QString text = cboSymmetryPoint->lineEdit()->text();
   int index = cboSymmetryPoint->findText( text );
@@ -1027,9 +1039,8 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduated()
   mUpdateTimer.start( 500 );
 }
 
-void QgsGraduatedSymbolRendererWidget::classifyGraduatedImpl( )
+void QgsGraduatedSymbolRendererWidget::classifyGraduatedImpl()
 {
-
   if ( mBlockUpdates )
     return;
 
@@ -1038,7 +1049,7 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduatedImpl( )
   int nclasses = spinGraduatedClasses->value();
 
   const QString methodId = cboGraduatedMode->currentData().toString();
-  QgsClassificationMethod *method = QgsApplication::classificationMethodRegistry()->method( methodId );
+  std::unique_ptr< QgsClassificationMethod > method = QgsApplication::classificationMethodRegistry()->method( methodId );
   Q_ASSERT( method );
 
   int attrNum = mLayer->fields().lookupField( attrName );
@@ -1053,8 +1064,7 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduatedImpl( )
   mSymmetryPointValidator->setTop( maximum );
   mSymmetryPointValidator->setMaxDecimals( spinPrecision->value() );
 
-  if ( method->id() == QgsClassificationEqualInterval::METHOD_ID ||
-       method->id() == QgsClassificationStandardDeviation::METHOD_ID )
+  if ( method->id() == QgsClassificationEqualInterval::METHOD_ID || method->id() == QgsClassificationStandardDeviation::METHOD_ID )
   {
     // knowing that spinSymmetryPointForOtherMethods->value() is automatically put at minimum when out of min-max
     // using "(maximum-minimum)/100)" to avoid direct comparison of doubles
@@ -1076,14 +1086,14 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduatedImpl( )
   method->setParameterValues( parameterValues );
 
   // set method to renderer
-  mRenderer->setClassificationMethod( method );
+  mRenderer->setClassificationMethod( method.release() );
 
   // create and set new renderer
   mRenderer->setClassAttribute( attrName );
 
   // If complexity >= oN^2, warn for big dataset (more than 50k records)
   // and give the user the chance to cancel
-  if ( method->codeComplexity() > 1 && mLayer->featureCount() > 50000 )
+  if ( mRenderer->classificationMethod()->codeComplexity() > 1 && mLayer->featureCount() > 50000 )
   {
     if ( QMessageBox::Cancel == QMessageBox::question( this, tr( "Apply Classification" ), tr( "Natural break classification (Jenks) is O(n2) complexity, your classification may take a long time.\nPress cancel to abort breaks calculation or OK to continue." ), QMessageBox::Cancel, QMessageBox::Ok ) )
     {
@@ -1123,7 +1133,7 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduatedImpl( )
 
 void QgsGraduatedSymbolRendererWidget::reapplyColorRamp()
 {
-  std::unique_ptr< QgsColorRamp > ramp( btnColorRamp->colorRamp() );
+  std::unique_ptr<QgsColorRamp> ramp( btnColorRamp->colorRamp() );
   if ( !ramp )
     return;
 
@@ -1201,14 +1211,14 @@ void QgsGraduatedSymbolRendererWidget::changeSelectedSymbols()
 void QgsGraduatedSymbolRendererWidget::changeRangeSymbol( int rangeIdx )
 {
   const QgsRendererRange &range = mRenderer->ranges()[rangeIdx];
-  std::unique_ptr< QgsSymbol > newSymbol( range.symbol()->clone() );
+  std::unique_ptr<QgsSymbol> newSymbol( range.symbol()->clone() );
   QgsPanelWidget *panel = QgsPanelWidget::findParentPanel( this );
   if ( panel && panel->dockMode() )
   {
     QgsSymbolSelectorWidget *widget = QgsSymbolSelectorWidget::createWidgetWithSymbolOwnership( std::move( newSymbol ), mStyle, mLayer, panel );
     widget->setContext( mContext );
     widget->setPanelTitle( range.label() );
-    connect( widget, &QgsPanelWidget::widgetChanged, this, [ = ] { updateSymbolsFromWidget( widget ); } );
+    connect( widget, &QgsPanelWidget::widgetChanged, this, [=] { updateSymbolsFromWidget( widget ); } );
     openPanel( widget );
   }
   else
@@ -1234,7 +1244,8 @@ void QgsGraduatedSymbolRendererWidget::changeRange( int rangeIdx )
   // Add arbitrary 2 to number of decimal places to retain a bit extra.
   // Ensures users can see if legend is not completely honest!
   int decimalPlaces = mRenderer->classificationMethod()->labelPrecision() + 2;
-  if ( decimalPlaces < 0 ) decimalPlaces = 0;
+  if ( decimalPlaces < 0 )
+    decimalPlaces = 0;
   dialog.setLowerValue( QLocale().toString( range.lowerValue(), 'f', decimalPlaces ) );
   dialog.setUpperValue( QLocale().toString( range.upperValue(), 'f', decimalPlaces ) );
 
@@ -1266,7 +1277,6 @@ void QgsGraduatedSymbolRendererWidget::addClass()
   mModel->addClass( mGraduatedSymbol.get() );
   mHistogramWidget->refresh();
   emit widgetChanged();
-
 }
 
 void QgsGraduatedSymbolRendererWidget::deleteClasses()
@@ -1305,13 +1315,14 @@ void QgsGraduatedSymbolRendererWidget::toggleBoundariesLink( bool linked )
   //This is done by updating all lower ranges to the upper value of the range above
   if ( linked )
   {
-    if ( ! rowsOrdered() )
+    if ( !rowsOrdered() )
     {
       int result = QMessageBox::warning(
-                     this,
-                     tr( "Link Class Boundaries" ),
-                     tr( "Rows will be reordered before linking boundaries. Continue?" ),
-                     QMessageBox::Ok | QMessageBox::Cancel );
+        this,
+        tr( "Link Class Boundaries" ),
+        tr( "Rows will be reordered before linking boundaries. Continue?" ),
+        QMessageBox::Ok | QMessageBox::Cancel
+      );
       if ( result != QMessageBox::Ok )
       {
         cbxLinkBoundaries->setChecked( false );
@@ -1370,10 +1381,10 @@ QList<QgsSymbol *> QgsGraduatedSymbolRendererWidget::selectedSymbols()
       // after user input, but being permissive never hurts
       bool ok = false;
       double lowerBound = qgsPermissiveToDouble( list.at( 0 ), ok );
-      if ( ! ok )
+      if ( !ok )
         lowerBound = 0.0;
       double upperBound = qgsPermissiveToDouble( list.at( 2 ), ok );
-      if ( ! ok )
+      if ( !ok )
         upperBound = 0.0;
       QgsSymbol *s = findSymbolForRange( lowerBound, upperBound, ranges );
       if ( s )
@@ -1420,7 +1431,7 @@ void QgsGraduatedSymbolRendererWidget::showSymbolLevels()
 void QgsGraduatedSymbolRendererWidget::rowsMoved()
 {
   viewGraduated->selectionModel()->clear();
-  if ( ! rowsOrdered() )
+  if ( !rowsOrdered() )
   {
     cbxLinkBoundaries->setChecked( false );
   }
@@ -1475,12 +1486,11 @@ void QgsGraduatedSymbolRendererWidget::dataDefinedSizeLegend()
   QgsDataDefinedSizeLegendWidget *panel = createDataDefinedSizeLegendWidget( s, mRenderer->dataDefinedSizeLegend() );
   if ( panel )
   {
-    connect( panel, &QgsPanelWidget::widgetChanged, this, [ = ]
-    {
+    connect( panel, &QgsPanelWidget::widgetChanged, this, [=] {
       mRenderer->setDataDefinedSizeLegend( panel->dataDefinedSizeLegend() );
       emit widgetChanged();
     } );
-    openPanel( panel );  // takes ownership of the panel
+    openPanel( panel ); // takes ownership of the panel
   }
 }
 
@@ -1492,7 +1502,7 @@ void QgsGraduatedSymbolRendererWidget::changeGraduatedSymbol()
 
 void QgsGraduatedSymbolRendererWidget::pasteSymbolToSelection()
 {
-  std::unique_ptr< QgsSymbol > tempSymbol( QgsSymbolLayerUtils::symbolFromMimeData( QApplication::clipboard()->mimeData() ) );
+  std::unique_ptr<QgsSymbol> tempSymbol( QgsSymbolLayerUtils::symbolFromMimeData( QApplication::clipboard()->mimeData() ) );
   if ( !tempSymbol )
     return;
 
@@ -1509,7 +1519,7 @@ void QgsGraduatedSymbolRendererWidget::pasteSymbolToSelection()
     if ( mRenderer->ranges().at( row ).symbol()->type() != tempSymbol->type() )
       continue;
 
-    std::unique_ptr< QgsSymbol > newCatSymbol( tempSymbol->clone() );
+    std::unique_ptr<QgsSymbol> newCatSymbol( tempSymbol->clone() );
     if ( selectedRows.count() > 1 )
     {
       //if updating multiple ranges, retain the existing category colors

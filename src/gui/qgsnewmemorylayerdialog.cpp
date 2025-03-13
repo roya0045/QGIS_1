@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsnewmemorylayerdialog.h"
+#include "moc_qgsnewmemorylayerdialog.cpp"
 #include "qgis.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsvectorlayer.h"
@@ -56,8 +57,7 @@ QgsNewMemoryLayerDialog::QgsNewMemoryLayerDialog( QWidget *parent, Qt::WindowFla
 
   mNameLineEdit->setText( tr( "New scratch layer" ) );
 
-  const Qgis::WkbType geomTypes[] =
-  {
+  const Qgis::WkbType geomTypes[] = {
     Qgis::WkbType::NoGeometry,
     Qgis::WkbType::Point,
     Qgis::WkbType::LineString,
@@ -69,10 +69,13 @@ QgsNewMemoryLayerDialog::QgsNewMemoryLayerDialog( QWidget *parent, Qt::WindowFla
     Qgis::WkbType::MultiCurve,
     Qgis::WkbType::MultiPolygon,
     Qgis::WkbType::MultiSurface,
+    Qgis::WkbType::Triangle,
+    Qgis::WkbType::PolyhedralSurface,
+    Qgis::WkbType::TIN,
   };
 
   for ( const auto type : geomTypes )
-    mGeometryTypeBox->addItem( QgsIconUtils::iconForWkbType( type ), QgsWkbTypes::translatedDisplayString( type ), static_cast< quint32>( type ) );
+    mGeometryTypeBox->addItem( QgsIconUtils::iconForWkbType( type ), QgsWkbTypes::translatedDisplayString( type ), static_cast<quint32>( type ) );
   mGeometryTypeBox->setCurrentIndex( -1 );
 
   mGeometryWithZCheckBox->setEnabled( false );
@@ -101,6 +104,8 @@ QgsNewMemoryLayerDialog::QgsNewMemoryLayerDialog( QWidget *parent, Qt::WindowFla
 
   mAddAttributeButton->setEnabled( false );
   mRemoveAttributeButton->setEnabled( false );
+  mButtonUp->setEnabled( false );
+  mButtonDown->setEnabled( false );
 
   mOkButton = mButtonBox->button( QDialogButtonBox::Ok );
   mOkButton->setEnabled( false );
@@ -111,6 +116,8 @@ QgsNewMemoryLayerDialog::QgsNewMemoryLayerDialog( QWidget *parent, Qt::WindowFla
   connect( mAttributeView, &QTreeWidget::itemSelectionChanged, this, &QgsNewMemoryLayerDialog::selectionChanged );
   connect( mAddAttributeButton, &QToolButton::clicked, this, &QgsNewMemoryLayerDialog::mAddAttributeButton_clicked );
   connect( mRemoveAttributeButton, &QToolButton::clicked, this, &QgsNewMemoryLayerDialog::mRemoveAttributeButton_clicked );
+  connect( mButtonUp, &QToolButton::clicked, this, &QgsNewMemoryLayerDialog::moveFieldsUp );
+  connect( mButtonDown, &QToolButton::clicked, this, &QgsNewMemoryLayerDialog::moveFieldsDown );
 
   connect( mButtonBox, &QDialogButtonBox::helpRequested, this, &QgsNewMemoryLayerDialog::showHelp );
   connect( mButtonBox, &QDialogButtonBox::accepted, this, &QgsNewMemoryLayerDialog::accept );
@@ -123,8 +130,7 @@ QgsNewMemoryLayerDialog::QgsNewMemoryLayerDialog( QWidget *parent, Qt::WindowFla
 Qgis::WkbType QgsNewMemoryLayerDialog::selectedType() const
 {
   Qgis::WkbType geomType = Qgis::WkbType::Unknown;
-  geomType = static_cast<Qgis::WkbType>
-             ( mGeometryTypeBox->currentData( Qt::UserRole ).toInt() );
+  geomType = static_cast<Qgis::WkbType>( mGeometryTypeBox->currentData( Qt::UserRole ).toInt() );
 
   if ( geomType != Qgis::WkbType::Unknown && geomType != Qgis::WkbType::NoGeometry )
   {
@@ -139,8 +145,7 @@ Qgis::WkbType QgsNewMemoryLayerDialog::selectedType() const
 
 void QgsNewMemoryLayerDialog::geometryTypeChanged( int )
 {
-  const Qgis::WkbType geomType = static_cast<Qgis::WkbType>
-                                 ( mGeometryTypeBox->currentData( Qt::UserRole ).toInt() );
+  const Qgis::WkbType geomType = static_cast<Qgis::WkbType>( mGeometryTypeBox->currentData( Qt::UserRole ).toInt() );
 
   const bool isSpatial = geomType != Qgis::WkbType::NoGeometry;
   mGeometryWithZCheckBox->setEnabled( isSpatial );
@@ -246,12 +251,14 @@ QString QgsNewMemoryLayerDialog::layerName() const
 
 void QgsNewMemoryLayerDialog::fieldNameChanged( const QString &name )
 {
-  mAddAttributeButton->setDisabled( name.isEmpty() || ! mAttributeView->findItems( name, Qt::MatchExactly ).isEmpty() );
+  mAddAttributeButton->setDisabled( name.isEmpty() || !mAttributeView->findItems( name, Qt::MatchExactly ).isEmpty() );
 }
 
 void QgsNewMemoryLayerDialog::selectionChanged()
 {
   mRemoveAttributeButton->setDisabled( mAttributeView->selectedItems().isEmpty() );
+  mButtonUp->setDisabled( mAttributeView->selectedItems().isEmpty() );
+  mButtonDown->setDisabled( mAttributeView->selectedItems().isEmpty() );
 }
 
 QgsFields QgsNewMemoryLayerDialog::fields() const
@@ -323,9 +330,7 @@ void QgsNewMemoryLayerDialog::accept()
     const QString currentFieldName = mFieldNameEdit->text();
     if ( fields().lookupField( currentFieldName ) == -1 )
     {
-      if ( QMessageBox::question( this, tr( "New Temporary Scratch Layer" ),
-                                  tr( "The field “%1” has not been added to the fields list. Are you sure you want to proceed and discard this field?" ).arg( currentFieldName ),
-                                  QMessageBox::Ok | QMessageBox::Cancel ) != QMessageBox::Ok )
+      if ( QMessageBox::question( this, tr( "New Temporary Scratch Layer" ), tr( "The field “%1” has not been added to the fields list. Are you sure you want to proceed and discard this field?" ).arg( currentFieldName ), QMessageBox::Ok | QMessageBox::Cancel ) != QMessageBox::Ok )
       {
         return;
       }
@@ -346,6 +351,11 @@ void QgsNewMemoryLayerDialog::mAddAttributeButton_clicked()
     mAttributeView->addTopLevelItem( new QTreeWidgetItem( QStringList() << fieldName << fieldType << width << precision ) );
 
     mFieldNameEdit->clear();
+
+    if ( !mFieldNameEdit->hasFocus() )
+    {
+      mFieldNameEdit->setFocus();
+    }
   }
 }
 
@@ -357,4 +367,24 @@ void QgsNewMemoryLayerDialog::mRemoveAttributeButton_clicked()
 void QgsNewMemoryLayerDialog::showHelp()
 {
   QgsHelp::openHelp( QStringLiteral( "managing_data_source/create_layers.html#creating-a-new-temporary-scratch-layer" ) );
+}
+
+void QgsNewMemoryLayerDialog::moveFieldsUp()
+{
+  int currentRow = mAttributeView->currentIndex().row();
+  if ( currentRow == 0 )
+    return;
+
+  mAttributeView->insertTopLevelItem( currentRow - 1, mAttributeView->takeTopLevelItem( currentRow ) );
+  mAttributeView->setCurrentIndex( mAttributeView->model()->index( currentRow - 1, 0 ) );
+}
+
+void QgsNewMemoryLayerDialog::moveFieldsDown()
+{
+  int currentRow = mAttributeView->currentIndex().row();
+  if ( currentRow == mAttributeView->topLevelItemCount() - 1 )
+    return;
+
+  mAttributeView->insertTopLevelItem( currentRow + 1, mAttributeView->takeTopLevelItem( currentRow ) );
+  mAttributeView->setCurrentIndex( mAttributeView->model()->index( currentRow + 1, 0 ) );
 }

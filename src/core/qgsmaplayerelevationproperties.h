@@ -43,14 +43,11 @@ class QgsMapLayer;
  */
 class CORE_EXPORT QgsMapLayerElevationProperties : public QObject
 {
-#ifdef SIP_RUN
-#include "qgspointcloudlayerelevationproperties.h"
-#include "qgsrasterlayerelevationproperties.h"
-#include "qgsvectorlayerelevationproperties.h"
-#include "qgsmeshlayerelevationproperties.h"
-#include "qgstiledscenelayerelevationproperties.h"
-#endif
-
+    //SIP_TYPEHEADER_INCLUDE( "qgspointcloudlayerelevationproperties.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrasterlayerelevationproperties.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsvectorlayerelevationproperties.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsmeshlayerelevationproperties.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgstiledscenelayerelevationproperties.h" );
     Q_OBJECT
 
 #ifdef SIP_RUN
@@ -92,10 +89,10 @@ class CORE_EXPORT QgsMapLayerElevationProperties : public QObject
      */
     enum class Property SIP_MONKEYPATCH_SCOPEENUM_UNNEST( QgsMapLayerElevationProperties, Property ) : int
       {
-      ZOffset, //! Z offset
+      ZOffset, //!< Z offset
       ExtrusionHeight, //!< Extrusion height
-      RasterPerBandLowerElevation, //!< Lower elevation for each raster band (since QGIS 3.38)
-      RasterPerBandUpperElevation, //!< Upper elevation for each raster band (since QGIS 3.38)
+      RasterPerBandLowerElevation, //!< Lower elevation for each raster band \since QGIS 3.38
+      RasterPerBandUpperElevation, //!< Upper elevation for each raster band \since QGIS 3.38
     };
     // *INDENT-ON*
 

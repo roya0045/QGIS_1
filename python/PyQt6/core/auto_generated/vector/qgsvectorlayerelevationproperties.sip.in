@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/vector/qgsvectorlayerelevationproperties.h                  *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -147,6 +147,52 @@ Sets the feature extrusion height.
    the :py:func:`~QgsVectorLayerElevationProperties.zScale` factor is NOT applied to extrusion heights.
 
 .. seealso:: :py:func:`extrusionHeight`
+%End
+
+    bool customToleranceEnabled() const;
+%Docstring
+Returns ``True`` if custom tolerance is enabled.
+
+.. seealso:: :py:func:`setCustomToleranceEnabled`
+
+.. seealso:: :py:func:`customTolerance`
+%End
+
+    void setCustomToleranceEnabled( bool enabled );
+%Docstring
+Sets whether custom tolerance is ``enabled``.
+
+.. seealso:: :py:func:`customToleranceEnabled`
+
+.. seealso:: :py:func:`setCustomTolerance`
+%End
+
+    double customTolerance() const;
+%Docstring
+Returns the feature custom tolerance.
+
+.. warning::
+
+   custom tolerance is only applied if :py:func:`~QgsVectorLayerElevationProperties.customToleranceEnabled` is ``True``.
+
+If enabled, the profile generator will use this tolerance instead of the one
+defined in the elevation profile widget.
+
+.. seealso:: :py:func:`setCustomTolerance`
+%End
+
+    void setCustomTolerance( double tolerance );
+%Docstring
+Sets the feature custom tolerance.
+
+.. warning::
+
+   custom tolerance is only applied if :py:func:`~QgsVectorLayerElevationProperties.customToleranceEnabled` is ``True``.
+
+If enabled, the profile generator will use this tolerance instead of the one
+defined in the elevation profile widget.
+
+.. seealso:: :py:func:`customTolerance`
 %End
 
     bool respectLayerSymbology() const;
@@ -324,5 +370,5 @@ Sets whether the marker symbol should also be shown in continuous surface plots.
  *                                                                      *
  * src/core/vector/qgsvectorlayerelevationproperties.h                  *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

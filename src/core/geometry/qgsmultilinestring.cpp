@@ -224,6 +224,17 @@ bool QgsMultiLineString::insertGeometry( QgsAbstractGeometry *g, int index )
   return QgsMultiCurve::insertGeometry( g, index );
 }
 
+QgsMultiLineString *QgsMultiLineString::simplifyByDistance( double tolerance ) const
+{
+  auto result = std::make_unique< QgsMultiLineString >();
+  result->reserve( mGeometries.size() );
+  for ( int i = 0; i < mGeometries.size(); ++i )
+  {
+    result->addGeometry( mGeometries.at( i )->simplifyByDistance( tolerance ) );
+  }
+  return result.release();
+}
+
 QgsMultiCurve *QgsMultiLineString::toCurveType() const
 {
   QgsMultiCurve *multiCurve = new QgsMultiCurve();
@@ -242,7 +253,7 @@ bool QgsMultiLineString::wktOmitChildType() const
 
 QgsMultiLineString *QgsMultiLineString::measuredLine( double start, double end ) const
 {
-  std::unique_ptr< QgsMultiLineString > result = std::make_unique< QgsMultiLineString >();
+  auto result = std::make_unique< QgsMultiLineString >();
   if ( isEmpty() )
   {
     result->convertTo( QgsWkbTypes::addM( mWkbType ) );
@@ -262,7 +273,8 @@ QgsMultiLineString *QgsMultiLineString::measuredLine( double start, double end )
     const double subStart{ ( start + range *lengthSoFar / length ) };
     const double subEnd{ ( start + range * ( lengthSoFar + subLength ) / length ) };
 
-    result->addGeometry( qgsgeometry_cast<QgsLineString *>( geometryN( i ) )->measuredLine( subStart, subEnd ) );
+    std::unique_ptr< QgsLineString > measuredLine = qgsgeometry_cast<QgsLineString *>( geometryN( i ) )->measuredLine( subStart, subEnd );
+    result->addGeometry( measuredLine.release() );
 
     lengthSoFar += subLength;
   }

@@ -19,9 +19,8 @@
 #include "qgsgeos.h"
 #include "qgsmultipolygon.h"
 #include "qgsmultilinestring.h"
-
-Q_GUI_EXPORT extern int qt_defaultDpiX();
-Q_GUI_EXPORT extern int qt_defaultDpiY();
+#include "qgspainting.h"
+#include "qgssymbollayerutils.h"
 
 //
 // QgsGeometryPaintEngine
@@ -31,6 +30,16 @@ QgsGeometryPaintEngine::QgsGeometryPaintEngine( bool usePathStroker )
   : QPaintEngine( QPaintEngine::AllFeatures ) // we lie and say we support all paint features, as we don't want Qt trying to be helpful and rasterizing shapes
   , mUsePathStroker( usePathStroker )
 {
+}
+
+void QgsGeometryPaintEngine::setStrokedPathSegments( int segments )
+{
+  mStrokedPathsSegments = segments;
+}
+
+void QgsGeometryPaintEngine::setSimplificationTolerance( double tolerance )
+{
+  mSimplifyTolerance = tolerance;
 }
 
 bool QgsGeometryPaintEngine::begin( QPaintDevice * )
@@ -59,16 +68,19 @@ void QgsGeometryPaintEngine::updateState( const QPaintEngineState &state )
 void QgsGeometryPaintEngine::drawImage( const QRectF &, const QImage &, const QRectF &, Qt::ImageConversionFlags )
 {
   // ignore, we don't need to support raster drawing
+  QgsDebugError( QStringLiteral( "QgsGeometryPaintEngine does not support drawImage method" ) );
 }
 
 void QgsGeometryPaintEngine::drawPixmap( const QRectF &, const QPixmap &, const QRectF & )
 {
   // ignore, we don't need to support raster drawing
+  QgsDebugError( QStringLiteral( "QgsGeometryPaintEngine does not support drawPixmap method" ) );
 }
 
 void QgsGeometryPaintEngine::drawTiledPixmap( const QRectF &, const QPixmap &, const QPointF & )
 {
   // ignore, we don't need to support raster drawing
+  QgsDebugError( QStringLiteral( "QgsGeometryPaintEngine does not support drawTiledPixmap method" ) );
 }
 
 template <typename T>
@@ -233,7 +245,7 @@ void QgsGeometryPaintEngine::drawRects( const QRect *rects, int rectCount )
 }
 
 template <typename T>
-void drawPolygonImp( const QTransform &transform, QgsGeometryCollection &geometry, const T *points, int pointCount, QPaintEngine::PolygonDrawMode mode )
+void drawPolygonImp( const QTransform &transform, QgsGeometryCollection &geometry, const T *points, int pointCount, QPaintEngine::PolygonDrawMode mode, double simplifyTolerance )
 {
   QVector< double > x;
   QVector< double > y;
@@ -267,13 +279,19 @@ void drawPolygonImp( const QTransform &transform, QgsGeometryCollection &geometr
   switch ( mode )
   {
     case QPaintEngine::PolylineMode:
-      geometry.addGeometry( new QgsLineString( x, y ) );
+      if ( simplifyTolerance > 0 )
+        geometry.addGeometry( QgsLineString( x, y ).simplifyByDistance( simplifyTolerance ) );
+      else
+        geometry.addGeometry( new QgsLineString( x, y ) );
       break;
 
     case QPaintEngine::OddEvenMode:
     case QPaintEngine::WindingMode:
     case QPaintEngine::ConvexMode:
-      geometry.addGeometry( new QgsPolygon( new QgsLineString( x, y ) ) );
+      if ( simplifyTolerance > 0 )
+        geometry.addGeometry( new QgsPolygon( QgsLineString( x, y ).simplifyByDistance( simplifyTolerance ) ) );
+      else
+        geometry.addGeometry( new QgsPolygon( new QgsLineString( x, y ) ) );
       break;
   }
 }
@@ -297,7 +315,7 @@ void QgsGeometryPaintEngine::drawPolygon( const QPoint *points, int pointCount, 
   else
   {
     const QTransform transform = painter()->combinedTransform();
-    drawPolygonImp( transform, mGeometry, points, pointCount, mode );
+    drawPolygonImp( transform, mGeometry, points, pointCount, mode, mSimplifyTolerance );
   }
 }
 
@@ -320,15 +338,31 @@ void QgsGeometryPaintEngine::drawPolygon( const QPointF *points, int pointCount,
   else
   {
     const QTransform transform = painter()->combinedTransform();
-    drawPolygonImp( transform, mGeometry, points, pointCount, mode );
+    drawPolygonImp( transform, mGeometry, points, pointCount, mode, mSimplifyTolerance );
   }
 }
 
 void QgsGeometryPaintEngine::addStrokedLine( const QgsLineString *line, double penWidth, Qgis::EndCapStyle endCapStyle, Qgis::JoinStyle joinStyle, double miterLimit, const QTransform *matrix )
 {
-  QgsGeos geos( line );
+  std::unique_ptr< QgsAbstractGeometry > buffered;
+  if ( mSimplifyTolerance > 0 )
+  {
+    // For performance, we apply a lower level of simplification to the line BEFORE doing the buffer.
+    // This avoids making the call to GEOS buffer function too expensive, as we'd otherwise be doing it
+    // on the unsimplified line and then immediately discarding most of the detail when we simplify
+    // the resultant buffer.
+    // The 0.75 factor here is just a guess! This could likely be made smarter, eg by considering the pen width?
+    const double preBufferedSimplificationFactor = mSimplifyTolerance * 0.75;
+    std::unique_ptr< QgsLineString > simplified( line->simplifyByDistance( preBufferedSimplificationFactor ) );
+    QgsGeos geos( simplified.get() );
+    buffered.reset( geos.buffer( penWidth / 2, mStrokedPathsSegments, endCapStyle, joinStyle, miterLimit ) );
+  }
+  else
+  {
+    QgsGeos geos( line );
+    buffered.reset( geos.buffer( penWidth / 2, mStrokedPathsSegments, endCapStyle, joinStyle, miterLimit ) );
+  }
 
-  std::unique_ptr< QgsAbstractGeometry > buffered( geos.buffer( penWidth / 2, mStrokedPathsSegments, endCapStyle, joinStyle, miterLimit ) );
   if ( !buffered )
     return;
 
@@ -337,48 +371,29 @@ void QgsGeometryPaintEngine::addStrokedLine( const QgsLineString *line, double p
 
   if ( QgsGeometryCollection *bufferedCollection = qgsgeometry_cast< QgsGeometryCollection * >( buffered.get() ) )
   {
-    mGeometry.addGeometries( bufferedCollection->takeGeometries() );
+    if ( mSimplifyTolerance > 0 )
+    {
+      for ( auto it = bufferedCollection->const_parts_begin(); it != bufferedCollection->const_parts_end(); ++it )
+      {
+        mGeometry.addGeometry( ( *it )->simplifyByDistance( mSimplifyTolerance ) );
+      }
+    }
+    else
+    {
+      mGeometry.addGeometries( bufferedCollection->takeGeometries() );
+    }
   }
   else if ( buffered )
   {
-    mGeometry.addGeometry( buffered.release() );
+    if ( mSimplifyTolerance > 0 )
+    {
+      mGeometry.addGeometry( buffered->simplifyByDistance( mSimplifyTolerance ) );
+    }
+    else
+    {
+      mGeometry.addGeometry( buffered.release() );
+    }
   }
-}
-
-Qgis::EndCapStyle QgsGeometryPaintEngine::penStyleToCapStyle( Qt::PenCapStyle style )
-{
-  switch ( style )
-  {
-    case Qt::FlatCap:
-      return Qgis::EndCapStyle::Flat;
-    case Qt::SquareCap:
-      return Qgis::EndCapStyle::Square;
-    case Qt::RoundCap:
-      return Qgis::EndCapStyle::Round;
-    case Qt::MPenCapStyle:
-      // undocumented?
-      break;
-  }
-
-  return Qgis::EndCapStyle::Round;
-}
-
-Qgis::JoinStyle QgsGeometryPaintEngine::penStyleToJoinStyle( Qt::PenJoinStyle style )
-{
-  switch ( style )
-  {
-    case Qt::MiterJoin:
-    case Qt::SvgMiterJoin:
-      return Qgis::JoinStyle::Miter;
-    case Qt::BevelJoin:
-      return Qgis::JoinStyle::Bevel;
-    case Qt::RoundJoin:
-      return Qgis::JoinStyle::Round;
-    case Qt::MPenJoinStyle:
-      // undocumented?
-      break;
-  }
-  return Qgis::JoinStyle::Round;
 }
 
 // based on QPainterPath::toSubpathPolygons()
@@ -389,8 +404,8 @@ void QgsGeometryPaintEngine::addSubpathGeometries( const QPainterPath &path, con
 
   const bool transformIsIdentity = matrix.isIdentity();
 
-  const Qgis::EndCapStyle endCapStyle = penStyleToCapStyle( mPen.capStyle() );
-  const Qgis::JoinStyle joinStyle = penStyleToJoinStyle( mPen.joinStyle() );
+  const Qgis::EndCapStyle endCapStyle = QgsSymbolLayerUtils::penCapStyleToEndCapStyle( mPen.capStyle() );
+  const Qgis::JoinStyle joinStyle = QgsSymbolLayerUtils::penJoinStyleToJoinStyle( mPen.joinStyle() );
   const double penWidth = mPen.widthF() <= 0 ? 1 : mPen.widthF();
   const double miterLimit = mPen.miterLimit();
 
@@ -410,7 +425,7 @@ void QgsGeometryPaintEngine::addSubpathGeometries( const QPainterPath &path, con
       {
         if ( currentX.size() > 1 )
         {
-          std::unique_ptr< QgsLineString > line = std::make_unique< QgsLineString >( currentX, currentY );
+          auto line = std::make_unique< QgsLineString >( currentX, currentY );
           if ( mUsePathStroker )
           {
             addStrokedLine( line.get(), penWidth, endCapStyle, joinStyle, miterLimit, transformIsIdentity ? nullptr : &matrix );
@@ -419,13 +434,30 @@ void QgsGeometryPaintEngine::addSubpathGeometries( const QPainterPath &path, con
           {
             if ( !transformIsIdentity )
               line->transform( matrix );
-            queuedPolygons.emplace_back( std::make_unique< QgsPolygon >( line.release() ) );
+
+            if ( mSimplifyTolerance > 0 )
+            {
+              queuedPolygons.emplace_back( std::make_unique< QgsPolygon >( line->simplifyByDistance( mSimplifyTolerance ) ) );
+              line.reset();
+            }
+            else
+            {
+              queuedPolygons.emplace_back( std::make_unique< QgsPolygon >( line.release() ) );
+            }
           }
           else
           {
             if ( !transformIsIdentity )
               line->transform( matrix );
-            mGeometry.addGeometry( line.release() );
+            if ( mSimplifyTolerance > 0 )
+            {
+              mGeometry.addGeometry( line->simplifyByDistance( mSimplifyTolerance ) );
+              line.reset();
+            }
+            else
+            {
+              mGeometry.addGeometry( line.release() );
+            }
           }
         }
         currentX.resize( 0 );
@@ -480,7 +512,7 @@ void QgsGeometryPaintEngine::addSubpathGeometries( const QPainterPath &path, con
 
   if ( currentX.size() > 1 )
   {
-    std::unique_ptr< QgsLineString > line = std::make_unique< QgsLineString >( currentX, currentY );
+    auto line = std::make_unique< QgsLineString >( currentX, currentY );
     if ( mUsePathStroker )
     {
       addStrokedLine( line.get(), penWidth, endCapStyle, joinStyle, miterLimit, transformIsIdentity ? nullptr : &matrix );
@@ -489,13 +521,29 @@ void QgsGeometryPaintEngine::addSubpathGeometries( const QPainterPath &path, con
     {
       if ( !transformIsIdentity )
         line->transform( matrix );
-      queuedPolygons.emplace_back( std::make_unique< QgsPolygon >( line.release() ) );
+      if ( mSimplifyTolerance > 0 )
+      {
+        queuedPolygons.emplace_back( std::make_unique< QgsPolygon >( line->simplifyByDistance( mSimplifyTolerance ) ) );
+        line.reset();
+      }
+      else
+      {
+        queuedPolygons.emplace_back( std::make_unique< QgsPolygon >( line.release() ) );
+      }
     }
     else
     {
       if ( !transformIsIdentity )
         line->transform( matrix );
-      mGeometry.addGeometry( line.release() );
+      if ( mSimplifyTolerance > 0 )
+      {
+        mGeometry.addGeometry( line->simplifyByDistance( mSimplifyTolerance ) );
+        line.reset();
+      }
+      else
+      {
+        mGeometry.addGeometry( line.release() );
+      }
     }
   }
 
@@ -529,6 +577,7 @@ void QgsGeometryPaintEngine::drawPath( const QPainterPath &path )
   addSubpathGeometries( path, transform );
 }
 
+
 //
 // QgsGeometryPaintDevice
 //
@@ -536,6 +585,18 @@ void QgsGeometryPaintEngine::drawPath( const QPainterPath &path )
 QgsGeometryPaintDevice::QgsGeometryPaintDevice( bool usePathStroker )
 {
   mPaintEngine = std::make_unique<QgsGeometryPaintEngine>( usePathStroker );
+}
+
+void QgsGeometryPaintDevice::setStrokedPathSegments( int segments )
+{
+  if ( mPaintEngine )
+    mPaintEngine->setStrokedPathSegments( segments );
+}
+
+void QgsGeometryPaintDevice::setSimplificationTolerance( double tolerance )
+{
+  if ( mPaintEngine )
+    mPaintEngine->setSimplificationTolerance( tolerance );
 }
 
 QPaintEngine *QgsGeometryPaintDevice::paintEngine() const
@@ -557,18 +618,18 @@ int QgsGeometryPaintDevice::metric( PaintDeviceMetric m ) const
       val = static_cast< int >( mPaintEngine->geometry().boundingBox().height() );
       break;
     case PdmWidthMM:
-      val = static_cast< int >( 25.4 / qt_defaultDpiX() * mPaintEngine->geometry().boundingBox().width() );
+      val = static_cast< int >( 25.4 / QgsPainting::qtDefaultDpiX() * mPaintEngine->geometry().boundingBox().width() );
       break;
     case PdmHeightMM:
-      val = static_cast< int >( 25.4 / qt_defaultDpiY() * mPaintEngine->geometry().boundingBox().height() );
+      val = static_cast< int >( 25.4 / QgsPainting::qtDefaultDpiY() * mPaintEngine->geometry().boundingBox().height() );
       break;
     case PdmDpiX:
     case PdmPhysicalDpiX:
-      val = qt_defaultDpiX();
+      val = QgsPainting::qtDefaultDpiX();
       break;
     case PdmDpiY:
     case PdmPhysicalDpiY:
-      val = qt_defaultDpiY();
+      val = QgsPainting::qtDefaultDpiY();
       break;
     case PdmNumColors:
       val = 16777216;
@@ -592,5 +653,14 @@ int QgsGeometryPaintDevice::metric( PaintDeviceMetric m ) const
 const QgsAbstractGeometry &QgsGeometryPaintDevice::geometry() const
 {
   return mPaintEngine->geometry();
+}
+
+QgsGeometry QgsGeometryPaintDevice::painterPathToGeometry( const QPainterPath &path )
+{
+  QgsGeometryPaintDevice device;
+  QPainter painter( &device );
+  painter.drawPath( path );
+  painter.end();
+  return QgsGeometry( device.geometry().clone() );
 }
 

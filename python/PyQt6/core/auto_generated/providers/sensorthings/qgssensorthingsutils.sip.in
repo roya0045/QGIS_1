@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/providers/sensorthings/qgssensorthingsutils.h               *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -56,9 +56,12 @@ Returns the SensorThings properties which correspond to a specified entity ``typ
 .. versionadded:: 3.38
 %End
 
-    static QgsFields fieldsForEntityType( Qgis::SensorThingsEntity type );
+    static QgsFields fieldsForEntityType( Qgis::SensorThingsEntity type, bool includeRangeFieldProxies = true );
 %Docstring
 Returns the fields which correspond to a specified entity ``type``.
+
+Since QGIS 3.42 the ``includeRangeFieldProxies`` argument can be used to hide the "start"/"end" fields
+which are proxies for the date time range field types which are not natively supported in QGIS.
 %End
 
     static QgsFields fieldsForExpandedEntityType( Qgis::SensorThingsEntity baseType, const QList< Qgis::SensorThingsEntity > &expandedTypes );
@@ -136,8 +139,7 @@ Returns the cardinality of the relationship between a base entity type and a rel
 :param relatedType: related entity type
 
 :return: - relationship cardinality
-         - valid: will be set to ``True`` if a relationship exists between the entity types, or ``False`` if no relationship exists
-
+         - valid: ``True`` if a relationship exists between the entity types, or ``False`` if no relationship exists
 
 .. versionadded:: 3.38
 %End
@@ -335,5 +337,5 @@ Optionally a list of additional query options can be specified for the expansion
  *                                                                      *
  * src/core/providers/sensorthings/qgssensorthingsutils.h               *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

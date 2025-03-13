@@ -16,17 +16,19 @@
 #ifndef QGS3DMAPCANVASWIDGET_H
 #define QGS3DMAPCANVASWIDGET_H
 
-#include "qmenu.h"
-#include "qgsdockwidget.h"
 #include "qgis_app.h"
 #include "qobjectuniqueptr.h"
-#include "qtoolbutton.h"
 #include "qgsrectangle.h"
 
+#include <QComboBox>
+#include <QMenu>
 #include <QPointer>
+#include <QToolBar>
 
 #define SIP_NO_FILE
 
+
+class Qgs3DMapToolPointCloudChangeAttributePaintbrush;
 class QLabel;
 class QProgressBar;
 
@@ -35,20 +37,39 @@ class Qgs3DMapCanvas;
 class Qgs3DMapSettings;
 class Qgs3DMapToolIdentify;
 class Qgs3DMapToolMeasureLine;
+class Qgs3DMapToolPointCloudChangeAttribute;
 class Qgs3DNavigationWidget;
+class Qgs3DDebugWidget;
+class QgsMapLayer;
 class QgsMapTool;
 class QgsMapToolExtent;
 class QgsMapCanvas;
 class QgsDockableWidgetHelper;
 class QgsMessageBar;
 class QgsRubberBand;
+class QgsDoubleSpinBox;
+
+//! Helper validator for classification classes
+class ClassValidator : public QValidator
+{
+  public:
+    ClassValidator( QWidget *parent );
+    QValidator::State validate( QString &input, int &pos ) const override;
+    void fixup( QString &input ) const override;
+    void setClasses( const QMap<int, QString> &classes ) { mClasses = classes; }
+
+  private:
+    QMap<int, QString> mClasses;
+    QRegularExpression mRx;
+};
 
 class APP_EXPORT Qgs3DMapCanvasWidget : public QWidget
 {
     Q_OBJECT
+
   public:
     Qgs3DMapCanvasWidget( const QString &name, bool isDocked );
-    ~Qgs3DMapCanvasWidget();
+    ~Qgs3DMapCanvasWidget() override;
 
     //! takes ownership
     void setMapSettings( Qgs3DMapSettings *map );
@@ -68,6 +89,11 @@ class APP_EXPORT Qgs3DMapCanvasWidget : public QWidget
 
     void showAnimationWidget() { mActionAnim->trigger(); }
 
+    void updateLayerRelatedActions( QgsMapLayer *layer );
+
+    bool eventFilter( QObject *watched, QEvent *event ) override;
+
+
   private slots:
     void resetView();
     void configure();
@@ -76,9 +102,15 @@ class APP_EXPORT Qgs3DMapCanvasWidget : public QWidget
     void cameraControl();
     void identify();
     void measureLine();
+    void changePointCloudAttributeByPaintbrush();
+    void changePointCloudAttributeByPolygon();
+    void changePointCloudAttributeByAboveLine();
+    void changePointCloudAttributeByBelowLine();
     void exportScene();
     void toggleNavigationWidget( bool visibility );
     void toggleFpsCounter( bool visibility );
+    void toggleDebugWidget( bool visibility ) const;
+    void toggleDebugWidget() const;
     void setSceneExtentOn2DCanvas();
     void setSceneExtent( const QgsRectangle &extent );
 
@@ -97,6 +129,8 @@ class APP_EXPORT Qgs3DMapCanvasWidget : public QWidget
     void onExtentChanged();
     void onGpuMemoryLimitReached();
 
+    void onPointCloudChangeAttributeSettingsChanged();
+
   private:
     QString mCanvasName;
     Qgs3DMapCanvas *mCanvas = nullptr;
@@ -109,29 +143,35 @@ class APP_EXPORT Qgs3DMapCanvasWidget : public QWidget
     QTimer *mLabelNavSpeedHideTimeout = nullptr;
     Qgs3DMapToolIdentify *mMapToolIdentify = nullptr;
     Qgs3DMapToolMeasureLine *mMapToolMeasureLine = nullptr;
+    QObjectUniquePtr<Qgs3DMapToolPointCloudChangeAttribute> mMapToolChangeAttribute;
     std::unique_ptr<QgsMapToolExtent> mMapToolExtent;
     QgsMapTool *mMapToolPrevious = nullptr;
     QMenu *mExportMenu = nullptr;
     QMenu *mMapThemeMenu = nullptr;
     QMenu *mCameraMenu = nullptr;
     QMenu *mEffectsMenu = nullptr;
+    QMenu *mEditingToolsMenu = nullptr;
     QList<QAction *> mMapThemeMenuPresetActions;
     QAction *mActionEnableShadows = nullptr;
     QAction *mActionEnableEyeDome = nullptr;
     QAction *mActionEnableAmbientOcclusion = nullptr;
     QAction *mActionSync2DNavTo3D = nullptr;
     QAction *mActionSync3DNavTo2D = nullptr;
-    QAction *mShowFrustumPolyogon = nullptr;
+    QAction *mShowFrustumPolygon = nullptr;
     QAction *mActionAnim = nullptr;
     QAction *mActionExport = nullptr;
     QAction *mActionMapThemes = nullptr;
     QAction *mActionCamera = nullptr;
     QAction *mActionEffects = nullptr;
-    QAction *mActionOptions = nullptr;
     QAction *mActionSetSceneExtent = nullptr;
+    QAction *mActionToggleEditing = nullptr;
+    QAction *mActionUndo = nullptr;
+    QAction *mActionRedo = nullptr;
+    QAction *mEditingToolsAction = nullptr;
+    QToolBar *mPointCloudEditingToolbar = nullptr;
     QgsDockableWidgetHelper *mDockableWidgetHelper = nullptr;
-    QObjectUniquePtr< QgsRubberBand > mViewFrustumHighlight;
-    QObjectUniquePtr< QgsRubberBand > mViewExtentHighlight;
+    QObjectUniquePtr<QgsRubberBand> mViewFrustumHighlight;
+    QObjectUniquePtr<QgsRubberBand> mViewExtentHighlight;
     QPointer<QDialog> mConfigureDialog;
     QgsMessageBar *mMessageBar = nullptr;
     bool mGpuMemoryLimitReachedReported = false;
@@ -140,7 +180,18 @@ class APP_EXPORT Qgs3DMapCanvasWidget : public QWidget
     QWidget *mContainer = nullptr;
     //! On-Screen Navigation widget.
     Qgs3DNavigationWidget *mNavigationWidget = nullptr;
+    //! On-screen Debug widget
+    Qgs3DDebugWidget *mDebugWidget = nullptr;
 
+    QToolBar *mEditingToolBar = nullptr;
+    QComboBox *mCboChangeAttribute = nullptr;
+    QComboBox *mCboChangeAttributeValue = nullptr;
+    ClassValidator *mClassValidator = nullptr;
+    QgsDoubleSpinBox *mSpinChangeAttributeValue = nullptr;
+    QAction *mCboChangeAttributeValueAction = nullptr;
+    QAction *mSpinChangeAttributeValueAction = nullptr;
+
+    QMenu *mToolbarMenu = nullptr;
 };
 
 #endif // QGS3DMAPCANVASWIDGET_H

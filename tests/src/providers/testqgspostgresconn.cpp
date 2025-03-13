@@ -20,6 +20,7 @@
 #include <qgsfields.h>
 #include <qgspostgresprovider.h>
 #include <qgsdatasourceuri.h>
+#include "qgspostgresutils.h"
 
 // Helper function for QCOMPARE
 char *toString( const QgsPostgresGeometryColumnType &t )
@@ -53,7 +54,7 @@ char *toString( const QgsPostgresGeometryColumnType &t )
   return qstrcpy( dst, ptr );
 }
 
-class TestQgsPostgresConn: public QObject
+class TestQgsPostgresConn : public QObject
 {
     Q_OBJECT
 
@@ -64,10 +65,11 @@ class TestQgsPostgresConn: public QObject
 
     QgsPostgresConn *getConnection()
     {
-      if ( ! _connection )
+      if ( !_connection )
       {
         const char *connstring = getenv( "QGIS_PGTEST_DB" );
-        if ( !connstring ) connstring = "service=qgis_test";
+        if ( !connstring )
+          connstring = "service=qgis_test";
         _connection = QgsPostgresConn::connectDb( connstring, true );
       }
       return _connection;
@@ -84,7 +86,8 @@ class TestQgsPostgresConn: public QObject
     void cleanupTestCase() // will be called after the last testfunction was executed.
     {
 #ifdef ENABLE_PGTEST
-      if ( this->_connection ) this->_connection->unref();
+      if ( this->_connection )
+        this->_connection->unref();
 #endif
     }
 
@@ -169,12 +172,12 @@ class TestQgsPostgresConn: public QObject
       QMap<QString, QgsPostgresLayerProperty> layersMap;
 
       const bool success = conn->supportedLayers(
-                             layers,
-                             false, // searchGeometryColumnsOnly
-                             false, // searchPublicOnly
-                             false, // allowGeometrylessTables
-                             "qgis_test" // schema
-                           );
+        layers,
+        false,      // searchGeometryColumnsOnly
+        false,      // searchPublicOnly
+        false,      // allowGeometrylessTables
+        "qgis_test" // schema
+      );
       QVERIFY( success );
 
       // Test no duplicates are reported by supportedLayers
@@ -187,7 +190,10 @@ class TestQgsPostgresConn: public QObject
           QFAIL(
             QString(
               "Layer %1 returned multiple times by supportedLayers"
-            ).arg( key ).toUtf8().data()
+            )
+              .arg( key )
+              .toUtf8()
+              .data()
           );
         }
         layersMap.insert( key, l );
@@ -203,7 +209,6 @@ class TestQgsPostgresConn: public QObject
       QCOMPARE( lit->geometryColName, "topogeom" );
       QCOMPARE( lit->geometryColType, SctTopoGeometry );
       // TODO: add more tests
-
     }
 
     void connectDb()
@@ -220,7 +225,8 @@ class TestQgsPostgresConn: public QObject
       QCOMPARE( result.PQgetvalue( 0, 0 ), result.PQgetvalue( 0, 1 ) );
 
       const char *connstring = getenv( "QGIS_PGTEST_DB" );
-      if ( !connstring ) connstring = "service=qgis_test";
+      if ( !connstring )
+        connstring = "service=qgis_test";
       const QString conninfo( connstring );
       QgsDataSourceUri uri( conninfo );
 
@@ -239,7 +245,7 @@ class TestQgsPostgresConn: public QObject
       conn->unref();
 
       // Add known session_role parameter to postgres uri
-      uri.setParam( QStringLiteral( "session_role" ),  QStringLiteral( "qgis_test_group" ) );
+      uri.setParam( QStringLiteral( "session_role" ), QStringLiteral( "qgis_test_group" ) );
       conn = QgsPostgresConn::connectDb( uri, true );
       QVERIFY( conn );
       result = conn->PQexec( sql );

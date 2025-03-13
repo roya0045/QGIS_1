@@ -107,12 +107,6 @@ QVariantList QgsOgrProviderResultIterator::nextRowInternal()
         }
       }
     }
-    else
-    {
-      // Release the resources
-      GDALDatasetReleaseResultSet( mHDS.get(), mOgrLayer );
-      mHDS.release();
-    }
   }
   return row;
 }
@@ -291,7 +285,7 @@ QgsVectorLayer *QgsOgrProviderConnection::createSqlVectorLayer( const QgsAbstrac
   QgsProviderMetadata *providerMetadata { QgsProviderRegistry::instance()->providerMetadata( QStringLiteral( "ogr" ) ) };
   Q_ASSERT( providerMetadata );
   QMap<QString, QVariant> decoded = providerMetadata->decodeUri( uri() );
-  decoded[ QStringLiteral( "subset" ) ] = options.sql;
+  decoded[ QStringLiteral( "subset" ) ] = sanitizeSqlForQueryLayer( options.sql ) ;
   return new QgsVectorLayer( providerMetadata->encodeUri( decoded ), options.layerName.isEmpty() ? QStringLiteral( "QueryLayer" ) : options.layerName, providerKey() );
 }
 
@@ -321,6 +315,7 @@ void QgsOgrProviderConnection::createVectorTable( const QString &schema,
   opts[ QStringLiteral( "driverName" ) ] = QString( GDALGetDriverShortName( hDriver ) );
   QMap<int, int> map;
   QString errCause;
+  QString createdLayerName;
   Qgis::VectorExportResult errCode = QgsOgrProvider::createEmptyLayer(
                                        uri(),
                                        fields,
@@ -328,9 +323,11 @@ void QgsOgrProviderConnection::createVectorTable( const QString &schema,
                                        srs,
                                        overwrite,
                                        &map,
+                                       createdLayerName,
                                        &errCause,
                                        &opts
                                      );
+  // TODO we need some way to hand createdLayerName back to caller, as it may differ from the requested name...
   if ( errCode != Qgis::VectorExportResult::Success )
   {
     throw QgsProviderConnectionException( QObject::tr( "An error occurred while creating the vector layer: %1" ).arg( errCause ) );
@@ -418,7 +415,7 @@ void QgsOgrProviderConnection::setDefaultCapabilities()
     mCapabilities |= Capability::Spatial;
 
 #if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,4,0)
-  mSingleTableDataset = GDALGetMetadataItem( hDriver, GDAL_DCAP_MULTIPLE_VECTOR_LAYERS, nullptr ) == nullptr;
+  mSingleTableDataset = !GDALGetMetadataItem( hDriver, GDAL_DCAP_MULTIPLE_VECTOR_LAYERS, nullptr );
 #else
   {
     const QVariantMap uriParts = QgsProviderRegistry::instance()->providerMetadata( QStringLiteral( "ogr" ) )->decodeUri( uri() );

@@ -37,12 +37,13 @@ Build-Depends:
  libsqlite3-dev,
  libsqlite3-mod-spatialite,
  libzip-dev,
+ nlohmann-json3-dev,
  ninja-build,
  ocl-icd-opencl-dev,
  opencl-headers,
 #oracle# oracle-instantclient-basiclite,
 #oracle# oracle-instantclient-devel,
- pkg-config,
+ pkgconf,
  pyqt5-dev-tools,
  pyqt5-dev,
  pyqt5.qsci-dev,
@@ -52,6 +53,7 @@ Build-Depends:
  python3-mock,
  python3-nose2,
  python3-owslib,
+ python3-packaging,
  python3-psycopg2,
  python3-pyqt5,
  python3-pyqt5.qsci,
@@ -60,8 +62,8 @@ Build-Depends:
  python3-pyqt5.qtserialport,
  python3-pyqt5.qtsql,
  python3-pyqt5.qtsvg,
-#bullseye# python3-sip-dev, python3-sip,
-#jammy kinetic lunar mantic noble bookworm sid# python3-pyqtbuild, sip-tools,
+ python3-pyqtbuild,
+ sip-tools,
  python3-termcolor,
  python3-yaml,
  qt3d5-dev,
@@ -69,14 +71,13 @@ Build-Depends:
  qt3d-defaultgeometryloader-plugin,
  qt3d-gltfsceneio-plugin,
  qt3d-scene2d-plugin,
-#bullseye# qt5keychain-dev,
-#jammy kinetic lunar mantic noble bookworm sid# qtkeychain-qt5-dev,
+ qtkeychain-qt5-dev,
  qtbase5-dev,
  qtbase5-private-dev,
  qtpositioning5-dev,
  qttools5-dev-tools,
  qttools5-dev,
-#jammy bullseye# libpdal-dev, pdal,
+#pdal# libpdal-dev, pdal,
  libprotobuf-dev,
  protobuf-compiler,
  libzstd-dev,
@@ -100,6 +101,7 @@ Standards-Version: 3.9.7
 Vcs-Browser: https://github.com/qgis/QGIS/
 Vcs-Git: https://github.com/qgis/QGIS.git
 Homepage: https://qgis.org/
+Rules-Requires-Root: no
 
 Package: qgis
 Architecture: any
@@ -289,6 +291,7 @@ Depends:
  libqt5webkit5-dev,
  libqwt-qt5-dev,
  libsqlite3-dev,
+ nlohmann-json3-dev,
  pyqt5-dev-tools,
  pyqt5.qsci-dev,
  python3-dev,
@@ -439,7 +442,7 @@ Depends:
  libqca-qt5-2-plugins,
  libqt5sql5-sqlite,
  qt5-image-formats-plugins,
-#jammy kinetic lunar mantic noble bullseye bookworm sid# qt5-image-formats-plugin-pdf,
+ qt5-image-formats-plugin-pdf,
  ${shlibs:Depends},
  ${misc:Depends}
 Breaks: qgis (<= 1.6)
@@ -502,7 +505,7 @@ Description: QGIS server providing various OGC services
  QGIS is a Geographic Information System (GIS) which manages, analyzes and
  display databases of geographic information.
  .
- This package contains the wms service.
+ This package contains the WMS service.
 
 Package: qgis-server-wmts
 Architecture: any
@@ -514,7 +517,7 @@ Description: QGIS server providing various OGC services
  QGIS is a Geographic Information System (GIS) which manages, analyzes and
  display databases of geographic information.
  .
- This package contains the wmts service.
+ This package contains the WMTS service.
 
 Package: qgis-server-wfs
 Architecture: any
@@ -526,7 +529,7 @@ Description: QGIS server providing various OGC services
  QGIS is a Geographic Information System (GIS) which manages, analyzes and
  display databases of geographic information.
  .
- This package contains the wfs service.
+ This package contains the WFS service.
 
 Package: qgis-server-wfs3
 Architecture: any
@@ -538,7 +541,7 @@ Description: QGIS server providing various OGC services
  QGIS is a Geographic Information System (GIS) which manages, analyzes and
  display databases of geographic information.
  .
- This package contains the wfs 3 service.
+ This package contains the WFS 3 service.
 
 Package: qgis-server-wcs
 Architecture: any
@@ -550,7 +553,7 @@ Description: QGIS server providing various OGC services
  QGIS is a Geographic Information System (GIS) which manages, analyzes and
  display databases of geographic information.
  .
- This package contains the wcs service.
+ This package contains the WCS service.
 
 Package: qgis-server-landingpage
 Architecture: any

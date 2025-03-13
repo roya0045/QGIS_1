@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgscesiumtilesdataprovider.h"
+#include "moc_qgscesiumtilesdataprovider.cpp"
 #include "qgsauthmanager.h"
 #include "qgsproviderutils.h"
 #include "qgsapplication.h"
@@ -48,6 +49,7 @@
 #include <QUrlQuery>
 #include <QApplication>
 #include <nlohmann/json.hpp>
+#include <qstringliteral.h>
 
 ///@cond PRIVATE
 
@@ -193,10 +195,14 @@ QgsCesiumTiledSceneIndex::QgsCesiumTiledSceneIndex( const json &tileset, const Q
 
 std::unique_ptr< QgsTiledSceneTile > QgsCesiumTiledSceneIndex::tileFromJson( const json &json, const QUrl &baseUrl, const QgsTiledSceneTile *parent, Qgis::Axis gltfUpAxis )
 {
-  std::unique_ptr< QgsTiledSceneTile > tile = std::make_unique< QgsTiledSceneTile >( mNextTileId++ );
+  auto tile = std::make_unique< QgsTiledSceneTile >( mNextTileId++ );
 
   tile->setBaseUrl( baseUrl );
-  tile->setMetadata( {{ QStringLiteral( "gltfUpAxis" ), static_cast< int >( gltfUpAxis ) }} );
+  tile->setMetadata(
+  {
+    { QStringLiteral( "gltfUpAxis" ), static_cast< int >( gltfUpAxis ) },
+    { QStringLiteral( "contentFormat" ), QStringLiteral( "cesiumtiles" ) },
+  } );
 
   QgsMatrix4x4 transform;
   if ( json.contains( "transform" ) && !json["transform"].is_null() )
@@ -342,7 +348,7 @@ std::unique_ptr< QgsTiledSceneTile > QgsCesiumTiledSceneIndex::tileFromJson( con
 QgsTiledSceneNode *QgsCesiumTiledSceneIndex::nodeFromJson( const json &json, const QUrl &baseUrl, QgsTiledSceneNode *parent, Qgis::Axis gltfUpAxis )
 {
   std::unique_ptr< QgsTiledSceneTile > tile = tileFromJson( json, baseUrl, parent ? parent->tile() : nullptr, gltfUpAxis );
-  std::unique_ptr< QgsTiledSceneNode > newNode = std::make_unique< QgsTiledSceneNode >( tile.release() );
+  auto newNode = std::make_unique< QgsTiledSceneNode >( tile.release() );
   mNodeMap.insert( newNode->tile()->id(), newNode.get() );
 
   if ( parent )
@@ -893,7 +899,7 @@ void QgsCesiumTilesDataProviderSharedData::initialize( const QString &tileset, c
 // QgsCesiumTilesDataProvider
 //
 
-QgsCesiumTilesDataProvider::QgsCesiumTilesDataProvider( const QString &uri, const ProviderOptions &providerOptions, ReadFlags flags )
+QgsCesiumTilesDataProvider::QgsCesiumTilesDataProvider( const QString &uri, const ProviderOptions &providerOptions, Qgis::DataProviderReadFlags flags )
   : QgsTiledSceneDataProvider( uri, providerOptions, flags )
   , mShared( std::make_shared< QgsCesiumTilesDataProviderSharedData >() )
 {
@@ -1279,7 +1285,7 @@ QIcon QgsCesiumTilesProviderMetadata::icon() const
   return QgsApplication::getThemeIcon( QStringLiteral( "mIconCesium3dTiles.svg" ) );
 }
 
-QgsCesiumTilesDataProvider *QgsCesiumTilesProviderMetadata::createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags )
+QgsCesiumTilesDataProvider *QgsCesiumTilesProviderMetadata::createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, Qgis::DataProviderReadFlags flags )
 {
   return new QgsCesiumTilesDataProvider( uri, options, flags );
 }

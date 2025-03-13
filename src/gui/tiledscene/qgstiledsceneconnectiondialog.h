@@ -40,6 +40,8 @@ class QgsTiledSceneConnectionDialog : public QDialog, public Ui::QgsTiledSceneCo
   private slots:
     void updateOkButtonState();
 
+  private:
+    QString mOriginalConnectionName; //store initial name to delete entry in case of rename
 };
 
 ///@endcond

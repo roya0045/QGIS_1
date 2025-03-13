@@ -27,6 +27,7 @@
 #include "qgsexpressioncontextutils.h"
 #include "qgssymbol.h"
 #include "qgssymbollayerreference.h"
+#include "qgsgeos.h"
 
 #include <QSize>
 #include <QPainter>
@@ -115,6 +116,8 @@ void QgsSymbolLayer::initPropertyDefinitions()
     { static_cast< int >( QgsSymbolLayer::Property::RandomOffsetX ), QgsPropertyDefinition( "randomOffsetX", QObject::tr( "Horizontal random offset" ), QgsPropertyDefinition::Double, origin )},
     { static_cast< int >( QgsSymbolLayer::Property::RandomOffsetY ), QgsPropertyDefinition( "randomOffsetY", QObject::tr( "Vertical random offset" ), QgsPropertyDefinition::Double, origin )},
     { static_cast< int >( QgsSymbolLayer::Property::LineClipping ), QgsPropertyDefinition( "lineClipping", QgsPropertyDefinition::DataTypeString, QObject::tr( "Line clipping mode" ),  QObject::tr( "string " ) + QLatin1String( "[<b>no</b>|<b>during_render</b>|<b>before_render</b>]" ), origin )},
+    { static_cast< int >( QgsSymbolLayer::Property::SkipMultiples ), QgsPropertyDefinition( "skipMultiples", QObject::tr( "Skip multiples of" ), QgsPropertyDefinition::DoublePositive, origin )},
+    { static_cast< int >( QgsSymbolLayer::Property::ShowMarker ), QgsPropertyDefinition( "showMarker", QObject::tr( "Show marker" ), QgsPropertyDefinition::Boolean, origin )},
   };
 }
 
@@ -226,6 +229,21 @@ void QgsSymbolLayer::setPaintEffect( QgsPaintEffect *effect )
     return;
 
   mPaintEffect.reset( effect );
+}
+
+QgsSymbolLayer::QgsSymbolLayer( const QgsSymbolLayer &other )
+  : mType( other.mType )
+  , mEnabled( other.mEnabled )
+  , mUserFlags( other.mUserFlags )
+  , mLocked( other.mLocked )
+  , mColor( other.mColor )
+  , mRenderingPass( other.mRenderingPass )
+  , mId( other.mId )
+  , mDataDefinedProperties( other.mDataDefinedProperties )
+  , mPaintEffect( other.mPaintEffect ? other.mPaintEffect->clone() : nullptr )
+  , mFields( other.mFields )
+  , mClipPath( other.mClipPath )
+{
 }
 
 QgsSymbolLayer::QgsSymbolLayer( Qgis::SymbolType type, bool locked )
@@ -531,6 +549,23 @@ QgsFillSymbolLayer::QgsFillSymbolLayer( bool locked )
 {
 }
 
+QgsMarkerSymbolLayer::QgsMarkerSymbolLayer( const QgsMarkerSymbolLayer &other )
+  : QgsSymbolLayer( other )
+  , mAngle( other.mAngle )
+  , mLineAngle( other.mLineAngle )
+  , mSize( other.mSize )
+  , mSizeUnit( other.mSizeUnit )
+  , mSizeMapUnitScale( other.mSizeMapUnitScale )
+  , mOffset( other.mOffset )
+  , mOffsetUnit( other.mOffsetUnit )
+  , mOffsetMapUnitScale( other.mOffsetMapUnitScale )
+  , mScaleMethod( other.mScaleMethod )
+  , mHorizontalAnchorPoint( other.mHorizontalAnchorPoint )
+  , mVerticalAnchorPoint( other.mVerticalAnchorPoint )
+{
+
+}
+
 void QgsMarkerSymbolLayer::startRender( QgsSymbolRenderContext &context )
 {
   Q_UNUSED( context )
@@ -594,8 +629,8 @@ void QgsMarkerSymbolLayer::markerOffset( QgsSymbolRenderContext &context, double
   offsetX = context.renderContext().convertToPainterUnits( offsetX, mOffsetUnit, mOffsetMapUnitScale );
   offsetY = context.renderContext().convertToPainterUnits( offsetY, mOffsetUnit, mOffsetMapUnitScale );
 
-  HorizontalAnchorPoint horizontalAnchorPoint = mHorizontalAnchorPoint;
-  VerticalAnchorPoint verticalAnchorPoint = mVerticalAnchorPoint;
+  Qgis::HorizontalAnchorPoint horizontalAnchorPoint = mHorizontalAnchorPoint;
+  Qgis::VerticalAnchorPoint verticalAnchorPoint = mVerticalAnchorPoint;
   if ( mDataDefinedProperties.isActive( QgsSymbolLayer::Property::HorizontalAnchor ) )
   {
     QVariant exprVal = mDataDefinedProperties.value( QgsSymbolLayer::Property::HorizontalAnchor, context.renderContext().expressionContext() );
@@ -614,7 +649,7 @@ void QgsMarkerSymbolLayer::markerOffset( QgsSymbolRenderContext &context, double
   }
 
   //correct horizontal position according to anchor point
-  if ( horizontalAnchorPoint == HCenter && verticalAnchorPoint == VCenter )
+  if ( horizontalAnchorPoint == Qgis::HorizontalAnchorPoint::Center && verticalAnchorPoint == Qgis::VerticalAnchorPoint::Center )
   {
     return;
   }
@@ -635,23 +670,30 @@ void QgsMarkerSymbolLayer::markerOffset( QgsSymbolRenderContext &context, double
     anchorPointCorrectionY = std::min( std::max( context.renderContext().convertToPainterUnits( height, Qgis::RenderUnit::Millimeters ), 3.0 ), 100.0 ) / 2.0;
   }
 
-  if ( horizontalAnchorPoint == Left )
+  switch ( horizontalAnchorPoint )
   {
-    offsetX += anchorPointCorrectionX;
-  }
-  else if ( horizontalAnchorPoint == Right )
-  {
-    offsetX -= anchorPointCorrectionX;
+    case Qgis::HorizontalAnchorPoint::Left:
+      offsetX += anchorPointCorrectionX;
+      break;
+    case Qgis::HorizontalAnchorPoint::Right:
+      offsetX -= anchorPointCorrectionX;
+      break;
+    case Qgis::HorizontalAnchorPoint::Center:
+      break;
   }
 
-//correct vertical position according to anchor point
-  if ( verticalAnchorPoint == Top )
+  //correct vertical position according to anchor point
+  switch ( verticalAnchorPoint )
   {
-    offsetY += anchorPointCorrectionY;
-  }
-  else if ( verticalAnchorPoint == Bottom )
-  {
-    offsetY -= anchorPointCorrectionY;
+    case Qgis::VerticalAnchorPoint::Top:
+      offsetY += anchorPointCorrectionY;
+      break;
+    case Qgis::VerticalAnchorPoint::Bottom:
+    case Qgis::VerticalAnchorPoint::Baseline:
+      offsetY -= anchorPointCorrectionY;
+      break;
+    case Qgis::VerticalAnchorPoint::Center:
+      break;
   }
 }
 
@@ -662,35 +704,35 @@ QPointF QgsMarkerSymbolLayer::_rotatedOffset( QPointF offset, double angle )
   return QPointF( offset.x() * c - offset.y() * s, offset.x() * s + offset.y() * c );
 }
 
-QgsMarkerSymbolLayer::HorizontalAnchorPoint QgsMarkerSymbolLayer::decodeHorizontalAnchorPoint( const QString &str )
+Qgis::HorizontalAnchorPoint QgsMarkerSymbolLayer::decodeHorizontalAnchorPoint( const QString &str )
 {
   if ( str.compare( QLatin1String( "left" ), Qt::CaseInsensitive ) == 0 )
   {
-    return QgsMarkerSymbolLayer::Left;
+    return Qgis::HorizontalAnchorPoint::Left;
   }
   else if ( str.compare( QLatin1String( "right" ), Qt::CaseInsensitive ) == 0 )
   {
-    return QgsMarkerSymbolLayer::Right;
+    return Qgis::HorizontalAnchorPoint::Right;
   }
   else
   {
-    return QgsMarkerSymbolLayer::HCenter;
+    return Qgis::HorizontalAnchorPoint::Center;
   }
 }
 
-QgsMarkerSymbolLayer::VerticalAnchorPoint QgsMarkerSymbolLayer::decodeVerticalAnchorPoint( const QString &str )
+Qgis::VerticalAnchorPoint QgsMarkerSymbolLayer::decodeVerticalAnchorPoint( const QString &str )
 {
   if ( str.compare( QLatin1String( "top" ), Qt::CaseInsensitive ) == 0 )
   {
-    return QgsMarkerSymbolLayer::Top;
+    return Qgis::VerticalAnchorPoint::Top;
   }
   else if ( str.compare( QLatin1String( "bottom" ), Qt::CaseInsensitive ) == 0 )
   {
-    return QgsMarkerSymbolLayer::Bottom;
+    return Qgis::VerticalAnchorPoint::Bottom;
   }
   else
   {
-    return QgsMarkerSymbolLayer::VCenter;
+    return Qgis::VerticalAnchorPoint::Center;
   }
 }
 
@@ -952,68 +994,88 @@ double QgsMarkerSymbolLayer::dxfAngle( QgsSymbolRenderContext &context ) const
   return angle;
 }
 
-void QgsSymbolLayer::prepareMasks( const QgsSymbolRenderContext &context )
+QPainterPath generateClipPath( const QgsRenderContext &renderContext, const QString &id, const QRectF *rect, bool &foundGeometries )
 {
-  mClipPath.clear();
-
-  const QgsRenderContext &renderContext = context.renderContext();
-
-  const QVector<QgsGeometry> clipGeometries = renderContext.symbolLayerClipGeometries( id() );
+  foundGeometries = false;
+  const QVector<QgsGeometry> clipGeometries = rect
+      ? QgsSymbolLayerUtils::collectSymbolLayerClipGeometries( renderContext, id, *rect )
+      : renderContext.symbolLayerClipGeometries( id );
   if ( !clipGeometries.empty() )
   {
-    QVector< QgsGeometry > fixed;
-    for ( const QgsGeometry &geometry : clipGeometries )
+    foundGeometries = true;
+    QgsGeometry mergedGeom = QgsGeometry::unaryUnion( clipGeometries );
+    if ( renderContext.maskSettings().simplifyTolerance() > 0 )
     {
-      fixed << geometry.makeValid( Qgis::MakeValidMethod::Structure );
+      QgsGeos geos( mergedGeom.constGet() );
+      mergedGeom = QgsGeometry( geos.simplify( renderContext.maskSettings().simplifyTolerance() ) );
     }
-
-    const QgsGeometry mergedGeom = QgsGeometry::unaryUnion( fixed );
+#if GEOS_VERSION_MAJOR==3 && GEOS_VERSION_MINOR<10
+    // structure would be better, but too old GEOS
+    mergedGeom = mergedGeom.makeValid( Qgis::MakeValidMethod::Linework );
+#else
+    mergedGeom = mergedGeom.makeValid( Qgis::MakeValidMethod::Structure );
+#endif
     if ( !mergedGeom.isEmpty() )
     {
-      const QgsGeometry exterior = QgsGeometry::fromRect(
-                                     QgsRectangle( 0, 0,
-                                         renderContext.outputSize().width(),
-                                         renderContext.outputSize().height() ) );
+      QgsGeometry exterior;
+      const QgsRectangle contextBounds( 0, 0,
+                                        renderContext.outputSize().width(),
+                                        renderContext.outputSize().height() );
+      if ( rect )
+      {
+        exterior = QgsGeometry::fromRect( QgsRectangle( *rect ).intersect( contextBounds ) );
+      }
+      else
+      {
+        exterior = QgsGeometry::fromRect( contextBounds );
+      }
       const QgsGeometry maskGeom = exterior.difference( mergedGeom );
-      mClipPath = maskGeom.constGet()->asQPainterPath();
-    }
-  }
-  else
-  {
-    const QList<QPainterPath> clipPaths = renderContext.symbolLayerClipPaths( id() );
-    if ( !clipPaths.isEmpty() )
-    {
-      QPainterPath mergedPaths;
-      mergedPaths.setFillRule( Qt::WindingFill );
-      for ( const QPainterPath &path : clipPaths )
+      if ( !maskGeom.isNull() )
       {
-        mergedPaths.addPath( path );
-      }
-
-      if ( !mergedPaths.isEmpty() )
-      {
-        mClipPath.addRect( 0, 0, renderContext.outputSize().width(),
-                           renderContext.outputSize().height() );
-        mClipPath = mClipPath.subtracted( mergedPaths );
+        return maskGeom.constGet()->asQPainterPath();
       }
     }
   }
+  return QPainterPath();
 }
 
-void QgsSymbolLayer::installMasks( QgsRenderContext &context, bool recursive )
+void QgsSymbolLayer::prepareMasks( const QgsSymbolRenderContext &context )
 {
+  const QgsRenderContext &renderContext = context.renderContext();
+
+  bool foundGeometries = false;
+  mClipPath = generateClipPath( renderContext, id(), nullptr, foundGeometries );
+}
+
+bool QgsSymbolLayer::installMasks( QgsRenderContext &context, bool recursive, const QRectF &rect )
+{
+  bool res = false;
   if ( !mClipPath.isEmpty() )
   {
     context.painter()->save();
     context.painter()->setClipPath( mClipPath, Qt::IntersectClip );
+    res = true;
+  }
+  else if ( rect.isValid() )
+  {
+    // find just the clip geometries within the area the symbol layer will be drawn over
+    bool foundGeometries = false;
+    const QPainterPath clipPath = generateClipPath( context, id(), &rect, foundGeometries );
+    if ( !clipPath.isEmpty() )
+    {
+      context.painter()->setClipPath( clipPath, context.painter()->clipPath().isEmpty() ? Qt::ReplaceClip : Qt::IntersectClip );
+      res = true;
+    }
   }
 
   if ( QgsSymbol *lSubSymbol = recursive ? subSymbol() : nullptr )
   {
     const QList<QgsSymbolLayer *> layers = lSubSymbol->symbolLayers();
     for ( QgsSymbolLayer *sl : layers )
-      sl->installMasks( context, true );
+      res = sl->installMasks( context, true ) || res;
   }
+
+  return res;
 }
 
 void QgsSymbolLayer::removeMasks( QgsRenderContext &context, bool recursive )

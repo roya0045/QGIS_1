@@ -24,6 +24,7 @@
 #include "qgslogger.h"
 #include "qgsmessagelog.h"
 #include "qgsprovidermetadata.h"
+#include "qgsquantizedmeshdataprovider.h"
 #include "qgsvectortileprovidermetadata.h"
 #include "qgsproject.h"
 #include "qgsprovidersublayerdetails.h"
@@ -240,6 +241,9 @@ void QgsProviderRegistry::init()
     mProviders[ metadata->key() ] = metadata;
 
     metadata = new QgsCesiumTilesProviderMetadata();
+    mProviders[ metadata->key() ] = metadata;
+
+    metadata = new QgsQuantizedMeshProviderMetadata();
     mProviders[ metadata->key() ] = metadata;
   }
 
@@ -524,7 +528,7 @@ void QgsProviderRegistry::clean()
 {
   // avoid recreating a new project just to clean it
   if ( QgsProject::sProject )
-    QgsProject::instance()->removeAllMapLayers();
+    QgsProject::instance()->removeAllMapLayers(); // skip-keyword-check
 
   Providers::const_iterator it = mProviders.begin();
 
@@ -621,7 +625,7 @@ QDir QgsProviderRegistry::libraryDirectory() const
  */
 QgsDataProvider *QgsProviderRegistry::createProvider( QString const &providerKey, QString const &dataSource,
     const QgsDataProvider::ProviderOptions &options,
-    QgsDataProvider::ReadFlags flags )
+    Qgis::DataProviderReadFlags flags )
 {
   // XXX should I check for and possibly delete any pre-existing providers?
   // XXX How often will that scenario occur?
@@ -691,11 +695,11 @@ Qgis::VectorExportResult QgsProviderRegistry::createEmptyLayer( const QString &p
     const QgsCoordinateReferenceSystem &srs,
     bool overwrite, QMap<int, int> &oldToNewAttrIdxMap,
     QString &errorMessage,
-    const QMap<QString, QVariant> *options )
+    const QMap<QString, QVariant> *options, QString &createdLayerName )
 {
   QgsProviderMetadata *meta = findMetadata_( mProviders, providerKey );
   if ( meta )
-    return meta->createEmptyLayer( uri, fields, wkbType, srs, overwrite, oldToNewAttrIdxMap, errorMessage, options );
+    return meta->createEmptyLayer( uri, fields, wkbType, srs, overwrite, oldToNewAttrIdxMap, errorMessage, options, createdLayerName );
   else
   {
     errorMessage = QObject::tr( "Unable to load %1 provider" ).arg( providerKey );
@@ -909,7 +913,7 @@ QLibrary *QgsProviderRegistry::createProviderLibrary( QString const &providerKey
   if ( lib.isEmpty() )
     return nullptr;
 
-  std::unique_ptr< QLibrary > myLib( new QLibrary( lib ) );
+  auto myLib = std::make_unique<QLibrary>( lib );
 
   QgsDebugMsgLevel( "Library name is " + myLib->fileName(), 2 );
 

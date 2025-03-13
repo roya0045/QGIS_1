@@ -14,6 +14,7 @@
  *                                                                         *
  ***************************************************************************/
 #include "qgsabstractdatabaseproviderconnection.h"
+#include "moc_qgsabstractdatabaseproviderconnection.cpp"
 #include "qgsvectorlayer.h"
 #include "qgsexception.h"
 #include "qgsweakrelation.h"
@@ -81,6 +82,16 @@ void QgsAbstractDatabaseProviderConnection::checkCapability( Qgis::DatabaseProvi
   {
     throw QgsProviderConnectionException( QObject::tr( "Operation '%1' is not supported for this connection" ).arg( qgsEnumValueToKey( capability ) ) );
   }
+}
+
+QString QgsAbstractDatabaseProviderConnection::sanitizeSqlForQueryLayer( const QString &sql ) const
+{
+  QString sanitizedSql { sql.trimmed() };
+  while ( sanitizedSql.endsWith( ';' ) )
+  {
+    sanitizedSql.chop( 1 );
+  }
+  return sanitizedSql;
 }
 
 ///@endcond
@@ -1177,6 +1188,12 @@ QgsVectorLayer *QgsAbstractDatabaseProviderConnection::createSqlVectorLayer( con
   return nullptr;
 }
 
+bool QgsAbstractDatabaseProviderConnection::validateSqlVectorLayer( const SqlVectorLayerOptions &, QString & ) const
+{
+  checkCapability( Capability::SqlLayers );
+  return true;
+}
+
 void QgsAbstractDatabaseProviderConnection::deleteSpatialIndex( const QString &, const QString &, const QString & ) const
 {
   checkCapability( Capability::DeleteSpatialIndex );
@@ -1219,7 +1236,7 @@ void QgsAbstractDatabaseProviderConnection::addField( const QgsField &field, con
 
   QgsVectorLayer::LayerOptions options { false, false };
   options.skipCrsValidation = true;
-  std::unique_ptr<QgsVectorLayer> vl( std::make_unique<QgsVectorLayer>( tableUri( schema, tableName ), QStringLiteral( "temp_layer" ), mProviderKey, options ) );
+  auto vl = std::make_unique<QgsVectorLayer>( tableUri( schema, tableName ), QStringLiteral( "temp_layer" ), mProviderKey, options ) ;
   if ( ! vl->isValid() )
   {
     throw QgsProviderConnectionException( QObject::tr( "Could not create a vector layer for table '%1' in schema '%2'" )
@@ -1244,7 +1261,7 @@ void QgsAbstractDatabaseProviderConnection::renameField( const QString &schema, 
 
   QgsVectorLayer::LayerOptions options { false, false };
   options.skipCrsValidation = true;
-  std::unique_ptr<QgsVectorLayer> vl( std::make_unique<QgsVectorLayer>( tableUri( schema, tableName ), QStringLiteral( "temp_layer" ), mProviderKey, options ) );
+  auto vl = std::make_unique<QgsVectorLayer>( tableUri( schema, tableName ), QStringLiteral( "temp_layer" ), mProviderKey, options ) ;
   if ( ! vl->isValid() )
   {
     throw QgsProviderConnectionException( QObject::tr( "Could not create a vector layer for table '%1' in schema '%2'" )

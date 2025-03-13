@@ -343,7 +343,7 @@ void QgsVectorFileWriter::init( QString vectorFileName,
     for ( int i = 0; i < datasourceOptions.size(); i++ )
     {
       QgsDebugMsgLevel( QStringLiteral( "-dsco=%1" ).arg( datasourceOptions[i] ), 2 );
-      options[i] = CPLStrdup( datasourceOptions[i].toLocal8Bit().constData() );
+      options[i] = CPLStrdup( datasourceOptions[i].toUtf8().constData() );
     }
     options[ datasourceOptions.size()] = nullptr;
   }
@@ -456,7 +456,7 @@ void QgsVectorFileWriter::init( QString vectorFileName,
     for ( int i = 0; i < layerOptions.size(); i++ )
     {
       QgsDebugMsgLevel( QStringLiteral( "-lco=%1" ).arg( layerOptions[i] ), 2 );
-      options[i] = CPLStrdup( layerOptions[i].toLocal8Bit().constData() );
+      options[i] = CPLStrdup( layerOptions[i].toUtf8().constData() );
     }
     options[ layerOptions.size()] = nullptr;
   }
@@ -928,25 +928,32 @@ void QgsVectorFileWriter::init( QString vectorFileName,
               // - if successful, note that we know that field domain (if it
               //   is shared by other fields)
               // - assign its name to the new field.
-              std::unique_ptr<QgsFieldDomain> domain( sourceDatabaseProviderConnection->fieldDomain( domainName ) );
-              if ( domain )
+              try
               {
-                OGRFieldDomainH hFieldDomain = QgsOgrUtils::convertFieldDomain( domain.get() );
-                if ( hFieldDomain )
+                std::unique_ptr<QgsFieldDomain> domain( sourceDatabaseProviderConnection->fieldDomain( domainName ) );
+                if ( domain )
                 {
-                  char *pszFailureReason = nullptr;
-                  if ( GDALDatasetAddFieldDomain( mDS.get(), hFieldDomain, &pszFailureReason ) )
+                  OGRFieldDomainH hFieldDomain = QgsOgrUtils::convertFieldDomain( domain.get() );
+                  if ( hFieldDomain )
                   {
-                    existingDestDomainNames.insert( domainName );
-                    canSetFieldDomainName = true;
+                    char *pszFailureReason = nullptr;
+                    if ( GDALDatasetAddFieldDomain( mDS.get(), hFieldDomain, &pszFailureReason ) )
+                    {
+                      existingDestDomainNames.insert( domainName );
+                      canSetFieldDomainName = true;
+                    }
+                    else
+                    {
+                      QgsDebugError( QStringLiteral( "cannot create field domain: %1" ).arg( pszFailureReason ) );
+                    }
+                    CPLFree( pszFailureReason );
+                    OGR_FldDomain_Destroy( hFieldDomain );
                   }
-                  else
-                  {
-                    QgsDebugMsgLevel( QStringLiteral( "cannot create field domain: %1" ).arg( pszFailureReason ), 2 );
-                  }
-                  CPLFree( pszFailureReason );
-                  OGR_FldDomain_Destroy( hFieldDomain );
                 }
+              }
+              catch ( QgsProviderConnectionException & )
+              {
+                QgsDebugError( QStringLiteral( "Cannot retrieve field domain: %1" ).arg( domainName ) );
               }
             }
             if ( canSetFieldDomainName )
@@ -1115,76 +1122,6 @@ class QgsVectorFileWriterMetadataContainer
                                layerOptions
                              )
                            );
-
-
-#if GDAL_VERSION_NUM < GDAL_COMPUTE_VERSION(3,3,0)
-      // Support for Atlas BNA was removed in GDAL 3.3
-
-      // Atlas BNA
-      datasetOptions.clear();
-      layerOptions.clear();
-
-      datasetOptions.insert( QStringLiteral( "LINEFORMAT" ), new QgsVectorFileWriter::SetOption(
-                               QObject::tr( "New BNA files are created by the "
-                                            "systems default line termination conventions. "
-                                            "This may be overridden here." ),
-                               QStringList()
-                               << QStringLiteral( "CRLF" )
-                               << QStringLiteral( "LF" ),
-                               QString(), // Default value
-                               true // Allow None
-                             ) );
-
-      datasetOptions.insert( QStringLiteral( "MULTILINE" ), new QgsVectorFileWriter::BoolOption(
-                               QObject::tr( "By default, BNA files are created in multi-line format. "
-                                            "For each record, the first line contains the identifiers and the "
-                                            "type/number of coordinates to follow. Each following line contains "
-                                            "a pair of coordinates." ),
-                               true  // Default value
-                             ) );
-
-      datasetOptions.insert( QStringLiteral( "NB_IDS" ), new QgsVectorFileWriter::SetOption(
-                               QObject::tr( "BNA records may contain from 2 to 4 identifiers per record. "
-                                            "Some software packages only support a precise number of identifiers. "
-                                            "You can override the default value (2) by a precise value." ),
-                               QStringList()
-                               << QStringLiteral( "2" )
-                               << QStringLiteral( "3" )
-                               << QStringLiteral( "4" )
-                               << QStringLiteral( "NB_SOURCE_FIELDS" ),
-                               QStringLiteral( "2" ) // Default value
-                             ) );
-
-      datasetOptions.insert( QStringLiteral( "ELLIPSES_AS_ELLIPSES" ), new QgsVectorFileWriter::BoolOption(
-                               QObject::tr( "The BNA writer will try to recognize ellipses and circles when writing a polygon. "
-                                            "This will only work if the feature has previously been read from a BNA file. "
-                                            "As some software packages do not support ellipses/circles in BNA data file, "
-                                            "it may be useful to tell the writer by specifying ELLIPSES_AS_ELLIPSES=NO not "
-                                            "to export them as such, but keep them as polygons." ),
-                               true  // Default value
-                             ) );
-
-      datasetOptions.insert( QStringLiteral( "NB_PAIRS_PER_LINE" ), new QgsVectorFileWriter::IntOption(
-                               QObject::tr( "Limit the number of coordinate pairs per line in multiline format." ),
-                               2 // Default value
-                             ) );
-
-      datasetOptions.insert( QStringLiteral( "COORDINATE_PRECISION" ), new QgsVectorFileWriter::IntOption(
-                               QObject::tr( "Set the number of decimal for coordinates. Default value is 10." ),
-                               10 // Default value
-                             ) );
-
-      driverMetadata.insert( QStringLiteral( "BNA" ),
-                             QgsVectorFileWriter::MetaData(
-                               QStringLiteral( "Atlas BNA" ),
-                               QObject::tr( "Atlas BNA" ),
-                               QStringLiteral( "*.bna" ),
-                               QStringLiteral( "bna" ),
-                               datasetOptions,
-                               layerOptions
-                             )
-                           );
-#endif
 
       // Comma Separated Value
       datasetOptions.clear();
@@ -1355,21 +1292,6 @@ class QgsVectorFileWriterMetadataContainer
                              )
                            );
 
-      // FMEObjects Gateway
-      datasetOptions.clear();
-      layerOptions.clear();
-
-      driverMetadata.insert( QStringLiteral( "FMEObjects Gateway" ),
-                             QgsVectorFileWriter::MetaData(
-                               QStringLiteral( "FMEObjects Gateway" ),
-                               QObject::tr( "FMEObjects Gateway" ),
-                               QStringLiteral( "*.fdd" ),
-                               QStringLiteral( "fdd" ),
-                               datasetOptions,
-                               layerOptions
-                             )
-                           );
-
       // GeoJSON
       datasetOptions.clear();
       layerOptions.clear();
@@ -1427,7 +1349,7 @@ class QgsVectorFileWriterMetadataContainer
                                QStringLiteral( "GeoJSON - Newline Delimited" ),
                                QObject::tr( "GeoJSON - Newline Delimited" ),
                                QStringLiteral( "*.geojsonl *.geojsons *.json" ),
-                               QStringLiteral( "json" ),  // add json for now
+                               QStringLiteral( "geojsonl geojsons json" ),
                                datasetOptions,
                                layerOptions,
                                QStringLiteral( "UTF-8" )
@@ -1652,7 +1574,11 @@ class QgsVectorFileWriterMetadataContainer
                              QgsVectorFileWriter::MetaData(
                                QStringLiteral( "GeoPackage" ),
                                QObject::tr( "GeoPackage" ),
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,7,0)
+                               QStringLiteral( "*.gpkg *.gpkg.zip" ),
+#else
                                QStringLiteral( "*.gpkg" ),
+#endif
                                QStringLiteral( "gpkg" ),
                                datasetOptions,
                                layerOptions,
@@ -2248,6 +2174,16 @@ class QgsVectorFileWriterMetadataContainer
       datasetOptions.clear();
       layerOptions.clear();
 
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,9,0)
+      layerOptions.insert( QStringLiteral( "TARGET_ARCGIS_VERSION" ), new QgsVectorFileWriter::SetOption(
+                             QObject::tr( "Selects which ArcGIS version this dataset should be compatible with. ALL is used by default and means any ArcGIS 10.x or ArcGIS Pro version. Using ARCGIS_PRO_3_2_OR_LATER is required to export 64-bit integer fields as such, otherwise they will be converted as Real fields. ARCGIS_PRO_3_2_OR_LATER also supports proper Date and Time field types." ),
+                             QStringList()
+                             << QStringLiteral( "ALL" )
+                             << QStringLiteral( "ARCGIS_PRO_3_2_OR_LATER" ),
+                             QStringLiteral( "ALL" ) // Default value
+                           ) );
+#endif
+
       layerOptions.insert( QStringLiteral( "FEATURE_DATASET" ), new QgsVectorFileWriter::StringOption(
                              QObject::tr( "When this option is set, the new layer will be created inside the named "
                                           "FeatureDataset folder. If the folder does not already exist, it will be created." ),
@@ -2319,6 +2255,7 @@ class QgsVectorFileWriterMetadataContainer
                              )
                            );
 
+#if GDAL_VERSION_NUM < GDAL_COMPUTE_VERSION(3,11,0)
       // ESRI FileGDB (using ESRI FileGDB API SDK)
       datasetOptions.clear();
       layerOptions.clear();
@@ -2350,6 +2287,7 @@ class QgsVectorFileWriterMetadataContainer
                                QStringLiteral( "UTF-8" )
                              )
                            );
+#endif
 
       // XLSX
       datasetOptions.clear();
@@ -3552,7 +3490,7 @@ QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormat( Prepa
   return writeAsVectorFormatV2( details, fileName, QgsCoordinateTransformContext(), options, newFilename, newLayer, errorMessage );
 }
 
-QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormatV2( PreparedWriterDetails &details, const QString &fileName, const QgsCoordinateTransformContext &transformContext, const QgsVectorFileWriter::SaveVectorOptions &options, QString *newFilename, QString *newLayer, QString *errorMessage )
+QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormatV2( PreparedWriterDetails &details, const QString &fileName, const QgsCoordinateTransformContext &transformContext, const QgsVectorFileWriter::SaveVectorOptions &options, QString *newFilename, QString *newLayer, QString *errorMessage, SinkFlags sinkFlags )
 {
   Qgis::WkbType destWkbType = details.destWkbType;
 
@@ -3573,7 +3511,7 @@ QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormatV2( Pre
               options.layerName != details.providerUriParams.value( QStringLiteral( "layerName" ) ) ) )
       {
         if ( errorMessage )
-          *errorMessage = QObject::tr( "Cannot overwrite a OGR layer in place" );
+          *errorMessage = QObject::tr( "Cannot overwrite an OGR layer in place" );
         return ErrCreateDataSource;
       }
     }
@@ -3620,7 +3558,7 @@ QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormatV2( Pre
     newOptions.sourceDatabaseProviderConnection = details.sourceDatabaseProviderConnection.get();
   }
 
-  std::unique_ptr< QgsVectorFileWriter > writer( create( fileName, details.outputFields, destWkbType, details.outputCrs, transformContext, newOptions, QgsFeatureSink::SinkFlags(), &tempNewFilename, &tempNewLayer ) );
+  std::unique_ptr< QgsVectorFileWriter > writer( create( fileName, details.outputFields, destWkbType, details.outputCrs, transformContext, newOptions, sinkFlags, &tempNewFilename, &tempNewLayer ) );
   writer->setSymbologyScale( options.symbologyScale );
 
   if ( newFilename )
@@ -3844,7 +3782,7 @@ QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormatV2( Qgs
   if ( err != NoError )
     return err;
 
-  return writeAsVectorFormatV2( details, fileName, transformContext, options, errorMessage, newFilename, newLayer );
+  return writeAsVectorFormatV2( details, fileName, transformContext, options, newFilename, newLayer, errorMessage );
 }
 
 QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormatV3( QgsVectorLayer *layer, const QString &fileName, const QgsCoordinateTransformContext &transformContext, const QgsVectorFileWriter::SaveVectorOptions &options, QString *errorMessage, QString *newFilename, QString *newLayer )
@@ -3910,7 +3848,7 @@ QStringList multiLayerFormats()
     const QSet< QString > splitExtensions = qgis::listToSet( driverExtensions.split( ' ', Qt::SkipEmptyParts ) );
     if ( splitExtensions.intersects( multiLayerExtensions ) )
     {
-      driverNames << OGR_Dr_GetName( driver );
+      driverNames << GDALGetDescription( driver );
     }
   }
   return driverNames;
@@ -3940,7 +3878,7 @@ QList< QgsVectorFileWriter::FilterFormatDetails > QgsVectorFileWriter::supported
     OGRSFDriverH drv = OGRGetDriver( i );
     if ( drv )
     {
-      const QString drvName = OGR_Dr_GetName( drv );
+      const QString drvName = GDALGetDescription( drv );
 
       if ( options & SupportsMultipleLayers )
       {
@@ -3952,7 +3890,7 @@ QList< QgsVectorFileWriter::FilterFormatDetails > QgsVectorFileWriter::supported
       bool nonSpatialFormat = false;
       if ( gdalDriver )
       {
-        nonSpatialFormat = GDALGetMetadataItem( gdalDriver, GDAL_DCAP_NONSPATIAL, nullptr ) != nullptr;
+        nonSpatialFormat = GDALGetMetadataItem( gdalDriver, GDAL_DCAP_NONSPATIAL, nullptr );
       }
 
       if ( OGR_Dr_TestCapability( drv, "CreateDataSource" ) != 0 )
@@ -4063,7 +4001,7 @@ QList< QgsVectorFileWriter::DriverDetails > QgsVectorFileWriter::ogrDriverList( 
     OGRSFDriverH drv = OGRGetDriver( i );
     if ( drv )
     {
-      const QString drvName = OGR_Dr_GetName( drv );
+      const QString drvName = GDALGetDescription( drv );
 
       if ( options & SupportsMultipleLayers )
       {
@@ -4560,7 +4498,7 @@ QgsVectorFileWriter::EditionCapabilities QgsVectorFileWriter::editionCapabilitie
   gdal::ogr_datasource_unique_ptr hDS( OGROpen( datasetName.toUtf8().constData(), TRUE, &hDriver ) );
   if ( !hDS )
     return QgsVectorFileWriter::EditionCapabilities();
-  QString drvName = OGR_Dr_GetName( hDriver );
+  const QString drvName = GDALGetDescription( hDriver );
   QgsVectorFileWriter::EditionCapabilities caps = QgsVectorFileWriter::EditionCapabilities();
   if ( OGR_DS_TestCapability( hDS.get(), ODsCCreateLayer ) )
   {

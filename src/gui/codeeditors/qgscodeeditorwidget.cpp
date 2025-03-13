@@ -14,12 +14,19 @@
  ***************************************************************************/
 
 #include "qgscodeeditorwidget.h"
+#include "moc_qgscodeeditorwidget.cpp"
 #include "qgscodeeditor.h"
 #include "qgsfilterlineedit.h"
 #include "qgsapplication.h"
 #include "qgsguiutils.h"
 #include "qgsmessagebar.h"
 #include "qgsdecoratedscrollbar.h"
+#include "qgscodeeditorpython.h"
+#include "qgsnetworkaccessmanager.h"
+#include "qgssetrequestinitiator_p.h"
+#include "qgsjsonutils.h"
+#include "nlohmann/json.hpp"
+#include "qgssettings.h"
 
 #include <QVBoxLayout>
 #include <QToolButton>
@@ -30,16 +37,21 @@
 #include <QProcess>
 #include <QFileInfo>
 #include <QDir>
+#include <QNetworkRequest>
 
 QgsCodeEditorWidget::QgsCodeEditorWidget(
   QgsCodeEditor *editor,
   QgsMessageBar *messageBar,
-  QWidget *parent )
+  QWidget *parent
+)
   : QgsPanelWidget( parent )
   , mEditor( editor )
   , mMessageBar( messageBar )
 {
   Q_ASSERT( mEditor );
+
+  mEditor->installEventFilter( this );
+  installEventFilter( this );
 
   QVBoxLayout *vl = new QVBoxLayout();
   vl->setContentsMargins( 0, 0, 0, 0 );
@@ -95,14 +107,14 @@ QgsCodeEditorWidget::QgsCodeEditorWidget(
   mCaseSensitiveButton->setIcon( QgsApplication::getThemeIcon( QStringLiteral( "mIconSearchCaseSensitive.svg" ) ) );
   findButtonLayout->addWidget( mCaseSensitiveButton );
 
-  mWholeWordButton = new QToolButton( );
+  mWholeWordButton = new QToolButton();
   mWholeWordButton->setToolTip( tr( "Whole Word" ) );
   mWholeWordButton->setCheckable( true );
   mWholeWordButton->setAutoRaise( true );
   mWholeWordButton->setIcon( QgsApplication::getThemeIcon( QStringLiteral( "mIconSearchWholeWord.svg" ) ) );
   findButtonLayout->addWidget( mWholeWordButton );
 
-  mRegexButton = new QToolButton( );
+  mRegexButton = new QToolButton();
   mRegexButton->setToolTip( tr( "Use Regular Expressions" ) );
   mRegexButton->setCheckable( true );
   mRegexButton->setAutoRaise( true );
@@ -155,8 +167,7 @@ QgsCodeEditorWidget::QgsCodeEditorWidget(
   {
     QShortcut *replaceShortcut = new QShortcut( QKeySequence::StandardKey::Replace, this );
     replaceShortcut->setContext( Qt::ShortcutContext::WidgetWithChildrenShortcut );
-    connect( replaceShortcut, &QShortcut::activated, this, [ = ]
-    {
+    connect( replaceShortcut, &QShortcut::activated, this, [=] {
       // shortcut toggles bar visibility
       const bool show = mLineEditReplace->isHidden();
       setReplaceBarVisible( show );
@@ -170,8 +181,7 @@ QgsCodeEditorWidget::QgsCodeEditorWidget(
   // escape on editor hides the find bar
   QShortcut *closeFindShortcut = new QShortcut( Qt::Key::Key_Escape, this );
   closeFindShortcut->setContext( Qt::ShortcutContext::WidgetWithChildrenShortcut );
-  connect( closeFindShortcut, &QShortcut::activated, this, [this]
-  {
+  connect( closeFindShortcut, &QShortcut::activated, this, [this] {
     hideSearchBar();
     mEditor->setFocus();
   } );
@@ -201,15 +211,15 @@ QgsCodeEditorWidget::QgsCodeEditorWidget(
   closeFindButton->setMinimumWidth( QgsGuiUtils::scaleIconSize( 44 ) );
   closeFindButton->setStyleSheet(
     "QToolButton { border:none; background-color: rgba(0, 0, 0, 0); }"
-    "QToolButton::menu-button { border:none; background-color: rgba(0, 0, 0, 0); }" );
+    "QToolButton::menu-button { border:none; background-color: rgba(0, 0, 0, 0); }"
+  );
   closeFindButton->setCursor( Qt::PointingHandCursor );
   closeFindButton->setIcon( QgsApplication::getThemeIcon( QStringLiteral( "/mIconClose.svg" ) ) );
 
   const int iconSize = std::max( 18.0, Qgis::UI_SCALE_FACTOR * fontMetrics().height() * 0.9 );
   closeFindButton->setIconSize( QSize( iconSize, iconSize ) );
   closeFindButton->setFixedSize( QSize( iconSize, iconSize ) );
-  connect( closeFindButton, &QAbstractButton::clicked, this, [this]
-  {
+  connect( closeFindButton, &QAbstractButton::clicked, this, [this] {
     hideSearchBar();
     mEditor->setFocus();
   } );
@@ -225,7 +235,7 @@ QgsCodeEditorWidget::QgsCodeEditorWidget(
 
   setLayout( vl );
 
-  mHighlightController = std::make_unique< QgsScrollBarHighlightController >();
+  mHighlightController = std::make_unique<QgsScrollBarHighlightController>();
   mHighlightController->setScrollArea( mEditor );
 }
 
@@ -239,6 +249,62 @@ void QgsCodeEditorWidget::showEvent( QShowEvent *event )
 {
   QgsPanelWidget::showEvent( event );
   updateHighlightController();
+}
+
+bool QgsCodeEditorWidget::eventFilter( QObject *obj, QEvent *event )
+{
+  if ( event->type() == QEvent::FocusIn )
+  {
+    if ( !mFilePath.isEmpty() )
+    {
+      if ( !QFile::exists( mFilePath ) )
+      {
+        // file deleted externally
+        if ( mMessageBar )
+        {
+          mMessageBar->pushCritical( QString(), tr( "The file <b>\"%1\"</b> has been deleted or is not accessible" ).arg( QDir::toNativeSeparators( mFilePath ) ) );
+        }
+      }
+      else
+      {
+        const QFileInfo fi( mFilePath );
+        if ( mLastModified != fi.lastModified() )
+        {
+          // TODO - we should give users a choice of how to react to this, eg "ignore changes"
+          // note -- we intentionally don't call loadFile here -- we want this action to be undo-able
+          QFile file( mFilePath );
+          if ( file.open( QFile::ReadOnly ) )
+          {
+            int currentLine = -1, currentColumn = -1;
+            if ( !mLastModified.isNull() )
+            {
+              mEditor->getCursorPosition( &currentLine, &currentColumn );
+            }
+
+            const QString content = file.readAll();
+
+            // don't clear, instead perform undoable actions:
+            mEditor->beginUndoAction();
+            mEditor->selectAll();
+            mEditor->removeSelectedText();
+            mEditor->insert( content );
+            mEditor->setModified( false );
+            mEditor->recolor();
+            mEditor->endUndoAction();
+
+            mLastModified = fi.lastModified();
+            if ( currentLine >= 0 && currentLine < mEditor->lines() )
+            {
+              mEditor->setCursorPosition( currentLine, currentColumn );
+            }
+
+            emit loadedExternalChanges();
+          }
+        }
+      }
+    }
+  }
+  return QgsPanelWidget::eventFilter( obj, event );
 }
 
 QgsCodeEditorWidget::~QgsCodeEditorWidget() = default;
@@ -341,16 +407,58 @@ void QgsCodeEditorWidget::triggerFind()
   showSearchBar();
 }
 
+bool QgsCodeEditorWidget::loadFile( const QString &path )
+{
+  if ( !QFile::exists( path ) )
+    return false;
+
+  QFile file( path );
+  if ( file.open( QFile::ReadOnly ) )
+  {
+    const QString content = file.readAll();
+    mEditor->setText( content );
+    setFilePath( path );
+    mEditor->recolor();
+    mEditor->setModified( false );
+    mLastModified = QFileInfo( path ).lastModified();
+    return true;
+  }
+  return false;
+}
+
 void QgsCodeEditorWidget::setFilePath( const QString &path )
 {
   if ( mFilePath == path )
     return;
 
   mFilePath = path;
+  mLastModified = QDateTime();
+
   emit filePathChanged( mFilePath );
 }
 
-bool QgsCodeEditorWidget::openInExternalEditor()
+bool QgsCodeEditorWidget::save( const QString &path )
+{
+  const QString filePath = !path.isEmpty() ? path : mFilePath;
+  if ( !filePath.isEmpty() )
+  {
+    QFile file( filePath );
+    if ( file.open( QFile::WriteOnly ) )
+    {
+      file.write( mEditor->text().toUtf8() );
+      file.close();
+
+      setFilePath( filePath );
+      mEditor->setModified( false );
+      mLastModified = QFileInfo( filePath ).lastModified();
+
+      return true;
+    }
+  }
+  return false;
+}
+
+bool QgsCodeEditorWidget::openInExternalEditor( int line, int column )
 {
   if ( mFilePath.isEmpty() )
     return false;
@@ -359,17 +467,57 @@ bool QgsCodeEditorWidget::openInExternalEditor()
 
   bool useFallback = true;
 
+  QString externalEditorCommand;
+  switch ( mEditor->language() )
+  {
+    case Qgis::ScriptLanguage::Python:
+      externalEditorCommand = QgsCodeEditorPython::settingExternalPythonEditorCommand->value();
+      break;
+
+    case Qgis::ScriptLanguage::Css:
+    case Qgis::ScriptLanguage::QgisExpression:
+    case Qgis::ScriptLanguage::Html:
+    case Qgis::ScriptLanguage::JavaScript:
+    case Qgis::ScriptLanguage::Json:
+    case Qgis::ScriptLanguage::R:
+    case Qgis::ScriptLanguage::Sql:
+    case Qgis::ScriptLanguage::Batch:
+    case Qgis::ScriptLanguage::Bash:
+    case Qgis::ScriptLanguage::Unknown:
+      break;
+  }
+
+  int currentLine, currentColumn;
+  mEditor->getCursorPosition( &currentLine, &currentColumn );
+  if ( line < 0 )
+    line = currentLine;
+  if ( column < 0 )
+    column = currentColumn;
+
+  if ( !externalEditorCommand.isEmpty() )
+  {
+    externalEditorCommand = externalEditorCommand.replace( QLatin1String( "<file>" ), mFilePath );
+    externalEditorCommand = externalEditorCommand.replace( QLatin1String( "<line>" ), QString::number( line + 1 ) );
+    externalEditorCommand = externalEditorCommand.replace( QLatin1String( "<col>" ), QString::number( column + 1 ) );
+
+    const QStringList commandParts = QProcess::splitCommand( externalEditorCommand );
+    if ( QProcess::startDetached( commandParts.at( 0 ), commandParts.mid( 1 ), dir.absolutePath() ) )
+    {
+      return true;
+    }
+  }
+
   const QString editorCommand = qgetenv( "EDITOR" );
   if ( !editorCommand.isEmpty() )
   {
     const QFileInfo fi( editorCommand );
-    if ( fi.exists( ) )
+    if ( fi.exists() )
     {
       const QString command = fi.fileName();
       const bool isTerminalEditor = command.compare( QLatin1String( "nano" ), Qt::CaseInsensitive ) == 0
                                     || command.contains( QLatin1String( "vim" ), Qt::CaseInsensitive );
 
-      if ( !isTerminalEditor && QProcess::startDetached( editorCommand, {mFilePath}, dir.absolutePath() ) )
+      if ( !isTerminalEditor && QProcess::startDetached( editorCommand, { mFilePath }, dir.absolutePath() ) )
       {
         useFallback = false;
       }
@@ -380,6 +528,97 @@ bool QgsCodeEditorWidget::openInExternalEditor()
   {
     QDesktopServices::openUrl( QUrl::fromLocalFile( mFilePath ) );
   }
+  return true;
+}
+
+bool QgsCodeEditorWidget::shareOnGist( bool isPublic )
+{
+  const QString accessToken = QgsSettings().value( "pythonConsole/accessTokenGithub", QString() ).toString();
+  if ( accessToken.isEmpty() )
+  {
+    if ( mMessageBar )
+      mMessageBar->pushWarning( QString(), tr( "GitHub personal access token must be generated (see IDE Options)" ) );
+    return false;
+  }
+
+  QString defaultFileName;
+  switch ( mEditor->language() )
+  {
+    case Qgis::ScriptLanguage::Python:
+      defaultFileName = QStringLiteral( "pyqgis_snippet.py" );
+      break;
+
+    case Qgis::ScriptLanguage::Css:
+      defaultFileName = QStringLiteral( "qgis_snippet.css" );
+      break;
+
+    case Qgis::ScriptLanguage::QgisExpression:
+      defaultFileName = QStringLiteral( "qgis_snippet" );
+      break;
+
+    case Qgis::ScriptLanguage::Html:
+      defaultFileName = QStringLiteral( "qgis_snippet.html" );
+      break;
+
+    case Qgis::ScriptLanguage::JavaScript:
+      defaultFileName = QStringLiteral( "qgis_snippet.js" );
+      break;
+
+    case Qgis::ScriptLanguage::Json:
+      defaultFileName = QStringLiteral( "qgis_snippet.json" );
+      break;
+
+    case Qgis::ScriptLanguage::R:
+      defaultFileName = QStringLiteral( "qgis_snippet.r" );
+      break;
+
+    case Qgis::ScriptLanguage::Sql:
+      defaultFileName = QStringLiteral( "qgis_snippet.sql" );
+      break;
+
+    case Qgis::ScriptLanguage::Batch:
+      defaultFileName = QStringLiteral( "qgis_snippet.bat" );
+      break;
+
+    case Qgis::ScriptLanguage::Bash:
+      defaultFileName = QStringLiteral( "qgis_snippet.sh" );
+      break;
+
+    case Qgis::ScriptLanguage::Unknown:
+      defaultFileName = QStringLiteral( "qgis_snippet.txt" );
+      break;
+  }
+  const QString filename = mFilePath.isEmpty() ? defaultFileName : QFileInfo( mFilePath ).fileName();
+
+  const QString contents = mEditor->hasSelectedText() ? mEditor->selectedText() : mEditor->text();
+  const QVariantMap data {
+    { QStringLiteral( "description" ), "Gist created by PyQGIS Console" },
+    { QStringLiteral( "public" ), isPublic },
+    { QStringLiteral( "files" ), QVariantMap { { filename, QVariantMap { { QStringLiteral( "content" ), contents } } } } }
+  };
+
+  QNetworkRequest request;
+  request.setUrl( QUrl( QStringLiteral( "https://api.github.com/gists" ) ) );
+  request.setRawHeader( "Authorization", QStringLiteral( "token %1" ).arg( accessToken ).toLocal8Bit() );
+  request.setHeader( QNetworkRequest::ContentTypeHeader, QLatin1String( "application/json" ) );
+  request.setAttribute( QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::RedirectPolicy::NoLessSafeRedirectPolicy );
+  QgsSetRequestInitiatorClass( request, QStringLiteral( "QgsCodeEditorWidget" ) );
+
+  QNetworkReply *reply = QgsNetworkAccessManager::instance()->post( request, QgsJsonUtils::jsonFromVariant( data ).dump().c_str() );
+  connect( reply, &QNetworkReply::finished, this, [this, reply] {
+    if ( reply->error() == QNetworkReply::NoError )
+    {
+      const QVariantMap replyJson = QgsJsonUtils::parseJson( reply->readAll() ).toMap();
+      const QString link = replyJson.value( QStringLiteral( "html_url" ) ).toString();
+      QDesktopServices::openUrl( QUrl( link ) );
+    }
+    else
+    {
+      if ( mMessageBar )
+        mMessageBar->pushCritical( QString(), tr( "Connection error: %1" ).arg( reply->errorString() ) );
+    }
+    reply->deleteLater();
+  } );
   return true;
 }
 
@@ -504,9 +743,15 @@ void QgsCodeEditorWidget::addSearchHighlights()
     if ( fstart < 0 )
       break;
 
-    matchCount++;
-    const int matchLength = mEditor->SendScintilla( QsciScintilla::SCI_GETTARGETTEXT, 0, static_cast< void * >( nullptr ) );
+    const int matchLength = mEditor->SendScintilla( QsciScintilla::SCI_GETTARGETTEXT, 0, static_cast<void *>( nullptr ) );
 
+    if ( matchLength == 0 )
+    {
+      startPos += 1;
+      continue;
+    }
+
+    matchCount++;
     startPos = fstart + matchLength;
 
     mEditor->SendScintilla( QsciScintilla::SCI_SETINDICATORCURRENT, QgsCodeEditor::SEARCH_RESULT_INDICATOR );
@@ -564,8 +809,7 @@ bool QgsCodeEditorWidget::findText( bool forward, bool findFirst )
   const bool isCaseSensitive = mCaseSensitiveButton->isChecked();
   const bool isWholeWordOnly = mWholeWordButton->isChecked();
 
-  const bool found = mEditor->findFirst( searchString, isRegEx, isCaseSensitive, isWholeWordOnly, wrapAround, forward,
-                                         line, index, true, true, isRegEx );
+  const bool found = mEditor->findFirst( searchString, isRegEx, isCaseSensitive, isWholeWordOnly, wrapAround, forward, line, index, true, true, isRegEx );
 
   if ( !found )
   {
@@ -592,4 +836,3 @@ void QgsCodeEditorWidget::updateHighlightController()
   mHighlightController->setLineHeight( QFontMetrics( mEditor->font() ).lineSpacing() );
   mHighlightController->setVisibleRange( mEditor->viewport()->rect().height() );
 }
-

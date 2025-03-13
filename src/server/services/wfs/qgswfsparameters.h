@@ -65,13 +65,8 @@ namespace QgsWfs
       * \param type Type of the parameter
       * \param defaultValue Default value of the parameter
        */
-      QgsWfsParameter( const QgsWfsParameter::Name name = QgsWfsParameter::UNKNOWN,
-                       const QMetaType::Type type = QMetaType::Type::QString,
-                       const QVariant defaultValue = QVariant( "" ) );
+      QgsWfsParameter( const QgsWfsParameter::Name name = QgsWfsParameter::UNKNOWN, const QMetaType::Type type = QMetaType::Type::QString, const QVariant defaultValue = QVariant( "" ) );
 
-      /**
-       * Default destructor for QgsWfsParameter.
-       */
       virtual ~QgsWfsParameter() = default;
 
       /**
@@ -126,7 +121,6 @@ namespace QgsWfs
       Q_GADGET
 
     public:
-
       //! Output format for the response
       enum Format
       {
@@ -154,9 +148,6 @@ namespace QgsWfs
        */
       QgsWfsParameters();
 
-      /**
-       * Default destructor for QgsWfsParameters.
-       */
       virtual ~QgsWfsParameters() = default;
 
       /**
@@ -292,11 +283,11 @@ namespace QgsWfs
       bool loadParameter( const QString &key, const QString &value ) override;
       void save( const QgsWfsParameter &parameter );
 
-      void log( const QString &msg ) const;
+      void log( const QString &msg, const char *file = __builtin_FILE(), const char *function = __builtin_FUNCTION(), int line = __builtin_LINE() ) const;
 
       QList<QgsProjectVersion> mVersions;
       QMap<QgsWfsParameter::Name, QgsWfsParameter> mWfsParameters;
   };
-}
+} // namespace QgsWfs
 
 #endif

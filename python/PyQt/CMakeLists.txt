@@ -13,8 +13,10 @@ set(PYQT_COMPAT_FILES
   QtWebEngineCore.py
   QtWebEngineQuick.py
   QtWebEngineWidgets.py
+  QtMultimedia.py
   QtNetwork.py
   QtXml.py
+  QtQuickWidgets.py
   QtSql.py
   QtTest.py
   QtSvg.py

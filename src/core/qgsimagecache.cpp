@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsimagecache.h"
+#include "moc_qgsimagecache.cpp"
 
 #include "qgis.h"
 #include "qgsimageoperation.h"
@@ -162,6 +163,13 @@ QImage QgsImageCache::pathAsImagePrivate( const QString &f, const QSize size, co
 
   fitsInCache = true;
 
+  QString base64String;
+  QString mimeType;
+  if ( parseBase64DataUrl( file, &mimeType, &base64String ) && mimeType.startsWith( QLatin1String( "image/" ) ) )
+  {
+    file = QStringLiteral( "base64:%1" ).arg( base64String );
+  }
+
   QgsImageCacheEntry *currentEntry = findExistingEntry( new QgsImageCacheEntry( file, size, keepAspectRatio, opacity, targetDpi, frameNumber ) );
 
   QImage result;
@@ -208,11 +216,16 @@ QImage QgsImageCache::pathAsImagePrivate( const QString &f, const QSize size, co
 
 QSize QgsImageCache::originalSize( const QString &path, bool blocking ) const
 {
+  return mImageSizeCache.originalSize( path, blocking );
+}
+
+QSize QgsImageCache::originalSizePrivate( const QString &path, bool blocking ) const
+{
   if ( path.isEmpty() )
     return QSize();
 
   // direct read if path is a file -- maybe more efficient than going the bytearray route? (untested!)
-  if ( !path.startsWith( QLatin1String( "base64:" ) ) && QFile::exists( path ) )
+  if ( !isBase64Data( path ) && QFile::exists( path ) )
   {
     const QImageReader reader( path );
     if ( reader.size().isValid() )
@@ -298,7 +311,7 @@ void QgsImageCache::prepareAnimation( const QString &path )
   std::unique_ptr< QImageReader > reader;
   std::unique_ptr< QBuffer > buffer;
 
-  if ( !path.startsWith( QLatin1String( "base64:" ) ) && QFile::exists( path ) )
+  if ( !isBase64Data( path ) && QFile::exists( path ) )
   {
     const QString basePart = QFileInfo( path ).baseName();
     int id = 1;
@@ -355,7 +368,7 @@ QImage QgsImageCache::renderImage( const QString &path, QSize size, const bool k
   isBroken = false;
 
   // direct read if path is a file -- maybe more efficient than going the bytearray route? (untested!)
-  if ( !path.startsWith( QLatin1String( "base64:" ) ) && QFile::exists( path ) )
+  if ( !isBase64Data( path ) && QFile::exists( path ) )
   {
     QImageReader reader( path );
     reader.setAutoTransform( true );
@@ -519,4 +532,83 @@ QImage QgsImageCache::getFrameFromReader( QImageReader &reader, int frameNumber 
   return reader.read();
 }
 
+///@cond PRIVATE
 template class QgsAbstractContentCache<QgsImageCacheEntry>; // clazy:exclude=missing-qobject-macro
+
+QgsImageSizeCacheEntry::QgsImageSizeCacheEntry( const QString &path )
+  : QgsAbstractContentCacheEntry( path )
+{
+
+}
+
+int QgsImageSizeCacheEntry::dataSize() const
+{
+  return sizeof( QSize );
+}
+
+void QgsImageSizeCacheEntry::dump() const
+{
+  QgsDebugMsgLevel( QStringLiteral( "path: %1" ).arg( path ), 3 );
+}
+
+bool QgsImageSizeCacheEntry::isEqual( const QgsAbstractContentCacheEntry *other ) const
+{
+  const QgsImageSizeCacheEntry *otherImage = dynamic_cast< const QgsImageSizeCacheEntry * >( other );
+  if ( !otherImage
+       || otherImage->path != path )
+    return false;
+
+  return true;
+}
+
+template class QgsAbstractContentCache<QgsImageSizeCacheEntry>; // clazy:exclude=missing-qobject-macro
+
+
+//
+// QgsImageSizeCache
+//
+
+QgsImageSizeCache::QgsImageSizeCache( QObject *parent )
+  : QgsAbstractContentCache< QgsImageSizeCacheEntry >( parent, QObject::tr( "Image" ) )
+{
+  mMaxCacheSize = 524288; // 500kb max cache size, we are only storing QSize objects here, so that should be heaps
+}
+
+QgsImageSizeCache::~QgsImageSizeCache() = default;
+
+QSize QgsImageSizeCache::originalSize( const QString &f, bool blocking )
+{
+  QString file = f.trimmed();
+
+  if ( file.isEmpty() )
+    return QSize();
+
+  const QMutexLocker locker( &mMutex );
+
+  QString base64String;
+  QString mimeType;
+  if ( parseBase64DataUrl( file, &mimeType, &base64String ) && mimeType.startsWith( QLatin1String( "image/" ) ) )
+  {
+    file = QStringLiteral( "base64:%1" ).arg( base64String );
+  }
+
+  QgsImageSizeCacheEntry *currentEntry = findExistingEntry( new QgsImageSizeCacheEntry( file ) );
+
+  QSize result;
+
+  if ( !currentEntry->size.isValid() )
+  {
+    result = QgsApplication::imageCache()->originalSizePrivate( file, blocking );
+    mTotalSize += currentEntry->dataSize();
+    currentEntry->size = result;
+    trimToMaximumSize();
+  }
+  else
+  {
+    result = currentEntry->size;
+  }
+
+  return result;
+}
+
+///@endcond

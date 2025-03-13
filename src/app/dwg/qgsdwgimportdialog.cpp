@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsdwgimportdialog.h"
+#include "moc_qgsdwgimportdialog.cpp"
 
 #include <QDialogButtonBox>
 #include <QFileInfo>
@@ -98,7 +99,7 @@ QgsDwgImportDialog::QgsDwgImportDialog( QWidget *parent, Qt::WindowFlags f )
   mPanTool = new QgsMapToolPan( mMapCanvas );
   mMapCanvas->setMapTool( mPanTool );
 
-  if ( ! QgsVectorFileWriter::supportedFormatExtensions().contains( QStringLiteral( "gpkg" ) ) )
+  if ( !QgsVectorFileWriter::supportedFormatExtensions().contains( QStringLiteral( "gpkg" ) ) )
   {
     bar->pushMessage( tr( "GDAL/OGR not built with GPKG (sqlite3) support. You will not be able to export the DWG in a GPKG." ), Qgis::MessageLevel::Critical );
   }
@@ -161,8 +162,7 @@ void QgsDwgImportDialog::drawingFileWidgetFileChanged( const QString &filename )
 
   if ( fileInfoSourceDrawing.exists() )
   {
-    QFileInfo fileInfoTargetDatabase( fileInfoSourceDrawing.path(),
-                                      QString( "%1.gpkg" ).arg( fileInfoSourceDrawing.baseName() ) );
+    QFileInfo fileInfoTargetDatabase( fileInfoSourceDrawing.path(), QString( "%1.gpkg" ).arg( fileInfoSourceDrawing.baseName() ) );
     mDatabaseFileWidget->setFilePath( fileInfoTargetDatabase.filePath() );
   }
 
@@ -186,7 +186,7 @@ void QgsDwgImportDialog::pbLoadDatabase_clicked()
 
   QgsVectorLayer::LayerOptions options { QgsProject::instance()->transformContext() };
   options.loadDefaultStyle = false;
-  std::unique_ptr<QgsVectorLayer> d( new QgsVectorLayer( QStringLiteral( "%1|layername=drawing" ).arg( mDatabaseFileWidget->filePath() ), QStringLiteral( "layers" ), QStringLiteral( "ogr" ), options ) );
+  auto d = std::make_unique<QgsVectorLayer>( QStringLiteral( "%1|layername=drawing" ).arg( mDatabaseFileWidget->filePath() ), QStringLiteral( "layers" ), QStringLiteral( "ogr" ), options );
   if ( d && d->isValid() )
   {
     const int idxPath = d->fields().lookupField( QStringLiteral( "path" ) );
@@ -227,7 +227,7 @@ void QgsDwgImportDialog::pbLoadDatabase_clicked()
 
   lblMessage->setVisible( lblVisible );
 
-  std::unique_ptr<QgsVectorLayer> l( new QgsVectorLayer( QStringLiteral( "%1|layername=layers" ).arg( mDatabaseFileWidget->filePath() ), QStringLiteral( "layers" ), QStringLiteral( "ogr" ), options ) );
+  auto l = std::make_unique<QgsVectorLayer>( QStringLiteral( "%1|layername=layers" ).arg( mDatabaseFileWidget->filePath() ), QStringLiteral( "layers" ), QStringLiteral( "ogr" ), options );
   if ( l && l->isValid() )
   {
     const int idxName = l->fields().lookupField( QStringLiteral( "name" ) );
@@ -420,7 +420,7 @@ QList<QgsVectorLayer *> QgsDwgImportDialog::createLayers( const QStringList &lay
     // 6 QuadrantBelowLeft, 7 QuadrantBelow, 8 QuadrantBelowRight,
 
     pls.dataDefinedProperties().setProperty(
-      static_cast< int >( QgsPalLayerSettings::Property::Hali ),
+      static_cast<int>( QgsPalLayerSettings::Property::Hali ),
       QgsProperty::fromExpression( QStringLiteral(
                                      "CASE"
                                      " WHEN etype=%1 THEN"
@@ -436,12 +436,13 @@ QList<QgsVectorLayer *> QgsDwgImportDialog::createLayers( const QStringList &lay
                                      " ELSE 'Left'"
                                      " END"
                                      " END"
-                                   ).arg( DRW::MTEXT )
-                                 )
+      )
+                                     .arg( DRW::MTEXT )
+      )
     );
 
     pls.dataDefinedProperties().setProperty(
-      static_cast< int >( QgsPalLayerSettings::Property::Vali ),
+      static_cast<int>( QgsPalLayerSettings::Property::Vali ),
       QgsProperty::fromExpression( QStringLiteral(
                                      "CASE"
                                      " WHEN etype=%1 THEN"
@@ -458,8 +459,9 @@ QList<QgsVectorLayer *> QgsDwgImportDialog::createLayers( const QStringList &lay
                                      " ELSE 'Base'"
                                      " END"
                                      " END"
-                                   ).arg( DRW::MTEXT )
-                                 )
+      )
+                                     .arg( DRW::MTEXT )
+      )
     );
 
     pls.dataDefinedProperties().setProperty( QgsPalLayerSettings::Property::LabelRotation, QgsProperty::fromExpression( QStringLiteral( "360-angle" ) ) );
@@ -497,7 +499,7 @@ QList<QgsVectorLayer *> QgsDwgImportDialog::createLayers( const QStringList &lay
 void QgsDwgImportDialog::createGroup( QgsLayerTreeGroup *group, const QString &name, const QStringList &layers, bool visible )
 {
   QgsLayerTreeGroup *layerGroup = group->addGroup( name );
-  QgsDebugMsgLevel( QStringLiteral( " %1" ).arg( name ), 2 ) ;
+  QgsDebugMsgLevel( QStringLiteral( " %1" ).arg( name ), 2 );
   Q_ASSERT( layerGroup );
 
   const QList<QgsVectorLayer *> layersList = createLayers( layers );
@@ -582,13 +584,13 @@ void QgsDwgImportDialog::showHelp()
 
 void QgsDwgImportDialog::layersClicked( QTableWidgetItem *item )
 {
-  if ( ! item )
+  if ( !item )
     return;
 
   if ( item->column() != static_cast<int>( ColumnIndex::Name ) )
     item = mLayers->item( item->row(), static_cast<int>( ColumnIndex::Name ) );
 
-  if ( ! item )
+  if ( !item )
     return;
 
   const QgsTemporaryCursorOverride waitCursor( Qt::WaitCursor );

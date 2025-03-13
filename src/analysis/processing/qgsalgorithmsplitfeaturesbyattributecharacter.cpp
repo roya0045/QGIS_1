@@ -64,16 +64,21 @@ QString QgsSplitFeaturesByAttributeCharacterAlgorithm::shortDescription() const
   return QObject::tr( "Splits features into multiple output features by splitting a field by a character." );
 }
 
+Qgis::ProcessingAlgorithmDocumentationFlags QgsSplitFeaturesByAttributeCharacterAlgorithm::documentationFlags() const
+{
+  return Qgis::ProcessingAlgorithmDocumentationFlag::RegeneratesPrimaryKey;
+}
+
 QList<int> QgsSplitFeaturesByAttributeCharacterAlgorithm::inputLayerTypes() const
 {
-  return QList<int>() << static_cast< int >( Qgis::ProcessingSourceType::Vector );
+  return QList<int>() << static_cast<int>( Qgis::ProcessingSourceType::Vector );
 }
 
 void QgsSplitFeaturesByAttributeCharacterAlgorithm::initParameters( const QVariantMap & )
 {
   addParameter( new QgsProcessingParameterField( QStringLiteral( "FIELD" ), QObject::tr( "Split using values in field" ), QVariant(), QStringLiteral( "INPUT" ) ) );
   addParameter( new QgsProcessingParameterString( QStringLiteral( "CHAR" ), QObject::tr( "Split values using character" ) ) );
-  std::unique_ptr< QgsProcessingParameterDefinition > regexParam = std::make_unique< QgsProcessingParameterBoolean >( QStringLiteral( "REGEX" ), QObject::tr( "Use regular expression separator" ) );
+  std::unique_ptr<QgsProcessingParameterDefinition> regexParam = std::make_unique<QgsProcessingParameterBoolean>( QStringLiteral( "REGEX" ), QObject::tr( "Use regular expression separator" ) );
   regexParam->setFlags( regexParam->flags() | Qgis::ProcessingParameterFlag::Advanced );
   addParameter( regexParam.release() );
 }
@@ -143,6 +148,3 @@ QgsFeatureSink::SinkFlags QgsSplitFeaturesByAttributeCharacterAlgorithm::sinkFla
 }
 
 ///@endcond
-
-
-

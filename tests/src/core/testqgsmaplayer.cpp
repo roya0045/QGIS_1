@@ -23,6 +23,7 @@
 
 //qgis includes...
 #include <qgsmaplayer.h>
+#include <qgsrasterlayer.h>
 #include <qgsvectorlayer.h>
 #include <qgsapplication.h>
 #include <qgsproviderregistry.h>
@@ -45,10 +46,10 @@ class TestQgsMapLayer : public QObject
     TestQgsMapLayer() = default;
 
   private slots:
-    void initTestCase();// will be called before the first testfunction is executed.
-    void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init(); // will be called before each testfunction is executed.
-    void cleanup(); // will be called after every testfunction.
+    void initTestCase();    // will be called before the first testfunction is executed.
+    void cleanupTestCase(); // will be called after the last testfunction was executed.
+    void init();            // will be called before each testfunction is executed.
+    void cleanup();         // will be called after every testfunction.
 
     void isValid();
     void testId();
@@ -73,6 +74,8 @@ class TestQgsMapLayer : public QObject
 
     void readCustomProperties();
 
+    void publicSourceOnGdalWithCredentials();
+
   private:
     QgsVectorLayer *mpLayer = nullptr;
 };
@@ -86,7 +89,6 @@ void TestQgsMapLayer::initTestCase()
   QgsApplication::init();
   QgsApplication::initQgis();
   QgsApplication::showSettings();
-
 }
 
 void TestQgsMapLayer::init()
@@ -96,8 +98,7 @@ void TestQgsMapLayer::init()
   QString myFileName( TEST_DATA_DIR ); //defined in CmakeLists.txt
   myFileName = myFileName + "/points.shp";
   const QFileInfo myMapFileInfo( myFileName );
-  mpLayer = new QgsVectorLayer( myMapFileInfo.filePath(),
-                                myMapFileInfo.completeBaseName(), QStringLiteral( "ogr" ) );
+  mpLayer = new QgsVectorLayer( myMapFileInfo.filePath(), myMapFileInfo.completeBaseName(), QStringLiteral( "ogr" ) );
   QgsProject::instance()->addMapLayer( mpLayer );
 }
 
@@ -118,7 +119,7 @@ void TestQgsMapLayer::isValid()
 
 void TestQgsMapLayer::testId()
 {
-  std::unique_ptr< QgsVectorLayer > layer = std::make_unique< QgsVectorLayer >( QStringLiteral( "Point" ), QStringLiteral( "a" ), QStringLiteral( "memory" ) );
+  auto layer = std::make_unique<QgsVectorLayer>( QStringLiteral( "Point" ), QStringLiteral( "a" ), QStringLiteral( "memory" ) );
   QSignalSpy spy( layer.get(), &QgsMapLayer::idChanged );
   QVERIFY( layer->setId( QStringLiteral( "my forced id" ) ) );
   QCOMPARE( layer->id(), QStringLiteral( "my forced id" ) );
@@ -167,7 +168,7 @@ void TestQgsMapLayer::setBlendMode()
   mpLayer->setBlendMode( QPainter::CompositionMode_Screen );
   // check the signal has been correctly emitted
   QCOMPARE( spy.count(), 1 );
-  QCOMPARE( spy.at( 0 ).at( 0 ).toInt(), static_cast< int >( QPainter::CompositionMode_Screen ) );
+  QCOMPARE( spy.at( 0 ).at( 0 ).toInt(), static_cast<int>( QPainter::CompositionMode_Screen ) );
   // check accessor
   QCOMPARE( mpLayer->blendMode(), QPainter::CompositionMode_Screen );
 
@@ -176,7 +177,7 @@ void TestQgsMapLayer::setBlendMode()
 
   mpLayer->setBlendMode( QPainter::CompositionMode_Darken );
   QCOMPARE( spy.count(), 2 );
-  QCOMPARE( spy.at( 1 ).at( 0 ).toInt(), static_cast< int >( QPainter::CompositionMode_Darken ) );
+  QCOMPARE( spy.at( 1 ).at( 0 ).toInt(), static_cast<int>( QPainter::CompositionMode_Darken ) );
   QCOMPARE( mpLayer->blendMode(), QPainter::CompositionMode_Darken );
 }
 
@@ -188,9 +189,13 @@ void TestQgsMapLayer::isInScaleRange_data()
   QTest::newRow( "in the middle" ) << 3000.0 << true;
   QTest::newRow( "too low" ) << 1000.0 << false;
   QTest::newRow( "too high" ) << 6000.0 << false;
-  QTest::newRow( "max is not inclusive" ) << 5000.0 << false;
-  QTest::newRow( "min is inclusive" ) << 2500.0 << true;
-  QTest::newRow( "min is inclusive even with conversion errors" ) << static_cast< double >( 1.0f / ( ( float )1.0 / 2500.0 ) ) << true;
+  QTest::newRow( "min is not inclusive" ) << 5000.0 << false;
+  QTest::newRow( "max is inclusive" ) << 2500.0 << true;
+  QTest::newRow( "max is inclusive even with conversion errors" ) << static_cast<double>( 1.0f / ( ( float ) 1.0 / 2500.0 ) ) << true;
+  QTest::newRow( "max is inclusive even with non-round scales (below)" ) << 2499.9999999966526 << true;
+  QTest::newRow( "max is inclusive even with non-round scales (above)" ) << 2500.0000000027226 << true;
+  QTest::newRow( "min is exclusive even with non-round scales (below)" ) << 4999.999999997278 << false;
+  QTest::newRow( "min is exclusive even with non-round scales (above)" ) << 5000.000000003348 << false;
 }
 
 void TestQgsMapLayer::isInScaleRange()
@@ -309,19 +314,19 @@ void TestQgsMapLayer::layerRefListUtils()
   QList<QgsMapLayer *> listRawSource;
   listRawSource << vlA << vlB;
 
-  QList< QgsMapLayerRef > refs = _qgis_listRawToRef( listRawSource );
+  QList<QgsMapLayerRef> refs = _qgis_listRawToRef( listRawSource );
   QCOMPARE( refs.at( 0 ).get(), vlA );
   QCOMPARE( refs.at( 1 ).get(), vlB );
 
   const QList<QgsMapLayer *> raw = _qgis_listRefToRaw( refs );
-  QCOMPARE( raw, QList< QgsMapLayer *>() << vlA << vlB );
+  QCOMPARE( raw, QList<QgsMapLayer *>() << vlA << vlB );
 
   //remove layers
   QgsVectorLayer *vlC = new QgsVectorLayer( QStringLiteral( "Point" ), QStringLiteral( "c" ), QStringLiteral( "memory" ) );
   QgsVectorLayer *vlD = new QgsVectorLayer( QStringLiteral( "Point" ), QStringLiteral( "d" ), QStringLiteral( "memory" ) );
   refs << QgsMapLayerRef( vlC ) << QgsMapLayerRef( vlD );
 
-  _qgis_removeLayers( refs, QList< QgsMapLayer *>() << vlB << vlD );
+  _qgis_removeLayers( refs, QList<QgsMapLayer *>() << vlB << vlD );
   QCOMPARE( refs.size(), 2 );
   QCOMPARE( refs.at( 0 ).get(), vlA );
   QCOMPARE( refs.at( 1 ).get(), vlC );
@@ -352,41 +357,29 @@ void TestQgsMapLayer::layerRefResolveWeakly()
   QgsVectorLayerRef ref;
   QgsProject::instance()->addMapLayer( vlA );
   ref.name = vlA->name();
-  QVERIFY( ! ref.resolveWeakly( QgsProject::instance() ) );
+  QVERIFY( !ref.resolveWeakly( QgsProject::instance() ) );
   QVERIFY( ref.resolveWeakly( QgsProject::instance(), QgsVectorLayerRef::MatchType::Name ) );
 
   ref = QgsVectorLayerRef();
   ref.name = QStringLiteral( "another name" );
-  QVERIFY( ! ref.resolveWeakly( QgsProject::instance(), QgsVectorLayerRef::MatchType::Name ) );
+  QVERIFY( !ref.resolveWeakly( QgsProject::instance(), QgsVectorLayerRef::MatchType::Name ) );
   ref.provider = vlA->providerType();
   QVERIFY( ref.resolveWeakly( QgsProject::instance(), QgsVectorLayerRef::MatchType::Provider ) );
 
   ref = QgsVectorLayerRef();
   ref.name = QStringLiteral( "another name" );
-  QVERIFY( ! ref.resolveWeakly( QgsProject::instance(),
-                                static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Provider |
-                                    QgsVectorLayerRef::MatchType::Name ) ) );
+  QVERIFY( !ref.resolveWeakly( QgsProject::instance(), static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Provider | QgsVectorLayerRef::MatchType::Name ) ) );
   ref.provider = vlA->providerType();
-  QVERIFY( ! ref.resolveWeakly( QgsProject::instance(),
-                                static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Provider |
-                                    QgsVectorLayerRef::MatchType::Name ) ) );
+  QVERIFY( !ref.resolveWeakly( QgsProject::instance(), static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Provider | QgsVectorLayerRef::MatchType::Name ) ) );
   ref.name = vlA->name();
-  QVERIFY( ref.resolveWeakly( QgsProject::instance(),
-                              static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Provider |
-                                  QgsVectorLayerRef::MatchType::Name ) ) );
+  QVERIFY( ref.resolveWeakly( QgsProject::instance(), static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Provider | QgsVectorLayerRef::MatchType::Name ) ) );
 
   ref = QgsVectorLayerRef();
-  QVERIFY( ! ref.resolveWeakly( QgsProject::instance(),
-                                static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Source |
-                                    QgsVectorLayerRef::MatchType::Name ) ) );
+  QVERIFY( !ref.resolveWeakly( QgsProject::instance(), static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Source | QgsVectorLayerRef::MatchType::Name ) ) );
   ref.source = vlA->publicSource();
-  QVERIFY( ! ref.resolveWeakly( QgsProject::instance(),
-                                static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Source |
-                                    QgsVectorLayerRef::MatchType::Name ) ) );
+  QVERIFY( !ref.resolveWeakly( QgsProject::instance(), static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Source | QgsVectorLayerRef::MatchType::Name ) ) );
   ref.name = vlA->name();
-  QVERIFY( ref.resolveWeakly( QgsProject::instance(),
-                              static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Source |
-                                  QgsVectorLayerRef::MatchType::Name ) ) );
+  QVERIFY( ref.resolveWeakly( QgsProject::instance(), static_cast<QgsVectorLayerRef::MatchType>( QgsVectorLayerRef::MatchType::Source | QgsVectorLayerRef::MatchType::Name ) ) );
 }
 
 void TestQgsMapLayer::styleCategories()
@@ -437,7 +430,7 @@ void TestQgsMapLayer::notify()
 
 void TestQgsMapLayer::customEnumFlagProperties()
 {
-  std::unique_ptr<QgsVectorLayer> ml = std::make_unique<QgsVectorLayer>( QStringLiteral( "Point" ), QStringLiteral( "name" ), QStringLiteral( "memory" ) );
+  auto ml = std::make_unique<QgsVectorLayer>( QStringLiteral( "Point" ), QStringLiteral( "name" ), QStringLiteral( "memory" ) );
 
   // assign to inexisting property
   ml->setCustomProperty( QStringLiteral( "my_property_for_units" ), -1 );
@@ -446,7 +439,7 @@ void TestQgsMapLayer::customEnumFlagProperties()
   QVERIFY( static_cast<int>( Qgis::LayoutUnit::Meters ) != -1 );
 
   // standard method returns invalid property
-  const int v1 = ml->customProperty( QStringLiteral( "my_property_for_units" ), static_cast< int >( Qgis::LayoutUnit::Meters ) ).toInt();
+  const int v1 = ml->customProperty( QStringLiteral( "my_property_for_units" ), static_cast<int>( Qgis::LayoutUnit::Meters ) ).toInt();
   QCOMPARE( v1, -1 );
 
   // enum method returns default property if current property is incorrect
@@ -489,7 +482,7 @@ void TestQgsMapLayer::customEnumFlagProperties()
 
 void TestQgsMapLayer::readCustomProperties()
 {
-  std::unique_ptr<QgsVectorLayer> ml = std::make_unique<QgsVectorLayer>( QStringLiteral( "Point" ), QStringLiteral( "name" ), QStringLiteral( "memory" ) );
+  auto ml = std::make_unique<QgsVectorLayer>( QStringLiteral( "Point" ), QStringLiteral( "name" ), QStringLiteral( "memory" ) );
 
   // assign to inexisting property
   ml->setCustomProperty( QStringLiteral( "my_property_one" ), 42 );
@@ -497,9 +490,9 @@ void TestQgsMapLayer::readCustomProperties()
   ml->setCustomProperty( QStringLiteral( "my_property_three" ), QStringLiteral( "test3" ) );
 
   QMap<QString, QVariant> map;
-  map[ "my_property_one" ] = 51;
-  map[ "my_property_two" ] = QStringLiteral( "test2 different" );
-  map[ "my_property_three" ] = QStringLiteral( "test3" );
+  map["my_property_one"] = 51;
+  map["my_property_two"] = QStringLiteral( "test2 different" );
+  map["my_property_three"] = QStringLiteral( "test3" );
 
   QDomDocument doc( QStringLiteral( "qgis" ) );
   QDomElement rootNode = doc.createElement( QStringLiteral( "qgis" ) );
@@ -518,7 +511,16 @@ void TestQgsMapLayer::readCustomProperties()
   QCOMPARE( spy.count(), 2 );
   QCOMPARE( spy.at( 0 ).at( 0 ), "my_property_one" );
   QCOMPARE( spy.at( 1 ).at( 0 ), "my_property_two" );
+}
 
+void TestQgsMapLayer::publicSourceOnGdalWithCredentials()
+{
+  QgsRasterLayer rl(
+    QStringLiteral( "test.tif|option:AN=OPTION|credential:SOMEKEY=AAAAA|credential:ANOTHER=BBB" ), QString(), QStringLiteral( "gdal" )
+  );
+  QCOMPARE( rl.publicSource( true ), QStringLiteral( "test.tif|option:AN=OPTION|credential:ANOTHER=XXXXXXXX|credential:SOMEKEY=XXXXXXXX" ) );
+  QCOMPARE( rl.publicSource( false ), QStringLiteral( "test.tif|option:AN=OPTION" ) );
+  QCOMPARE( rl.publicSource(), QStringLiteral( "test.tif|option:AN=OPTION" ) );
 }
 
 QGSTEST_MAIN( TestQgsMapLayer )

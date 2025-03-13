@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgssvgannotation.h"
+#include "moc_qgssvgannotation.cpp"
 
 #include "qgsreadwritecontext.h"
 #include "qgsproject.h"
@@ -33,7 +34,7 @@ QgsSvgAnnotation::QgsSvgAnnotation( QObject *parent )
 
 QgsSvgAnnotation *QgsSvgAnnotation::clone() const
 {
-  std::unique_ptr< QgsSvgAnnotation > c( new QgsSvgAnnotation() );
+  auto c = std::make_unique<QgsSvgAnnotation>();
   copyCommonProperties( c.get() );
   c->setFilePath( mFilePath );
   return c.release();

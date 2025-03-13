@@ -16,6 +16,7 @@ email                : marco dot hugentobler at hugis dot net
  ***************************************************************************/
 
 #include "qgstextannotation.h"
+#include "moc_qgstextannotation.cpp"
 #include "qgsrendercontext.h"
 #include <QDomDocument>
 #include <QPainter>
@@ -29,7 +30,7 @@ QgsTextAnnotation::QgsTextAnnotation( QObject *parent )
 
 QgsTextAnnotation *QgsTextAnnotation::clone() const
 {
-  std::unique_ptr< QgsTextAnnotation > c( new QgsTextAnnotation() );
+  auto c = std::make_unique<QgsTextAnnotation>();
   copyCommonProperties( c.get() );
   c->setDocument( mDocument.get() );
   return c.release();

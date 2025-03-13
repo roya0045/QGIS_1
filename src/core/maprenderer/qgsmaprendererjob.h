@@ -56,10 +56,7 @@ class LayerRenderJob
 
     LayerRenderJob() = default;
 
-    //! LayerRenderJob cannot be copied
     LayerRenderJob( const LayerRenderJob & ) = delete;
-
-    //! LayerRenderJob cannot be copied
     LayerRenderJob &operator=( const LayerRenderJob & ) = delete;
 
     LayerRenderJob( LayerRenderJob && );
@@ -406,7 +403,7 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
      * \note Not available in Python bindings.
      * \since QGIS 3.24
      */
-    QgsLabelSink *labelSink() const { return mLabelSink; } SIP_SKIP
+    QgsLabelSink *labelSink() const SIP_SKIP { return mLabelSink; }
 
     /**
      * Assigns the label sink which will take over responsibility for handling labels
@@ -415,7 +412,7 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
      * \note Not available in Python bindings.
      * \since QGIS 3.24
      */
-    void setLabelSink( QgsLabelSink *sink ) { mLabelSink = sink; } SIP_SKIP
+    void setLabelSink( QgsLabelSink *sink ) SIP_SKIP { mLabelSink = sink; }
 
     /**
      * Returns the associated labeling engine feedback object.
@@ -544,6 +541,11 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
     QHash< QString, int > mLayerRenderingTimeHints;
 
     /**
+     * Additional layers participating in labeling problem
+     */
+    QList< QPointer< QgsMapLayer > > mAdditionalLabelLayers;
+
+    /**
      * TRUE if layer rendering time should be recorded.
      */
     bool mRecordRenderingTime = true;
@@ -591,6 +593,15 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
     std::vector< LayerRenderJob > prepareSecondPassJobs( std::vector< LayerRenderJob > &firstPassJobs, LabelRenderJob &labelJob ) SIP_SKIP;
 
     /**
+     * Returns a list of the layers participating in the map labeling.
+     *
+     * \note Not available in Python bindings.
+     *
+     * \since QGIS 3.40
+     */
+    QList< QPointer< QgsMapLayer > > participatingLabelLayers( QgsLabelingEngine *engine ) SIP_SKIP;
+
+    /**
      * Initialize \a secondPassJobs according to what have been rendered (mask clipping path e.g.) in first pass jobs and \a labelJob.
      * \since QGIS 3.26
      */
@@ -634,7 +645,7 @@ class CORE_EXPORT QgsMapRendererJob : public QObject SIP_ABSTRACT
 
     /**
      * \note not available in Python bindings
-     * \deprecated Will be removed in QGIS 4.0
+     * \deprecated QGIS 3.40. Will be removed in QGIS 4.0.
      */
     Q_DECL_DEPRECATED static void drawLabeling( const QgsMapSettings &settings, QgsRenderContext &renderContext, QgsLabelingEngine *labelingEngine2, QPainter *painter ) SIP_SKIP;
 

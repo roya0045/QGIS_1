@@ -160,7 +160,7 @@ class CORE_EXPORT QgsMultiPoint: public QgsGeometryCollection
               break;
             }
 
-            std::unique_ptr< QgsPoint > point = std::make_unique< QgsPoint >( x, y );
+            auto point = std::make_unique< QgsPoint >( x, y );
             if ( elementSize > 2 )
             {
               element = PySequence_GetItem( value, 2 );
@@ -343,6 +343,7 @@ class CORE_EXPORT QgsMultiPoint: public QgsGeometryCollection
     int vertexNumberFromVertexId( QgsVertexId id ) const override;
     double segmentLength( QgsVertexId startVertex ) const override;
     bool isValid( QString &error SIP_OUT, Qgis::GeometryValidityFlags flags = Qgis::GeometryValidityFlags() ) const override SIP_HOLDGIL;
+    QgsMultiPoint *simplifyByDistance( double tolerance ) const override SIP_FACTORY;
 
 #ifndef SIP_RUN
     void filterVertices( const std::function< bool( const QgsPoint & ) > &filter ) override;
@@ -353,7 +354,7 @@ class CORE_EXPORT QgsMultiPoint: public QgsGeometryCollection
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
      */
-    inline static const QgsMultiPoint *cast( const QgsAbstractGeometry *geom )
+    inline static const QgsMultiPoint *cast( const QgsAbstractGeometry *geom ) // cppcheck-suppress duplInheritedMember
     {
       if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == Qgis::WkbType::MultiPoint )
         return static_cast<const QgsMultiPoint *>( geom );

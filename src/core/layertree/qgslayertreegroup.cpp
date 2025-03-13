@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include "qgslayertreegroup.h"
+#include "moc_qgslayertreegroup.cpp"
 
 #include "qgslayertree.h"
 #include "qgslayertreeutils.h"
@@ -345,7 +346,7 @@ QList<QgsLayerTreeGroup *> QgsLayerTreeGroup::findGroups( bool recursive ) const
   return list;
 }
 
-QgsLayerTreeGroup *QgsLayerTreeGroup::readXml( QDomElement &element, const QgsReadWriteContext &context )
+QgsLayerTreeGroup *QgsLayerTreeGroup::readXml( QDomElement &element, const QgsReadWriteContext &context ) // cppcheck-suppress duplInheritedMember
 {
   if ( element.tagName() != QLatin1String( "layer-tree-group" ) )
     return nullptr;
@@ -502,7 +503,7 @@ QgsGroupLayer *QgsLayerTreeGroup::convertToGroupLayer( const QgsGroupLayer::Laye
   if ( !mGroupLayer.layerId.isEmpty() )
     return nullptr;
 
-  std::unique_ptr< QgsGroupLayer > res = std::make_unique< QgsGroupLayer >( name(), options );
+  auto res = std::make_unique< QgsGroupLayer >( name(), options );
 
   mGroupLayer.setLayer( res.get() );
   updateGroupLayers();

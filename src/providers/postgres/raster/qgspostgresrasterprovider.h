@@ -29,18 +29,15 @@
  */
 class QgsPostgresRasterProvider : public QgsRasterDataProvider
 {
-
     Q_OBJECT
 
   public:
-
-    QgsPostgresRasterProvider( const QString &uri, const QgsDataProvider::ProviderOptions &providerOptions, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() );
-    explicit QgsPostgresRasterProvider( const QgsPostgresRasterProvider &other, const QgsDataProvider::ProviderOptions &providerOptions, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() );
+    QgsPostgresRasterProvider( const QString &uri, const QgsDataProvider::ProviderOptions &providerOptions, Qgis::DataProviderReadFlags flags = Qgis::DataProviderReadFlags() );
+    explicit QgsPostgresRasterProvider( const QgsPostgresRasterProvider &other, const QgsDataProvider::ProviderOptions &providerOptions, Qgis::DataProviderReadFlags flags = Qgis::DataProviderReadFlags() );
 
     virtual ~QgsPostgresRasterProvider() override = default;
 
   public:
-
     // QgsDataProvider interface
     Qgis::DataProviderFlags flags() const override;
     virtual QgsCoordinateReferenceSystem crs() const override;
@@ -50,6 +47,7 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     virtual QString description() const override;
 
     bool readBlock( int bandNo, QgsRectangle const &viewExtent, int width, int height, void *data, QgsRasterBlockFeedback *feedback = nullptr ) override;
+    Qgis::ProviderStyleStorageCapabilities styleStorageCapabilities() const override;
 
     // QgsRasterInterface interface
     virtual Qgis::DataType dataType( int bandNo ) const override;
@@ -89,7 +87,6 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     static QgsPostgresPrimaryKeyType pkType( const QgsField &fld );
 
   private:
-
     bool mValid = false;
     QgsCoordinateReferenceSystem mCrs;
     //! Data source URI struct for this layer
@@ -154,10 +151,10 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     QgsLayerMetadata mLayerMetadata;
 
 
-    QString mDetectedSrid;            //!< Spatial reference detected in the database
-    QString mRequestedSrid;           //!< Spatial reference requested in the uri
-    QgsPostgresConn *mConnectionRO = nullptr ; //!< Read-only database connection (initially)
-    QgsPostgresConn *mConnectionRW = nullptr ; //!< Read-write database connection (on update)
+    QString mDetectedSrid;                    //!< Spatial reference detected in the database
+    QString mRequestedSrid;                   //!< Spatial reference requested in the uri
+    QgsPostgresConn *mConnectionRO = nullptr; //!< Read-only database connection (initially)
+    QgsPostgresConn *mConnectionRW = nullptr; //!< Read-write database connection (on update)
 
     /**
      * Data type for the primary key
@@ -179,8 +176,9 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
     QgsPostgresConn *connectionRO() const;
     QgsPostgresConn *connectionRW();
 
-    bool supportsSubsetString() const override { return true; }
-
+    bool supportsSubsetString() const override;
+    QString subsetStringDialect() const override;
+    QString subsetStringHelpUrl() const override;
     QString subsetString() const override;
     bool setSubsetString( const QString &subset, bool updateFeatureCount = true ) override;
 
@@ -237,40 +235,47 @@ class QgsPostgresRasterProvider : public QgsRasterDataProvider
      */
     struct PGTypeInfo
     {
-      QString typeName;
-      QString typeType;
-      QString typeElem;
-      int typeLen;
+        QString typeName;
+        QString typeType;
+        QString typeElem;
+        int typeLen;
     };
 
     QStringList parseUriKey( const QString &key );
-
 };
 
 
-
-struct QgsPostgresRasterProviderException: public std::exception
+struct QgsPostgresRasterProviderException : public std::exception
 {
+    QgsPostgresRasterProviderException( const QString &msg );
 
-  QgsPostgresRasterProviderException( const QString &msg );
-
-  QString message;
+    QString message;
 };
 
-class QgsPostgresRasterProviderMetadata: public QgsProviderMetadata
+class QgsPostgresRasterProviderMetadata : public QgsProviderMetadata
 {
     Q_OBJECT
   public:
     QgsPostgresRasterProviderMetadata();
     QIcon icon() const override;
     QVariantMap decodeUri( const QString &uri ) const override;
-    QgsPostgresRasterProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() ) override;
+    QgsPostgresRasterProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, Qgis::DataProviderReadFlags flags = Qgis::DataProviderReadFlags() ) override;
     QString encodeUri( const QVariantMap &parts ) const override;
-    QList< Qgis::LayerType > supportedLayerTypes() const override;
+    QList<Qgis::LayerType> supportedLayerTypes() const override;
     bool saveLayerMetadata( const QString &uri, const QgsLayerMetadata &metadata, QString &errorMessage ) override;
     QgsProviderMetadata::ProviderCapabilities providerCapabilities() const override;
-};
 
+    // These functions are very similar to functions in QgsPostgresProviderMetadata with some minor adjustments
+    bool styleExists( const QString &uri, const QString &styleId, QString &errorCause ) override;
+    bool saveStyle( const QString &uri, const QString &qmlStyle, const QString &sldStyle, const QString &styleName, const QString &styleDescription, const QString &uiFileContent, bool useAsDefault, QString &errCause ) override;
+    QString loadStyle( const QString &uri, QString &errCause ) override;
+    virtual QString loadStoredStyle( const QString &uri, QString &styleName, QString &errCause ) override;
+    int listStyles( const QString &uri, QStringList &ids, QStringList &names, QStringList &descriptions, QString &errCause ) override;
+    bool deleteStyleById( const QString &uri, const QString &styleId, QString &errCause ) override;
+    QString getStyleById( const QString &uri, const QString &styleId, QString &errCause ) override;
+
+    const QString mType = "Raster";
+};
 
 
 #endif // QGSPOSTGRESRASTERPROVIDER_H

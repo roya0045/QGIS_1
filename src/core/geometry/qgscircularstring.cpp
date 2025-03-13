@@ -638,6 +638,12 @@ QgsCircularString *QgsCircularString::snappedToGrid( double hSpacing, double vSp
     return nullptr;
 }
 
+QgsAbstractGeometry *QgsCircularString::simplifyByDistance( double tolerance ) const
+{
+  std::unique_ptr< QgsLineString > line( curveToLine() );
+  return line->simplifyByDistance( tolerance );
+}
+
 bool QgsCircularString::removeDuplicateNodes( double epsilon, bool useZValues )
 {
   if ( mX.count() <= 3 )
@@ -1599,6 +1605,8 @@ QgsCircularString *QgsCircularString::reversed() const
   {
     std::reverse( copy->mM.begin(), copy->mM.end() );
   }
+
+  copy->mSummedUpArea = -mSummedUpArea;
   return copy;
 }
 
@@ -1796,7 +1804,7 @@ QgsCircularString *QgsCircularString::curveSubstring( double startDistance, doub
                     << QgsPoint( pointType, prevX, prevY, prevZ, prevM );
   }
 
-  std::unique_ptr< QgsCircularString > result = std::make_unique< QgsCircularString >();
+  auto result = std::make_unique< QgsCircularString >();
   result->setPoints( substringPoints );
   return result.release();
 }

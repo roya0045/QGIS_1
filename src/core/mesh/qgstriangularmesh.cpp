@@ -141,7 +141,7 @@ QgsMeshVertex QgsTriangularMesh::transformVertex( const QgsMeshVertex &vertex, Q
   return transformedVertex;
 }
 
-QgsMeshVertex QgsTriangularMesh::calculateCentroid( const QgsMeshFace &nativeFace )
+QgsMeshVertex QgsTriangularMesh::calculateCentroid( const QgsMeshFace &nativeFace ) const
 {
   return QgsMeshUtils::centroid( nativeFace, mTriangularMesh.vertices );
 }
@@ -635,7 +635,7 @@ std::unique_ptr< QgsPolygon > QgsMeshUtils::toPolygon( const QgsMeshFace &face, 
     const QgsPoint &vertex = vertices[vertexId];
     ring.append( vertex );
   }
-  std::unique_ptr< QgsPolygon > polygon = std::make_unique< QgsPolygon >();
+  auto polygon = std::make_unique< QgsPolygon >();
   polygon->setExteriorRing( new QgsLineString( ring ) );
   return polygon;
 }
@@ -690,7 +690,7 @@ bool QgsMeshUtils::isInTriangleFace( const QgsPointXY point, const QgsMeshFace &
   QVector<QgsMeshVertex> triangle( 3 );
   for ( int i = 0; i < 3; ++i )
   {
-    if ( face[i] > vertices.count() )
+    if ( face[i] >= vertices.count() )
       return false;
     triangle[i] = vertices[face[i]];
   }

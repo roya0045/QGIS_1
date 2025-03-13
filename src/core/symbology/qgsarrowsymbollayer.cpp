@@ -215,12 +215,28 @@ void QgsArrowSymbolLayer::startRender( QgsSymbolRenderContext &context )
   mComputedHeadType = headType();
   mComputedArrowType = arrowType();
 
-  mSymbol->startRender( context.renderContext() );
+  mSymbol->setRenderHints( mSymbol->renderHints() | Qgis::SymbolRenderHint::IsSymbolLayerSubSymbol );
+
+  mSymbol->startRender( context.renderContext(), context.fields() );
 }
 
 void QgsArrowSymbolLayer::stopRender( QgsSymbolRenderContext &context )
 {
   mSymbol->stopRender( context.renderContext() );
+}
+
+void QgsArrowSymbolLayer::startFeatureRender( const QgsFeature &, QgsRenderContext &context )
+{
+  installMasks( context, true );
+
+  // The base class version passes this on to the subsymbol, but we deliberately don't do that here.
+}
+
+void QgsArrowSymbolLayer::stopFeatureRender( const QgsFeature &, QgsRenderContext &context )
+{
+  removeMasks( context, true );
+
+  // The base class version passes this on to the subsymbol, but we deliberately don't do that here.
 }
 
 inline qreal euclidean_distance( QPointF po, QPointF pd )

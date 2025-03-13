@@ -134,26 +134,23 @@ class CORE_EXPORT QgsRasterBlockFeedback : public QgsFeedback
  */
 class CORE_EXPORT QgsRasterInterface
 {
-#ifdef SIP_RUN
 // QgsRasterInterface subclasses
-#include <qgsbrightnesscontrastfilter.h>
-#include <qgshuesaturationfilter.h>
-#include <qgsrasterdataprovider.h>
-#include <qgsrasternuller.h>
-#include <qgsrasterprojector.h>
-#include <qgsrasterrenderer.h>
-#include <qgsrasterresamplefilter.h>
-
+    //SIP_TYPEHEADER_INCLUDE( "qgsbrightnesscontrastfilter.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgshuesaturationfilter.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrasterdataprovider.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrasternuller.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrasterprojector.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrasterrenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrasterresamplefilter.h" );
 // QgsRasterRenderer subclasses
-#include <qgshillshaderenderer.h>
-#include <qgsmultibandcolorrenderer.h>
-#include <qgspalettedrasterrenderer.h>
-#include <qgssinglebandcolordatarenderer.h>
-#include <qgssinglebandgrayrenderer.h>
-#include <qgssinglebandpseudocolorrenderer.h>
-#include <qgsrastersinglecolorrenderer.h>
-#include <qgsrastercontourrenderer.h>
-#endif
+    //SIP_TYPEHEADER_INCLUDE( "qgshillshaderenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsmultibandcolorrenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgspalettedrasterrenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgssinglebandcolordatarenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgssinglebandgrayrenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgssinglebandpseudocolorrenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrastersinglecolorrenderer.h" );
+    //SIP_TYPEHEADER_INCLUDE( "qgsrastercontourrenderer.h" );
 
 
 #ifdef SIP_RUN
@@ -223,7 +220,7 @@ class CORE_EXPORT QgsRasterInterface
     /**
      * Returns the raster interface capabilities in friendly format.
      *
-     * \deprecated will be removed in QGIS 4.0
+     * \deprecated QGIS 3.40. Will be removed in QGIS 4.0.
      */
     Q_DECL_DEPRECATED QString capabilitiesString() const SIP_DEPRECATED;
 
@@ -263,6 +260,7 @@ class CORE_EXPORT QgsRasterInterface
 
     /**
      * Returns the name of the color interpretation for the specified \a bandNumber.
+     * It is translated since QGIS 3.40
      *
      * \since QGIS 3.18
      */
@@ -332,7 +330,7 @@ class CORE_EXPORT QgsRasterInterface
      * \param extent Extent used to calc statistics, if empty, whole raster extent is used.
      * \param sampleSize Approximate number of cells in sample. If 0, all cells (whole raster will be used). If raster does not have exact size (WCS without exact size for example), provider decides size of sample.
      * \param feedback optional feedback object
-     * \deprecated Use Qgis::RasterBandStatistic instead of int for \a stats argument
+     * \deprecated QGIS 3.40. Use Qgis::RasterBandStatistic instead of int for \a stats argument.
      */
     Q_DECL_DEPRECATED QgsRasterBandStats bandStatistics( int bandNo, int stats, const QgsRectangle &extent = QgsRectangle(), int sampleSize = 0, QgsRasterBlockFeedback *feedback = nullptr ) SIP_DEPRECATED;
 
@@ -353,7 +351,7 @@ class CORE_EXPORT QgsRasterInterface
      * \brief Returns TRUE if histogram is available (cached, already calculated).
      * The parameters are the same as in bandStatistics()
      * \returns TRUE if statistics are available (ready to use)
-     * \deprecated Use Qgis::RasterBandStatistic instead of int for \a stats argument
+     * \deprecated QGIS 3.40. Use Qgis::RasterBandStatistic instead of int for \a stats argument.
      */
     Q_DECL_DEPRECATED bool hasStatistics( int bandNo, int stats, const QgsRectangle &extent = QgsRectangle(), int sampleSize = 0 ) SIP_DEPRECATED;
 
@@ -584,7 +582,7 @@ class CORE_EXPORT QgsRasterInterface
 
     /**
      * Fill in statistics defaults if not specified
-     * \deprecated Use Qgis::RasterBandStatistic instead of int for \a stats argument
+     * \deprecated QGIS 3.40. Use Qgis::RasterBandStatistic instead of int for \a stats argument.
      */
     Q_DECL_DEPRECATED void initStatistics( QgsRasterBandStats &statistics, int bandNo, int stats, const QgsRectangle &boundingBox = QgsRectangle(), int binCount = 0 ) const SIP_DEPRECATED;
 

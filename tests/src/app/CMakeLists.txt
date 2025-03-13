@@ -3,6 +3,7 @@
 # the UI file won't be wrapped!
 include_directories(
   ${CMAKE_SOURCE_DIR}/src/test
+  ${CMAKE_SOURCE_DIR}/tests/src/gui
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -19,6 +20,7 @@ set(TESTS
   testqgsdecorationscalebar.cpp
   testqgsdwgimportdialog.cpp
   testqgsfieldcalculator.cpp
+  testqgsidentify.cpp
   testqgslayerpropertiesdialogs.cpp
   testqgsmapcanvasdockwidget.cpp
   testqgsmaptooladdpart.cpp
@@ -26,7 +28,6 @@ set(TESTS
   testqgsmaptooladdring.cpp
   testqgsmaptooldeletering.cpp
   testqgsmaptooleditannotation.cpp
-  testqgsmaptoolidentifyaction.cpp
   testqgsmaptoollabel.cpp
   testqgsmaptoolselect.cpp
   testqgsmaptoolreshape.cpp
@@ -63,6 +64,7 @@ endif()
 
 if (WITH_BINDINGS)
   set(TESTS ${TESTS} testqgisapppython.cpp)
+  set(TESTS ${TESTS} testqgsprojectexpressions.cpp)
 endif()
 
 foreach(TESTSRC ${TESTS})

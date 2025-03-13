@@ -20,20 +20,21 @@
 
 #include "qgsfields.h"
 
-class TestQgsFields: public QObject
+class TestQgsFields : public QObject
 {
     Q_OBJECT
 
   private slots:
-    void initTestCase();// will be called before the first testfunction is executed.
-    void cleanupTestCase();// will be called after the last testfunction was executed.
-    void init();// will be called before each testfunction is executed.
-    void cleanup();// will be called after every testfunction.
-    void create();//test creating a data defined container
-    void copy();// test cpy destruction (double delete)
+    void initTestCase();    // will be called before the first testfunction is executed.
+    void cleanupTestCase(); // will be called after the last testfunction was executed.
+    void init();            // will be called before each testfunction is executed.
+    void cleanup();         // will be called after every testfunction.
+    void create();          //test creating a data defined container
+    void copy();            // test cpy destruction (double delete)
     void assignment();
-    void equality(); //test equality operators
+    void equality();  //test equality operators
     void asVariant(); //test conversion to and from a QVariant
+    void construct();
     void clear();
     void exists();
     void count();
@@ -54,28 +55,26 @@ class TestQgsFields: public QObject
     void qforeach();
     void iterator();
     void constIterator();
+    void appendList();
+    void appendQgsFields();
 
   private:
 };
 
 void TestQgsFields::initTestCase()
 {
-
 }
 
 void TestQgsFields::cleanupTestCase()
 {
-
 }
 
 void TestQgsFields::init()
 {
-
 }
 
 void TestQgsFields::cleanup()
 {
-
 }
 
 void TestQgsFields::create()
@@ -162,6 +161,29 @@ void TestQgsFields::asVariant()
 
   const QgsFields fromVar = qvariant_cast<QgsFields>( var );
   QCOMPARE( fromVar, original );
+}
+
+void TestQgsFields::construct()
+{
+  // construct using a list of fields
+  QgsFields fields(
+    QList<QgsField> {
+      QgsField( QStringLiteral( "field1" ), QMetaType::Type::QString ),
+      QgsField( QStringLiteral( "field2" ), QMetaType::Type::Int ),
+      QgsField( QStringLiteral( "field3" ), QMetaType::Type::Double ),
+    }
+  );
+
+  QCOMPARE( fields.size(), 3 );
+  QCOMPARE( fields.at( 0 ).name(), QStringLiteral( "field1" ) );
+  QCOMPARE( fields.at( 0 ).type(), QMetaType::Type::QString );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field1" ) ), 0 );
+  QCOMPARE( fields.at( 1 ).name(), QStringLiteral( "field2" ) );
+  QCOMPARE( fields.at( 1 ).type(), QMetaType::Type::Int );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field2" ) ), 1 );
+  QCOMPARE( fields.at( 2 ).name(), QStringLiteral( "field3" ) );
+  QCOMPARE( fields.at( 2 ).type(), QMetaType::Type::Double );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field3" ) ), 2 );
 }
 
 void TestQgsFields::clear()
@@ -356,9 +378,11 @@ void TestQgsFields::indexFromName()
   QgsField field3( QStringLiteral( "testfield3" ) );
   field3.setAlias( QString() );
   fields.append( field3 );
+  QCOMPARE( fields.lookupField( QString() ), -1 );
 
-  QCOMPARE( fields.lookupField( QString() ), -1 );
-  QCOMPARE( fields.lookupField( QString() ), -1 );
+  const QgsField field4 = QgsField( QString() );
+  fields.append( field4 );
+  QCOMPARE( fields.lookupField( QString() ), 3 );
 
   QCOMPARE( fields.indexFromName( QString( "bad" ) ), -1 );
   QCOMPARE( fields.lookupField( QString( "bad" ) ), -1 );
@@ -372,9 +396,9 @@ void TestQgsFields::indexFromName()
   QCOMPARE( fields.lookupField( QString( "teStFiEld2" ) ), 1 );
 
   //test that fieldNameIndex prefers exact case matches over case insensitive matches
-  const QgsField sameNameDifferentCase( QStringLiteral( "teStFielD" ) );  //#spellok
+  const QgsField sameNameDifferentCase( QStringLiteral( "teStFielD" ) ); //#spellok
   fields.append( sameNameDifferentCase );
-  QCOMPARE( fields.lookupField( QString( "teStFielD" ) ), 3 );  //#spellok
+  QCOMPARE( fields.lookupField( QString( "teStFielD" ) ), 4 ); //#spellok
 
   //test that the alias is only matched with fieldNameIndex
   QCOMPARE( fields.indexFromName( "testfieldAlias" ), -1 );
@@ -471,7 +495,7 @@ void TestQgsFields::dataStream()
 
   QCOMPARE( resultFields, originalFields );
   QCOMPARE( resultFields.field( 0 ).typeName(), originalFields.field( 0 ).typeName() ); //typename is NOT required for equality
-  QCOMPARE( resultFields.field( 0 ).comment(), originalFields.field( 0 ).comment() ); //comment is NOT required for equality
+  QCOMPARE( resultFields.field( 0 ).comment(), originalFields.field( 0 ).comment() );   //comment is NOT required for equality
   QCOMPARE( resultFields.field( 1 ).typeName(), originalFields.field( 1 ).typeName() );
   QCOMPARE( resultFields.field( 1 ).comment(), originalFields.field( 1 ).comment() );
 }
@@ -567,7 +591,7 @@ void TestQgsFields::constIterator()
 
   //test with empty fields
   QCOMPARE( fields.constBegin(), fields.constEnd() );
-  QCOMPARE( const_cast< const QgsFields * >( &fields )->begin(), const_cast< const QgsFields * >( &fields )->end() );
+  QCOMPARE( const_cast<const QgsFields *>( &fields )->begin(), const_cast<const QgsFields *>( &fields )->end() );
   for ( const QgsField &f : fields )
   {
     Q_UNUSED( f );
@@ -619,6 +643,150 @@ void TestQgsFields::constIterator()
   QCOMPARE( it3, it + 1 );
   QCOMPARE( it, it3 - 1 );
   QCOMPARE( it3 - it, 1 );
+}
+
+void TestQgsFields::appendList()
+{
+  // test appending a list of fields
+  QgsFields fields;
+
+  QVERIFY( fields.append(
+    QList<QgsField> {
+      QgsField( QStringLiteral( "field1" ), QMetaType::Type::QString ),
+      QgsField( QStringLiteral( "field2" ), QMetaType::Type::Int ),
+      QgsField( QStringLiteral( "field3" ), QMetaType::Type::Double ),
+    }
+  ) );
+
+  QCOMPARE( fields.size(), 3 );
+  QCOMPARE( fields.at( 0 ).name(), QStringLiteral( "field1" ) );
+  QCOMPARE( fields.at( 0 ).type(), QMetaType::Type::QString );
+  QCOMPARE( fields.fieldOrigin( 0 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field1" ) ), 0 );
+  QCOMPARE( fields.at( 1 ).name(), QStringLiteral( "field2" ) );
+  QCOMPARE( fields.at( 1 ).type(), QMetaType::Type::Int );
+  QCOMPARE( fields.fieldOrigin( 1 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field2" ) ), 1 );
+  QCOMPARE( fields.at( 2 ).name(), QStringLiteral( "field3" ) );
+  QCOMPARE( fields.at( 2 ).type(), QMetaType::Type::Double );
+  QCOMPARE( fields.fieldOrigin( 2 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field3" ) ), 2 );
+
+  // should be rejected, duplicate field name
+  QVERIFY( !fields.append(
+    QList<QgsField> {
+      QgsField( QStringLiteral( "field1" ), QMetaType::Type::QString )
+    }
+  ) );
+
+  QCOMPARE( fields.size(), 3 );
+
+  QVERIFY( fields.append(
+    QList<QgsField> {
+      QgsField( QStringLiteral( "field4" ), QMetaType::Type::QString ),
+      QgsField( QStringLiteral( "field5" ), QMetaType::Type::Int ),
+      QgsField( QStringLiteral( "field6" ), QMetaType::Type::Double ),
+    },
+    Qgis::FieldOrigin::Join
+  ) );
+
+  QCOMPARE( fields.size(), 6 );
+  QCOMPARE( fields.at( 0 ).name(), QStringLiteral( "field1" ) );
+  QCOMPARE( fields.at( 0 ).type(), QMetaType::Type::QString );
+  QCOMPARE( fields.fieldOrigin( 0 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field1" ) ), 0 );
+  QCOMPARE( fields.at( 1 ).name(), QStringLiteral( "field2" ) );
+  QCOMPARE( fields.at( 1 ).type(), QMetaType::Type::Int );
+  QCOMPARE( fields.fieldOrigin( 1 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field2" ) ), 1 );
+  QCOMPARE( fields.at( 2 ).name(), QStringLiteral( "field3" ) );
+  QCOMPARE( fields.at( 2 ).type(), QMetaType::Type::Double );
+  QCOMPARE( fields.fieldOrigin( 2 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field3" ) ), 2 );
+  QCOMPARE( fields.at( 3 ).name(), QStringLiteral( "field4" ) );
+  QCOMPARE( fields.at( 3 ).type(), QMetaType::Type::QString );
+  QCOMPARE( fields.fieldOrigin( 3 ), Qgis::FieldOrigin::Join );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field4" ) ), 3 );
+  QCOMPARE( fields.at( 4 ).name(), QStringLiteral( "field5" ) );
+  QCOMPARE( fields.at( 4 ).type(), QMetaType::Type::Int );
+  QCOMPARE( fields.fieldOrigin( 4 ), Qgis::FieldOrigin::Join );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field5" ) ), 4 );
+  QCOMPARE( fields.at( 5 ).name(), QStringLiteral( "field6" ) );
+  QCOMPARE( fields.at( 5 ).type(), QMetaType::Type::Double );
+  QCOMPARE( fields.fieldOrigin( 5 ), Qgis::FieldOrigin::Join );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field6" ) ), 5 );
+}
+
+void TestQgsFields::appendQgsFields()
+{
+  // test appending fields from QgsFields
+  QgsFields fields;
+
+  QgsFields fields2;
+  fields2.append( QgsField( QStringLiteral( "field1" ), QMetaType::Type::QString ), Qgis::FieldOrigin::Edit, 2 );
+  fields2.append( QgsField( QStringLiteral( "field2" ), QMetaType::Type::Int ), Qgis::FieldOrigin::Join, 4 );
+  fields2.append( QgsField( QStringLiteral( "field3" ), QMetaType::Type::Double ), Qgis::FieldOrigin::Provider, 6 );
+
+  QVERIFY( fields.append( fields2 ) );
+  QCOMPARE( fields.size(), 3 );
+  QCOMPARE( fields.at( 0 ).name(), QStringLiteral( "field1" ) );
+  QCOMPARE( fields.at( 0 ).type(), QMetaType::Type::QString );
+  QCOMPARE( fields.fieldOrigin( 0 ), Qgis::FieldOrigin::Edit );
+  QCOMPARE( fields.fieldOriginIndex( 0 ), 2 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field1" ) ), 0 );
+  QCOMPARE( fields.at( 1 ).name(), QStringLiteral( "field2" ) );
+  QCOMPARE( fields.at( 1 ).type(), QMetaType::Type::Int );
+  QCOMPARE( fields.fieldOrigin( 1 ), Qgis::FieldOrigin::Join );
+  QCOMPARE( fields.fieldOriginIndex( 1 ), 4 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field2" ) ), 1 );
+  QCOMPARE( fields.at( 2 ).name(), QStringLiteral( "field3" ) );
+  QCOMPARE( fields.at( 2 ).type(), QMetaType::Type::Double );
+  QCOMPARE( fields.fieldOrigin( 2 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.fieldOriginIndex( 2 ), 6 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field3" ) ), 2 );
+
+  // should be rejected, duplicate field name
+  QVERIFY( !fields.append( fields2 ) );
+  QCOMPARE( fields.size(), 3 );
+
+  QgsFields fields3;
+  fields3.append( QgsField( QStringLiteral( "field4" ), QMetaType::Type::QString ), Qgis::FieldOrigin::Expression, 3 );
+  fields3.append( QgsField( QStringLiteral( "field5" ), QMetaType::Type::Int ), Qgis::FieldOrigin::Join, 5 );
+  fields3.append( QgsField( QStringLiteral( "field6" ), QMetaType::Type::Double ), Qgis::FieldOrigin::Provider, 7 );
+
+  QVERIFY( fields.append( fields3 ) );
+
+  QCOMPARE( fields.size(), 6 );
+  QCOMPARE( fields.at( 0 ).name(), QStringLiteral( "field1" ) );
+  QCOMPARE( fields.at( 0 ).type(), QMetaType::Type::QString );
+  QCOMPARE( fields.fieldOrigin( 0 ), Qgis::FieldOrigin::Edit );
+  QCOMPARE( fields.fieldOriginIndex( 0 ), 2 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field1" ) ), 0 );
+  QCOMPARE( fields.at( 1 ).name(), QStringLiteral( "field2" ) );
+  QCOMPARE( fields.at( 1 ).type(), QMetaType::Type::Int );
+  QCOMPARE( fields.fieldOrigin( 1 ), Qgis::FieldOrigin::Join );
+  QCOMPARE( fields.fieldOriginIndex( 1 ), 4 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field2" ) ), 1 );
+  QCOMPARE( fields.at( 2 ).name(), QStringLiteral( "field3" ) );
+  QCOMPARE( fields.at( 2 ).type(), QMetaType::Type::Double );
+  QCOMPARE( fields.fieldOrigin( 2 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.fieldOriginIndex( 2 ), 6 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field3" ) ), 2 );
+  QCOMPARE( fields.at( 3 ).name(), QStringLiteral( "field4" ) );
+  QCOMPARE( fields.at( 3 ).type(), QMetaType::Type::QString );
+  QCOMPARE( fields.fieldOrigin( 3 ), Qgis::FieldOrigin::Expression );
+  QCOMPARE( fields.fieldOriginIndex( 3 ), 3 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field4" ) ), 3 );
+  QCOMPARE( fields.at( 4 ).name(), QStringLiteral( "field5" ) );
+  QCOMPARE( fields.at( 4 ).type(), QMetaType::Type::Int );
+  QCOMPARE( fields.fieldOrigin( 4 ), Qgis::FieldOrigin::Join );
+  QCOMPARE( fields.fieldOriginIndex( 4 ), 5 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field5" ) ), 4 );
+  QCOMPARE( fields.at( 5 ).name(), QStringLiteral( "field6" ) );
+  QCOMPARE( fields.at( 5 ).type(), QMetaType::Type::Double );
+  QCOMPARE( fields.fieldOrigin( 5 ), Qgis::FieldOrigin::Provider );
+  QCOMPARE( fields.fieldOriginIndex( 5 ), 7 );
+  QCOMPARE( fields.indexFromName( QStringLiteral( "field6" ) ), 5 );
 }
 
 QGSTEST_MAIN( TestQgsFields )

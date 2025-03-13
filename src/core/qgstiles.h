@@ -28,7 +28,9 @@ class QgsRenderContext;
 
 /**
  * \ingroup core
- * \brief Stores coordinates of a tile in a tile matrix set. Tile matrix is identified
+ * \brief Stores coordinates of a tile in a tile matrix set.
+ *
+ * Tile matrix is identified
  * by the zoomLevel(), and the position within tile matrix is given by column()
  * and row().
  *
@@ -77,12 +79,10 @@ class CORE_EXPORT QgsTileXYZ
  */
 CORE_EXPORT inline uint qHash( QgsTileXYZ id ) SIP_SKIP
 {
-  return id.column() + id.row() + id.zoomLevel();
-
   const uint h1 = qHash( static_cast< quint64 >( id.column( ) ) );
   const uint h2 = qHash( static_cast< quint64 >( id.row() ) );
   const uint h3 = qHash( static_cast< quint64 >( id.zoomLevel() ) );
-  return h1 ^ ( h2 << 1 ) ^ ( h3 );
+  return h1 ^ ( h2 << 1 ) ^ ( h3 << 2 );
 }
 
 

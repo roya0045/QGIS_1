@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include "qgs3dmaptool.h"
+#include "moc_qgs3dmaptool.cpp"
 
 #include "qgs3dmapcanvas.h"
 
@@ -43,6 +44,11 @@ void Qgs3DMapTool::keyPressEvent( QKeyEvent *event )
   Q_UNUSED( event )
 }
 
+void Qgs3DMapTool::mouseWheelEvent( QWheelEvent *event )
+{
+  Q_UNUSED( event )
+}
+
 void Qgs3DMapTool::activate()
 {
 }
@@ -58,7 +64,6 @@ QCursor Qgs3DMapTool::cursor() const
 
 void Qgs3DMapTool::onMapSettingsChanged()
 {
-
 }
 
 Qgs3DMapCanvas *Qgs3DMapTool::canvas()

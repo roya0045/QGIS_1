@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include "qgsrenderchecker.h"
+#include "moc_qgsrenderchecker.cpp"
 
 #include "qgis.h"
 #include "qgsmaprenderersequentialjob.h"
@@ -56,6 +57,8 @@ QDir QgsRenderChecker::testReportDir()
 {
   if ( qgetenv( "QGIS_CONTINUOUS_INTEGRATION_RUN" ) == QStringLiteral( "true" ) )
     return QDir( QDir( "/root/QGIS" ).filePath( QStringLiteral( "qgis_test_report" ) ) );
+  else if ( !qgetenv( "QGIS_TEST_REPORT" ).isEmpty() )
+    return QDir( qgetenv( "QGIS_TEST_REPORT" ) );
   else
     return QDir( QDir::temp().filePath( QStringLiteral( "qgis_test_report" ) ) );
 }
@@ -497,7 +500,8 @@ bool QgsRenderChecker::compareImages( const QString &testName, const QString &re
                                    "</table>\n"
                                    "<script>\naddComparison(\"td-%1-%7\",\"%3\",\"file://%4\",%5,%6);\n</script>\n"
                                    "<p>If the new image looks good, create or update a test mask with<br>"
-                                   "<code>scripts/generate_test_mask_image.py \"%8\" \"%9\"</code>" )
+                                   "<code onclick=\"copyToClipboard(this)\" class=\"copy-code\" data-tooltip=\"Click to copy\">scripts/generate_test_mask_image.py \"%8\" \"%9\"</code>"
+                                 )
                                  .arg( testName,
                                        diffImageFileName,
                                        renderedImageFileName,
@@ -520,7 +524,9 @@ bool QgsRenderChecker::compareImages( const QString &testName, const QString &re
   // Put the same info to debug too
   //
 
-  if ( expectedImage.width() != myResultImage.width() || expectedImage.height() != myResultImage.height() )
+  if ( !flags.testFlag( Flag::Silent )
+       && ( expectedImage.width() != myResultImage.width() || expectedImage.height() != myResultImage.height() )
+     )
   {
     qDebug( "Expected size: %dw x %dh", expectedImage.width(), expectedImage.height() );
     qDebug( "Actual   size: %dw x %dh", myResultImage.width(), myResultImage.height() );
@@ -530,7 +536,10 @@ bool QgsRenderChecker::compareImages( const QString &testName, const QString &re
 
   if ( mMatchTarget != myPixelCount )
   {
-    qDebug( "Expected image and rendered image for %s are different dimensions", testName.toLocal8Bit().constData() );
+    if ( !flags.testFlag( Flag::Silent ) )
+    {
+      qDebug( "Expected image and rendered image for %s are different dimensions", testName.toLocal8Bit().constData() );
+    }
 
     if ( std::abs( expectedImage.width() - myResultImage.width() ) > mMaxSizeDifferenceX ||
          std::abs( expectedImage.height() - myResultImage.height() ) > mMaxSizeDifferenceY )
@@ -687,7 +696,10 @@ bool QgsRenderChecker::compareImages( const QString &testName, const QString &re
     emitDashMessage( "Rendered Image " + testName + prefix, QgsDartMeasurement::ImagePng, mRenderedImageFile );
     emitDashMessage( "Expected Image " + testName + prefix, QgsDartMeasurement::ImagePng, referenceImageFile );
 
-    qDebug( "%d/%d pixels mismatched (%d allowed)", mMismatchCount, mMatchTarget, mismatchCount );
+    if ( !flags.testFlag( Flag::Silent ) )
+    {
+      qDebug( "%d/%d pixels mismatched (%d allowed)", mMismatchCount, mMatchTarget, mismatchCount );
+    }
 
     //
     //save the diff image to disk

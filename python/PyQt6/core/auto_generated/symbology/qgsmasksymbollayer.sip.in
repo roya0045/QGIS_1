@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/symbology/qgsmasksymbollayer.h                              *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -71,6 +71,7 @@ Create a new QgsMaskMarkerSymbolLayer
 
     virtual void drawPreviewIcon( QgsSymbolRenderContext &context, QSize size );
 
+
     bool enabled() const;
 %Docstring
 Whether some masked symbol layers are defined
@@ -86,6 +87,15 @@ Returns a list of references to symbol layers that are masked by the sub symbol'
 .. seealso:: :py:func:`setMasks`
 %End
 
+    void clearMasks();
+%Docstring
+Remove masks defined by this symbol layer.
+
+.. seealso:: :py:func:`masks`
+
+.. versionadded:: 3.42
+%End
+
     void setMasks( const QList<QgsSymbolLayerReference> &maskedLayers );
 %Docstring
 Sets the symbol layers that will be masked by the sub symbol's shape.
@@ -99,12 +109,10 @@ Sets the symbol layers that will be masked by the sub symbol's shape.
     QgsMaskMarkerSymbolLayer( const QgsMaskMarkerSymbolLayer & );
 };
 
-
-
 /************************************************************************
  * This file has been generated automatically from                      *
  *                                                                      *
  * src/core/symbology/qgsmasksymbollayer.h                              *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

@@ -1955,6 +1955,7 @@ QDomElement QgsOgcUtils::expressionToOgcExpression( const QgsExpression &express
     case QgsExpressionNode::ntFunction:
     case QgsExpressionNode::ntLiteral:
     case QgsExpressionNode::ntColumnRef:
+    case QgsExpressionNode::ntUnaryOperator:
     {
       QgsOgcUtilsExprToFilter utils( doc, gmlVersion, filterVersion, QString(), QString(), geometryName, srsName, honourAxisOrientation, invertAxisOrientation, fieldNameToXPathMap, namespacePrefixToUriMap );
       const QDomElement exprRootElem = utils.expressionNodeToOgcFilter( node, &exp, &context );
@@ -2317,7 +2318,7 @@ static bool isGeometryColumn( const QgsExpressionNode *node )
 
   const QgsExpressionNodeFunction *fn = static_cast<const QgsExpressionNodeFunction *>( node );
   QgsExpressionFunction *fd = QgsExpression::Functions()[fn->fnIndex()];
-  return fd->name() == QLatin1String( "$geometry" );
+  return fd->name() == QLatin1String( "$geometry" ) || ( fd->name() == QLatin1String( "var" ) && fn->referencedVariables().contains( QLatin1String( "geometry" ) ) );
 }
 
 static QgsGeometry geometryFromConstExpr( const QgsExpressionNode *node )
@@ -2381,7 +2382,7 @@ QDomElement QgsOgcUtilsExprToFilter::expressionFunctionToOgcFilter( const QgsExp
     }
     else
     {
-      mErrorMessage = QObject::tr( "<BBOX> is currently supported only in form: bbox($geometry, geomFromWKT('…'))" );
+      mErrorMessage = QObject::tr( "<BBOX> is currently supported only in form: bbox(@geometry, geomFromWKT('…'))" );
       return QDomElement();
     }
   }
@@ -2452,7 +2453,7 @@ QDomElement QgsOgcUtilsExprToFilter::expressionFunctionToOgcFilter( const QgsExp
       const QDomNode geomNode = mDoc.importNode( geomDoc.documentElement(), true );
       otherGeomElem = geomNode.toElement();
     }
-    else if ( otherNode->hasCachedStaticValue() && otherNode->cachedStaticValue().userType() == QMetaType::type( "QgsGeometry" ) )
+    else if ( otherNode->hasCachedStaticValue() && otherNode->cachedStaticValue().userType() == qMetaTypeId< QgsGeometry>() )
     {
       QgsGeometry geom = otherNode->cachedStaticValue().value<QgsGeometry>();
       otherGeomElem = QgsOgcUtils::geometryToGML( geom, mDoc, mGMLVersion, mSrsName, mInvertAxisOrientation,
@@ -3525,7 +3526,7 @@ QgsExpressionNodeFunction *QgsOgcUtilsExpressionFromFilter::nodeSpatialOperatorF
   // we are exploiting the fact that our function names are the same as the XML tag names
   const int opIdx = QgsExpression::functionIndex( element.tagName().toLower() );
 
-  std::unique_ptr<QgsExpressionNode::NodeList> gml2Args( new QgsExpressionNode::NodeList() );
+  auto gml2Args = std::make_unique<QgsExpressionNode::NodeList>();
   QDomElement childElem = element.firstChildElement();
   QString gml2Str;
   while ( !childElem.isNull() && gml2Str.isEmpty() )
@@ -3547,7 +3548,7 @@ QgsExpressionNodeFunction *QgsOgcUtilsExpressionFromFilter::nodeSpatialOperatorF
     return nullptr;
   }
 
-  std::unique_ptr<QgsExpressionNode::NodeList> opArgs( new QgsExpressionNode::NodeList() );
+  auto opArgs = std::make_unique<QgsExpressionNode::NodeList>();
   opArgs->append( new QgsExpressionNodeFunction( QgsExpression::functionIndex( QStringLiteral( "$geometry" ) ), new QgsExpressionNode::NodeList() ) );
   opArgs->append( new QgsExpressionNodeFunction( QgsExpression::functionIndex( QStringLiteral( "geomFromGML" ) ), gml2Args.release() ) );
 
@@ -3705,7 +3706,7 @@ QgsExpressionNodeFunction *QgsOgcUtilsExpressionFromFilter::nodeFunctionFromOgcF
     if ( element.attribute( QStringLiteral( "name" ) ) != funcDef->name() )
       continue;
 
-    std::unique_ptr<QgsExpressionNode::NodeList> args( new QgsExpressionNode::NodeList() );
+    auto args = std::make_unique<QgsExpressionNode::NodeList>();
 
     QDomElement operandElem = element.firstChildElement();
     while ( !operandElem.isNull() )

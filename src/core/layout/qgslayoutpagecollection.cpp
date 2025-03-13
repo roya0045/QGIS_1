@@ -15,6 +15,7 @@
  ***************************************************************************/
 
 #include "qgslayoutpagecollection.h"
+#include "moc_qgslayoutpagecollection.cpp"
 #include "qgslayout.h"
 #include "qgsreadwritecontext.h"
 #include "qgssymbollayerutils.h"
@@ -308,7 +309,7 @@ void QgsLayoutPageCollection::resizeToContents( const QgsMargins &margins, Qgis:
 
   if ( mPages.empty() )
   {
-    std::unique_ptr< QgsLayoutItemPage > page = std::make_unique< QgsLayoutItemPage >( mLayout );
+    auto page = std::make_unique< QgsLayoutItemPage >( mLayout );
     addPage( page.release() );
   }
 
@@ -417,7 +418,7 @@ bool QgsLayoutPageCollection::readXml( const QDomElement &e, const QDomDocument 
   for ( int i = 0; i < pageList.size(); ++i )
   {
     QDomElement pageElement = pageList.at( i ).toElement();
-    std::unique_ptr< QgsLayoutItemPage > page( new QgsLayoutItemPage( mLayout ) );
+    auto page = std::make_unique<QgsLayoutItemPage>( mLayout );
     if ( mPageStyleSymbol )
       page->setPageStyleSymbol( mPageStyleSymbol->clone() );
     page->readXml( pageElement, document, context );
@@ -442,6 +443,32 @@ QgsLayoutGuideCollection &QgsLayoutPageCollection::guides()
 const QgsLayoutGuideCollection &QgsLayoutPageCollection::guides() const
 {
   return *mGuideCollection;
+}
+
+void QgsLayoutPageCollection::applyPropertiesToAllOtherPages( int sourcePage )
+{
+  QgsLayoutItemPage *referencePage = page( sourcePage );
+  if ( !referencePage )
+  {
+    return;
+  }
+
+  mLayout->undoStack()->beginCommand( this, tr( "Apply page properties" ) );
+  mBlockUndoCommands = true;
+
+  for ( QgsLayoutItemPage *page : mPages )
+  {
+    if ( page == referencePage )
+    {
+      continue;
+    }
+    page->setPageSize( referencePage->pageSize() );
+    page->setPageStyleSymbol( referencePage->pageStyleSymbol()->clone() );
+  }
+
+  mLayout->undoStack()->endCommand();
+  mBlockUndoCommands = false;
+  mLayout->refresh();
 }
 
 void QgsLayoutPageCollection::redraw()
@@ -587,7 +614,7 @@ QgsLayoutItemPage *QgsLayoutPageCollection::extendByNewPage()
     return nullptr;
 
   QgsLayoutItemPage *lastPage = mPages.at( mPages.count() - 1 );
-  std::unique_ptr< QgsLayoutItemPage > newPage = std::make_unique< QgsLayoutItemPage >( mLayout );
+  auto newPage = std::make_unique< QgsLayoutItemPage >( mLayout );
   newPage->attemptResize( lastPage->sizeWithUnits() );
   addPage( newPage.release() );
   return mPages.at( mPages.count() - 1 );

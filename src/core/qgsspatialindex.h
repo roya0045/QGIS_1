@@ -122,20 +122,18 @@ class CORE_EXPORT QgsSpatialIndex : public QgsFeatureSink
      */
     explicit QgsSpatialIndex( const QgsFeatureSource &source, QgsFeedback *feedback = nullptr, QgsSpatialIndex::Flags flags = QgsSpatialIndex::Flags() );
 
-    //! Copy constructor
     QgsSpatialIndex( const QgsSpatialIndex &other );
 
     //! Destructor finalizes work with spatial index
     ~QgsSpatialIndex() override;
 
-    //! Implement assignment operator
     QgsSpatialIndex &operator=( const QgsSpatialIndex &other );
 
     /* operations */
 
     /**
      * Adds a \a feature to the index.
-     * \deprecated Use addFeature() instead
+     * \deprecated QGIS 3.40. Use addFeature() instead.
      */
     Q_DECL_DEPRECATED bool insertFeature( const QgsFeature &feature ) SIP_DEPRECATED;
 
@@ -160,7 +158,7 @@ class CORE_EXPORT QgsSpatialIndex : public QgsFeatureSink
     /**
      * Add a feature \a id to the index with a specified bounding box.
      * \returns TRUE if feature was successfully added to index.
-     * \deprecated Use addFeature() instead
+     * \deprecated QGIS 3.40. Use addFeature() instead.
     */
     Q_DECL_DEPRECATED bool insertFeature( QgsFeatureId id, const QgsRectangle &bounds ) SIP_DEPRECATED;
 
@@ -256,7 +254,7 @@ class CORE_EXPORT QgsSpatialIndex : public QgsFeatureSink
      */
     SIP_PYOBJECT geometry( QgsFeatureId id ) const SIP_TYPEHINT( QgsGeometry );
     % MethodCode
-    std::unique_ptr< QgsGeometry > g = std::make_unique< QgsGeometry >( sipCpp->geometry( a0 ) );
+    auto g = std::make_unique< QgsGeometry >( sipCpp->geometry( a0 ) );
     if ( g->isNull() )
     {
       PyErr_SetString( PyExc_KeyError, QStringLiteral( "No geometry with feature id %1 exists in the index." ).arg( a0 ).toUtf8().constData() );

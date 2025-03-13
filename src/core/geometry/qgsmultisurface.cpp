@@ -85,9 +85,9 @@ QDomElement QgsMultiSurface::asGml2( QDomDocument &doc, int precision, const QSt
 
   for ( const QgsAbstractGeometry *geom : mGeometries )
   {
-    if ( qgsgeometry_cast<const QgsSurface *>( geom ) )
+    if ( qgsgeometry_cast<const QgsCurvePolygon *>( geom ) )
     {
-      std::unique_ptr< QgsPolygon > polygon( static_cast<const QgsSurface *>( geom )->surfaceToPolygon() );
+      std::unique_ptr< QgsPolygon > polygon( static_cast<const QgsCurvePolygon *>( geom )->surfaceToPolygon() );
 
       QDomElement elemPolygonMember = doc.createElementNS( ns, QStringLiteral( "polygonMember" ) );
       elemPolygonMember.appendChild( polygon->asGml2( doc, precision, ns, axisOrder ) );
@@ -124,10 +124,10 @@ json QgsMultiSurface::asJsonObject( int precision ) const
   json polygons( json::array( ) );
   for ( const QgsAbstractGeometry *geom : std::as_const( mGeometries ) )
   {
-    if ( qgsgeometry_cast<const QgsSurface *>( geom ) )
+    if ( qgsgeometry_cast<const QgsCurvePolygon *>( geom ) )
     {
       json coordinates( json::array( ) );
-      std::unique_ptr< QgsPolygon >polygon( static_cast<const QgsSurface *>( geom )->surfaceToPolygon() );
+      std::unique_ptr< QgsPolygon >polygon( static_cast<const QgsCurvePolygon *>( geom )->surfaceToPolygon() );
       std::unique_ptr< QgsLineString > exteriorLineString( polygon->exteriorRing()->curveToLine() );
       QgsPointSequence exteriorPts;
       exteriorLineString->points( exteriorPts );
@@ -221,7 +221,7 @@ bool QgsMultiSurface::insertGeometry( QgsAbstractGeometry *g, int index )
 
 QgsAbstractGeometry *QgsMultiSurface::boundary() const
 {
-  std::unique_ptr< QgsMultiCurve > multiCurve( new QgsMultiCurve() );
+  auto multiCurve = std::make_unique<QgsMultiCurve>();
   multiCurve->reserve( mGeometries.size() );
   for ( int i = 0; i < mGeometries.size(); ++i )
   {
@@ -235,4 +235,15 @@ QgsAbstractGeometry *QgsMultiSurface::boundary() const
     return nullptr;
   }
   return multiCurve.release();
+}
+
+QgsMultiSurface *QgsMultiSurface::simplifyByDistance( double tolerance ) const
+{
+  auto res = std::make_unique< QgsMultiSurface >();
+  res->reserve( mGeometries.size() );
+  for ( int i = 0; i < mGeometries.size(); ++i )
+  {
+    res->addGeometry( mGeometries.at( i )->simplifyByDistance( tolerance ) );
+  }
+  return res.release();
 }

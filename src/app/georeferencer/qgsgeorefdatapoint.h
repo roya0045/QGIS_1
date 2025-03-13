@@ -32,7 +32,6 @@ class APP_EXPORT QgsGeorefDataPoint : public QObject
     Q_OBJECT
 
   public:
-
     /**
      * Constructor for QgsGeorefDataPoint
      * \param srcCanvas
@@ -42,9 +41,7 @@ class APP_EXPORT QgsGeorefDataPoint : public QObject
      * \param destinationPointCrs CRS of destination point
      * \param enabled whether the point is currently enabled
      */
-    QgsGeorefDataPoint( QgsMapCanvas *srcCanvas, QgsMapCanvas *dstCanvas,
-                        const QgsPointXY &sourceCoordinates, const QgsPointXY &destinationPoint,
-                        const QgsCoordinateReferenceSystem &destinationPointCrs, bool enabled );
+    QgsGeorefDataPoint( QgsMapCanvas *srcCanvas, QgsMapCanvas *dstCanvas, const QgsPointXY &sourceCoordinates, const QgsPointXY &destinationPoint, const QgsCoordinateReferenceSystem &destinationPointCrs, bool enabled );
     QgsGeorefDataPoint( const QgsGeorefDataPoint &p );
     ~QgsGeorefDataPoint() override;
 
@@ -106,10 +103,14 @@ class APP_EXPORT QgsGeorefDataPoint : public QObject
      */
     void setEnabled( bool enabled );
 
+    bool isHovered() const { return mHovered; }
+
+    void setHovered( bool hovered );
+
     int id() const { return mId; }
     void setId( int id );
 
-    bool contains( QPoint p, QgsGcpPoint::PointType type, double &distance );
+    bool contains( const QgsPointXY &p, QgsGcpPoint::PointType type, double &distance );
 
     QgsMapCanvas *srcCanvas() const { return mSrcCanvas; }
     QgsMapCanvas *dstCanvas() const { return mDstCanvas; }
@@ -127,7 +128,7 @@ class APP_EXPORT QgsGeorefDataPoint : public QObject
     QgsGcpPoint point() const { return mGcpPoint; }
 
   public slots:
-    void moveTo( QPoint canvasPixels, QgsGcpPoint::PointType type );
+    void moveTo( QgsPointXY p, QgsGcpPoint::PointType type );
     void updateCoords();
 
   private:
@@ -135,6 +136,7 @@ class APP_EXPORT QgsGeorefDataPoint : public QObject
     QgsMapCanvas *mDstCanvas = nullptr;
     QgsGCPCanvasItem *mGCPSourceItem = nullptr;
     QgsGCPCanvasItem *mGCPDestinationItem = nullptr;
+    bool mHovered = false;
 
     QgsGcpPoint mGcpPoint;
 

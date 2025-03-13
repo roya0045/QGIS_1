@@ -115,6 +115,12 @@ const QgsSettingsEntryInteger *QgsSettingsRegistryCore::settingsLayerParallelLoa
 
 const QgsSettingsEntryBool *QgsSettingsRegistryCore::settingsLayerParallelLoading = new QgsSettingsEntryBool( QStringLiteral( "provider-parallel-loading" ), QgsSettingsTree::sTreeCore, true, QStringLiteral( "Load layers in parallel (only available for some providers (GDAL and PostgreSQL)" ), Qgis::SettingsOption() );
 
+const QgsSettingsEntryString *QgsSettingsRegistryCore::settingsNetworkCacheDirectory = new QgsSettingsEntryString( QStringLiteral( "directory" ), QgsSettingsTree::sTreeNetworkCache, QString(), QStringLiteral( "Network disk cache directory" ) );
+
+const QgsSettingsEntryInteger64 *QgsSettingsRegistryCore::settingsNetworkCacheSize = new QgsSettingsEntryInteger64( QStringLiteral( "size-bytes" ), QgsSettingsTree::sTreeNetworkCache, 0, QStringLiteral( "Network disk cache size in bytes (0 = automatic size)" ) );
+
+const QgsSettingsEntryBool *QgsSettingsRegistryCore::settingsAutosizeAttributeTable = new QgsSettingsEntryBool( QStringLiteral( "autosize-attribute-table" ), QgsSettingsTree::sTreeAttributeTable, false );
+
 QgsSettingsRegistryCore::QgsSettingsRegistryCore()
   : QgsSettingsRegistry()
 {
@@ -253,6 +259,9 @@ void QgsSettingsRegistryCore::migrateOldSettings()
       continue;
     for ( const QString &connection : connections )
     {
+      if ( settings.value( QStringLiteral( "%1/url" ).arg( connection ) ).toString().isEmpty() )
+        continue;
+
       QgsOwsConnection::settingsUrl->copyValueFromKey( QStringLiteral( "qgis/connections-%1/%2/url" ), {service.toLower(), connection}, true );
       QgsOwsConnection::settingsVersion->copyValueFromKey( QStringLiteral( "qgis/connections-%1/%2/version" ), {service.toLower(), connection}, true );
       QgsOwsConnection::settingsIgnoreGetMapURI->copyValueFromKey( QStringLiteral( "qgis/connections-%1/%2/ignoreGetMapURI" ), {service.toLower(), connection}, true );
@@ -290,6 +299,9 @@ void QgsSettingsRegistryCore::migrateOldSettings()
     const QStringList connections = settings.childGroups();
     for ( const QString &connection : connections )
     {
+      if ( settings.value( QStringLiteral( "%1/url" ).arg( connection ) ).toString().isEmpty() )
+        continue;
+
       QgsVectorTileProviderConnection::settingsUrl->copyValueFromKey( QStringLiteral( "qgis/connections-vector-tile/%1/url" ), {connection}, true );
       QgsVectorTileProviderConnection::settingsZmin->copyValueFromKey( QStringLiteral( "qgis/connections-vector-tile/%1/zmin" ), {connection}, true );
       QgsVectorTileProviderConnection::settingsZmax->copyValueFromKey( QStringLiteral( "qgis/connections-vector-tile/%1/zmax" ), {connection}, true );
@@ -314,6 +326,9 @@ void QgsSettingsRegistryCore::migrateOldSettings()
     const QStringList connections = settings.childGroups();
     for ( const QString &connection : connections )
     {
+      if ( settings.value( QStringLiteral( "%1/url" ).arg( connection ) ).toString().isEmpty() )
+        continue;
+
       QgsXyzConnectionSettings::settingsUrl->copyValueFromKey( QStringLiteral( "qgis/connections-xyz/%1/url" ), {connection}, true );
       QgsXyzConnectionSettings::settingsZmin->copyValueFromKey( QStringLiteral( "qgis/connections-xyz/%1/zmin" ), {connection}, true );
       QgsXyzConnectionSettings::settingsZmax->copyValueFromKey( QStringLiteral( "qgis/connections-xyz/%1/zmax" ), {connection}, true );

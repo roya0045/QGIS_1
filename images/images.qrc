@@ -413,6 +413,8 @@
         <file>themes/default/mActionScaleFeature.svg</file>
         <file>themes/default/mActionScriptOpen.svg</file>
         <file>themes/default/mActionSelect.svg</file>
+        <file>themes/default/mActionSelectAboveLine.svg</file>
+        <file>themes/default/mActionSelectBelowLine.svg</file>
         <file>themes/default/mActionSelectAll.svg</file>
         <file>themes/default/mActionSelectedToTop.svg</file>
         <file>themes/default/mActionSelectFreehand.svg</file>
@@ -693,6 +695,7 @@
         <file>themes/default/mActionPanHighlightFeature.svg</file>
         <file>themes/default/mActionPrevious.svg</file>
         <file>themes/default/mActionPlay.svg</file>
+        <file>themes/default/cadtools/circlesintersection.svg</file>
         <file>themes/default/cadtools/construction.svg</file>
         <file>themes/default/cadtools/delta.svg</file>
         <file>themes/default/cadtools/floater.svg</file>
@@ -937,11 +940,13 @@
         <file>themes/default/mActionMeshDigitizing.svg</file>
         <file>themes/default/mActionMeshSelectPolygon.svg</file>
         <file>themes/default/mActionMeshSelectExpression.svg</file>
+        <file>themes/default/mActionMeshSelectIsolatedVertices.svg</file>
         <file>themes/default/mActionNewMeshLayer.svg</file>
         <file>themes/default/mActionMeshTransformByExpression.svg</file>
         <file>themes/default/mIconVertexCoordinates.svg</file>
         <file>themes/default/mActionMeshEditForceByVectorLines.svg</file>
         <file>themes/default/mActionMeshReindex.svg</file>
+        <file>themes/default/mActionMeshSelectAll.svg</file>
         <file>themes/default/mIconGeometryCollectionLayer.svg</file>
         <file>themes/default/mIconGps.svg</file>
         <file>themes/default/mActionNewGpx.svg</file>
@@ -1004,6 +1009,16 @@
         <file>themes/default/mIconSearchWrapAround.svg</file>
         <file>themes/default/mIconSearchRegex.svg</file>
         <file>themes/default/mActionReplace.svg</file>
+        <file>themes/default/mIconCloud.svg</file>
+        <file>themes/default/mActionTextInsideRect.svg</file>
+        <file>themes/default/mIconLabelingRules.svg</file>
+        <file>themes/default/propertyicons/sourcefieldsandforms.svg</file>
+        <file>themes/default/propertyicons/layerconfiguration.svg</file>
+        <file>themes/default/propertyicons/notes.svg</file>
+        <file>themes/default/stacked-diagram.svg</file>
+        <file>themes/default/mIconStac.svg</file>
+        <file>themes/default/mIconQt.svg</file>
+        <file>themes/default/mIconStoredQueries.svg</file>
     </qresource>
     <qresource prefix="/images/tips">
         <file alias="symbol_levels.png">qgis_tips/symbol_levels.png</file>

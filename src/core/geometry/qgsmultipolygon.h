@@ -107,6 +107,7 @@ class CORE_EXPORT QgsMultiPolygon: public QgsMultiSurface
     bool addGeometry( QgsAbstractGeometry *g SIP_TRANSFER ) override;
     bool addGeometries( const QVector< QgsAbstractGeometry * > &geometries SIP_TRANSFER ) final;
     bool insertGeometry( QgsAbstractGeometry *g SIP_TRANSFER, int index ) override;
+    QgsMultiPolygon *simplifyByDistance( double tolerance ) const override SIP_FACTORY;
 
     /**
      * Returns the geometry converted to the more generic curve type QgsMultiSurface
@@ -123,7 +124,7 @@ class CORE_EXPORT QgsMultiPolygon: public QgsMultiSurface
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
      */
-    inline static const QgsMultiPolygon *cast( const QgsAbstractGeometry *geom )
+    inline static const QgsMultiPolygon *cast( const QgsAbstractGeometry *geom ) // cppcheck-suppress duplInheritedMember
     {
       if ( geom && QgsWkbTypes::flatType( geom->wkbType() ) == Qgis::WkbType::MultiPolygon )
         return static_cast<const QgsMultiPolygon *>( geom );

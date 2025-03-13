@@ -18,62 +18,73 @@
 #include <QElapsedTimer>
 #include <QPointer>
 
-#include "qgspointcloudlayerrenderer.h"
-#include "qgspointcloudlayer.h"
-#include "qgsrendercontext.h"
-#include "qgspointcloudindex.h"
+#include "qgsapplication.h"
 #include "qgscolorramp.h"
 #include "qgselevationmap.h"
-#include "qgsmeshlayerutils.h"
-#include "qgspointcloudrequest.h"
-#include "qgspointcloudattribute.h"
-#include "qgspointcloudrenderer.h"
-#include "qgspointcloudextentrenderer.h"
 #include "qgslogger.h"
-#include "qgspointcloudlayerelevationproperties.h"
-#include "qgsmessagelog.h"
 #include "qgsmapclippingutils.h"
+#include "qgsmeshlayerutils.h"
+#include "qgsmessagelog.h"
+#include "qgspointcloudattribute.h"
 #include "qgspointcloudblockrequest.h"
+#include "qgspointcloudextentrenderer.h"
+#include "qgspointcloudindex.h"
+#include "qgspointcloudlayer.h"
+#include "qgspointcloudlayerelevationproperties.h"
+#include "qgspointcloudlayerrenderer.h"
+#include "qgspointcloudrenderer.h"
+#include "qgspointcloudrequest.h"
+#include "qgsrendercontext.h"
 #include "qgsruntimeprofiler.h"
-#include "qgsapplication.h"
+#include "qgsvirtualpointcloudprovider.h"
 
 #include <delaunator.hpp>
 
 
 QgsPointCloudLayerRenderer::QgsPointCloudLayerRenderer( QgsPointCloudLayer *layer, QgsRenderContext &context )
   : QgsMapLayerRenderer( layer->id(), &context )
-  , mLayer( layer )
   , mLayerName( layer->name() )
   , mLayerAttributes( layer->attributes() )
-  , mSubIndexes( layer && layer->dataProvider() ? layer->dataProvider()->subIndexes() : QVector<QgsPointCloudSubIndex>() )
+  , mSubIndexes( layer->dataProvider() ? layer->dataProvider()->subIndexes() : QVector<QgsPointCloudSubIndex>() )
   , mFeedback( new QgsFeedback )
   , mEnableProfile( context.flags() & Qgis::RenderContextFlag::RecordProfile )
 {
-  // TODO: we must not keep pointer to mLayer (it's dangerous) - we must copy anything we need for rendering
-  // or use some locking to prevent read/write from multiple threads
-  if ( !mLayer || !mLayer->dataProvider() || !mLayer->renderer() )
+  if ( !layer->dataProvider() || !layer->renderer() )
     return;
+
+  mIndex = layer->index();
 
   QElapsedTimer timer;
   timer.start();
 
-  mRenderer.reset( mLayer->renderer()->clone() );
+  mRenderer.reset( layer->renderer()->clone() );
   if ( !mSubIndexes.isEmpty() )
-    mSubIndexExtentRenderer.reset( new QgsPointCloudExtentRenderer() );
-
-  if ( mLayer->dataProvider()->index() )
   {
-    mScale = mLayer->dataProvider()->index()->scale();
-    mOffset = mLayer->dataProvider()->index()->offset();
+    mSubIndexExtentRenderer.reset( new QgsPointCloudExtentRenderer() );
+    mSubIndexExtentRenderer->setShowLabels( mRenderer->showLabels() );
+    mSubIndexExtentRenderer->setLabelTextFormat( mRenderer->labelTextFormat() );
   }
 
-  if ( const QgsPointCloudLayerElevationProperties *elevationProps = qobject_cast< const QgsPointCloudLayerElevationProperties * >( mLayer->elevationProperties() ) )
+  if ( mIndex )
+  {
+    mScale = mIndex.scale();
+    mOffset = mIndex.offset();
+  }
+
+  if ( const QgsPointCloudLayerElevationProperties *elevationProps = qobject_cast< const QgsPointCloudLayerElevationProperties * >( layer->elevationProperties() ) )
   {
     mZOffset = elevationProps->zOffset();
     mZScale = elevationProps->zScale();
   }
 
-  mCloudExtent = mLayer->dataProvider()->polygonBounds();
+  if ( const QgsVirtualPointCloudProvider *vpcProvider = dynamic_cast<QgsVirtualPointCloudProvider *>( layer->dataProvider() ) )
+  {
+    mAverageSubIndexWidth = vpcProvider->averageSubIndexWidth();
+    mAverageSubIndexHeight = vpcProvider->averageSubIndexHeight();
+    mOverviewIndex = vpcProvider->overview();
+  }
+
+  mCloudExtent = layer->dataProvider()->polygonBounds();
 
   mClippingRegions = QgsMapClippingUtils::collectClippingRegionsForLayer( *renderContext(), layer );
 
@@ -124,10 +135,7 @@ bool QgsPointCloudLayerRenderer::render()
     return true;
   }
 
-  // TODO cache!?
-  QgsPointCloudIndex *pc = mLayer->dataProvider()->index();
-  if ( mSubIndexes.isEmpty() &&
-       ( !pc || !pc->isValid() ) )
+  if ( mSubIndexes.isEmpty() && ( !mIndex || !mIndex.isValid() ) )
   {
     mReadyToCompose = true;
     return false;
@@ -191,33 +199,63 @@ bool QgsPointCloudLayerRenderer::render()
   bool canceled = false;
   if ( mSubIndexes.isEmpty() )
   {
-    canceled = !renderIndex( pc );
+    canceled = !renderIndex( mIndex );
   }
-  else
+  else if ( mOverviewIndex )
   {
-    mSubIndexExtentRenderer->startRender( context );
-    for ( const auto &si : mSubIndexes )
+    QVector< QgsPointCloudSubIndex > visibleIndexes;
+    for ( const QgsPointCloudSubIndex &si : mSubIndexes )
     {
-      if ( canceled )
-        break;
-
-      QgsPointCloudIndex *pc = si.index();
-
-      if ( !renderExtent.intersects( si.extent() ) )
-        continue;
-
-      if ( !pc || !pc->isValid() || renderExtent.width() > si.extent().width() )
+      if ( renderExtent.intersects( si.extent() ) )
       {
-        // when dealing with virtual point clouds, we want to render the individual extents when zoomed out
-        // and only use the selected renderer when zoomed in
-        mSubIndexExtentRenderer->renderExtent( si.polygonBounds(), context );
-      }
-      else
-      {
-        canceled = !renderIndex( pc );
+        visibleIndexes.append( si );
       }
     }
-    mSubIndexExtentRenderer->stopRender( context );
+    const bool zoomedOut = renderExtent.width() > mAverageSubIndexWidth ||
+                           renderExtent.height() > mAverageSubIndexHeight;
+    // if the overview of virtual point cloud exists, and we are zoomed out, we render just overview
+    if ( mOverviewIndex && zoomedOut &&
+         mRenderer->zoomOutBehavior() == Qgis::PointCloudZoomOutRenderBehavior::RenderOverview )
+    {
+      renderIndex( *mOverviewIndex );
+    }
+    else
+    {
+      // if the overview of virtual point cloud exists, and we are zoomed out, but we want both overview and extents,
+      // we render overview
+      if ( mOverviewIndex && zoomedOut &&
+           mRenderer->zoomOutBehavior() == Qgis::PointCloudZoomOutRenderBehavior::RenderOverviewAndExtents )
+      {
+        renderIndex( *mOverviewIndex );
+      }
+      mSubIndexExtentRenderer->startRender( context );
+      for ( const QgsPointCloudSubIndex &si : visibleIndexes )
+      {
+        if ( canceled )
+          break;
+
+        QgsPointCloudIndex pc = si.index();
+        // if the index of point cloud is invalid, or we are zoomed out and want extents, we render the point cloud extent
+        if ( !pc || !pc.isValid() || ( ( mRenderer->zoomOutBehavior() == Qgis::PointCloudZoomOutRenderBehavior::RenderExtents || mRenderer->zoomOutBehavior() == Qgis::PointCloudZoomOutRenderBehavior::RenderOverviewAndExtents ) &&
+                                       zoomedOut ) )
+        {
+          mSubIndexExtentRenderer->renderExtent( si.polygonBounds(), context );
+          if ( mSubIndexExtentRenderer->showLabels() )
+          {
+            mSubIndexExtentRenderer->renderLabel(
+              context.renderContext().mapToPixel().transformBounds( si.extent().toRectF() ),
+              si.uri().section( "/", -1 ).section( ".", 0, 0 ),
+              context );
+          }
+        }
+        // else we just render the visible point cloud
+        else
+        {
+          canceled = !renderIndex( pc );
+        }
+      }
+      mSubIndexExtentRenderer->stopRender( context );
+    }
   }
 
   mRenderer->stopRender( context );
@@ -225,11 +263,11 @@ bool QgsPointCloudLayerRenderer::render()
   return !canceled;
 }
 
-bool QgsPointCloudLayerRenderer::renderIndex( QgsPointCloudIndex *pc )
+bool QgsPointCloudLayerRenderer::renderIndex( QgsPointCloudIndex &pc )
 {
   QgsPointCloudRenderContext context( *renderContext(),
-                                      pc->scale(),
-                                      pc->offset(),
+                                      pc.scale(),
+                                      pc.offset(),
                                       mZScale,
                                       mZOffset,
                                       mFeedback.get() );
@@ -240,11 +278,12 @@ bool QgsPointCloudLayerRenderer::renderIndex( QgsPointCloudIndex *pc )
   t.start();
 #endif
 
-  const IndexedPointCloudNode root = pc->root();
+  const QgsPointCloudNodeId root = pc.root();
 
   const double maximumError = context.renderContext().convertToPainterUnits( mRenderer->maximumScreenError(), mRenderer->maximumScreenErrorUnit() );// in pixels
 
-  const QgsRectangle rootNodeExtentLayerCoords = pc->nodeMapExtent( root );
+  const QgsPointCloudNode rootNode = pc.getNode( root );
+  const QgsRectangle rootNodeExtentLayerCoords = pc.extent();
   QgsRectangle rootNodeExtentMapCoords;
   if ( !context.renderContext().coordinateTransform().isShortCircuited() )
   {
@@ -265,7 +304,7 @@ bool QgsPointCloudLayerRenderer::renderIndex( QgsPointCloudIndex *pc )
     rootNodeExtentMapCoords = rootNodeExtentLayerCoords;
   }
 
-  const double rootErrorInMapCoordinates = rootNodeExtentMapCoords.width() / pc->span(); // in map coords
+  const double rootErrorInMapCoordinates = rootNodeExtentMapCoords.width() / pc.span(); // in map coords
 
   double mapUnitsPerPixel = context.renderContext().mapToPixel().mapUnitsPerPixel();
   if ( ( rootErrorInMapCoordinates < 0.0 ) || ( mapUnitsPerPixel < 0.0 ) || ( maximumError < 0.0 ) )
@@ -274,7 +313,7 @@ bool QgsPointCloudLayerRenderer::renderIndex( QgsPointCloudIndex *pc )
     return false;
   }
   double rootErrorPixels = rootErrorInMapCoordinates / mapUnitsPerPixel; // in pixels
-  const QVector<IndexedPointCloudNode> nodes = traverseTree( pc, context.renderContext(), pc->root(), maximumError, rootErrorPixels );
+  const QVector<QgsPointCloudNodeId> nodes = traverseTree( pc, context.renderContext(), pc.root(), maximumError, rootErrorPixels );
 
   QgsPointCloudRequest request;
   request.setAttributes( mAttributes );
@@ -301,14 +340,14 @@ bool QgsPointCloudLayerRenderer::renderIndex( QgsPointCloudIndex *pc )
     }
     case Qgis::PointCloudDrawOrder::Default:
     {
-      switch ( pc->accessType() )
+      switch ( pc.accessType() )
       {
-        case QgsPointCloudIndex::AccessType::Local:
+        case Qgis::PointCloudAccessType::Local:
         {
           nodesDrawn += renderNodesSync( nodes, pc, context, request, canceled );
           break;
         }
-        case QgsPointCloudIndex::AccessType::Remote:
+        case Qgis::PointCloudAccessType::Remote:
         {
           nodesDrawn += renderNodesAsync( nodes, pc, context, request, canceled );
           break;
@@ -328,7 +367,7 @@ bool QgsPointCloudLayerRenderer::renderIndex( QgsPointCloudIndex *pc )
   return !canceled;
 }
 
-int QgsPointCloudLayerRenderer::renderNodesSync( const QVector<IndexedPointCloudNode> &nodes, QgsPointCloudIndex *pc, QgsPointCloudRenderContext &context, QgsPointCloudRequest &request, bool &canceled )
+int QgsPointCloudLayerRenderer::renderNodesSync( const QVector<QgsPointCloudNodeId> &nodes, QgsPointCloudIndex &pc, QgsPointCloudRenderContext &context, QgsPointCloudRequest &request, bool &canceled )
 {
   QPainter *finalPainter = context.renderContext().painter();
   if ( mRenderer->renderAsTriangles() && context.renderContext().previewRenderPainter() )
@@ -339,7 +378,7 @@ int QgsPointCloudLayerRenderer::renderNodesSync( const QVector<IndexedPointCloud
   }
 
   int nodesDrawn = 0;
-  for ( const IndexedPointCloudNode &n : nodes )
+  for ( const QgsPointCloudNodeId &n : nodes )
   {
     if ( context.renderContext().renderingStopped() )
     {
@@ -347,7 +386,7 @@ int QgsPointCloudLayerRenderer::renderNodesSync( const QVector<IndexedPointCloud
       canceled = true;
       break;
     }
-    std::unique_ptr<QgsPointCloudBlock> block( pc->nodeData( n, request ) );
+    std::unique_ptr<QgsPointCloudBlock> block( pc.nodeData( n, request ) );
 
     if ( !block )
       continue;
@@ -386,7 +425,7 @@ int QgsPointCloudLayerRenderer::renderNodesSync( const QVector<IndexedPointCloud
   return nodesDrawn;
 }
 
-int QgsPointCloudLayerRenderer::renderNodesAsync( const QVector<IndexedPointCloudNode> &nodes, QgsPointCloudIndex *pc, QgsPointCloudRenderContext &context, QgsPointCloudRequest &request, bool &canceled )
+int QgsPointCloudLayerRenderer::renderNodesAsync( const QVector<QgsPointCloudNodeId> &nodes, QgsPointCloudIndex &pc, QgsPointCloudRenderContext &context, QgsPointCloudRequest &request, bool &canceled )
 {
   if ( context.feedback() && context.feedback()->isCanceled() )
     return 0;
@@ -409,9 +448,9 @@ int QgsPointCloudLayerRenderer::renderNodesAsync( const QVector<IndexedPointClou
 
   for ( int i = 0; i < nodes.size(); ++i )
   {
-    const IndexedPointCloudNode &n = nodes[i];
+    const QgsPointCloudNodeId &n = nodes[i];
     const QString nStr = n.toString();
-    QgsPointCloudBlockRequest *blockRequest = pc->asyncNodeData( n, request );
+    QgsPointCloudBlockRequest *blockRequest = pc.asyncNodeData( n, request );
     blockRequests.append( blockRequest );
     QObject::connect( blockRequest, &QgsPointCloudBlockRequest::finished, &loop,
                       [ this, &canceled, &nodesDrawn, &loop, &blockRequests, &context, nStr, blockRequest ]()
@@ -486,7 +525,7 @@ int QgsPointCloudLayerRenderer::renderNodesAsync( const QVector<IndexedPointClou
   return nodesDrawn;
 }
 
-int QgsPointCloudLayerRenderer::renderNodesSorted( const QVector<IndexedPointCloudNode> &nodes, QgsPointCloudIndex *pc, QgsPointCloudRenderContext &context, QgsPointCloudRequest &request, bool &canceled, Qgis::PointCloudDrawOrder order )
+int QgsPointCloudLayerRenderer::renderNodesSorted( const QVector<QgsPointCloudNodeId> &nodes, QgsPointCloudIndex &pc, QgsPointCloudRenderContext &context, QgsPointCloudRequest &request, bool &canceled, Qgis::PointCloudDrawOrder order )
 {
   int blockCount = 0;
   int pointCount = 0;
@@ -501,7 +540,7 @@ int QgsPointCloudLayerRenderer::renderNodesSorted( const QVector<IndexedPointClo
   // And pairs of byte array start positions paired with their Z values for sorting
   QVector<QPair<int, double>> allPairs;
 
-  for ( const IndexedPointCloudNode &n : nodes )
+  for ( const QgsPointCloudNodeId &n : nodes )
   {
     if ( context.renderContext().renderingStopped() )
     {
@@ -509,7 +548,7 @@ int QgsPointCloudLayerRenderer::renderNodesSorted( const QVector<IndexedPointClo
       canceled = true;
       break;
     }
-    std::unique_ptr<QgsPointCloudBlock> block( pc->nodeData( n, request ) );
+    std::unique_ptr<QgsPointCloudBlock> block( pc.nodeData( n, request ) );
 
     if ( !block )
       continue;
@@ -688,7 +727,7 @@ void QgsPointCloudLayerRenderer::renderTriangulatedSurface( QgsPointCloudRenderC
   {
     delaunator.reset( new delaunator::Delaunator( points ) );
   }
-  catch ( std::exception &e )
+  catch ( std::exception & )
   {
     // something went wrong, better to retrieve initial state
     QgsDebugMsgLevel( QStringLiteral( "Error with triangulation" ), 4 );
@@ -710,7 +749,7 @@ void QgsPointCloudLayerRenderer::renderTriangulatedSurface( QgsPointCloudRenderC
   QPainter *painter = context.renderContext().painter();
   QgsElevationMap *elevationMap = context.renderContext().elevationMap();
   QPointF triangle[3];
-  float elev[3];
+  float elev[3] {0, 0, 0};
   for ( size_t i = 0; i < triangleIndexes.size(); i += 3 )
   {
     size_t v0 = triangleIndexes[i], v1 = triangleIndexes[i + 1], v2 = triangleIndexes[i + 2];
@@ -758,13 +797,9 @@ void QgsPointCloudLayerRenderer::setLayerRenderingTimeHint( int time )
   mRenderTimeHint = time;
 }
 
-QVector<IndexedPointCloudNode> QgsPointCloudLayerRenderer::traverseTree( const QgsPointCloudIndex *pc,
-    const QgsRenderContext &context,
-    IndexedPointCloudNode n,
-    double maxErrorPixels,
-    double nodeErrorPixels )
+QVector<QgsPointCloudNodeId> QgsPointCloudLayerRenderer::traverseTree( const QgsPointCloudIndex &pc, const QgsRenderContext &context, QgsPointCloudNodeId n, double maxErrorPixels, double nodeErrorPixels )
 {
-  QVector<IndexedPointCloudNode> nodes;
+  QVector<QgsPointCloudNodeId> nodes;
 
   if ( context.renderingStopped() )
   {
@@ -772,23 +807,25 @@ QVector<IndexedPointCloudNode> QgsPointCloudLayerRenderer::traverseTree( const Q
     return nodes;
   }
 
-  if ( !context.extent().intersects( pc->nodeMapExtent( n ) ) )
+  QgsPointCloudNode node = pc.getNode( n );
+  QgsBox3D nodeExtent = node.bounds();
+
+  if ( !context.extent().intersects( nodeExtent.toRectangle() ) )
     return nodes;
 
-  const QgsDoubleRange nodeZRange = pc->nodeZRange( n );
+  const QgsDoubleRange nodeZRange( nodeExtent.zMinimum(), nodeExtent.zMaximum() );
   const QgsDoubleRange adjustedNodeZRange = QgsDoubleRange( nodeZRange.lower() + mZOffset, nodeZRange.upper() + mZOffset );
   if ( !context.zRange().isInfinite() && !context.zRange().overlaps( adjustedNodeZRange ) )
     return nodes;
 
-  if ( pc->nodePointCount( n ) > 0 )
+  if ( node.pointCount() > 0 )
     nodes.append( n );
 
   double childrenErrorPixels = nodeErrorPixels / 2.0;
   if ( childrenErrorPixels < maxErrorPixels )
     return nodes;
 
-  const QList<IndexedPointCloudNode> children = pc->nodeChildren( n );
-  for ( const IndexedPointCloudNode &nn : children )
+  for ( const QgsPointCloudNodeId &nn : node.children() )
   {
     nodes += traverseTree( pc, context, nn, maxErrorPixels, childrenErrorPixels );
   }

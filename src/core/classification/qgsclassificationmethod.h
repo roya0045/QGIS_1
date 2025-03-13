@@ -115,7 +115,7 @@ class CORE_EXPORT QgsClassificationMethod SIP_ABSTRACT
       NoFlag                 = 0,       //!< No flag
       ValuesNotRequired      = 1 << 1,  //!< Deprecated since QGIS 3.12
       SymmetricModeAvailable = 1 << 2,  //!< This allows using symmetric classification
-      IgnoresClassCount      = 1 << 3,  //!< The classification method does not compute classes based on a class count (since QGIS 3.26)
+      IgnoresClassCount      = 1 << 3,  //!< The classification method does not compute classes based on a class count \since QGIS 3.26
     };
     Q_DECLARE_FLAGS( MethodProperties, MethodProperty )
 
@@ -141,7 +141,7 @@ class CORE_EXPORT QgsClassificationMethod SIP_ABSTRACT
      * Returns a clone of the method.
      * Implementation can take advantage of copyBase method which copies the parameters of the base class
      */
-    virtual QgsClassificationMethod *clone() const = 0 SIP_FACTORY;
+    virtual std::unique_ptr< QgsClassificationMethod > clone() const = 0;
 
     //! The readable and translate name of the method
     virtual QString name() const = 0;
@@ -236,7 +236,7 @@ class CORE_EXPORT QgsClassificationMethod SIP_ABSTRACT
      * \param expression The name of the field on which the classes are calculated
      * \param nclasses The number of classes to be returned
      *
-     * \deprecated Since QGIS 3.38 use classesV2() instead.
+     * \deprecated QGIS 3.38. Use classesV2() instead.
      */
     Q_DECL_DEPRECATED QList<QgsClassificationRange> classes( const QgsVectorLayer *layer, const QString &expression, int nclasses ) SIP_DEPRECATED;
 
@@ -282,7 +282,7 @@ class CORE_EXPORT QgsClassificationMethod SIP_ABSTRACT
      * \param element the DOM element
      * \param context the read/write context
      */
-    static QgsClassificationMethod *create( const QDomElement &element, const QgsReadWriteContext &context ) SIP_FACTORY;
+    static std::unique_ptr< QgsClassificationMethod > create( const QDomElement &element, const QgsReadWriteContext &context );
 
     /**
      * Remove the breaks that are above the existing opposite sign classes to keep colors symmetrically balanced around symmetryPoint

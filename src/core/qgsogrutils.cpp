@@ -235,7 +235,7 @@ int QgsOgrUtils::OGRTZFlagFromQt( const QDateTime &datetime )
 
 std::unique_ptr< OGRField > QgsOgrUtils::variantToOGRField( const QVariant &value, OGRFieldType type )
 {
-  std::unique_ptr< OGRField > res = std::make_unique< OGRField >();
+  auto res = std::make_unique< OGRField >();
 
   switch ( value.userType() )
   {
@@ -788,7 +788,7 @@ std::unique_ptr< QgsPoint > ogrGeometryToQgsPoint( OGRGeometryH geom )
 
 std::unique_ptr< QgsMultiPoint > ogrGeometryToQgsMultiPoint( OGRGeometryH geom )
 {
-  std::unique_ptr< QgsMultiPoint > mp = std::make_unique< QgsMultiPoint >();
+  auto mp = std::make_unique< QgsMultiPoint >();
 
   const int count = OGR_G_GetGeometryCount( geom );
   mp->reserve( count );
@@ -828,7 +828,7 @@ std::unique_ptr< QgsLineString > ogrGeometryToQgsLineString( OGRGeometryH geom )
 
 std::unique_ptr< QgsMultiLineString > ogrGeometryToQgsMultiLineString( OGRGeometryH geom )
 {
-  std::unique_ptr< QgsMultiLineString > mp = std::make_unique< QgsMultiLineString >();
+  auto mp = std::make_unique< QgsMultiLineString >();
 
   const int count = OGR_G_GetGeometryCount( geom );
   mp->reserve( count );
@@ -842,7 +842,7 @@ std::unique_ptr< QgsMultiLineString > ogrGeometryToQgsMultiLineString( OGRGeomet
 
 std::unique_ptr< QgsPolygon > ogrGeometryToQgsPolygon( OGRGeometryH geom )
 {
-  std::unique_ptr< QgsPolygon > polygon = std::make_unique< QgsPolygon >();
+  auto polygon = std::make_unique< QgsPolygon >();
 
   const int count = OGR_G_GetGeometryCount( geom );
   if ( count >= 1 )
@@ -860,7 +860,7 @@ std::unique_ptr< QgsPolygon > ogrGeometryToQgsPolygon( OGRGeometryH geom )
 
 std::unique_ptr< QgsMultiPolygon > ogrGeometryToQgsMultiPolygon( OGRGeometryH geom )
 {
-  std::unique_ptr< QgsMultiPolygon > polygon = std::make_unique< QgsMultiPolygon >();
+  auto polygon = std::make_unique< QgsMultiPolygon >();
 
   const int count = OGR_G_GetGeometryCount( geom );
   polygon->reserve( count );
@@ -891,8 +891,8 @@ Qgis::WkbType QgsOgrUtils::ogrGeometryTypeToQgsWkbType( OGRwkbGeometryType ogrGe
     case wkbMultiSurface: return Qgis::WkbType::MultiSurface;
     case wkbCurve: return Qgis::WkbType::Unknown; // not an actual concrete type
     case wkbSurface: return Qgis::WkbType::Unknown; // not an actual concrete type
-    case wkbPolyhedralSurface: return Qgis::WkbType::Unknown; // no actual matching
-    case wkbTIN: return Qgis::WkbType::Unknown; // no actual matching
+    case wkbPolyhedralSurface: return Qgis::WkbType::PolyhedralSurface;
+    case wkbTIN: return Qgis::WkbType::TIN;
     case wkbTriangle: return Qgis::WkbType::Triangle;
 
     case wkbNone: return Qgis::WkbType::NoGeometry;
@@ -905,8 +905,8 @@ Qgis::WkbType QgsOgrUtils::ogrGeometryTypeToQgsWkbType( OGRwkbGeometryType ogrGe
     case wkbMultiSurfaceZ: return Qgis::WkbType::MultiSurfaceZ;
     case wkbCurveZ: return Qgis::WkbType::Unknown; // not an actual concrete type
     case wkbSurfaceZ: return Qgis::WkbType::Unknown; // not an actual concrete type
-    case wkbPolyhedralSurfaceZ: return Qgis::WkbType::Unknown; // no actual matching
-    case wkbTINZ: return Qgis::WkbType::Unknown; // no actual matching
+    case wkbPolyhedralSurfaceZ: return Qgis::WkbType::PolyhedralSurfaceZ;
+    case wkbTINZ: return Qgis::WkbType::TINZ;
     case wkbTriangleZ: return Qgis::WkbType::TriangleZ;
 
     case wkbPointM: return Qgis::WkbType::PointM;
@@ -923,8 +923,8 @@ Qgis::WkbType QgsOgrUtils::ogrGeometryTypeToQgsWkbType( OGRwkbGeometryType ogrGe
     case wkbMultiSurfaceM: return Qgis::WkbType::MultiSurfaceM;
     case wkbCurveM: return Qgis::WkbType::Unknown; // not an actual concrete type
     case wkbSurfaceM: return Qgis::WkbType::Unknown; // not an actual concrete type
-    case wkbPolyhedralSurfaceM: return Qgis::WkbType::Unknown; // no actual matching
-    case wkbTINM: return Qgis::WkbType::Unknown; // no actual matching
+    case wkbPolyhedralSurfaceM: return Qgis::WkbType::PolyhedralSurfaceM;
+    case wkbTINM: return Qgis::WkbType::TINM;
     case wkbTriangleM: return Qgis::WkbType::TriangleM;
 
     case wkbPointZM: return Qgis::WkbType::PointZM;
@@ -941,8 +941,8 @@ Qgis::WkbType QgsOgrUtils::ogrGeometryTypeToQgsWkbType( OGRwkbGeometryType ogrGe
     case wkbMultiSurfaceZM: return Qgis::WkbType::MultiSurfaceZM;
     case wkbCurveZM: return Qgis::WkbType::Unknown; // not an actual concrete type
     case wkbSurfaceZM: return Qgis::WkbType::Unknown; // not an actual concrete type
-    case wkbPolyhedralSurfaceZM: return Qgis::WkbType::Unknown; // no actual matching
-    case wkbTINZM: return Qgis::WkbType::Unknown; // no actual matching
+    case wkbPolyhedralSurfaceZM: return Qgis::WkbType::PolyhedralSurfaceZM;
+    case wkbTINZM: return Qgis::WkbType::TINZM;
     case wkbTriangleZM: return Qgis::WkbType::TriangleZM;
 
     case wkbPoint25D: return Qgis::WkbType::PointZ;
@@ -1023,64 +1023,6 @@ QgsGeometry QgsOgrUtils::ogrGeometryToQgsGeometry( OGRGeometryH geom )
   int memorySize = OGR_G_WkbSize( geom );
   unsigned char *wkb = new unsigned char[memorySize];
   OGR_G_ExportToWkb( geom, static_cast<OGRwkbByteOrder>( QgsApplication::endian() ), wkb );
-
-  // Read original geometry type
-  uint32_t origGeomType;
-  memcpy( &origGeomType, wkb + 1, sizeof( uint32_t ) );
-  bool hasZ = ( origGeomType >= 1000 && origGeomType < 2000 ) || ( origGeomType >= 3000 && origGeomType < 4000 );
-  bool hasM = ( origGeomType >= 2000 && origGeomType < 3000 ) || ( origGeomType >= 3000 && origGeomType < 4000 );
-
-  // PolyhedralSurface and TINs are not supported, map them to multipolygons...
-  if ( origGeomType % 1000 == 16 ) // is TIN, TINZ, TINM or TINZM
-  {
-    // TIN has the same wkb layout as a multipolygon, just need to overwrite the geom types...
-    int nDims = 2 + hasZ + hasM;
-    uint32_t newMultiType = static_cast<uint32_t>( QgsWkbTypes::zmType( Qgis::WkbType::MultiPolygon, hasZ, hasM ) );
-    uint32_t newSingleType = static_cast<uint32_t>( QgsWkbTypes::zmType( Qgis::WkbType::Polygon, hasZ, hasM ) );
-    unsigned char *wkbptr = wkb;
-
-    // Endianness
-    wkbptr += 1;
-
-    // Overwrite geom type
-    memcpy( wkbptr, &newMultiType, sizeof( uint32_t ) );
-    wkbptr += 4;
-
-    // Geom count
-    uint32_t numGeoms;
-    memcpy( &numGeoms, wkb + 5, sizeof( uint32_t ) );
-    wkbptr += 4;
-
-    // For each part, overwrite the geometry type to polygon (Z|M)
-    for ( uint32_t i = 0; i < numGeoms; ++i )
-    {
-      // Endianness
-      wkbptr += 1;
-
-      // Overwrite geom type
-      memcpy( wkbptr, &newSingleType, sizeof( uint32_t ) );
-      wkbptr += sizeof( uint32_t );
-
-      // skip coordinates
-      uint32_t nRings;
-      memcpy( &nRings, wkbptr, sizeof( uint32_t ) );
-      wkbptr += sizeof( uint32_t );
-
-      for ( uint32_t j = 0; j < nRings; ++j )
-      {
-        uint32_t nPoints;
-        memcpy( &nPoints, wkbptr, sizeof( uint32_t ) );
-        wkbptr += sizeof( uint32_t ) + sizeof( double ) * nDims * nPoints;
-      }
-    }
-  }
-  else if ( origGeomType % 1000 == 15 ) // PolyhedralSurface, PolyhedralSurfaceZ, PolyhedralSurfaceM or PolyhedralSurfaceZM
-  {
-    // PolyhedralSurface has the same wkb layout as a MultiPolygon, just need to overwrite the geom type...
-    uint32_t newType = static_cast<uint32_t>( QgsWkbTypes::zmType( Qgis::WkbType::MultiPolygon, hasZ, hasM ) );
-    // Overwrite geom type
-    memcpy( wkb + 1, &newType, sizeof( uint32_t ) );
-  }
 
   QgsGeometry g;
   g.fromWkb( wkb, memorySize );
@@ -1456,7 +1398,7 @@ std::unique_ptr<QgsSymbol> QgsOgrUtils::symbolFromStyleString( const QString &st
         return res;
     }
 
-    std::unique_ptr< QgsSimpleLineSymbolLayer > simpleLine = std::make_unique< QgsSimpleLineSymbolLayer >( color, lineWidth );
+    auto simpleLine = std::make_unique< QgsSimpleLineSymbolLayer >( color, lineWidth );
     simpleLine->setWidthUnit( lineWidthUnit );
 
     // pattern
@@ -1601,13 +1543,13 @@ std::unique_ptr<QgsSymbol> QgsOgrUtils::symbolFromStyleString( const QString &st
     QgsSymbolLayerList layers;
     if ( backColor.isValid() && style != Qt::SolidPattern && style != Qt::NoBrush )
     {
-      std::unique_ptr< QgsSimpleFillSymbolLayer > backgroundFill = std::make_unique< QgsSimpleFillSymbolLayer >( backColor );
+      auto backgroundFill = std::make_unique< QgsSimpleFillSymbolLayer >( backColor );
       backgroundFill->setLocked( true );
       backgroundFill->setStrokeStyle( Qt::NoPen );
       layers << backgroundFill.release();
     }
 
-    std::unique_ptr< QgsSimpleFillSymbolLayer > foregroundFill = std::make_unique< QgsSimpleFillSymbolLayer >( foreColor );
+    auto foregroundFill = std::make_unique< QgsSimpleFillSymbolLayer >( foreColor );
     foregroundFill->setBrushStyle( style );
     foregroundFill->setStrokeStyle( Qt::NoPen );
 
@@ -1675,7 +1617,7 @@ std::unique_ptr<QgsSymbol> QgsOgrUtils::symbolFromStyleString( const QString &st
 
       if ( familyFound )
       {
-        std::unique_ptr< QgsFontMarkerSymbolLayer > fontMarker = std::make_unique< QgsFontMarkerSymbolLayer >( fontFamily, QChar( symId ), symbolSize );
+        auto fontMarker = std::make_unique< QgsFontMarkerSymbolLayer >( fontFamily, QChar( symId ), symbolSize );
         fontMarker->setSizeUnit( symbolSizeUnit );
         fontMarker->setAngle( -angle );
 
@@ -1774,7 +1716,7 @@ std::unique_ptr<QgsSymbol> QgsOgrUtils::symbolFromStyleString( const QString &st
         shape = Qgis::MarkerShape::Square; // to initialize the variable
       }
 
-      std::unique_ptr< QgsSimpleMarkerSymbolLayer > simpleMarker = std::make_unique< QgsSimpleMarkerSymbolLayer >( shape, symbolSize, -angle );
+      auto simpleMarker = std::make_unique< QgsSimpleMarkerSymbolLayer >( shape, symbolSize, -angle );
       simpleMarker->setSizeUnit( symbolSizeUnit );
       simpleMarker->setStrokeWidth( 1.0 );
       simpleMarker->setStrokeWidthUnit( Qgis::RenderUnit::Points );
@@ -1838,7 +1780,7 @@ std::unique_ptr<QgsSymbol> QgsOgrUtils::symbolFromStyleString( const QString &st
       }
       else
       {
-        std::unique_ptr< QgsSimpleFillSymbolLayer > emptyFill = std::make_unique< QgsSimpleFillSymbolLayer >();
+        auto emptyFill = std::make_unique< QgsSimpleFillSymbolLayer >();
         emptyFill->setBrushStyle( Qt::NoBrush );
         fillSymbol = std::make_unique< QgsFillSymbol >( QgsSymbolLayerList() << emptyFill.release() );
       }
@@ -2568,34 +2510,28 @@ gdal::relationship_unique_ptr QgsOgrUtils::convertRelationship( const QgsWeakRel
   // set left table fields
   const QStringList leftFieldNames = relationship.referencedLayerFields();
   int count = leftFieldNames.count();
-  char **lst = new char *[count + 1];
+  char **lst = nullptr;
   if ( count > 0 )
   {
-    int pos = 0;
     for ( const QString &string : leftFieldNames )
     {
-      lst[pos] = CPLStrdup( string.toLocal8Bit().constData() );
-      pos++;
+      lst = CSLAddString( lst, string.toLocal8Bit().constData() );
     }
   }
-  lst[count] = nullptr;
   GDALRelationshipSetLeftTableFields( relationH.get(), lst );
   CSLDestroy( lst );
 
   // set right table fields
   const QStringList rightFieldNames = relationship.referencingLayerFields();
   count = rightFieldNames.count();
-  lst = new char *[count + 1];
+  lst = nullptr;
   if ( count > 0 )
   {
-    int pos = 0;
     for ( const QString &string : rightFieldNames )
     {
-      lst[pos] = CPLStrdup( string.toLocal8Bit().constData() );
-      pos++;
+      lst = CSLAddString( lst, string.toLocal8Bit().constData() );
     }
   }
-  lst[count] = nullptr;
   GDALRelationshipSetRightTableFields( relationH.get(), lst );
   CSLDestroy( lst );
 
@@ -2606,34 +2542,28 @@ gdal::relationship_unique_ptr QgsOgrUtils::convertRelationship( const QgsWeakRel
     // set left mapping table fields
     const QStringList leftFieldNames = relationship.mappingReferencedLayerFields();
     int count = leftFieldNames.count();
-    char **lst = new char *[count + 1];
+    lst = nullptr;
     if ( count > 0 )
     {
-      int pos = 0;
       for ( const QString &string : leftFieldNames )
       {
-        lst[pos] = CPLStrdup( string.toLocal8Bit().constData() );
-        pos++;
+        lst = CSLAddString( lst, string.toLocal8Bit().constData() );
       }
     }
-    lst[count] = nullptr;
     GDALRelationshipSetLeftMappingTableFields( relationH.get(), lst );
     CSLDestroy( lst );
 
     // set right table fields
     const QStringList rightFieldNames = relationship.mappingReferencingLayerFields();
     count = rightFieldNames.count();
-    lst = new char *[count + 1];
+    lst = nullptr;
     if ( count > 0 )
     {
-      int pos = 0;
       for ( const QString &string : rightFieldNames )
       {
-        lst[pos] = CPLStrdup( string.toLocal8Bit().constData() );
-        pos++;
+        lst = CSLAddString( lst, string.toLocal8Bit().constData() );
       }
     }
-    lst[count] = nullptr;
     GDALRelationshipSetRightMappingTableFields( relationH.get(), lst );
     CSLDestroy( lst );
   }

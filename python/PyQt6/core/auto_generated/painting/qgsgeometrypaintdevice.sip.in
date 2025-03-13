@@ -3,7 +3,7 @@
  *                                                                      *
  * src/core/painting/qgsgeometrypaintdevice.h                           *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/
 
 
@@ -33,6 +33,22 @@ If ``usePathStroker`` is ``True``, rendered paths will be converted using a stro
 pen configuration.
 %End
 
+    void setStrokedPathSegments( int segments );
+%Docstring
+Sets the number of ``segments`` to use when drawing stroked paths with a rounded pen.
+
+The default is 8 segments, a smaller number will result in simpler paths.
+%End
+
+    void setSimplificationTolerance( double tolerance );
+%Docstring
+Sets a simplification tolerance (in painter units) to use for on-the-fly simplification of geometries while rendering.
+
+This will result in simpler, generalised paths.
+
+Set ``tolerance`` to 0 to disable simplification. (No simplification is the default behavior).
+%End
+
     virtual QPaintEngine *paintEngine() const;
 
 
@@ -44,6 +60,13 @@ pen configuration.
 Returns the rendered geometry.
 %End
 
+    static QgsGeometry painterPathToGeometry( const QPainterPath &path );
+%Docstring
+Converts a painter ``path`` to a :py:class:`QgsGeometry`.
+
+.. versionadded:: 3.38.1
+%End
+
 };
 
 
@@ -52,5 +75,5 @@ Returns the rendered geometry.
  *                                                                      *
  * src/core/painting/qgsgeometrypaintdevice.h                           *
  *                                                                      *
- * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ * Do not edit manually ! Edit header and run scripts/sipify.py again   *
  ************************************************************************/

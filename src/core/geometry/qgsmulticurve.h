@@ -85,6 +85,7 @@ class CORE_EXPORT QgsMultiCurve: public QgsGeometryCollection
     bool addGeometry( QgsAbstractGeometry *g SIP_TRANSFER ) override;
     bool addGeometries( const QVector< QgsAbstractGeometry * > &geometries SIP_TRANSFER ) override;
     bool insertGeometry( QgsAbstractGeometry *g SIP_TRANSFER, int index ) override;
+    QgsMultiCurve *simplifyByDistance( double tolerance ) const override SIP_FACTORY;
 
     /**
      * Returns a copy of the multi curve, where each component curve has had its line direction reversed.
@@ -101,7 +102,7 @@ class CORE_EXPORT QgsMultiCurve: public QgsGeometryCollection
      *
      * \note Not available in Python. Objects will be automatically be converted to the appropriate target type.
      */
-    inline static const QgsMultiCurve *cast( const QgsAbstractGeometry *geom )
+    inline static const QgsMultiCurve *cast( const QgsAbstractGeometry *geom ) // cppcheck-suppress duplInheritedMember
     {
       if ( !geom )
         return nullptr;

@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsalllayersfeatureslocatorfilter.h"
+#include "moc_qgsalllayersfeatureslocatorfilter.cpp"
 #include "qgssettings.h"
 #include "qgsproject.h"
 #include "qgsvectorlayer.h"
@@ -53,7 +54,7 @@ QStringList QgsAllLayersFeaturesLocatorFilter::prepare( const QString &string, c
   const QMap<QString, QgsMapLayer *> layers = QgsProject::instance()->mapLayers();
   for ( auto it = layers.constBegin(); it != layers.constEnd(); ++it )
   {
-    QgsVectorLayer *layer = qobject_cast< QgsVectorLayer *>( it.value() );
+    QgsVectorLayer *layer = qobject_cast<QgsVectorLayer *>( it.value() );
     if ( !layer || !layer->dataProvider() || !layer->flags().testFlag( QgsMapLayer::Searchable ) )
       continue;
 
@@ -69,12 +70,12 @@ QStringList QgsAllLayersFeaturesLocatorFilter::prepare( const QString &string, c
     QString enhancedSearch = string;
     enhancedSearch.replace( ' ', '%' );
     req.setFilterExpression( QStringLiteral( "%1 ILIKE '%%2%'" )
-                             .arg( layer->displayExpression(), enhancedSearch ) );
+                               .arg( layer->displayExpression(), enhancedSearch ) );
     req.setLimit( mMaxResultsPerLayer );
 
     QgsFeatureRequest exactMatchRequest = req;
     exactMatchRequest.setFilterExpression( QStringLiteral( "%1 ILIKE '%2'" )
-                                           .arg( layer->displayExpression(), enhancedSearch ) );
+                                             .arg( layer->displayExpression(), enhancedSearch ) );
     exactMatchRequest.setLimit( mMaxResultsPerLayer );
 
     std::shared_ptr<PreparedLayer> preparedLayer( new PreparedLayer() );
@@ -123,7 +124,7 @@ void QgsAllLayersFeaturesLocatorFilter::fetchResults( const QString &string, con
       result.setUserData( ResultData( f.id(), preparedLayer->layerId, preparedLayer->layerIsSpatial ).toVariant() );
       foundFeatureIds << f.id();
       result.icon = preparedLayer->layerIcon;
-      result.score = static_cast< double >( string.length() ) / result.displayString.size();
+      result.score = static_cast<double>( string.length() ) / result.displayString.size();
 
       result.actions << QgsLocatorResult::ResultAction( OpenForm, tr( "Open form…" ) );
       emit resultFetched( result );
@@ -156,7 +157,7 @@ void QgsAllLayersFeaturesLocatorFilter::fetchResults( const QString &string, con
 
       result.setUserData( ResultData( f.id(), preparedLayer->layerId, preparedLayer->layerIsSpatial ).toVariant() );
       result.icon = preparedLayer->layerIcon;
-      result.score = static_cast< double >( string.length() ) / result.displayString.size();
+      result.score = static_cast<double>( string.length() ) / result.displayString.size();
 
       if ( preparedLayer->layerIsSpatial )
         result.actions << QgsLocatorResult::ResultAction( OpenForm, tr( "Open form…" ) );
@@ -216,7 +217,7 @@ void QgsAllLayersFeaturesLocatorFilter::openConfigWidget( QWidget *parent )
 {
   QString key = "locator_filters/all_layers_features";
   QgsSettings settings;
-  std::unique_ptr<QDialog> dlg( new QDialog( parent ) );
+  auto dlg = std::make_unique<QDialog>( parent );
   dlg->restoreGeometry( settings.value( QStringLiteral( "Windows/%1/geometry" ).arg( key ) ).toByteArray() );
   dlg->setWindowTitle( "All layers features locator filter" );
   QFormLayout *formLayout = new QFormLayout;
@@ -233,8 +234,7 @@ void QgsAllLayersFeaturesLocatorFilter::openConfigWidget( QWidget *parent )
   QDialogButtonBox *buttonbBox = new QDialogButtonBox( QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg.get() );
   formLayout->addRow( buttonbBox );
   dlg->setLayout( formLayout );
-  connect( buttonbBox, &QDialogButtonBox::accepted, dlg.get(), [&]()
-  {
+  connect( buttonbBox, &QDialogButtonBox::accepted, dlg.get(), [&]() {
     settings.setValue( QStringLiteral( "%1/limit_global" ).arg( key ), globalLimitSpinBox->value(), QgsSettings::App );
     settings.setValue( QStringLiteral( "%1/limit_per_layer" ).arg( key ), perLayerLimitSpinBox->value(), QgsSettings::App );
     dlg->accept();

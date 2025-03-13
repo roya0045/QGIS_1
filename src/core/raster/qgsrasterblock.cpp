@@ -19,10 +19,15 @@
 
 #include <QByteArray>
 #include <QColor>
+#include <QLocale>
 
 #include "qgslogger.h"
 #include "qgsrasterblock.h"
 #include "qgsrectangle.h"
+#include "qgsgdalutils.h"
+
+#define GDAL_MINMAXELT_NS qgis_gdal
+#include "gdal_minmax_element.hpp"
 
 // See #9101 before any change of NODATA_COLOR!
 const QRgb QgsRasterBlock::NO_DATA_COLOR = qRgba( 0, 0, 0, 0 );
@@ -670,7 +675,7 @@ bool QgsRasterBlock::setImage( const QImage *image )
   return true;
 }
 
-QString QgsRasterBlock::printValue( double value )
+QString QgsRasterBlock::printValue( double value, bool localized )
 {
   /*
    *  IEEE 754 double has 15-17 significant digits. It specifies:
@@ -699,8 +704,13 @@ QString QgsRasterBlock::printValue( double value )
   for ( int i = 15; i <= 17; i++ )
   {
     s.setNum( value, 'g', i );
-    if ( qgsDoubleNear( s.toDouble(), value ) )
+    const double doubleValue { s.toDouble( ) };
+    if ( qgsDoubleNear( doubleValue, value ) )
     {
+      if ( localized )
+      {
+        return QLocale().toString( doubleValue, 'g', i );
+      }
       return s;
     }
   }
@@ -709,7 +719,7 @@ QString QgsRasterBlock::printValue( double value )
   return s;
 }
 
-QString QgsRasterBlock::printValue( float value )
+QString QgsRasterBlock::printValue( float value, bool localized )
 {
   /*
    *  IEEE 754 double has 6-9 significant digits. See printValue(double)
@@ -720,8 +730,13 @@ QString QgsRasterBlock::printValue( float value )
   for ( int i = 6; i <= 9; i++ )
   {
     s.setNum( value, 'g', i );
-    if ( qgsFloatNear( s.toFloat(), value ) )
+    const float floatValue { s.toFloat() };
+    if ( qgsFloatNear( floatValue, value ) )
     {
+      if ( localized )
+      {
+        return QLocale().toString( floatValue, 'g', i );
+      }
       return s;
     }
   }
@@ -860,4 +875,62 @@ QRect QgsRasterBlock::subRect( const QgsRectangle &extent, int width, int height
   QRect subRect = QRect( left, top, right - left + 1, bottom - top + 1 );
   QgsDebugMsgLevel( QStringLiteral( "subRect: %1 %2 %3 %4" ).arg( subRect.x() ).arg( subRect.y() ).arg( subRect.width() ).arg( subRect.height() ), 4 );
   return subRect;
+}
+
+bool QgsRasterBlock::minimum( double &minimum, int &row, int &column ) const
+{
+  if ( !mData )
+  {
+    minimum = std::numeric_limits<double>::quiet_NaN();
+    return false;
+  }
+
+  const std::size_t offset = qgis_gdal::min_element( mData, static_cast<std::size_t>( mWidth ) * static_cast< std::size_t>( mHeight ),
+                             QgsGdalUtils::gdalDataTypeFromQgisDataType( mDataType ), mHasNoDataValue, mNoDataValue );
+
+  row = static_cast< int >( offset / mWidth );
+  column = static_cast< int >( offset % mWidth );
+  minimum = value( offset );
+
+  return true;
+}
+
+bool QgsRasterBlock::maximum( double &maximum SIP_OUT, int &row SIP_OUT, int &column SIP_OUT ) const
+{
+  if ( !mData )
+  {
+    maximum = std::numeric_limits<double>::quiet_NaN();
+    return false;
+  }
+  const std::size_t offset = qgis_gdal::max_element( mData, static_cast<std::size_t>( mWidth ) * static_cast< std::size_t>( mHeight ),
+                             QgsGdalUtils::gdalDataTypeFromQgisDataType( mDataType ), mHasNoDataValue, mNoDataValue );
+
+  row = static_cast< int >( offset / mWidth );
+  column = static_cast< int >( offset % mWidth );
+  maximum = value( offset );
+
+  return true;
+}
+
+bool QgsRasterBlock::minimumMaximum( double &minimum, int &minimumRow, int &minimumColumn, double &maximum, int &maximumRow, int &maximumColumn ) const
+{
+  if ( !mData )
+  {
+    minimum = std::numeric_limits<double>::quiet_NaN();
+    maximum = std::numeric_limits<double>::quiet_NaN();
+    return false;
+  }
+
+  const auto [minOffset, maxOffset] = qgis_gdal::minmax_element( mData, static_cast<std::size_t>( mWidth ) * static_cast< std::size_t>( mHeight ),
+                                      QgsGdalUtils::gdalDataTypeFromQgisDataType( mDataType ), mHasNoDataValue, mNoDataValue );
+
+  minimumRow = static_cast< int >( minOffset / mWidth );
+  minimumColumn = static_cast< int >( minOffset % mWidth );
+  minimum = value( minOffset );
+
+  maximumRow = static_cast< int >( maxOffset / mWidth );
+  maximumColumn = static_cast< int >( maxOffset % mWidth );
+  maximum = value( maxOffset );
+
+  return true;
 }

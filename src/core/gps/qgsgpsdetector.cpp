@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsgpsdetector.h"
+#include "moc_qgsgpsdetector.cpp"
 #include "qgsgpsconnection.h"
 #include "qgsnmeaconnection.h"
 #include "qgsgpsdconnection.h"
@@ -174,7 +175,7 @@ void QgsGpsDetector::advance()
     else
     {
 #if defined( HAVE_QTSERIALPORT )
-      std::unique_ptr< QSerialPort > serial = std::make_unique< QSerialPort >( mPortList.at( mPortIndex ).first );
+      auto serial = std::make_unique< QSerialPort >( mPortList.at( mPortIndex ).first );
 
       serial->setBaudRate( mBaudList[ mBaudIndex ] );
 
@@ -274,6 +275,6 @@ void QgsGpsDetector::connDestroyed( QObject *obj )
   // WTF? This whole class needs re-writing...
   if ( obj == mConn.get() )
   {
-    mConn.release();
+    mConn.release(); // cppcheck-suppress ignoredReturnValue
   }
 }

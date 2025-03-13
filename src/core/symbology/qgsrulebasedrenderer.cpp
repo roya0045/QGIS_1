@@ -30,6 +30,7 @@
 #include "qgsfillsymbol.h"
 #include "qgsmarkersymbol.h"
 #include "qgspointdistancerenderer.h"
+#include "qgsscaleutils.h"
 
 #include <QSet>
 
@@ -297,10 +298,15 @@ bool QgsRuleBasedRenderer::Rule::isScaleOK( double scale ) const
     return true;
   if ( qgsDoubleNear( mMaximumScale, 0.0 ) && qgsDoubleNear( mMinimumScale, 0.0 ) )
     return true;
-  if ( !qgsDoubleNear( mMaximumScale, 0.0 ) && mMaximumScale > scale )
+
+  // maxScale is inclusive ( < --> no render )
+  if ( !qgsDoubleNear( mMaximumScale, 0.0 ) && QgsScaleUtils::lessThanMaximumScale( scale, mMaximumScale ) )
     return false;
-  if ( !qgsDoubleNear( mMinimumScale, 0.0 ) && mMinimumScale < scale )
+
+  // minScale is exclusive ( >= --> no render )
+  if ( !qgsDoubleNear( mMinimumScale, 0.0 ) && QgsScaleUtils::equalToOrGreaterThanMinimumScale( scale, mMinimumScale ) )
     return false;
+
   return true;
 }
 
@@ -369,7 +375,6 @@ void QgsRuleBasedRenderer::Rule::toSld( QDomDocument &doc, QDomElement &element,
   if ( mSymbol )
   {
     QDomElement ruleElem = doc.createElement( QStringLiteral( "se:Rule" ) );
-    element.appendChild( ruleElem );
 
     //XXX: <se:Name> is the rule identifier, but our the Rule objects
     // have no properties could be used as identifier. Use the label.
@@ -403,6 +408,13 @@ void QgsRuleBasedRenderer::Rule::toSld( QDomDocument &doc, QDomElement &element,
     QgsSymbolLayerUtils::applyScaleDependency( doc, ruleElem, props );
 
     mSymbol->toSld( doc, ruleElem, props );
+
+    // Only create rules if symbol could be converted to SLD, and is not an "empty" symbol. Otherwise we do not generate a rule, as
+    // SLD spec requires a Symbolizer element to be present
+    if ( QgsSymbolLayerUtils::hasSldSymbolizer( ruleElem ) )
+    {
+      element.appendChild( ruleElem );
+    }
   }
 
   // loop into children rule list
@@ -738,8 +750,7 @@ QgsRuleBasedRenderer::RuleList QgsRuleBasedRenderer::Rule::rulesForFeature( cons
   if ( onlyActive )
     listChildren = mActiveChildren;
 
-  const auto constListChildren = listChildren;
-  for ( Rule *rule : constListChildren )
+  for ( Rule *rule : std::as_const( listChildren ) )
   {
     lst += rule->rulesForFeature( feature, context, onlyActive );
   }
@@ -969,6 +980,32 @@ QgsSymbol *QgsRuleBasedRenderer::symbolForFeature( const QgsFeature &, QgsRender
 {
   // not used at all
   return nullptr;
+}
+
+Qgis::FeatureRendererFlags QgsRuleBasedRenderer::flags() const
+{
+  Qgis::FeatureRendererFlags res;
+
+  std::function< void( Rule *rule ) > exploreRule;
+  exploreRule = [&res, &exploreRule]( Rule * rule )
+  {
+    if ( !rule )
+      return;
+
+    if ( QgsSymbol *symbol = rule->symbol() )
+    {
+      if ( symbol->flags().testFlag( Qgis::SymbolFlag::AffectsLabeling ) )
+        res.setFlag( Qgis::FeatureRendererFlag::AffectsLabeling );
+    }
+
+    for ( Rule *child : rule->children() )
+    {
+      exploreRule( child );
+    }
+  };
+  exploreRule( mRootRule );
+
+  return res;
 }
 
 bool QgsRuleBasedRenderer::renderFeature( const QgsFeature &feature,
@@ -1459,14 +1496,14 @@ QgsRuleBasedRenderer *QgsRuleBasedRenderer::convertFromRenderer( const QgsFeatur
       attr = QgsExpression::quotedColumnRef( attr );
     }
 
-    std::unique_ptr< QgsRuleBasedRenderer::Rule > rootrule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
+    auto rootrule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
 
     QString expression;
     QString value;
     QgsRendererCategory category;
     for ( const QgsRendererCategory &category : categorizedRenderer->categories() )
     {
-      std::unique_ptr< QgsRuleBasedRenderer::Rule > rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
+      auto rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
 
       rule->setLabel( category.label() );
 
@@ -1563,14 +1600,14 @@ QgsRuleBasedRenderer *QgsRuleBasedRenderer::convertFromRenderer( const QgsFeatur
       attr = QStringLiteral( "(%1)" ).arg( attr );
     }
 
-    std::unique_ptr< QgsRuleBasedRenderer::Rule > rootrule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
+    auto rootrule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
 
     QString expression;
     QgsRendererRange range;
     for ( int i = 0; i < graduatedRenderer->ranges().size(); ++i )
     {
       range = graduatedRenderer->ranges().value( i );
-      std::unique_ptr< QgsRuleBasedRenderer::Rule > rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
+      auto rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
       rule->setLabel( range.label() );
       if ( i == 0 )//The lower boundary of the first range is included, while it is excluded for the others
       {
@@ -1615,7 +1652,7 @@ QgsRuleBasedRenderer *QgsRuleBasedRenderer::convertFromRenderer( const QgsFeatur
   {
     const QgsEmbeddedSymbolRenderer *embeddedRenderer = dynamic_cast<const QgsEmbeddedSymbolRenderer *>( renderer );
 
-    std::unique_ptr< QgsRuleBasedRenderer::Rule > rootrule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
+    auto rootrule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
 
     QgsFeatureRequest req;
     req.setFlags( Qgis::FeatureRequestFlag::EmbeddedSymbols | Qgis::FeatureRequestFlag::NoGeometry );
@@ -1626,7 +1663,7 @@ QgsRuleBasedRenderer *QgsRuleBasedRenderer::convertFromRenderer( const QgsFeatur
     {
       if ( feature.embeddedSymbol() )
       {
-        std::unique_ptr< QgsRuleBasedRenderer::Rule > rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
+        auto rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
         rule->setFilterExpression( QStringLiteral( "$id=%1" ).arg( feature.id() ) );
         rule->setLabel( QString::number( feature.id() ) );
         rule->setSymbol( feature.embeddedSymbol()->clone() );
@@ -1634,7 +1671,7 @@ QgsRuleBasedRenderer *QgsRuleBasedRenderer::convertFromRenderer( const QgsFeatur
       }
     }
 
-    std::unique_ptr< QgsRuleBasedRenderer::Rule > rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
+    auto rule = std::make_unique< QgsRuleBasedRenderer::Rule >( nullptr );
     rule->setFilterExpression( QStringLiteral( "ELSE" ) );
     rule->setLabel( QObject::tr( "All other features" ) );
     rule->setSymbol( embeddedRenderer->defaultSymbol()->clone() );

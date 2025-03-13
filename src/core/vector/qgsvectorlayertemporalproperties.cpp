@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsvectorlayertemporalproperties.h"
+#include "moc_qgsvectorlayertemporalproperties.cpp"
 #include "qgsvectordataprovidertemporalcapabilities.h"
 #include "qgsexpression.h"
 #include "qgsvectorlayer.h"
@@ -285,7 +286,7 @@ bool QgsVectorLayerTemporalProperties::readXml( const QDomElement &element, cons
   const QDateTime beginDate = QDateTime::fromString( begin.toElement().text(), Qt::ISODate );
   const QDateTime endDate = QDateTime::fromString( end.toElement().text(), Qt::ISODate );
 
-  const QgsDateTimeRange range = QgsDateTimeRange( beginDate, endDate );
+  const QgsDateTimeRange range = QgsDateTimeRange( beginDate, endDate, true, mLimitMode == Qgis::VectorTemporalLimitMode::IncludeBeginIncludeEnd );
   setFixedTemporalRange( range );
 
   return true;
