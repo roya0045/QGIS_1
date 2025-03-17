@@ -466,10 +466,13 @@ QgsExpressionContextScope *QgsPointDistanceRenderer::createGroupScope( const Clu
   {
     //scan through symbols to check color, e.g., if all clustered symbols are same color
     QColor groupColor;
+    bool mixedColor = false;
+    QList groupFids = QList( group.size);
     ClusteredGroup::const_iterator groupIt = group.constBegin();
     for ( ; groupIt != group.constEnd(); ++groupIt )
     {
-      if ( !groupIt->symbol() )
+      groupFids.append( groupIt.feature.id() );
+      if ( !groupIt->symbol() || mixedColor )
         continue;
 
       if ( !groupColor.isValid() )
@@ -481,7 +484,7 @@ QgsExpressionContextScope *QgsPointDistanceRenderer::createGroupScope( const Clu
         if ( groupColor != groupIt->symbol()->color() )
         {
           groupColor = QColor();
-          break;
+          mixedColor = true;
         }
       }
     }
@@ -497,6 +500,7 @@ QgsExpressionContextScope *QgsPointDistanceRenderer::createGroupScope( const Clu
     }
 
     clusterScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_SIZE, group.size(), true ) );
+    clusterScope->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_FIDS, groupFids, true ) );    
   }
   if ( !group.empty() )
   {

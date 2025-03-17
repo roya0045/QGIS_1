@@ -30,6 +30,7 @@ const QString QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT( QStringLiteral( "
 const QString QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM( QStringLiteral( "geometry_point_num" ) );
 const QString QgsExpressionContext::EXPR_CLUSTER_SIZE( QStringLiteral( "cluster_size" ) );
 const QString QgsExpressionContext::EXPR_CLUSTER_COLOR( QStringLiteral( "cluster_color" ) );
+const QString QgsExpressionContext::EXPR_CLUSTER_FIDS( QStringLiteral( "cluster_fids" ) );
 
 //
 // QgsExpressionContextScope

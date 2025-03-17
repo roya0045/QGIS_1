@@ -914,6 +914,8 @@ class CORE_EXPORT QgsExpressionContext
     static const QString EXPR_CLUSTER_SIZE;
     //! Inbuilt variable name for cluster color variable
     static const QString EXPR_CLUSTER_COLOR;
+    //! Inbuilt variable name for cluster color variable
+    static const QString EXPR_CLUSTER_FIDS;
 
   private:
 
