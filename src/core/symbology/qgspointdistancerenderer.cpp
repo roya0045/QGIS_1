@@ -467,7 +467,7 @@ QgsExpressionContextScope *QgsPointDistanceRenderer::createGroupScope( const Clu
     //scan through symbols to check color, e.g., if all clustered symbols are same color
     QColor groupColor;
     bool mixedColor = false;
-    QList groupFids = QList( group.size);
+    QVariantList groupFids;
     ClusteredGroup::const_iterator groupIt = group.constBegin();
     for ( ; groupIt != group.constEnd(); ++groupIt )
     {
