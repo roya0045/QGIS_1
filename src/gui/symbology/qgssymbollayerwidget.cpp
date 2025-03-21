@@ -105,7 +105,7 @@ QgsExpressionContext QgsSymbolLayerWidget::createExpressionContext() const
              << QgsExpressionContext::EXPR_GEOMETRY_PART_COUNT << QgsExpressionContext::EXPR_GEOMETRY_PART_NUM
              << QgsExpressionContext::EXPR_GEOMETRY_RING_NUM << QgsExpressionContext::EXPR_CLUSTER_FIDS
              << QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT << QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM
-             << QgsExpressionContext::EXPR_CLUSTER_COLOR << QgsExpressionContext::EXPR_CLUSTER_SIZE
+             << QgsExpressionContext::EXPR_CLUSTER_COLOR << QgsExpressionContext::EXPR_CLUSTER_SIZE << gsExpressionContext::EXPR_CLUSTER_FIDS
              << QStringLiteral( "symbol_layer_count" ) << QStringLiteral( "symbol_layer_index" ) << QStringLiteral( "symbol_frame" );
 
 

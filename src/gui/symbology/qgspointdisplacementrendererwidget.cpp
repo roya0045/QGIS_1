@@ -210,6 +210,7 @@ QgsExpressionContext QgsPointDisplacementRendererWidget::createExpressionContext
   QgsExpressionContextScope scope;
   scope.addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_COLOR, "", true ) );
   scope.addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_SIZE, 0, true ) );
+  scope.addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_FIDS, {}, true ) );
   QList<QgsExpressionContextScope> scopes = mContext.additionalExpressionContextScopes();
   scopes << scope;
   for ( const QgsExpressionContextScope &s : std::as_const( scopes ) )
@@ -275,6 +276,7 @@ void QgsPointDisplacementRendererWidget::mRendererSettingsButton_clicked()
     QgsExpressionContextScope scope;
     scope.addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_COLOR, "", true ) );
     scope.addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_SIZE, 0, true ) );
+    scope.addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_CLUSTER_FIDS, {}, true ) );
     QList<QgsExpressionContextScope> scopes = context.additionalExpressionContextScopes();
     scopes << scope;
     context.setAdditionalExpressionContextScopes( scopes );
