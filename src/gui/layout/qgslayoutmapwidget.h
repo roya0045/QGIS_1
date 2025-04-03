@@ -277,6 +277,8 @@ class GUI_EXPORT QgsLayoutMapClippingWidget : public QgsLayoutItemBaseWidget, pr
     void deselectAll();
     void invertSelection();
     void toggleLayersSelectionGui( bool toggled );
+    void clipGeometryEdit_editingFinished();
+    void mGeometryExpressionButton_clicked();
 
   private:
     QPointer<QgsLayoutItemMap> mMapItem;

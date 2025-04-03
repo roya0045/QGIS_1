@@ -17,7 +17,6 @@
  ***************************************************************************/
 
 #include "qgslayoutmapwidget.h"
-#include "moc_qgslayoutmapwidget.cpp"
 #include "qgssettingsregistrycore.h"
 #include "qgslayoutitemmap.h"
 #include "qgsproject.h"
@@ -35,6 +34,7 @@
 #include "qgsprojectviewsettings.h"
 #include "qgsmaplayermodel.h"
 #include "qgsfillsymbol.h"
+#include "qgsexpressionbuilderdialog.h"
 
 #include <QMenu>
 #include <QMessageBox>
@@ -69,7 +69,7 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   connect( mYMaxLineEdit, &QLineEdit::editingFinished, this, &QgsLayoutMapWidget::mYMaxLineEdit_editingFinished );
   connect( mAtlasMarginRadio, &QRadioButton::toggled, this, &QgsLayoutMapWidget::mAtlasMarginRadio_toggled );
   connect( mAtlasCheckBox, &QgsCollapsibleGroupBoxBasic::toggled, this, &QgsLayoutMapWidget::mAtlasCheckBox_toggled );
-  connect( mAtlasMarginSpinBox, static_cast<void ( QSpinBox::* )( int )>( &QSpinBox::valueChanged ), this, &QgsLayoutMapWidget::mAtlasMarginSpinBox_valueChanged );
+  connect( mAtlasMarginSpinBox, static_cast < void ( QSpinBox::* )( int ) > ( &QSpinBox::valueChanged ), this, &QgsLayoutMapWidget::mAtlasMarginSpinBox_valueChanged );
   connect( mAtlasFixedScaleRadio, &QRadioButton::toggled, this, &QgsLayoutMapWidget::mAtlasFixedScaleRadio_toggled );
   connect( mAtlasPredefinedScaleRadio, &QRadioButton::toggled, this, &QgsLayoutMapWidget::mAtlasPredefinedScaleRadio_toggled );
   connect( mAddGridPushButton, &QPushButton::clicked, this, &QgsLayoutMapWidget::mAddGridPushButton_clicked );
@@ -97,8 +97,8 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   mZLowerSpin->setClearValueMode( QgsDoubleSpinBox::ClearValueMode::MinimumValue, tr( "Not set" ) );
   mZUpperSpin->setClearValueMode( QgsDoubleSpinBox::ClearValueMode::MinimumValue, tr( "Not set" ) );
   connect( mElevationRangeCheckBox, &QgsCollapsibleGroupBoxBasic::toggled, this, &QgsLayoutMapWidget::mElevationRangeCheckBox_toggled );
-  connect( mZLowerSpin, qOverload<double>( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::updateZRange );
-  connect( mZUpperSpin, qOverload<double>( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::updateZRange );
+  connect( mZLowerSpin, qOverload< double >( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::updateZRange );
+  connect( mZUpperSpin, qOverload< double >( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::updateZRange );
 
   mStartDateTime->setDateTimeRange( QDateTime( QDate( 1, 1, 1 ), QTime( 0, 0, 0 ) ), mStartDateTime->maximumDateTime() );
   mEndDateTime->setDateTimeRange( QDateTime( QDate( 1, 1, 1 ), QTime( 0, 0, 0 ) ), mStartDateTime->maximumDateTime() );
@@ -150,7 +150,8 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   // follow preset combo
   mFollowVisibilityPresetCombo->setModel( new QStringListModel( mFollowVisibilityPresetCombo ) );
   connect( mFollowVisibilityPresetCombo, static_cast<void ( QComboBox::* )( int )>( &QComboBox::currentIndexChanged ), this, &QgsLayoutMapWidget::followVisibilityPresetSelected );
-  connect( QgsProject::instance()->mapThemeCollection(), &QgsMapThemeCollection::mapThemesChanged, this, &QgsLayoutMapWidget::onMapThemesChanged );
+  connect( QgsProject::instance()->mapThemeCollection(), &QgsMapThemeCollection::mapThemesChanged,
+           this, &QgsLayoutMapWidget::onMapThemesChanged );
   onMapThemesChanged();
 
   // keep layers from preset button
@@ -162,7 +163,8 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
 
   connect( item, &QgsLayoutObject::changed, this, &QgsLayoutMapWidget::updateGuiElements );
 
-  connect( &item->layout()->reportContext(), &QgsLayoutReportContext::layerChanged, this, &QgsLayoutMapWidget::atlasLayerChanged );
+  connect( &item->layout()->reportContext(), &QgsLayoutReportContext::layerChanged,
+           this, &QgsLayoutMapWidget::atlasLayerChanged );
   if ( QgsLayoutAtlas *atlas = layoutAtlas() )
   {
     connect( atlas, &QgsLayoutAtlas::toggled, this, &QgsLayoutMapWidget::compositionAtlasToggled );
@@ -204,7 +206,7 @@ QgsLayoutMapWidget::QgsLayoutMapWidget( QgsLayoutItemMap *item, QgsMapCanvas *ma
   loadGridEntries();
   loadOverviewEntries();
 
-  connect( mMapRotationSpinBox, static_cast<void ( QgsDoubleSpinBox::* )( double )>( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::rotationChanged );
+  connect( mMapRotationSpinBox, static_cast < void ( QgsDoubleSpinBox::* )( double ) > ( &QgsDoubleSpinBox::valueChanged ), this, &QgsLayoutMapWidget::rotationChanged );
   connect( mMapItem, &QgsLayoutItemMap::extentChanged, mItemPropertiesWidget, &QgsLayoutItemPropertiesWidget::updateVariables );
   connect( mMapItem, &QgsLayoutItemMap::mapRotationChanged, mItemPropertiesWidget, &QgsLayoutItemPropertiesWidget::updateVariables );
 
@@ -247,7 +249,7 @@ bool QgsLayoutMapWidget::setNewItem( QgsLayoutItem *item )
     disconnect( mMapItem, &QgsLayoutItemMap::mapRotationChanged, mItemPropertiesWidget, &QgsLayoutItemPropertiesWidget::updateVariables );
   }
 
-  mMapItem = qobject_cast<QgsLayoutItemMap *>( item );
+  mMapItem = qobject_cast< QgsLayoutItemMap * >( item );
   mItemPropertiesWidget->setItem( mMapItem );
   if ( mLabelWidget )
     mLabelWidget->setItem( mMapItem );
@@ -285,7 +287,8 @@ void QgsLayoutMapWidget::populateDataDefinedButtons()
 
 void QgsLayoutMapWidget::compositionAtlasToggled( bool atlasEnabled )
 {
-  if ( atlasEnabled && mMapItem && mMapItem->layout() && mMapItem->layout()->reportContext().layer()
+  if ( atlasEnabled &&
+       mMapItem && mMapItem->layout() && mMapItem->layout()->reportContext().layer()
        && mMapItem->layout()->reportContext().layer()->wkbType() != Qgis::WkbType::NoGeometry )
   {
     mAtlasCheckBox->setEnabled( true );
@@ -326,7 +329,7 @@ void QgsLayoutMapWidget::followVisibilityPresetSelected( int currentIndex )
     return;
 
   if ( currentIndex == -1 )
-    return; // doing combo box model reset
+    return;  // doing combo box model reset
 
   QString presetName;
   if ( currentIndex != 0 )
@@ -468,10 +471,10 @@ void QgsLayoutMapWidget::aboutToShowBookmarkMenu()
   if ( !mBookmarkModel )
     mBookmarkModel = new QgsBookmarkManagerProxyModel( QgsApplication::bookmarkManager(), QgsProject::instance()->bookmarkManager(), this );
 
-  QMap<QString, QMenu *> groupMenus;
+  QMap< QString, QMenu * > groupMenus;
   for ( int i = 0; i < mBookmarkModel->rowCount(); ++i )
   {
-    const QString group = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast<int>( QgsBookmarkManagerModel::CustomRole::Group ) ).toString();
+    const QString group = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Group ) ).toString();
     QMenu *destMenu = mBookmarkMenu;
     if ( !group.isEmpty() )
     {
@@ -479,12 +482,13 @@ void QgsLayoutMapWidget::aboutToShowBookmarkMenu()
       if ( !destMenu )
       {
         destMenu = new QMenu( group, mBookmarkMenu );
-        groupMenus[group] = destMenu;
+        groupMenus[ group ] = destMenu;
       }
     }
-    QAction *action = new QAction( mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast<int>( QgsBookmarkManagerModel::CustomRole::Name ) ).toString(), mBookmarkMenu );
-    const QgsReferencedRectangle extent = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast<int>( QgsBookmarkManagerModel::CustomRole::Extent ) ).value<QgsReferencedRectangle>();
-    connect( action, &QAction::triggered, this, [=] {
+    QAction *action = new QAction( mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Name ) ).toString(), mBookmarkMenu );
+    const QgsReferencedRectangle extent = mBookmarkModel->data( mBookmarkModel->index( i, 0 ), static_cast< int >( QgsBookmarkManagerModel::CustomRole::Extent ) ).value< QgsReferencedRectangle >();
+    connect( action, &QAction::triggered, this, [ = ]
+    {
       if ( !mMapItem )
       {
         return;
@@ -588,10 +592,10 @@ void QgsLayoutMapWidget::updateZRange()
   mMapItem->layout()->undoStack()->beginCommand( mMapItem, tr( "Set Z Range" ) );
   double zLower = mZLowerSpin->value();
   if ( zLower == mZLowerSpin->clearValue() )
-    zLower = std::numeric_limits<double>::lowest();
+    zLower = std::numeric_limits< double >::lowest();
   double zUpper = mZUpperSpin->value();
   if ( zUpper == mZUpperSpin->clearValue() )
-    zUpper = std::numeric_limits<double>::max();
+    zUpper = std::numeric_limits< double >::max();
 
   mMapItem->setZRange( QgsDoubleRange( zLower, zUpper ) );
   mMapItem->layout()->undoStack()->endCommand();
@@ -774,7 +778,8 @@ void QgsLayoutMapWidget::setToMapCanvasExtent()
   {
     try
     {
-      QgsCoordinateTransform xForm( mMapCanvas->mapSettings().destinationCrs(), mMapItem->crs(), QgsProject::instance() );
+      QgsCoordinateTransform xForm( mMapCanvas->mapSettings().destinationCrs(),
+                                    mMapItem->crs(), QgsProject::instance() );
       xForm.setBallparkTransformsAreAppropriate( true );
       newExtent = xForm.transformBoundingBox( newExtent );
     }
@@ -906,8 +911,7 @@ void QgsLayoutMapWidget::updateGuiElements()
 
   // follow preset checkbox
   mFollowVisibilityPresetCheckBox->setCheckState(
-    mMapItem->followVisibilityPreset() ? Qt::Checked : Qt::Unchecked
-  );
+    mMapItem->followVisibilityPreset() ? Qt::Checked : Qt::Unchecked );
   const int presetModelIndex = mFollowVisibilityPresetCombo->findText( mMapItem->followVisibilityPresetName() );
   mFollowVisibilityPresetCombo->setCurrentIndex( presetModelIndex != -1 ? presetModelIndex : 0 ); // 0 == none
 
@@ -968,11 +972,11 @@ void QgsLayoutMapWidget::updateGuiElements()
 
   whileBlocking( mElevationRangeCheckBox )->setChecked( mMapItem->zRangeEnabled() );
   mElevationRangeCheckBox->setCollapsed( !mMapItem->zRangeEnabled() );
-  if ( mMapItem->zRange().lower() != std::numeric_limits<double>::lowest() )
+  if ( mMapItem->zRange().lower() != std::numeric_limits< double >::lowest() )
     whileBlocking( mZLowerSpin )->setValue( mMapItem->zRange().lower() );
   else
     whileBlocking( mZLowerSpin )->clear();
-  if ( mMapItem->zRange().upper() != std::numeric_limits<double>::max() )
+  if ( mMapItem->zRange().upper() != std::numeric_limits< double >::max() )
     whileBlocking( mZUpperSpin )->setValue( mMapItem->zRange().upper() );
   else
     whileBlocking( mZUpperSpin )->clear();
@@ -1119,7 +1123,7 @@ void QgsLayoutMapWidget::mKeepLayerListCheckBox_stateChanged( int state )
   mMapItem->setKeepLayerSet( state == Qt::Checked );
   if ( state == Qt::Unchecked )
   {
-    mMapItem->setLayers( QList<QgsMapLayer *>() );
+    mMapItem->setLayers( QList< QgsMapLayer * >() );
   }
   mMapItem->layout()->undoStack()->endCommand();
 
@@ -1194,7 +1198,7 @@ void QgsLayoutMapWidget::atlasLayerChanged( QgsVectorLayer *layer )
 bool QgsLayoutMapWidget::hasPredefinedScales() const
 {
   // first look at project's scales
-  const QVector<double> scales( QgsProject::instance()->viewSettings()->mapScales() );
+  const QVector< double > scales( QgsProject::instance()->viewSettings()->mapScales() );
   const bool hasProjectScales( QgsProject::instance()->viewSettings()->useProjectScales() );
   if ( !hasProjectScales || scales.isEmpty() )
   {
@@ -1258,10 +1262,10 @@ void QgsLayoutMapWidget::mCopyGridPushButton_clicked()
   }
   int i = 0;
   QString itemName = tr( "%1 - Copy" ).arg( sourceGrid->name() );
-  QList<QgsLayoutItemMapGrid *> grids = mMapItem->grids()->asList();
+  QList< QgsLayoutItemMapGrid * > grids = mMapItem->grids()->asList();
   while ( true )
   {
-    const auto it = std::find_if( grids.begin(), grids.end(), [&itemName]( const QgsLayoutItemMapGrid *grd ) { return grd->name() == itemName; } );
+    const auto it = std::find_if( grids.begin(), grids.end(), [&itemName]( const QgsLayoutItemMapGrid * grd ) { return grd->name() == itemName; } );
     if ( it != grids.end() )
     {
       i++;
@@ -1345,7 +1349,7 @@ QgsLayoutItemMapGrid *QgsLayoutMapWidget::currentGrid()
 
 void QgsLayoutMapWidget::mGridListWidget_currentItemChanged( QListWidgetItem *current, QListWidgetItem * )
 {
-  mGridPropertiesButton->setEnabled( static_cast<bool>( current ) );
+  mGridPropertiesButton->setEnabled( static_cast< bool >( current ) );
 }
 
 void QgsLayoutMapWidget::mGridListWidget_itemChanged( QListWidgetItem *item )
@@ -1409,8 +1413,8 @@ void QgsLayoutMapWidget::loadGridEntries()
     return;
   }
   //load all composer grids into list widget
-  const QList<QgsLayoutItemMapGrid *> grids = mMapItem->grids()->asList();
-  QList<QgsLayoutItemMapGrid *>::const_iterator gridIt = grids.constBegin();
+  const QList< QgsLayoutItemMapGrid * > grids = mMapItem->grids()->asList();
+  QList< QgsLayoutItemMapGrid * >::const_iterator gridIt = grids.constBegin();
   for ( ; gridIt != grids.constEnd(); ++gridIt )
   {
     QListWidgetItem *item = addGridListItem( ( *gridIt )->id(), ( *gridIt )->name() );
@@ -1573,7 +1577,7 @@ void QgsLayoutMapWidget::setOverviewItemsEnabled( bool enabled )
   mOverviewCenterCheckbox->setEnabled( enabled );
   mOverviewPositionComboBox->setEnabled( enabled );
 
-  const QgsLayoutItemMapItem::StackingPosition currentStackingPos = static_cast<QgsLayoutItemMapItem::StackingPosition>( mOverviewPositionComboBox->currentData().toInt() );
+  const QgsLayoutItemMapItem::StackingPosition currentStackingPos = static_cast< QgsLayoutItemMapItem::StackingPosition >( mOverviewPositionComboBox->currentData().toInt() );
   mOverviewStackingLayerComboBox->setEnabled( enabled && ( currentStackingPos == QgsLayoutItemMapItem::StackAboveMapLayer || currentStackingPos == QgsLayoutItemMapItem::StackBelowMapLayer ) );
 }
 
@@ -1612,7 +1616,8 @@ void QgsLayoutMapWidget::setOverviewItems( QgsLayoutItemMapOverview *overview )
 
   mOverviewPositionComboBox->setCurrentIndex( mOverviewPositionComboBox->findData( overview->stackingPosition() ) );
   mOverviewStackingLayerComboBox->setLayer( overview->stackingLayer() );
-  mOverviewStackingLayerComboBox->setEnabled( mOverviewPositionComboBox->isEnabled() && ( overview->stackingPosition() == QgsLayoutItemMapItem::StackAboveMapLayer || overview->stackingPosition() == QgsLayoutItemMapItem::StackBelowMapLayer ) );
+  mOverviewStackingLayerComboBox->setEnabled( mOverviewPositionComboBox->isEnabled() && ( overview->stackingPosition() == QgsLayoutItemMapItem::StackAboveMapLayer
+      || overview->stackingPosition() == QgsLayoutItemMapItem::StackBelowMapLayer ) );
 
   mOverviewFrameStyleButton->setSymbol( overview->frameSymbol()->clone() );
 
@@ -1678,11 +1683,11 @@ void QgsLayoutMapWidget::loadOverviewEntries()
     return;
   }
 
-  mOverviewFrameMapComboBox->setExceptedItemList( QList<QgsLayoutItem *>() << mMapItem );
+  mOverviewFrameMapComboBox->setExceptedItemList( QList< QgsLayoutItem * >() << mMapItem );
 
   //load all composer overviews into list widget
-  const QList<QgsLayoutItemMapOverview *> overviews = mMapItem->overviews()->asList();
-  QList<QgsLayoutItemMapOverview *>::const_iterator overviewIt = overviews.constBegin();
+  const QList< QgsLayoutItemMapOverview * > overviews = mMapItem->overviews()->asList();
+  QList< QgsLayoutItemMapOverview * >::const_iterator overviewIt = overviews.constBegin();
   for ( ; overviewIt != overviews.constEnd(); ++overviewIt )
   {
     QListWidgetItem *item = addOverviewListItem( ( *overviewIt )->id(), ( *overviewIt )->name() );
@@ -1725,7 +1730,7 @@ void QgsLayoutMapWidget::overviewMapChanged( QgsLayoutItem *item )
     return;
   }
 
-  QgsLayoutItemMap *map = dynamic_cast<QgsLayoutItemMap *>( item );
+  QgsLayoutItemMap *map = dynamic_cast< QgsLayoutItemMap * >( item );
   if ( !map )
     return;
 
@@ -1787,7 +1792,7 @@ void QgsLayoutMapWidget::overviewStackingChanged( int )
   }
 
   mMapItem->beginCommand( tr( "Change Overview Position" ) );
-  overview->setStackingPosition( static_cast<QgsLayoutItemMapItem::StackingPosition>( mOverviewPositionComboBox->currentData().toInt() ) );
+  overview->setStackingPosition( static_cast< QgsLayoutItemMapItem::StackingPosition >( mOverviewPositionComboBox->currentData().toInt() ) );
   mMapItem->invalidateCache();
   mMapItem->endCommand();
 
@@ -1838,7 +1843,7 @@ QgsLayoutMapLabelingWidget::QgsLayoutMapLabelingWidget( QgsLayoutItemMap *map )
   mLabelBoundaryUnitsCombo->setConverter( &mMapItem->layout()->renderContext().measurementConverter() );
 
   connect( mLabelBoundaryUnitsCombo, &QgsLayoutUnitsComboBox::unitChanged, this, &QgsLayoutMapLabelingWidget::labelMarginUnitsChanged );
-  connect( mLabelBoundarySpinBox, static_cast<void ( QDoubleSpinBox::* )( double )>( &QDoubleSpinBox::valueChanged ), this, &QgsLayoutMapLabelingWidget::labelMarginChanged );
+  connect( mLabelBoundarySpinBox, static_cast < void ( QDoubleSpinBox::* )( double ) > ( &QDoubleSpinBox::valueChanged ), this, &QgsLayoutMapLabelingWidget::labelMarginChanged );
   connect( mShowPartialLabelsCheckBox, &QCheckBox::toggled, this, &QgsLayoutMapLabelingWidget::showPartialsToggled );
   connect( mShowUnplacedCheckBox, &QCheckBox::toggled, this, &QgsLayoutMapLabelingWidget::showUnplacedToggled );
 
@@ -1857,7 +1862,7 @@ bool QgsLayoutMapLabelingWidget::setNewItem( QgsLayoutItem *item )
     disconnect( mMapItem, &QgsLayoutObject::changed, this, &QgsLayoutMapLabelingWidget::updateGuiElements );
   }
 
-  mMapItem = qobject_cast<QgsLayoutItemMap *>( item );
+  mMapItem = qobject_cast< QgsLayoutItemMap * >( item );
 
   if ( mMapItem )
   {
@@ -2023,9 +2028,9 @@ Qt::ItemFlags QgsLayoutMapItemBlocksLabelsModel::flags( const QModelIndex &index
 {
   Qt::ItemFlags flags = QSortFilterProxyModel::flags( index );
 
-  if ( !index.isValid() )
+  if ( ! index.isValid() )
   {
-    return flags;
+    return flags ;
   }
 
   switch ( index.column() )
@@ -2049,6 +2054,7 @@ bool QgsLayoutMapItemBlocksLabelsModel::filterAcceptsRow( int source_row, const 
 }
 
 
+
 //
 // QgsLayoutMapClippingWidget
 //
@@ -2064,14 +2070,17 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
   mLayerModel->setItemsCheckable( true );
   mLayersTreeView->setModel( mLayerModel );
 
-  mAtlasClippingTypeComboBox->addItem( tr( "Clip During Render Only" ), static_cast<int>( QgsMapClippingRegion::FeatureClippingType::ClipPainterOnly ) );
-  mAtlasClippingTypeComboBox->addItem( tr( "Clip Feature Before Render" ), static_cast<int>( QgsMapClippingRegion::FeatureClippingType::ClipToIntersection ) );
-  mAtlasClippingTypeComboBox->addItem( tr( "Render Intersecting Features Unchanged" ), static_cast<int>( QgsMapClippingRegion::FeatureClippingType::NoClipping ) );
+  mClippingTypeComboBox->addItem( tr( "Clip During Render Only" ), static_cast< int >( QgsMapClippingRegion::FeatureClippingType::ClipPainterOnly ) );
+  mClippingTypeComboBox->addItem( tr( "Clip Feature Before Render" ), static_cast< int >( QgsMapClippingRegion::FeatureClippingType::ClipToIntersection ) );
+  mClippingTypeComboBox->addItem( tr( "Render Intersecting Features Unchanged" ), static_cast< int >( QgsMapClippingRegion::FeatureClippingType::NoClipping ) );
 
-  for ( int i = 0; i < mAtlasClippingTypeComboBox->count(); ++i )
-  {
-    mItemClippingTypeComboBox->addItem( mAtlasClippingTypeComboBox->itemText( i ), mAtlasClippingTypeComboBox->itemData( i ) );
-  }
+  if ( QgsLayoutItemMapClippingSettings* clipSettings = map->mapClippingSettings() )
+    mClipGeometryEdit->setText( clipSettings ->geometryExpression() );
+
+  connect( mClipGeometryEdit, &QLineEdit::editingFinished, this, &QgsLayoutMapClippingWidget::clipGeometryEdit_editingFinished );
+  connect( mClipGeometryExpressionButton, &QToolButton::clicked, this, &QgsLayoutMapClippingWidget::mGeometryExpressionButton_clicked );
+
+
 
   mClipItemComboBox->setCurrentLayout( map->layout() );
   mClipItemComboBox->setItemFlags( QgsLayoutItem::FlagProvidesClipPath );
@@ -2083,37 +2092,41 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
   mInvertSelectionButton->setEnabled( false );
   mRadioClipAllLayers->setChecked( true );
 
-  connect( mClipToAtlasCheckBox, &QGroupBox::toggled, this, [=]( bool active ) {
+  connect( mClipToAtlasCheckBox, &QGroupBox::toggled, this, [ = ]( bool active )
+  {
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Toggle Atlas Clipping" ) );
-      mMapItem->atlasClippingSettings()->setEnabled( active );
+      mMapItem->mapClippingSettings()->setAtlasEnabled( active );
       mMapItem->endCommand();
     }
   } );
-  connect( mForceLabelsInsideCheckBox, &QCheckBox::toggled, this, [=]( bool active ) {
+  connect( mForceLabelsInsideCheckBox, &QCheckBox::toggled, this, [ = ]( bool active )
+  {
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Change Atlas Clipping Label Behavior" ) );
-      mMapItem->atlasClippingSettings()->setForceLabelsInsideFeature( active );
+      mMapItem->mapClippingSettings()->setForceLabelsInsideFeature( active );
       mMapItem->endCommand();
     }
   } );
-  connect( mAtlasClippingTypeComboBox, qOverload<int>( &QComboBox::currentIndexChanged ), this, [=] {
+  connect( mClippingTypeComboBox, qOverload<int>( &QComboBox::currentIndexChanged ), this, [ = ]
+  {
     if ( !mBlockUpdates )
     {
-      mMapItem->beginCommand( tr( "Change Atlas Clipping Behavior" ) );
-      mMapItem->atlasClippingSettings()->setFeatureClippingType( static_cast<QgsMapClippingRegion::FeatureClippingType>( mAtlasClippingTypeComboBox->currentData().toInt() ) );
+      mMapItem->beginCommand( tr( "Change Clipping Behavior" ) );
+      mMapItem->mapClippingSettings()->setFeatureClippingType( static_cast< QgsMapClippingRegion::FeatureClippingType >( mClippingTypeComboBox->currentData().toInt() ) );
       mMapItem->endCommand();
     }
   } );
 
-  connect( mRadioClipSelectedLayers, &QCheckBox::toggled, this, [=]( bool active ) {
+  connect( mRadioClipSelectedLayers, &QCheckBox::toggled, this, [ = ]( bool active )
+  {
     if ( active && !mBlockUpdates )
     {
       mBlockUpdates = true;
       mMapItem->beginCommand( tr( "Change Atlas Clipping Layers" ) );
-      mMapItem->atlasClippingSettings()->setRestrictToLayers( true );
+      mMapItem->mapClippingSettings()->setRestrictToLayers( true );
       mMapItem->endCommand();
       mBlockUpdates = false;
     }
@@ -2123,17 +2136,19 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
   connect( mDeselectAllButton, &QPushButton::clicked, this, &QgsLayoutMapClippingWidget::deselectAll );
   connect( mInvertSelectionButton, &QPushButton::clicked, this, &QgsLayoutMapClippingWidget::invertSelection );
 
-  connect( mRadioClipAllLayers, &QCheckBox::toggled, this, [=]( bool active ) {
+  connect( mRadioClipAllLayers, &QCheckBox::toggled, this, [ = ]( bool active )
+  {
     if ( active && !mBlockUpdates )
     {
       mBlockUpdates = true;
       mMapItem->beginCommand( tr( "Change Atlas Clipping Layers" ) );
-      mMapItem->atlasClippingSettings()->setRestrictToLayers( false );
+      mMapItem->mapClippingSettings()->setRestrictToLayers( false );
       mMapItem->endCommand();
       mBlockUpdates = false;
     }
   } );
-  connect( mLayerModel, &QgsMapLayerModel::dataChanged, this, [=]( const QModelIndex &, const QModelIndex &, const QVector<int> &roles = QVector<int>() ) {
+  connect( mLayerModel, &QgsMapLayerModel::dataChanged, this, [ = ]( const QModelIndex &, const QModelIndex &, const QVector<int> &roles = QVector<int>() )
+  {
     if ( !roles.contains( Qt::CheckStateRole ) )
       return;
 
@@ -2141,7 +2156,7 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
     {
       mBlockUpdates = true;
       mMapItem->beginCommand( tr( "Change Atlas Clipping Layers" ) );
-      mMapItem->atlasClippingSettings()->setLayersToClip( mLayerModel->layersChecked() );
+      mMapItem->mapClippingSettings()->setLayersToClip( mLayerModel->layersChecked() );
       mMapItem->endCommand();
       mBlockUpdates = false;
     }
@@ -2149,42 +2164,29 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
 
   // item clipping widgets
 
-  connect( mClipToItemCheckBox, &QGroupBox::toggled, this, [=]( bool active ) {
+  connect( mClipToItemCheckBox, &QGroupBox::toggled, this, [ = ]( bool active )
+  {
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Toggle Map Clipping" ) );
-      mMapItem->itemClippingSettings()->setEnabled( active );
+      mMapItem->mapClippingSettings()->setLayoutItemEnabled( active );
       mMapItem->endCommand();
     }
   } );
-  connect( mItemClippingTypeComboBox, qOverload<int>( &QComboBox::currentIndexChanged ), this, [=] {
-    if ( !mBlockUpdates )
-    {
-      mMapItem->beginCommand( tr( "Change Map Clipping Behavior" ) );
-      mMapItem->itemClippingSettings()->setFeatureClippingType( static_cast<QgsMapClippingRegion::FeatureClippingType>( mItemClippingTypeComboBox->currentData().toInt() ) );
-      mMapItem->endCommand();
-    }
-  } );
-  connect( mForceLabelsInsideItemCheckBox, &QCheckBox::toggled, this, [=]( bool active ) {
-    if ( !mBlockUpdates )
-    {
-      mMapItem->beginCommand( tr( "Change Map Clipping Label Behavior" ) );
-      mMapItem->itemClippingSettings()->setForceLabelsInsideClipPath( active );
-      mMapItem->endCommand();
-    }
-  } );
-  connect( mClipItemComboBox, &QgsLayoutItemComboBox::itemChanged, this, [=]( QgsLayoutItem *item ) {
+  connect( mClipItemComboBox, &QgsLayoutItemComboBox::itemChanged, this, [ = ]( QgsLayoutItem * item )
+  {
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Change Map Clipping Item" ) );
-      mMapItem->itemClippingSettings()->setSourceItem( item );
+      mMapItem->mapClippingSettings()->setSourceItem( item );
       mMapItem->endCommand();
     }
   } );
 
   setNewItem( map );
 
-  connect( &map->layout()->reportContext(), &QgsLayoutReportContext::layerChanged, this, &QgsLayoutMapClippingWidget::atlasLayerChanged );
+  connect( &map->layout()->reportContext(), &QgsLayoutReportContext::layerChanged,
+           this, &QgsLayoutMapClippingWidget::atlasLayerChanged );
   if ( QgsLayoutAtlas *atlas = layoutAtlas() )
   {
     connect( atlas, &QgsLayoutAtlas::toggled, this, &QgsLayoutMapClippingWidget::atlasToggled );
@@ -2195,8 +2197,7 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
 void QgsLayoutMapClippingWidget::setReportTypeString( const QString &string )
 {
   mClipToAtlasCheckBox->setTitle( tr( "Clip to %1 feature" ).arg( string ) );
-  mClipToAtlasLabel->setText( tr( "<b>When enabled, map layers will be automatically clipped to the boundary of the current %1 feature.</b>" ).arg( string ) );
-  mForceLabelsInsideCheckBox->setText( tr( "Force labels inside %1 feature" ).arg( string ) );
+  mForceLabelsInsideCheckBox->setText( tr( "Force labels inside cliping extent" ).arg( string ) );
 }
 
 bool QgsLayoutMapClippingWidget::setNewItem( QgsLayoutItem *item )
@@ -2209,7 +2210,7 @@ bool QgsLayoutMapClippingWidget::setNewItem( QgsLayoutItem *item )
     disconnect( mMapItem, &QgsLayoutObject::changed, this, &QgsLayoutMapClippingWidget::updateGuiElements );
   }
 
-  mMapItem = qobject_cast<QgsLayoutItemMap *>( item );
+  mMapItem = qobject_cast< QgsLayoutItemMap * >( item );
 
   if ( mMapItem )
   {
@@ -2227,18 +2228,16 @@ void QgsLayoutMapClippingWidget::updateGuiElements()
     return;
 
   mBlockUpdates = true;
-  mClipToAtlasCheckBox->setChecked( mMapItem->atlasClippingSettings()->enabled() );
-  mAtlasClippingTypeComboBox->setCurrentIndex( mAtlasClippingTypeComboBox->findData( static_cast<int>( mMapItem->atlasClippingSettings()->featureClippingType() ) ) );
-  mForceLabelsInsideCheckBox->setChecked( mMapItem->atlasClippingSettings()->forceLabelsInsideFeature() );
+  mClipToAtlasCheckBox->setChecked( mMapItem->mapClippingSettings()->atlasEnabled() );
+  mClippingTypeComboBox->setCurrentIndex( mClippingTypeComboBox->findData( static_cast< int >( mMapItem->mapClippingSettings()->featureClippingType() ) ) );
+  mForceLabelsInsideCheckBox->setChecked( mMapItem->mapClippingSettings()->forceLabelsInsideFeature() );
 
-  mRadioClipAllLayers->setChecked( !mMapItem->atlasClippingSettings()->restrictToLayers() );
-  mRadioClipSelectedLayers->setChecked( mMapItem->atlasClippingSettings()->restrictToLayers() );
-  mLayerModel->setLayersChecked( mMapItem->atlasClippingSettings()->layersToClip() );
+  mRadioClipAllLayers->setChecked( !mMapItem->mapClippingSettings()->restrictToLayers() );
+  mRadioClipSelectedLayers->setChecked( mMapItem->mapClippingSettings()->restrictToLayers() );
+  mLayerModel->setLayersChecked( mMapItem->mapClippingSettings()->layersToClip() );
 
-  mClipToItemCheckBox->setChecked( mMapItem->itemClippingSettings()->enabled() );
-  mItemClippingTypeComboBox->setCurrentIndex( mItemClippingTypeComboBox->findData( static_cast<int>( mMapItem->itemClippingSettings()->featureClippingType() ) ) );
-  mForceLabelsInsideItemCheckBox->setChecked( mMapItem->itemClippingSettings()->forceLabelsInsideClipPath() );
-  mClipItemComboBox->setItem( mMapItem->itemClippingSettings()->sourceItem() );
+  mClipToItemCheckBox->setChecked( mMapItem->mapClippingSettings()->layoutItemEnabled() );
+  mClipItemComboBox->setItem( mMapItem->mapClippingSettings()->sourceItem() );
 
   mBlockUpdates = false;
 }
@@ -2260,7 +2259,8 @@ void QgsLayoutMapClippingWidget::atlasLayerChanged( QgsVectorLayer *layer )
 
 void QgsLayoutMapClippingWidget::atlasToggled( bool atlasEnabled )
 {
-  if ( atlasEnabled && mMapItem && mMapItem->layout() && mMapItem->layout()->reportContext().layer()
+  if ( atlasEnabled &&
+       mMapItem && mMapItem->layout() && mMapItem->layout()->reportContext().layer()
        && mMapItem->layout()->reportContext().layer()->geometryType() == Qgis::GeometryType::Polygon )
   {
     mClipToAtlasCheckBox->setEnabled( true );
@@ -2308,3 +2308,33 @@ void QgsLayoutMapClippingWidget::toggleLayersSelectionGui( bool toggled )
   mDeselectAllButton->setEnabled( toggled );
   mInvertSelectionButton->setEnabled( toggled );
 }
+
+void QgsLayoutMapClippingWidget::mGeometryExpressionButton_clicked()
+{
+  QgsLayout * layout = mMapItem->layout();
+  if ( !layout || !layoutAtlas() || !layoutAtlas()->coverageLayer() )
+  {
+    return;
+  }
+
+  const QgsExpressionContext context = layout->createExpressionContext();
+  QgsExpressionBuilderDialog exprDlg( layoutAtlas()->coverageLayer(), mClipGeometryEdit->text(), this, QStringLiteral( "generic" ), context );
+  exprDlg.setWindowTitle( tr( "Expression Based Clipping Geometry" ) );
+
+  if ( exprDlg.exec() == QDialog::Accepted )
+  {
+    const QString expression = exprDlg.expressionText();
+    mClipGeometryEdit->setText( expression );
+    mMapItem->refresh();
+  }
+}
+
+  void QgsLayoutMapClippingWidget::clipGeometryEdit_editingFinished()
+  {
+    if (  mMapItem->mapClippingSettings() )
+    {
+      mMapItem->mapClippingSettings()->setGeometryExpression( mClipGeometryEdit->text() );
+      mMapItem ->refresh();
+    }
+
+  }

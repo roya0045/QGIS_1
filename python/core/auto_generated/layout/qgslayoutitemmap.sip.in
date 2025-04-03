@@ -137,6 +137,9 @@ DOM node corresponding to a 'LayoutMap' tag.
 .. seealso:: :py:func:`writeXml`
 %End
 
+    void finalizeRestoreFromXml();
+
+
   signals:
 
     void changed();
@@ -293,11 +296,242 @@ To be called after all pending items have been restored from XML.
 .. seealso:: :py:func:`readXml`
 %End
 
+
   signals:
 
     void changed();
 %Docstring
 Emitted when the item clipping settings are changed.
+%End
+
+};
+
+class QgsLayoutItemMapClippingSettings : QObject
+{
+%Docstring(signature="appended")
+Contains settings relating to clipping a layout map , replacing :py:class:`QgsLayoutItemMapItemClipPathSettings` & :py:class:`QgsLayoutItemMapAtlasClippingSettings`, offering a unified class to handle clipping.
+
+.. versionadded:: 3.44
+%End
+
+%TypeHeaderCode
+#include "qgslayoutitemmap.h"
+%End
+  public:
+
+    QgsGeometry clippedMapExtent() const;
+%Docstring
+Returns the geometry to use for clipping the parent map, in the map item's CRS.
+
+.. seealso:: :py:func:`clipPathInMapItemCoordinates`
+%End
+
+    QgsGeometry clipPathInMapItemCoordinates() const;
+%Docstring
+Returns the clipping path geometry, in the map item's coordinate space.
+
+.. warning::
+
+   The return path is not in geographic coordinates, rather the map
+   layout item's QGraphicsItem coordinate space. Use :py:func:`~QgsLayoutItemMapClippingSettings.clippedMapExtent` to retrieve
+   the clip path in the map's CRS.
+
+.. seealso:: :py:func:`clippedMapExtent`
+%End
+
+    QgsMapClippingRegion toMapClippingRegion() const;
+%Docstring
+Returns the clip path as a map clipping region.
+%End
+
+
+    void setSourceItem( QgsLayoutItem *item );
+%Docstring
+Sets the source ``item`` which will provide the clipping path for the map.
+
+The specified ``item`` must return the :py:class:`QgsLayoutItem`.FlagProvidesClipPath flag.
+
+.. seealso:: :py:func:`sourceItem`
+%End
+
+    QgsLayoutItem *sourceItem();
+%Docstring
+Returns the source item which will provide the clipping path for the map, or ``None``
+if no item is set.
+
+.. seealso:: :py:func:`setSourceItem`
+%End
+
+    QgsLayoutItemMapClippingSettings( QgsLayoutItemMap *map /TransferThis/ = 0 );
+%Docstring
+Constructor for :py:class:`QgsLayoutItemMapAtlasClippingSettings`, with the specified ``map`` parent.
+%End
+
+    void importLegacySettings( QgsLayoutItemMapAtlasClippingSettings * mAtlasClip, QgsLayoutItemMapItemClipPathSettings * layoutItemClip );
+%Docstring
+Import settings by importing settings from the two classes.
+
+.. versionadded:: 3.44
+%End
+
+    QgsLayoutItemMapClippingSettings( QgsLayoutItemMapAtlasClippingSettings * mAtlasClip );
+%Docstring
+Constructor/conversion utility class.
+%End
+
+    QgsLayoutItemMapClippingSettings( QgsLayoutItemMapItemClipPathSettings * layoutItemClip );
+%Docstring
+Constructor/conversion utility class.
+%End
+
+    bool atlasEnabled() const;
+%Docstring
+Returns ``True`` if the map content should be clipped to the current atlas feature.
+
+.. seealso:: :py:func:`setEnabled`
+%End
+
+    void setAtlasEnabled( bool enabled );
+%Docstring
+Sets whether the map content should be clipped to the current atlas feature.
+
+.. seealso:: :py:func:`enabled`
+%End
+
+    bool layoutItemEnabled() const;
+%Docstring
+Returns ``True`` if the map content should be clipped to the current atlas feature.
+
+.. seealso:: :py:func:`setEnabled`
+%End
+
+    void setLayoutItemEnabled( bool enabled );
+%Docstring
+Sets whether the map content should be clipped to the current atlas feature.
+
+.. seealso:: :py:func:`enabled`
+%End
+
+    bool isActive() const;
+%Docstring
+Returns ``True`` if the atlas clipping mode or the layout item clipping mode are enabled.
+%End
+
+    QgsMapClippingRegion::FeatureClippingType featureClippingType() const;
+%Docstring
+Returns the feature clipping type to apply when clipping to the current atlas feature.
+
+.. seealso:: :py:func:`setFeatureClippingType`
+%End
+
+    void setFeatureClippingType( QgsMapClippingRegion::FeatureClippingType type );
+%Docstring
+Sets the feature clipping ``type`` to apply when clipping to the current atlas feature.
+
+.. seealso:: :py:func:`featureClippingType`
+%End
+
+    bool forceLabelsInsideFeature() const;
+%Docstring
+Returns ``True`` if labels should only be placed inside the atlas feature geometry.
+
+.. seealso:: :py:func:`setForceLabelsInsideFeature`
+%End
+
+    void setForceLabelsInsideFeature( bool forceInside );
+%Docstring
+Sets whether labels should only be placed inside the atlas feature geometry.
+
+.. seealso:: :py:func:`forceLabelsInsideFeature`
+%End
+
+    bool restrictToLayers() const;
+%Docstring
+Returns ``True`` if clipping should be restricted to a subset of layers.
+
+.. seealso:: :py:func:`layersToClip`
+
+.. seealso:: :py:func:`setRestrictToLayers`
+%End
+
+    void setRestrictToLayers( bool enabled );
+%Docstring
+Sets whether clipping should be restricted to a subset of layers.
+
+.. seealso:: :py:func:`setLayersToClip`
+
+.. seealso:: :py:func:`restrictToLayers`
+%End
+
+    QList< QgsMapLayer * > layersToClip() const;
+%Docstring
+Returns the list of map layers to clip to the atlas feature.
+
+.. note::
+
+   This setting is only used if :py:func:`~QgsLayoutItemMapClippingSettings.restrictToLayers` is ``True``.
+
+.. seealso:: :py:func:`restrictToLayers`
+
+.. seealso:: :py:func:`setLayersToClip`
+%End
+
+    void setLayersToClip( const QList< QgsMapLayer * > &layers );
+%Docstring
+Sets the list of map ``layers`` to clip to the atlas feature.
+
+.. note::
+
+   This setting is only used if :py:func:`~QgsLayoutItemMapClippingSettings.restrictToLayers` is ``True``.
+
+.. seealso:: :py:func:`restrictToLayers`
+
+.. seealso:: :py:func:`layersToClip`
+%End
+
+    bool writeXml( QDomElement &element, QDomDocument &document, const QgsReadWriteContext &context ) const;
+%Docstring
+Stores settings in a DOM element, where ``element`` is the DOM element
+corresponding to a 'LayoutMap' tag.
+
+.. seealso:: :py:func:`readXml`
+%End
+
+    bool readXml( const QDomElement &element, const QDomDocument &doc, const QgsReadWriteContext &context );
+%Docstring
+Sets the setting's state from a DOM document, where ``element`` is the DOM
+node corresponding to a 'LayoutMap' tag.
+
+.. seealso:: :py:func:`writeXml`
+%End
+
+    void finalizeRestoreFromXml();
+%Docstring
+To be called after all pending items have been restored from XML.
+
+.. seealso:: :py:func:`readXml`
+%End
+
+    void setGeometryExpression( QString expression );
+%Docstring
+Sets a geometry expression to define the area to be clipped. Override the atlas geometry used to perform the clipping.
+
+.. versionadded:: 3.44
+%End
+
+    QString geometryExpression();
+%Docstring
+Returns the geometry expression used to perform the clipping by the atlas.
+
+.. versionadded:: 3.44
+%End
+
+
+  signals:
+
+    void changed();
+%Docstring
+Emitted when the atlas clipping settings are changed.
 %End
 
 };
@@ -384,7 +618,7 @@ The caller takes responsibility for deleting the returned object.
     virtual void paint( QPainter *painter, const QStyleOptionGraphicsItem *itemStyle, QWidget *pWidget );
 
 
- virtual int numberExportLayers() const /Deprecated="Since 3.10. "/;
+ virtual int numberExportLayers() const /Deprecated/;
 
 %Docstring
 .. deprecated:: 3.10
@@ -974,14 +1208,21 @@ Removes a previously added rendered feature ``handler``.
 Creates a transform from layout coordinates to map coordinates.
 %End
 
-    QgsLayoutItemMapAtlasClippingSettings *atlasClippingSettings();
+    QgsLayoutItemMapClippingSettings *atlasClippingSettings();
 %Docstring
 Returns the map's atlas clipping settings.
 
 .. versionadded:: 3.16
 %End
 
-    QgsLayoutItemMapItemClipPathSettings *itemClippingSettings();
+    QgsLayoutItemMapClippingSettings *itemClippingSettings();
+%Docstring
+Returns the map's item based clip path settings.
+
+.. versionadded:: 3.16
+%End
+
+    QgsLayoutItemMapClippingSettings *mapClippingSettings();
 %Docstring
 Returns the map's item based clip path settings.
 
@@ -1045,6 +1286,14 @@ only display features within the specified z range.
     virtual double estimatedFrameBleed() const;
 
 
+    QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
+%Docstring
+Returns the current geometry ( from the source layer or data-defined ) in the provided crs.
+
+.. versionadded:: 3.32
+%End
+    QStringList mExportThemes;
+    QStringList::iterator mExportThemeIt;
   protected:
 
     virtual void draw( QgsLayoutItemRenderContext &context );
@@ -1139,6 +1388,7 @@ Emitted whenever the item's map preview has been refreshed.
 
 .. versionadded:: 3.20
 %End
+
 
   public slots:
 

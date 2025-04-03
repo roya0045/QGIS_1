@@ -1186,7 +1186,7 @@ void QgsLayoutItemLegend::doUpdateFilterByMap()
     QgsLayerTreeFilterSettings filterSettings( mapSettings );
 
     QList<QgsMapLayer *> layersToClip;
-    if ( !atlasGeometry.isNull() && mMap->atlasClippingSettings()->enabled() )
+    if ( !atlasGeometry.isNull() && mMap->mapClippingSettings()->atlasEnabled() )
     {
       layersToClip = mMap->atlasClippingSettings()->layersToClip();
       for ( QgsMapLayer *layer : std::as_const( layersToClip ) )
