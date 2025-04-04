@@ -3711,7 +3711,7 @@ void QgsLayoutItemMapClippingSettings::setSourceItem( QgsLayoutItem *item )
     disconnect( mClipLayoutItem, &QgsLayoutItem::rotationChanged, mMap, &QgsLayoutItemMap::refresh );
     disconnect( mClipLayoutItem, &QgsLayoutItem::clipPathChanged, mMap, &QgsLayoutItemMap::extentChanged );
     disconnect( mClipLayoutItem, &QgsLayoutItem::rotationChanged, mMap, &QgsLayoutItemMap::extentChanged );
-    disconnect( mClipLayoutItem, &QgsLayouytItem::itemWillBeDeleted, this, &QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved );
+    disconnect( mClipLayoutItem, &QgsLayoutItem::itemWillBeDeleted, this, &QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved );
   }
 
   QgsLayoutItem *oldItem = mClipLayoutItem;
@@ -3725,7 +3725,7 @@ void QgsLayoutItemMapClippingSettings::setSourceItem( QgsLayoutItem *item )
     // and if clip item size or rotation changes, then effectively we've changed the visible extent of the map
     connect( mClipLayoutItem, &QgsLayoutItem::clipPathChanged, mMap, &QgsLayoutItemMap::extentChanged );
     connect( mClipLayoutItem, &QgsLayoutItem::rotationChanged, mMap, &QgsLayoutItemMap::extentChanged );
-    connect( mClipLayoutItem, &QgsLayouytItem::itemWillBeDeleted, this, &QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved );
+    connect( mClipLayoutItem, &QgsLayoutItem::itemWillBeDeleted, this, &QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved );
     // trigger a redraw of the clip source, so that it becomes invisible
     mClipLayoutItem->refresh();
   }
@@ -3743,7 +3743,7 @@ void QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved()
 {
   mClipToLayoutItem = false;
   mClipLayoutItem = nullptr;
-  mClipLayoutItemUui = QString();
+  mClipLayoutItemUuid = QString();
 }
 
 QgsLayoutItem *QgsLayoutItemMapClippingSettings::sourceItem()
