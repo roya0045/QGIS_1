@@ -19,6 +19,7 @@
 #include <QObject>
 #include <QWidget>
 #include "qgslayertreeview.h"
+#include "qgslayertreemodel.h"
 #include "qgsmapthemecollection.h"
 
 class QMimeData;
@@ -70,28 +71,20 @@ class QgsThemeModel : public QgsLayerTreeModel
      * Handle incoming signal to refresh the legend.
      * \since QGIS 3.10
      */
-    void forceRefresh();
+    void resyncTheme();
 
 };
 
 
 class QgsThemeProxy :  public QgsLayerTreeProxyModel
 {
-  Q_OBJECT
-
+    Q_OBJECT
   public:
 
     /**
      * Constructs QgsThemeProxy with source model \a treeModel and a \a parent
      */
     QgsThemeProxy( QgsThemeModel *treeModel, QObject *parent );
-
-
-    /**
-     * Sets a predefined list of layer Ids to process.
-     * \since QGIS 3.26
-     */
-    void setMapTheme( const QgsMapThemeCollection::MapThemeRecord theme, const QMap<QString, QString> styles );
 
     /**
      * Allow non-spatial layers and empty groups to be show.
@@ -104,7 +97,11 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
      * Used to bypass the filtering.
      * \since QGIS 3.26
      */
-    void removeTheme(){ mHasTheme = false; }
+    void removeTheme(){ delete mTheme; }
+
+    void setMapTheme( QgsMapThemeCollection::MapThemeRecord *theme, const QMap<QString, QString> styles );
+
+    QModelIndex mapToSource( const QModelIndex idx ) const;
 
   protected:
 
@@ -114,9 +111,8 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
 
     bool nodeShown( QgsLayerTreeNode *node ) const;
     bool legendNodeShown( QgsLayerTreeModelLegendNode *node ) const;
-    QgsMapThemeCollection::MapThemeRecord mTheme;
+    QgsMapThemeCollection::MapThemeRecord *mTheme = nullptr;
     bool mShowAllNodes = true;
-    bool mHasTheme = false;
     QgsThemeModel *mLayerTreeModel = nullptr;
 };
 
@@ -138,7 +134,7 @@ class QgsThemeViewer :  public QgsLayerTreeView
      * Overridden setModel() from base class.
      * \param model Model used to populate the view. Only QgsLayerTreeModel models are accepted.
      */
-    void setModel( QAbstractItemModel *model ) override;
+    //void setModel( QAbstractItemModel *model ) override;
 
     /**
      * Disconnects the Proxy Model to prevent crash when using a second view on the same model.
@@ -146,7 +142,7 @@ class QgsThemeViewer :  public QgsLayerTreeView
      */
     void disconnectProxyModel();
     //! Overridden setModel() from base class. Only QgsLayerTreeModel is an acceptable model.
-    //void setModel( QAbstractItemModel *model ) override;
+    void setModel( QgsLayerTreeModel *model );
 
     /**
      * Allow non-spatial layers and empty groups to be show.
@@ -168,6 +164,9 @@ class QgsThemeViewer :  public QgsLayerTreeView
      */
     QgsThemeProxy *proxyModel(){ return mProxyModel; }
 
+    void setProxyMapTheme( QgsMapThemeCollection::MapThemeRecord *theme, const QMap<QString, QString> styles );
+    //QgsLayerTreeNode *index2node( const QModelIndex &index ) const;
+    QgsLayerTreeNode *index2node( const QModelIndex &index ) const;
   signals:
 
     //! Used by QgsThemeManagerWidget to trigger the import of layers
@@ -180,6 +179,9 @@ class QgsThemeViewer :  public QgsLayerTreeView
 
   protected:
     void contextMenuEvent( QContextMenuEvent *event ) override;
+
+  protected slots:
+    void onExpandedChanged( QgsLayerTreeNode *node, bool expanded );
 
   private:
 
@@ -194,10 +196,27 @@ class QgsThemeViewer :  public QgsLayerTreeView
 
     //! Prevent any outdrag and loss of layers when attemptint to move or select them.
     void startDrag( Qt::DropActions ) override;
+    QgsThemeModel *mModel = nullptr;
     QgsThemeProxy *mProxyModel = nullptr;
 
 };
 
+class QgsThemeViewerDelegate : public QStyledItemDelegate
+{
+    Q_OBJECT
+  public:
+    explicit QgsThemeViewerDelegate( QgsThemeViewer *parent );
+
+    void paint( QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index ) const override;
+
+    bool helpEvent( QHelpEvent *event, QAbstractItemView *view, const QStyleOptionViewItem &option, const QModelIndex &index ) override;
+
+  private slots:
+    void onClicked( const QModelIndex &index );
+
+  private:
+    QgsThemeViewer *mThemeViewer;
+};
 
 
 #endif // QGSTHEMEVIEWER_H
