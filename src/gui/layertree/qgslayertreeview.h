@@ -418,6 +418,7 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
 
     // friend so it can access viewOptions() method and mLastReleaseMousePos without making them public
     friend class QgsLayerTreeViewItemDelegate;
+    friend class QgsThemeViewer;
 };
 
 
