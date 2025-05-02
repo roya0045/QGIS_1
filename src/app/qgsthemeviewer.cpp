@@ -50,6 +50,34 @@ QgsThemeModel::QgsThemeModel( QgsLayerTree *rootNode )
   connect( this, &QgsThemeModel::dataChanged, this, &QgsThemeModel::resyncTheme );
 }
 
+
+void QgsThemeModel::loadSymbols( QMap< QString, QString > styles )
+{
+  //get current nodes
+  //override = layerStyleOverrides();
+  //QgsMapThemeCollection::mapThemeStyleOverrides( const QString &presetName )
+  //get style nodes easy option 1
+  setLayerStyleOverrides( styles );
+  const QList< QgsLayerTreeLayer * > layers = rootGroup()->findLayers();
+  for ( QgsLayerTreeLayer *layer : layers )
+  {
+    addLegendToLayer( layer );
+  }
+
+  //option 2
+  //mapSettings.reset( new QgsMapSettings( *settings ) );
+  //mapSettings->setLayerStyleOverrides( styles );
+  //layerid
+  //QgsLayerTreeNode newnode = QgsLayerTReeNode();
+  //if ( QgsLayerTree::isGroup( layerNode ) )
+  //{
+   // QgsLayerTree::toGroup( layerNode )->addChildNode( newnode );
+   // return true;
+ //}
+
+}
+
+
 QVariant QgsThemeModel::data( const QModelIndex &index, int role ) const
 {
   // handle custom layer node labels
@@ -74,17 +102,17 @@ Qt::ItemFlags QgsThemeModel::flags( const QModelIndex &index ) const
   return QgsLayerTreeModel::flags( index );
 }
 
-QList<QgsLayerTreeModelLegendNode *> QgsThemeModel::layerLegendNodes( QgsLayerTreeLayer *nodeLayer, bool skipNodeEmbeddedInParent ) const
-{
-  if ( !mLegend.contains( nodeLayer ) )
-    return QList<QgsLayerTreeModelLegendNode *>();
+//QList<QgsLayerTreeModelLegendNode *> QgsThemeModel::layerLegendNodes( QgsLayerTreeLayer *nodeLayer, bool skipNodeEmbeddedInParent ) const
+//{
+//  if ( !mLegend.contains( nodeLayer ) )
+//    return QList<QgsLayerTreeModelLegendNode *>();
 
-  const LayerLegendData &data = mLegend[nodeLayer];
-  QList<QgsLayerTreeModelLegendNode *> lst( data.activeNodes );
-  if ( !skipNodeEmbeddedInParent && data.embeddedNodeInParent )
-    lst.prepend( data.embeddedNodeInParent );
-  return lst;
-}
+//  const LayerLegendData &data = mLegend[nodeLayer];
+//  QList<QgsLayerTreeModelLegendNode *> lst( data.activeNodes );
+//  if ( !skipNodeEmbeddedInParent && data.embeddedNodeInParent )
+//    lst.prepend( data.embeddedNodeInParent );
+//  return lst;
+//}
 
 void QgsThemeModel::clearCachedData( QgsLayerTreeNode *node ) const
 {
@@ -112,12 +140,13 @@ void QgsThemeViewer::setModel( QgsLayerTreeModel *model )
   disconnectProxyModel();
   //connect( mProxyModel, &QAbstractItemModel::rowsInserted, this, &QgsLayerTreeView::modelRowsInserted );
  // connect( mProxyModel, &QAbstractItemModel::rowsRemoved, this, &QgsLayerTreeView::modelRowsRemoved );
-
+  disconnect( this, &QTreeView::collapsed, this, &QgsLayerTreeView::updateExpandedStateToNode );
+  disconnect( this, &QTreeView::expanded, this, &QgsLayerTreeView::updateExpandedStateToNode );
   mProxyModel->setShowPrivateLayers( true );
   QTreeView::setModel( mProxyModel );
   setItemDelegate( new QgsThemeViewerDelegate( this ) );
 
-  //connect( mModel->rootGroup(), &QgsLayerTreeNode::expandedChanged, this, &QgsThemeViewer::onExpandedChanged );
+  connect( mModel->rootGroup(), &QgsLayerTreeNode::expandedChanged, this, &QgsThemeViewer::onExpandedChanged );
   //connect( treeModel->rootGroup(), &QgsLayerTreeNode::customPropertyChanged, this, &QgsThemeViewer::onCustomPropertyChanged );
 
   connect( selectionModel(), &QItemSelectionModel::currentChanged, this, &QgsThemeViewer::onCurrentChanged );
@@ -156,6 +185,14 @@ void QgsThemeViewer::dropEvent( QDropEvent *event )
 {
   if ( event->mimeData()->hasFormat( QStringLiteral( "application/qgis.layertreemodeldata" ) ) )
     emit layersAdded();
+
+}
+
+void QgsLayerTreeView::mouseReleaseEvent( QMouseEvent *event )
+{
+  // we need to keep last mouse position in order to know whether to emit an indicator's clicked() signal
+  // (the item delegate needs to know which indicator has been clicked)
+  mLastReleaseMousePos = event->pos();
 
 }
 
@@ -249,8 +286,9 @@ void QgsThemeProxy::setShowAllNodes( bool show )
 
 void QgsThemeProxy::setMapTheme( QgsMapThemeCollection::MapThemeRecord *theme, const QMap<QString, QString> styles )
 {
-  if ( theme )
+  if ( theme && theme != mTheme )
     mTheme = theme;
+  mLayerTreeModel->loadSymbols( styles );
   // mLayerTreeModel->setLayerStyleOverrides( styles );
   invalidateFilter();
 }

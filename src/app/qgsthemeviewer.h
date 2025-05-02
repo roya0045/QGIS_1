@@ -57,6 +57,8 @@ class QgsThemeModel : public QgsLayerTreeModel
      */
     void clearCachedData( QgsLayerTreeNode *node ) const;
 
+    void loadSymbols( QMap< QString, QString > styles );
+
   signals:
 
     /**
@@ -114,6 +116,7 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
     QgsMapThemeCollection::MapThemeRecord *mTheme = nullptr;
     bool mShowAllNodes = true;
     QgsThemeModel *mLayerTreeModel = nullptr;
+    QgsMapSettings *mapSetting = nullptr;
 };
 
 /**
