@@ -69,10 +69,11 @@ void QgsThemeManagerWidget::projectLoaded()
 {
   mThemeCollection = QgsProject::instance()->mapThemeCollection();
   connect( mThemeCollection, &QgsMapThemeCollection::mapThemesChanged, this, &QgsThemeManagerWidget::populateCombo, Qt::UniqueConnection );
+  connect( mThemeCollection, &QgsMapThemeCollection::mapThemeChanged, this, &QgsThemeManagerWidget::themeChanged, Qt::UniqueConnection );
   QgsLayerTreeModel *mModel = QgisApp::instance()->layerTreeView()->layerTreeModel();
   if ( mThemeViewer && mModel )
   {
-    mThemeViewer->setModel( mModel );
+    mThemeViewer->setModel( mModel, mThemeCollection );
     mThemeViewer->showAllNodes( mShowAllLayers );
     if ( mThemeCollection && mThemeCollection->mapThemes().length() > 0 )
     {
@@ -89,8 +90,8 @@ void QgsThemeManagerWidget::projectLoaded()
 
 void QgsThemeManagerWidget::showWidget()
 {
-  if ( mCurrentTheme.isEmpty() )
-    projectLoaded();
+  //if ( mCurrentTheme.isEmpty() )
+  //  projectLoaded();
 }
 
 void QgsThemeManagerWidget::setTheme( const int index )
@@ -124,6 +125,12 @@ void QgsThemeManagerWidget::removeTheme()
     emit updateComboBox();
   }
 
+}
+
+void QgsThemeManagerWidget::themeChanged( const QString &themeName )
+{
+  if ( themeName == mCurrentTheme )
+    viewCurrentTheme();
 }
 
 void QgsThemeManagerWidget::previousTheme()
@@ -171,9 +178,9 @@ void QgsThemeManagerWidget::viewCurrentTheme() const
 {
   if ( !mThemeCollection->hasMapTheme( mCurrentTheme ) )
     return;
-  QgsMapThemeCollection::MapThemeRecord themeRecord = mThemeCollection->mapThemeState( mCurrentTheme );
+  //QgsMapThemeCollection::MapThemeRecord themeRecord = mThemeCollection->mapThemeState( mCurrentTheme );
   const QMap<QString, QString> themeStyles = mThemeCollection->mapThemeStyleOverrides( mCurrentTheme );
-  mThemeViewer->setProxyMapTheme( &themeRecord, themeStyles );
+  mThemeViewer->setProxyMapTheme( mCurrentTheme, themeStyles );
   mThemeViewer->show();
 }
 

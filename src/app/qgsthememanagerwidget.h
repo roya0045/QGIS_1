@@ -48,7 +48,7 @@ class QgsThemeManagerWidget : public QgsDockWidget, private Ui::QgsThemeManagerW
     /**
      * Used to call viewCurrentTheme
      */
-    void themeChanged();
+    void themesChanged();
 
     /**
      * Used to add layers from the layertree to the theme
@@ -121,6 +121,8 @@ class QgsThemeManagerWidget : public QgsDockWidget, private Ui::QgsThemeManagerW
 
     //! show or hide all non-spatial layers & empty groups, used by context menu.
     void changeVisibility();
+
+    void themeChanged( const QString &themeName );
 
   private:
 

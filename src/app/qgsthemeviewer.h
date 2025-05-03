@@ -86,7 +86,7 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
     /**
      * Constructs QgsThemeProxy with source model \a treeModel and a \a parent
      */
-    QgsThemeProxy( QgsThemeModel *treeModel, QObject *parent );
+    QgsThemeProxy( QgsThemeModel *treeModel, QgsMapThemeCollection * collection, QObject *parent );
 
     /**
      * Allow non-spatial layers and empty groups to be show.
@@ -99,11 +99,17 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
      * Used to bypass the filtering.
      * \since QGIS 3.26
      */
-    void removeTheme(){ delete mTheme; }
+    void removeTheme();//{ mTheme = QgsMapThemeCollection::MapThemeRecord(); }
 
-    void setMapTheme( QgsMapThemeCollection::MapThemeRecord *theme, const QMap<QString, QString> styles );
+    void setMapTheme( QString themeName, const QMap<QString, QString> styles );
 
     QModelIndex mapToSource( const QModelIndex idx ) const;
+
+    QString themeName(){ return mThemeName; }
+
+  public slots:
+    void evalSafe(){ mEvalSafe = true;}
+    void evalUnsafe(){ mEvalSafe = false; }
 
   protected:
 
@@ -113,10 +119,13 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
 
     bool nodeShown( QgsLayerTreeNode *node ) const;
     bool legendNodeShown( QgsLayerTreeModelLegendNode *node ) const;
-    QgsMapThemeCollection::MapThemeRecord *mTheme = nullptr;
+    QString mThemeName;
+    //QgsMapThemeCollection::MapThemeRecord mTheme;// = nullptr;
+    QgsMapThemeCollection * mThemeHolder = nullptr;
     bool mShowAllNodes = true;
     QgsThemeModel *mLayerTreeModel = nullptr;
     QgsMapSettings *mapSetting = nullptr;
+    bool mEvalSafe = true;
 };
 
 /**
@@ -145,7 +154,7 @@ class QgsThemeViewer :  public QgsLayerTreeView
      */
     void disconnectProxyModel();
     //! Overridden setModel() from base class. Only QgsLayerTreeModel is an acceptable model.
-    void setModel( QgsLayerTreeModel *model );
+    void setModel( QgsLayerTreeModel *model, QgsMapThemeCollection *collection );
 
     /**
      * Allow non-spatial layers and empty groups to be show.
@@ -167,7 +176,7 @@ class QgsThemeViewer :  public QgsLayerTreeView
      */
     QgsThemeProxy *proxyModel(){ return mProxyModel; }
 
-    void setProxyMapTheme( QgsMapThemeCollection::MapThemeRecord *theme, const QMap<QString, QString> styles );
+    void setProxyMapTheme( QString themeName, const QMap<QString, QString> styles );
     //QgsLayerTreeNode *index2node( const QModelIndex &index ) const;
     QgsLayerTreeNode *index2node( const QModelIndex &index ) const;
   signals:
@@ -218,7 +227,7 @@ class QgsThemeViewerDelegate : public QStyledItemDelegate
     void onClicked( const QModelIndex &index );
 
   private:
-    QgsThemeViewer *mThemeViewer;
+    QgsThemeViewer *mThemeViewer = nullptr;
 };
 
 
