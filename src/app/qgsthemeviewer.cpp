@@ -132,6 +132,24 @@ QgsThemeViewer::QgsThemeViewer( QWidget *parent )
 
 void QgsThemeViewer::setModel( QgsLayerTreeModel *model, QgsMapThemeCollection *collection )
 {
+  if ( !model )
+  {
+      if ( mProxyModel )
+      {
+        disconnect( mModel->rootGroup(), &QgsLayerTreeNode::expandedChanged, this, &QgsThemeViewer::onExpandedChanged );
+        //disconnect( treeModel->rootGroup(), &QgsLayerTreeNode::customPropertyChanged, this, &QgsThemeViewer::onCustomPropertyChanged );
+
+        disconnect( selectionModel(), &QItemSelectionModel::currentChanged, this, &QgsThemeViewer::onCurrentChanged );
+
+        disconnect( mModel, &QAbstractItemModel::modelReset, this, &QgsThemeViewer::onModelReset );
+
+        disconnect( mModel, &QAbstractItemModel::dataChanged, this, &QgsThemeViewer::onDataChanged );
+        delete mProxyModel;
+        QTreeView::setModel( model ); //QAbstractItemModelPrivate::staticEmptyModel()
+        mProxyModel = nullptr;
+      }
+      return;
+  }
   mModel = new QgsThemeModel( model->rootGroup(), this );
   if ( !mModel )
     return;

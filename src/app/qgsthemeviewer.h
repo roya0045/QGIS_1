@@ -121,7 +121,7 @@ class QgsThemeProxy :  public QgsLayerTreeProxyModel
     bool legendNodeShown( QgsLayerTreeModelLegendNode *node ) const;
     QString mThemeName;
     //QgsMapThemeCollection::MapThemeRecord mTheme;// = nullptr;
-    QgsMapThemeCollection * mThemeHolder = nullptr;
+    QgsMapThemeCollection *mThemeHolder = nullptr;
     bool mShowAllNodes = true;
     QgsThemeModel *mLayerTreeModel = nullptr;
     QgsMapSettings *mapSetting = nullptr;

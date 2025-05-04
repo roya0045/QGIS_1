@@ -124,6 +124,8 @@ class QgsThemeManagerWidget : public QgsDockWidget, private Ui::QgsThemeManagerW
 
     void themeChanged( const QString &themeName );
 
+    void clearViewer();
+
   private:
 
     /**

@@ -51,6 +51,7 @@ QgsThemeManagerWidget::QgsThemeManagerWidget( QWidget *parent )
   setupUi( this );
   connect( this, &QgsDockWidget::opened, this, &QgsThemeManagerWidget::showWidget );
   connect( QgsProject::instance(), &QgsProject::readProject, this, &QgsThemeManagerWidget::projectLoaded );
+  connect( QgsProject::instance(), &QgsProject::aboutToBeCleared, this, &QgsThemeManagerWidget::clearViewer );
   connect( mThemePrev, &QToolButton::clicked, this, &QgsThemeManagerWidget::previousTheme );
   connect( mThemeNext, &QToolButton::clicked, this, &QgsThemeManagerWidget::nextTheme );
   connect( mCreateTheme, &QToolButton::clicked, this, &QgsThemeManagerWidget::createTheme );
@@ -176,12 +177,20 @@ void QgsThemeManagerWidget::updateComboBox()
 
 void QgsThemeManagerWidget::viewCurrentTheme() const
 {
-  if ( !mThemeCollection->hasMapTheme( mCurrentTheme ) )
-    return;
-  //QgsMapThemeCollection::MapThemeRecord themeRecord = mThemeCollection->mapThemeState( mCurrentTheme );
-  const QMap<QString, QString> themeStyles = mThemeCollection->mapThemeStyleOverrides( mCurrentTheme );
-  mThemeViewer->setProxyMapTheme( mCurrentTheme, themeStyles );
-  mThemeViewer->show();
+  if ( mThemeCollection->hasMapTheme( mCurrentTheme ) )
+  {
+    //QgsMapThemeCollection::MapThemeRecord themeRecord = mThemeCollection->mapThemeState( mCurrentTheme );
+    const QMap<QString, QString> themeStyles = mThemeCollection->mapThemeStyleOverrides( mCurrentTheme );
+    mThemeViewer->setProxyMapTheme( mCurrentTheme, themeStyles );
+    mThemeViewer->show();
+  }
+}
+
+void QgsThemeManagerWidget::clearViewer()
+{
+  mThemeList->clear();
+  //QAbstractItemModelPrivate::staticEmptyModel();
+  mThemeViewer->setModel( nullptr, nullptr );
 }
 
 

@@ -265,11 +265,19 @@ void QgsMapThemeCollection::insert( const QString &name, const QgsMapThemeCollec
 
 void QgsMapThemeCollection::update( const QString &name, const MapThemeRecord &state )
 {
+
   if ( !mMapThemes.contains( name ) )
     return;
-
-  mMapThemes[name] = state;
-
+  //QMutex mutex;
+  //mutex.lock();
+  if ( state == mMapThemes[name] )
+  {
+      //mutex.unlock();
+      return;
+  }
+  mMapThemes.remove(name);
+  mMapThemes.insert(name,state);
+  //mutex.unlock();
   reconnectToLayersStyleManager();
   emit mapThemeChanged( name );
   emit mapThemesChanged();
@@ -726,6 +734,36 @@ void QgsMapThemeCollection::MapThemeRecord::setLayerRecords( const QList<QgsMapT
       mLayerRecords.insert( lLayer->id(), layerRec );
   }
 }
+
+QgsMapThemeCollection::MapThemeRecord QgsMapThemeCollection::MapThemeRecord::operator=( const QgsMapThemeCollection::MapThemeRecord &other )
+{
+
+    mLayerRecords.clear();
+    QMap<QString, MapThemeLayerRecord> otherRecords = other.dumpRecords();
+    for (QMap<QString, MapThemeLayerRecord>::const_iterator it = otherRecords.cbegin(), end = otherRecords.cend(); it != end; ++it) {
+        mLayerRecords.insert(it.key(),it.value());
+    }
+
+    mHasExpandedStateInfo = other.hasExpandedStateInfo();
+
+    mHasCheckedStateInfo = other.hasCheckedStateInfo();
+
+    mExpandedGroupNodes = other.expandedGroupNodes();
+
+    mCheckedGroupNodes = other.checkedGroupNodes();
+}
+
+//QgsMapThemeCollection::MapThemeRecord::~MapThemeRecord()
+//{
+//    return;
+//    //qDeleteAll( mLayerRecords );
+//    //mLayerRecords.clear();
+//    //mLayerRecords = QMap<QString, MapThemeLayerRecord>();
+////    mHasExpandedStateInfo=false;
+////    mHasCheckedStateInfo=false;
+////    mExpandedGroupNodes = QSet<QString>();
+////    mCheckedGroupNodes = QSet<QString>();
+//}
 
 
 QHash<QgsMapLayer *, QgsMapThemeCollection::MapThemeLayerRecord> QgsMapThemeCollection::MapThemeRecord::validLayerRecords() const
