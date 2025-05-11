@@ -635,6 +635,7 @@ void QgsLayerTreeView::keyPressEvent( QKeyEvent *event )
           legendNode->setData( isFirstNodeChecked ? Qt::Unchecked : Qt::Checked, Qt::CheckStateRole );
         }
       }
+      return;
     }
   }
 
