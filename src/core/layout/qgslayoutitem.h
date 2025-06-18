@@ -996,7 +996,12 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
      */
     bool shouldDrawItem() const;
 
-    QgsExpressionContext createExpressionContext() const override;
+    /**
+     * Creates the expressio context with the varibles of the item.
+     * 
+     * The \a dataDefineContext bool is used to avoid returning the variables of the item controlled by expressions, this is to avoid infinite loops.
+     */
+    QgsExpressionContext createExpressionContext( bool dataDefinedContext = true ) const;
 
     /**
      * Accepts the specified style entity \a visitor, causing it to visit all style entities associated

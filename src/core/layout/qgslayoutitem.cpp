@@ -1005,7 +1005,7 @@ QgsLayoutPoint QgsLayoutItem::applyDataDefinedPosition( const QgsLayoutPoint &po
     return position;
   }
 
-  const QgsExpressionContext context = createExpressionContext();
+  const QgsExpressionContext context = createExpressionContext( false );
   const double evaluatedX = mDataDefinedProperties.valueAsDouble( QgsLayoutObject::DataDefinedProperty::PositionX, context, position.x() );
   const double evaluatedY = mDataDefinedProperties.valueAsDouble( QgsLayoutObject::DataDefinedProperty::PositionY, context, position.y() );
   return QgsLayoutPoint( evaluatedX, evaluatedY, position.units() );
@@ -1056,7 +1056,7 @@ QgsLayoutSize QgsLayoutItem::applyDataDefinedSize( const QgsLayoutSize &size )
     return size;
 
 
-  const QgsExpressionContext context = createExpressionContext();
+  const QgsExpressionContext context = createExpressionContext( false );
 
   // lowest priority is page size
   const QString pageSize = mDataDefinedProperties.valueAsString( QgsLayoutObject::DataDefinedProperty::PresetPaperSize, context );
@@ -1105,7 +1105,7 @@ double QgsLayoutItem::applyDataDefinedRotation( const double rotation )
     return rotation;
   }
 
-  const QgsExpressionContext context = createExpressionContext();
+  const QgsExpressionContext context = createExpressionContext( false );
   const double evaluatedRotation = mDataDefinedProperties.valueAsDouble( QgsLayoutObject::DataDefinedProperty::ItemRotation, context, rotation );
   return evaluatedRotation;
 }
@@ -1149,7 +1149,7 @@ void QgsLayoutItem::refreshDataDefinedProperty( const QgsLayoutObject::DataDefin
   {
     const bool exclude = mExcludeFromExports;
     //data defined exclude from exports set?
-    mEvaluatedExcludeFromExports = mDataDefinedProperties.valueAsBool( QgsLayoutObject::DataDefinedProperty::ExcludeFromExports, createExpressionContext(), exclude );
+    mEvaluatedExcludeFromExports = mDataDefinedProperties.valueAsBool( QgsLayoutObject::DataDefinedProperty::ExcludeFromExports, createExpressionContext( false ), exclude );
   }
 
   update();
@@ -1192,10 +1192,22 @@ bool QgsLayoutItem::isRefreshing() const
   return false;
 }
 
-QgsExpressionContext QgsLayoutItem::createExpressionContext() const
+QgsExpressionContext QgsLayoutItem::createExpressionContext( bool dataDefinedContext ) const
 {
   QgsExpressionContext context = QgsLayoutObject::createExpressionContext();
-  context.appendScope( QgsExpressionContextUtils::layoutItemScope( this ) );
+  QgsExpressionContextScope *itemScope = QgsExpressionContextUtils::layoutItemScope( this );
+  
+  if ( dataDefinedContext )
+  {
+    itemScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "item_width" ), mItemSize.width(), true ) );
+    itemScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "item_height" ), mItemSize.height(), true ) );
+    itemScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "item_x" ), mItemPosition.x(), true ) );
+    itemScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "item_y" ), mItemPosition.y(), true ) );
+    itemScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "item_anchor" ), mReferencePoint, true ) );
+    itemScope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "item_rotation" ), mItemRotation, true ) );
+
+  }
+  context.appendScope( itemScope );
   return context;
 }
 
@@ -1447,7 +1459,7 @@ void QgsLayoutItem::refreshItemRotation( QPointF *origin )
   double r = mItemRotation;
 
   //data defined rotation set?
-  r = mDataDefinedProperties.valueAsDouble( QgsLayoutObject::DataDefinedProperty::ItemRotation, createExpressionContext(), r );
+  r = mDataDefinedProperties.valueAsDouble( QgsLayoutObject::DataDefinedProperty::ItemRotation, createExpressionContext( false ), r );
 
   if ( qgsDoubleNear( r, rotation() ) && !origin )
   {
@@ -1547,7 +1559,7 @@ void QgsLayoutItem::refreshBackgroundColor( bool updateItem )
 {
   //data defined fill color set?
   bool ok = false;
-  const QColor backgroundColor = mDataDefinedProperties.valueAsColor( QgsLayoutObject::DataDefinedProperty::BackgroundColor, createExpressionContext(), mBackgroundColor, &ok );
+  const QColor backgroundColor = mDataDefinedProperties.valueAsColor( QgsLayoutObject::DataDefinedProperty::BackgroundColor, createExpressionContext( false ), mBackgroundColor, &ok );
   if ( ok )
   {
     setBrush( QBrush( backgroundColor, Qt::SolidPattern ) );
