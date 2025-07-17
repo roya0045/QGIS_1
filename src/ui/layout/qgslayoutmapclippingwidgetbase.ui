@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>318</width>
-    <height>619</height>
+    <width>297</width>
+    <height>530</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,180 +19,140 @@
   <property name="windowTitle">
    <string>Map Options</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="leftMargin">
-    <number>0</number>
-   </property>
-   <property name="topMargin">
-    <number>0</number>
-   </property>
-   <property name="rightMargin">
-    <number>0</number>
-   </property>
-   <property name="bottomMargin">
-    <number>0</number>
-   </property>
+  <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
-    <widget class="QgsCollapsibleGroupBox" name="mClipToAtlasCheckBox">
-     <property name="title">
-      <string>Clip to atlas feature</string>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetNoConstraint</enum>
      </property>
-     <property name="checkable">
-      <bool>true</bool>
-     </property>
-     <layout class="QGridLayout" name="gridLayout">
-      <item row="6" column="0">
-       <widget class="QTreeView" name="mLayersTreeView">
-        <property name="headerHidden">
-         <bool>true</bool>
-        </property>
-        <attribute name="headerDefaultSectionSize">
-         <number>26</number>
-        </attribute>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QComboBox" name="mAtlasClippingTypeComboBox"/>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>The clipping mode determines how features from vector layers will be clipped.</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="mClipToAtlasLabel">
-        <property name="text">
-         <string>&lt;b&gt;When enabled, map layers will be automatically clipped to the boundary of the current atlas feature.&lt;/b&gt;</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>0</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
+     <item>
+      <widget class="QgsCollapsibleGroupBox" name="mClipToItemCheckBox">
+       <property name="title">
+        <string>Clip to layout item</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <widget class="QgsLayoutItemComboBox" name="mClipItemComboBox"/>
         </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QgsCollapsibleGroupBox" name="mClipToAtlasCheckBox">
+       <property name="title">
+        <string>Clip to atlas feature</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
-         <widget class="QPushButton" name="mSelectAllButton">
+         <widget class="QLineEdit" name="mClipGeometryEdit">
           <property name="text">
-           <string>Select All</string>
+           <string>$geometry</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="mDeselectAllButton">
+         <widget class="QToolButton" name="mClipGeometryExpressionButton">
           <property name="text">
-           <string>Deselect All</string>
+           <string>…</string>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="mInvertSelectionButton">
-          <property name="text">
-           <string>Invert Selection</string>
+          <property name="icon">
+           <iconset resource="../../../images/images.qrc">
+            <normaloff>:/images/themes/default/mIconExpression.svg</normaloff>:/images/themes/default/mIconExpression.svg</iconset>
           </property>
          </widget>
         </item>
        </layout>
-      </item>
-      <item row="5" column="0">
-       <widget class="QRadioButton" name="mRadioClipSelectedLayers">
-        <property name="text">
-         <string>Clip selected layers</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QRadioButton" name="mRadioClipAllLayers">
-        <property name="text">
-         <string>Clip all layers</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QCheckBox" name="mForceLabelsInsideCheckBox">
-        <property name="text">
-         <string>Force labels inside atlas feature</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QgsCollapsibleGroupBox" name="mClipToItemCheckBox">
-     <property name="title">
-      <string>Clip to item</string>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_2">
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>The clipping mode determines how features from vector layers will be clipped.</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="mClipToItemLabel">
-        <property name="text">
-         <string>&lt;b&gt;When enabled, the map will be automatically clipped to the selected shape.&lt;/b&gt;</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QComboBox" name="mItemClippingTypeComboBox"/>
-      </item>
-      <item row="4" column="0">
-       <widget class="QCheckBox" name="mForceLabelsInsideItemCheckBox">
-        <property name="text">
-         <string>Force labels inside clipping shape</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QgsLayoutItemComboBox" name="mClipItemComboBox"/>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>The clipping mode determines how features from vector layers will be clipped.</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="mClippingTypeComboBox"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="mForceLabelsInsideCheckBox">
+       <property name="text">
+        <string>Force labels inside clip</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="mRadioClipSelectedLayers">
+       <property name="text">
+        <string>Clip selected layers</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="mRadioClipAllLayers">
+       <property name="text">
+        <string>Clip all layers</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QTreeView" name="mLayersTreeView">
+       <property name="headerHidden">
+        <bool>true</bool>
+       </property>
+       <attribute name="headerDefaultSectionSize">
+        <number>35</number>
+       </attribute>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QPushButton" name="mSelectAllButton">
+         <property name="text">
+          <string>Select All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="mDeselectAllButton">
+         <property name="text">
+          <string>Deselect All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="mInvertSelectionButton">
+         <property name="text">
+          <string>Invert Selection</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
@@ -212,7 +172,7 @@
  </customwidgets>
  <tabstops>
   <tabstop>mClipToAtlasCheckBox</tabstop>
-  <tabstop>mAtlasClippingTypeComboBox</tabstop>
+  <tabstop>mClippingTypeComboBox</tabstop>
   <tabstop>mForceLabelsInsideCheckBox</tabstop>
   <tabstop>mRadioClipAllLayers</tabstop>
   <tabstop>mRadioClipSelectedLayers</tabstop>
@@ -221,10 +181,10 @@
   <tabstop>mDeselectAllButton</tabstop>
   <tabstop>mInvertSelectionButton</tabstop>
   <tabstop>mClipToItemCheckBox</tabstop>
-  <tabstop>mClipItemComboBox</tabstop>
-  <tabstop>mItemClippingTypeComboBox</tabstop>
-  <tabstop>mForceLabelsInsideItemCheckBox</tabstop>
  </tabstops>
- <resources/>
+ <resources>
+  <include location="../../../images/images.qrc"/>
+  <include location="../../../images/images.qrc"/>
+ </resources>
  <connections/>
 </ui>

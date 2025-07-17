@@ -504,7 +504,7 @@ bool QgsLayoutUtils::itemIsAClippingSource( const QgsLayoutItem *item )
   item->layout()->layoutItems( maps );
   for ( QgsLayoutItemMap *map : std::as_const( maps ) )
   {
-    if ( map->itemClippingSettings()->isActive() && map->itemClippingSettings()->sourceItem() == item )
+    if ( map->mapClippingSettings()->isActive() && map->mapClippingSettings()->sourceItem() == item )
       return true;
   }
   return false;

@@ -210,6 +210,7 @@ A base class for objects which belong to a layout.
       ElevationProfileMinimumElevation,
       ElevationProfileMaximumElevation,
       AtlasGeometryOverride,
+      ClipGeometryOverride,
     };
 
 

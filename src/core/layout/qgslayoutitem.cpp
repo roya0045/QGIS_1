@@ -88,6 +88,7 @@ QgsLayoutItem::~QgsLayoutItem()
 
 void QgsLayoutItem::cleanup()
 {
+  emit itemWillBeDeleted();
   if ( mLayout && mLayoutManagesZValue )
   {
     mLayout->itemsModel()->removeItem( this );

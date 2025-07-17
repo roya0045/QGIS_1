@@ -54,8 +54,7 @@ const QgsSettingsEntryBool *QgsLayoutItemMap::settingForceRasterMasks = new QgsS
 
 QgsLayoutItemMap::QgsLayoutItemMap( QgsLayout *layout )
   : QgsLayoutItem( layout )
-  , mAtlasClippingSettings( new QgsLayoutItemMapAtlasClippingSettings( this ) )
-  , mItemClippingSettings( new QgsLayoutItemMapItemClipPathSettings( this ) )
+  , mMapClippingSettings( new QgsLayoutItemMapClippingSettings( this ) )
 {
   mBackgroundUpdateTimer = new QTimer( this );
   mBackgroundUpdateTimer->setSingleShot( true );
@@ -73,12 +72,7 @@ QgsLayoutItemMap::QgsLayoutItemMap( QgsLayout *layout )
   mGridStack = std::make_unique< QgsLayoutItemMapGridStack >( this );
   mOverviewStack = std::make_unique< QgsLayoutItemMapOverviewStack >( this );
 
-  connect( mAtlasClippingSettings, &QgsLayoutItemMapAtlasClippingSettings::changed, this, [this]
-  {
-    refresh();
-  } );
-
-  connect( mItemClippingSettings, &QgsLayoutItemMapItemClipPathSettings::changed, this, [this]
+  connect( mMapClippingSettings, &QgsLayoutItemMapClippingSettings::changed, this, [this]
   {
     refresh();
   } );
@@ -311,18 +305,14 @@ QgsRectangle QgsLayoutItemMap::extent() const
   return mExtent;
 }
 
-QPolygonF QgsLayoutItemMap::calculateVisibleExtentPolygon( bool includeClipping ) const
+QPolygonF QgsLayoutItemMap::calculateVisibleExtentPolygon( bool includeClipping ) const //todo
 {
   QPolygonF poly;
   mapPolygon( mExtent, poly );
 
-  if ( includeClipping && mItemClippingSettings->isActive() )
+  if ( includeClipping && mMapClippingSettings->isActive() )
   {
-    const QgsGeometry geom = mItemClippingSettings->clippedMapExtent();
-    if ( !geom.isEmpty() )
-    {
-      poly = poly.intersected( geom.asQPolygonF() );
-    }
+    poly = clippingExtent().asQPolygonF();
   }
 
   return poly;
@@ -869,8 +859,7 @@ bool QgsLayoutItemMap::writePropertiesToElement( QDomElement &mapElem, QDomDocum
   if ( mZRange.upper() != std::numeric_limits< double >::max() )
     mapElem.setAttribute( QStringLiteral( "zRangeUpper" ), qgsDoubleToString( mZRange.upper() ) );
 
-  mAtlasClippingSettings->writeXml( mapElem, doc, context );
-  mItemClippingSettings->writeXml( mapElem, doc, context );
+  mMapClippingSettings->writeXml( mapElem, doc, context );
 
   return true;
 }
@@ -1058,8 +1047,16 @@ bool QgsLayoutItemMap::readPropertiesFromElement( const QDomElement &itemElem, c
     }
   }
 
-  mAtlasClippingSettings->readXml( itemElem, doc, context );
-  mItemClippingSettings->readXml( itemElem, doc, context );
+  bool readClipSettings = mMapClippingSettings->readXml( itemElem, doc, context ); // todo handle previous versions
+  if ( ! readClipSettings ) // legacy xml
+  {
+    QgsLayoutItemMapAtlasClippingSettings atlasClip = QgsLayoutItemMapAtlasClippingSettings(this) ;
+    QgsLayoutItemMapItemClipPathSettings layoutClip = QgsLayoutItemMapItemClipPathSettings (this);
+    atlasClip.readXml( itemElem, doc, context );
+    layoutClip.readXml( itemElem, doc, context );
+    mMapClippingSettings->importLegacySettings( &atlasClip, &layoutClip );
+  }
+
 
   updateBoundingRect();
 
@@ -1092,9 +1089,20 @@ bool QgsLayoutItemMap::readPropertiesFromElement( const QDomElement &itemElem, c
 
 QPainterPath QgsLayoutItemMap::framePath() const
 {
-  if ( mItemClippingSettings->isActive() )
+  if ( mMapClippingSettings->isActive() )
   {
-    const QgsGeometry g = mItemClippingSettings->clipPathInMapItemCoordinates();
+    QgsGeometry g = clippingExtent();
+    QPolygonF thisExtent = calculateVisibleExtentPolygon( false );
+
+    QTransform mapTransform;
+    QPolygonF thisRectPoly = QPolygonF( QRectF( 0, 0, rect().width(), rect().height() ) );
+    //workaround QT Bug #21329
+    thisRectPoly.pop_back();
+    thisExtent.pop_back();
+
+    QTransform::quadToQuad( thisExtent,thisRectPoly,  mapTransform );
+
+    g.transform( mapTransform );
     if ( !g.isNull() )
       return g.constGet()->asQPainterPath();
   }
@@ -1669,10 +1677,11 @@ void QgsLayoutItemMap::recreateCachedImageInBackground()
   {
     //Initially fill image with specified background color. This ensures that layers with blend modes will
     //preview correctly
-    if ( mItemClippingSettings->isActive() )
+    if ( mMapClippingSettings->isActive() ) // TODO
     {
       QPainter p( mCacheRenderingImage.get() );
       const QPainterPath path = framePath();
+      qDebug() << path.length();
       p.setPen( Qt::NoPen );
       p.setBrush( backgroundColor() );
       p.scale( mCacheRenderingImage->width() / widthLayoutUnits, mCacheRenderingImage->height() / heightLayoutUnits );
@@ -1851,43 +1860,31 @@ QgsMapSettings QgsLayoutItemMap::mapSettings( const QgsRectangle &extent, QSizeF
     region.setRestrictedLayers( mAtlasClippingSettings->layersToClip() );
     region.setRestrictToLayers( mAtlasClippingSettings->restrictToLayers() );
     jobMapSettings.addClippingRegion( region );
+  }
 
-    if ( mAtlasClippingSettings->forceLabelsInsideFeature() )
+  if ( mMapClippingSettings->forceLabelsInsideFeature() )
+  {
+    const double layoutLabelMargin = mLayout->convertToLayoutUnits( mEvaluatedLabelMargin );
+    const double layoutLabelMarginInMapUnits = layoutLabelMargin / rect().width() * jobMapSettings.extent().width();
+    QgsGeometry mapBoundaryGeom = clipGeom;
+    mapBoundaryGeom = mapBoundaryGeom.buffer( -layoutLabelMarginInMapUnits, 0 );
+    if ( !labelBoundary.isEmpty() )
     {
-      if ( !labelBoundary.isEmpty() )
-      {
-        labelBoundary = clipGeom.intersection( labelBoundary );
-      }
-      else
-      {
-        labelBoundary = clipGeom;
-      }
+      labelBoundary = mapBoundaryGeom.intersection( labelBoundary );
+    }
+    else
+    {
+      labelBoundary = mapBoundaryGeom;
     }
   }
 
-  if ( mItemClippingSettings->isActive() )
+  if ( QgsWkbTypes::geometryType( clipGeom.wkbType() ) == Qgis::GeometryType::Polygon )
   {
-    const QgsGeometry clipGeom = mItemClippingSettings->clippedMapExtent();
-    if ( !clipGeom.isEmpty() )
-    {
-      jobMapSettings.addClippingRegion( mItemClippingSettings->toMapClippingRegion() );
-
-      if ( mItemClippingSettings->forceLabelsInsideClipPath() )
-      {
-        const double layoutLabelMargin = mLayout->convertToLayoutUnits( mEvaluatedLabelMargin );
-        const double layoutLabelMarginInMapUnits = layoutLabelMargin / rect().width() * jobMapSettings.extent().width();
-        QgsGeometry mapBoundaryGeom = clipGeom;
-        mapBoundaryGeom = mapBoundaryGeom.buffer( -layoutLabelMarginInMapUnits, 0 );
-        if ( !labelBoundary.isEmpty() )
-        {
-          labelBoundary = mapBoundaryGeom.intersection( labelBoundary );
-        }
-        else
-        {
-          labelBoundary = mapBoundaryGeom;
-        }
-      }
-    }
+    QgsMapClippingRegion region( clipGeom );
+    region.setFeatureClip( mMapClippingSettings->featureClippingType() );
+    region.setRestrictedLayers( mMapClippingSettings->layersToClip() );
+    region.setRestrictToLayers( mMapClippingSettings->restrictToLayers() );
+    jobMapSettings.addClippingRegion( region );
   }
 
   if ( !labelBoundary.isNull() )
@@ -1912,7 +1909,61 @@ void QgsLayoutItemMap::finalizeRestoreFromXml()
 
   mOverviewStack->finalizeRestoreFromXml();
   mGridStack->finalizeRestoreFromXml();
-  mItemClippingSettings->finalizeRestoreFromXml();
+  mMapClippingSettings->finalizeRestoreFromXml();
+}
+
+QgsGeometry QgsLayoutItemMap::clippingAtlasGeometry() const
+{
+  QgsGeometry atlasGeom;
+  QgsCoordinateReferenceSystem canvasCRS = crs();
+  if ( mMapClippingSettings->atlasEnabled() && mLayout->reportContext().feature().isValid() ) // check valid expression override
+  {
+    if ( QString("$geometry@atlas_geometry").contains( mMapClippingSettings->geometryExpression() ) || mMapClippingSettings->geometryExpression().isEmpty()  )
+    {
+      atlasGeom = atlasGeometry( canvasCRS ); // check geom or override
+    }
+    else
+    {
+      QgsExpressionContext context = createExpressionContext();
+      //mDataDefinedProperties.prepare( context ); // needed?
+      QgsExpression geomExpression = QgsExpression( mMapClippingSettings->geometryExpression() );
+      atlasGeom = geomExpression.evaluate( &context ).value<QgsGeometry>();
+      QgsCoordinateReferenceSystem layerCrs = mLayout->reportContext().layer()->crs();
+      if ( canvasCRS.isValid() && canvasCRS != layerCrs )
+        atlasGeom.transform( QgsCoordinateTransform( layerCrs, canvasCRS, mLayout->project() ) );
+    }
+  }
+  if ( atlasGeom.isNull() )
+    atlasGeom =  atlasGeometry( canvasCRS );
+  return atlasGeom;
+}
+
+QgsGeometry QgsLayoutItemMap::clippingExtent() const
+{
+  const QgsGeometry mapExtent = QgsGeometry::fromQPolygonF( calculateVisibleExtentPolygon( false ) );
+  if ( !mMapClippingSettings->isActive() )
+      return mapExtent;
+  QgsGeometry atlasExtent = clippingAtlasGeometry();
+  if ( mMapClippingSettings->layoutItemEnabled() )
+  {
+    if ( !mMapClippingSettings->sourceItem() )
+    {
+        mMapClippingSettings->setLayoutItemEnabled( false );
+        return atlasExtent;
+    }
+    const QgsGeometry layoutClipGeom = mMapClippingSettings->clippedMapItemExtent();
+    QgsGeometry intersectGeom;
+    if ( ( QgsWkbTypes::geometryType( atlasExtent.wkbType() ) == Qgis::GeometryType::Polygon ) && !atlasExtent.isNull() && mMapClippingSettings->atlasEnabled() )
+    {
+      intersectGeom = atlasExtent.intersection( layoutClipGeom );
+    }
+    else
+    {
+      intersectGeom = layoutClipGeom.intersection( mapExtent );
+    }
+   return intersectGeom;
+  }
+  return atlasExtent;
 }
 
 void QgsLayoutItemMap::setMoveContentPreviewOffset( double xOffset, double yOffset )
@@ -1943,7 +1994,7 @@ QgsExpressionContext QgsLayoutItemMap::createExpressionContext() const
   scope->setVariable( QStringLiteral( "zoom_level" ), !qgsDoubleNear( mapScale, 0 ) ? QgsVectorTileUtils::scaleToZoomLevel( mapScale, 0, 99999 ) : 0, true );
   scope->setVariable( QStringLiteral( "vector_tile_zoom" ), !qgsDoubleNear( mapScale, 0 ) ? QgsVectorTileUtils::scaleToZoom( mapScale ) : 0, true );
 
-  QgsRectangle currentExtent( extent() );
+  QgsRectangle currentExtent( extent() ); // does not care about clipping, could use visible extent instead
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "map_extent" ), QVariant::fromValue( QgsGeometry::fromRect( currentExtent ) ), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "map_extent_width" ), currentExtent.width(), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "map_extent_height" ), currentExtent.height(), true ) );
@@ -2014,11 +2065,14 @@ double QgsLayoutItemMap::mapUnitsToLayoutUnits() const
 
 QPolygonF QgsLayoutItemMap::transformedMapPolygon() const
 {
-  double dx = mXOffset;
-  double dy = mYOffset;
-  transformShift( dx, dy );
   QPolygonF poly = calculateVisibleExtentPolygon( false );
-  poly.translate( -dx, -dy );
+  if ( !mMapClippingSettings->isActive() )
+  {
+    double dx = mXOffset;
+    double dy = mYOffset;
+    transformShift( dx, dy );
+    poly.translate( -dx, -dy );
+  }
   return poly;
 }
 
@@ -2102,9 +2156,8 @@ QPointF QgsLayoutItemMap::mapToItemCoords( QPointF mapCoords ) const
   QgsLayoutUtils::rotate( -mEvaluatedMapRotation, dx, dy );
   QgsPointXY backRotatedCoords( rotationPoint.x() + dx, rotationPoint.y() + dy );
 
-  QgsRectangle unrotatedExtent = transformedExtent();
-  double xItem = rect().width() * ( backRotatedCoords.x() - unrotatedExtent.xMinimum() ) / unrotatedExtent.width();
-  double yItem = rect().height() * ( 1 - ( backRotatedCoords.y() - unrotatedExtent.yMinimum() ) / unrotatedExtent.height() );
+  double xItem = rect().width() * ( backRotatedCoords.x() - tExtent.xMinimum() ) / tExtent.width();
+  double yItem = rect().height() * ( 1 - ( backRotatedCoords.y() - tExtent.yMinimum() ) / tExtent.height() );
   return QPointF( xItem, yItem );
 }
 
@@ -2375,6 +2428,7 @@ QTransform QgsLayoutItemMap::layoutToMapCoordsTransform() const
 {
   QPolygonF thisExtent = calculateVisibleExtentPolygon( false );
   QTransform mapTransform;
+  const QPointF cornerPoint = positionAtReferencePoint( QgsLayoutItem::UpperLeft );
   QPolygonF thisRectPoly = QPolygonF( QRectF( 0, 0, rect().width(), rect().height() ) );
   //workaround QT Bug #21329
   thisRectPoly.pop_back();
@@ -2409,7 +2463,7 @@ void QgsLayoutItemMap::setZRange( const QgsDoubleRange &range )
 
 QList<QgsLabelBlockingRegion> QgsLayoutItemMap::createLabelBlockingRegions( const QgsMapSettings & ) const
 {
-  const QTransform mapTransform = layoutToMapCoordsTransform();
+  const QTransform mapTransform = layoutToMapCoordsTransform(); // to fix?
   QList< QgsLabelBlockingRegion > blockers;
   blockers.reserve( mBlockingLabelItems.count() );
   for ( const auto &item : std::as_const( mBlockingLabelItems ) )
@@ -3133,7 +3187,7 @@ QgsGeometry QgsLayoutItemMap::atlasGeometry( const QgsCoordinateReferenceSystem 
       return ( geometry );
   }
 
-  return( mLayout->reportContext().currentGeometry( crs ) );
+  return ( mLayout->reportContext().currentGeometry( crs ) );
 }
 
 
@@ -3214,6 +3268,8 @@ QList<QgsMapLayer *> QgsLayoutItemMapAtlasClippingSettings::layersToClip() const
   return _qgis_listRefToRaw( mLayersToClip );
 }
 
+
+
 void QgsLayoutItemMapAtlasClippingSettings::setLayersToClip( const QList< QgsMapLayer * > &layersToClip )
 {
   mLayersToClip = _qgis_listRawToRef( layersToClip );
@@ -3222,7 +3278,7 @@ void QgsLayoutItemMapAtlasClippingSettings::setLayersToClip( const QList< QgsMap
 
 bool QgsLayoutItemMapAtlasClippingSettings::writeXml( QDomElement &element, QDomDocument &document, const QgsReadWriteContext & ) const
 {
-  QDomElement settingsElem = document.createElement( QStringLiteral( "atlasClippingSettings" ) );
+  QDomElement settingsElem = document.createElement( QStringLiteral( "atlasClippingSettings" ) ); //overide exp
   settingsElem.setAttribute( QStringLiteral( "enabled" ), mClipToAtlasFeature ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
   settingsElem.setAttribute( QStringLiteral( "forceLabelsInside" ), mForceLabelsInsideFeature ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
   settingsElem.setAttribute( QStringLiteral( "clippingType" ), QString::number( static_cast<int>( mFeatureClippingType ) ) );
@@ -3254,7 +3310,7 @@ bool QgsLayoutItemMapAtlasClippingSettings::readXml( const QDomElement &element,
 {
   const QDomElement settingsElem = element.firstChildElement( QStringLiteral( "atlasClippingSettings" ) );
 
-  mClipToAtlasFeature = settingsElem.attribute( QStringLiteral( "enabled" ), QStringLiteral( "0" ) ).toInt();
+  mClipToAtlasFeature = settingsElem.attribute( QStringLiteral( "enabled" ), QStringLiteral( "0" ) ).toInt(); //overide exp
   mForceLabelsInsideFeature = settingsElem.attribute( QStringLiteral( "forceLabelsInside" ), QStringLiteral( "0" ) ).toInt();
   mFeatureClippingType = static_cast< QgsMapClippingRegion::FeatureClippingType >( settingsElem.attribute( QStringLiteral( "clippingType" ), QStringLiteral( "0" ) ).toInt() );
   mRestrictToLayers = settingsElem.attribute( QStringLiteral( "restrictLayers" ), QStringLiteral( "0" ) ).toInt();
@@ -3461,4 +3517,311 @@ void QgsLayoutItemMapItemClipPathSettings::finalizeRestoreFromXml()
       setSourceItem( item );
     }
   }
+}
+
+
+
+//
+// QgsLayoutItemMapClippingSettings
+//
+
+QgsLayoutItemMapClippingSettings::QgsLayoutItemMapClippingSettings( QgsLayoutItemMap *map )
+  : QObject( map )
+  , mMap( map )
+{
+  if ( mMap->layout() && mMap->layout()->project() )
+  {
+    connect( mMap->layout()->project(), static_cast < void ( QgsProject::* )( const QList<QgsMapLayer *>& layers ) > ( &QgsProject::layersWillBeRemoved ),
+             this, &QgsLayoutItemMapClippingSettings::layersAboutToBeRemoved );
+  }
+}
+
+void QgsLayoutItemMapClippingSettings::importLegacySettings( QgsLayoutItemMapAtlasClippingSettings * mAtlasClip, QgsLayoutItemMapItemClipPathSettings * layoutItemClip )
+{
+    mMap = mAtlasClip->mMap;
+    mClipToAtlasFeature = mAtlasClip->enabled();
+    mRestrictToLayers = mAtlasClip->mRestrictToLayers;
+    mLayersToClip = mAtlasClip->mLayersToClip;
+    mFeatureClippingType = mAtlasClip->mFeatureClippingType;
+    mForceLabelsInsideFeature = mAtlasClip->mForceLabelsInsideFeature;
+    mClipToLayoutItem = layoutItemClip->mEnabled;
+    mClipLayoutItem = layoutItemClip->mClipPathSource;
+    mClipLayoutItemUuid= layoutItemClip->mClipPathUuid;
+}
+
+void QgsLayoutItemMapClippingSettings::setLayoutItemEnabled( bool enabled )
+{
+  if ( enabled == mClipToLayoutItem )
+    return;
+
+  mClipToLayoutItem = enabled;
+  emit changed();
+}
+
+void QgsLayoutItemMapClippingSettings::setAtlasEnabled( bool enabled )
+{
+  if ( enabled == mClipToAtlasFeature )
+    return;
+
+  mClipToAtlasFeature = enabled;
+  emit changed();
+}
+
+QgsMapClippingRegion::FeatureClippingType QgsLayoutItemMapClippingSettings::featureClippingType() const
+{
+  return mFeatureClippingType;
+}
+
+void QgsLayoutItemMapClippingSettings::setFeatureClippingType( QgsMapClippingRegion::FeatureClippingType type )
+{
+  if ( mFeatureClippingType == type )
+    return;
+
+  mFeatureClippingType = type;
+  emit changed();
+}
+
+bool QgsLayoutItemMapClippingSettings::forceLabelsInsideFeature() const
+{
+  return mForceLabelsInsideFeature;
+}
+
+void QgsLayoutItemMapClippingSettings::setForceLabelsInsideFeature( bool forceInside )
+{
+  if ( forceInside == mForceLabelsInsideFeature )
+    return;
+
+  mForceLabelsInsideFeature = forceInside;
+  emit changed();
+}
+
+bool QgsLayoutItemMapClippingSettings::restrictToLayers() const
+{
+  return mRestrictToLayers;
+}
+
+void QgsLayoutItemMapClippingSettings::setRestrictToLayers( bool enabled )
+{
+  if ( mRestrictToLayers == enabled )
+    return;
+
+  mRestrictToLayers = enabled;
+  emit changed();
+}
+
+QList<QgsMapLayer *> QgsLayoutItemMapClippingSettings::layersToClip() const
+{
+  return _qgis_listRefToRaw( mLayersToClip );
+}
+
+void QgsLayoutItemMapClippingSettings::setLayersToClip( const QList< QgsMapLayer * > &layersToClip )
+{
+  mLayersToClip = _qgis_listRawToRef( layersToClip );
+  emit changed();
+}
+
+bool QgsLayoutItemMapClippingSettings::writeXml( QDomElement &element, QDomDocument &document, const QgsReadWriteContext & ) const
+{
+  QDomElement settingsElem = document.createElement( QStringLiteral( "mapClippingSettings" ) ); //overide exp
+  settingsElem.setAttribute( QStringLiteral( "atlasClip" ), mClipToAtlasFeature ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  settingsElem.setAttribute( QStringLiteral( "layoutItemClip" ), mClipToLayoutItem ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  settingsElem.setAttribute( QStringLiteral( "forceLabelsInside" ), mForceLabelsInsideFeature ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  settingsElem.setAttribute( QStringLiteral( "clippingType" ), QString::number( static_cast<int>( mFeatureClippingType ) ) );
+  settingsElem.setAttribute( QStringLiteral( "restrictLayers" ), mRestrictToLayers ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  settingsElem.setAttribute( QStringLiteral( "geomExpression" ), mGeometryExpression );
+
+  if ( mClipLayoutItem )
+    settingsElem.setAttribute( QStringLiteral( "clipSource" ), mClipLayoutItem->uuid() );
+  else
+    settingsElem.setAttribute( QStringLiteral( "clipSource" ), QString() );
+
+  //layer set
+  QDomElement layerSetElem = document.createElement( QStringLiteral( "layersToClip" ) );
+  for ( const QgsMapLayerRef &layerRef : mLayersToClip )
+  {
+    if ( !layerRef )
+      continue;
+    QDomElement layerElem = document.createElement( QStringLiteral( "Layer" ) );
+    QDomText layerIdText = document.createTextNode( layerRef.layerId );
+    layerElem.appendChild( layerIdText );
+
+    layerElem.setAttribute( QStringLiteral( "name" ), layerRef.name );
+    layerElem.setAttribute( QStringLiteral( "source" ), layerRef.source );
+    layerElem.setAttribute( QStringLiteral( "provider" ), layerRef.provider );
+
+    layerSetElem.appendChild( layerElem );
+  }
+  settingsElem.appendChild( layerSetElem );
+
+  element.appendChild( settingsElem );
+  return true;
+}
+
+bool QgsLayoutItemMapClippingSettings::readXml( const QDomElement &element, const QDomDocument &, const QgsReadWriteContext & )
+{
+  const QDomElement settingsElem = element.firstChildElement( QStringLiteral( "mapClippingSettings" ) );
+
+  if( settingsElem.isNull() )
+    return false;
+
+  mClipToAtlasFeature = settingsElem.attribute( QStringLiteral( "atlasClip" ), QStringLiteral( "0" ) ).toInt(); //overide exp
+  mClipToLayoutItem = settingsElem.attribute( QStringLiteral( "layoutItemClip" ), QStringLiteral( "0" ) ).toInt(); //overide exp
+  mForceLabelsInsideFeature = settingsElem.attribute( QStringLiteral( "forceLabelsInside" ), QStringLiteral( "0" ) ).toInt();
+  mFeatureClippingType = static_cast< QgsMapClippingRegion::FeatureClippingType >( settingsElem.attribute( QStringLiteral( "clippingType" ), QStringLiteral( "0" ) ).toInt() );
+  mRestrictToLayers = settingsElem.attribute( QStringLiteral( "restrictLayers" ), QStringLiteral( "0" ) ).toInt();
+  mGeometryExpression = settingsElem.attribute( QStringLiteral( "geomExpression" ),  "$Geometry" );
+  mClipLayoutItemUuid = settingsElem.attribute( QStringLiteral( "clipSource" ) );
+
+  mLayersToClip.clear();
+  QDomNodeList layerSetNodeList = settingsElem.elementsByTagName( QStringLiteral( "layersToClip" ) );
+  if ( !layerSetNodeList.isEmpty() )
+  {
+    QDomElement layerSetElem = layerSetNodeList.at( 0 ).toElement();
+    QDomNodeList layerIdNodeList = layerSetElem.elementsByTagName( QStringLiteral( "Layer" ) );
+    mLayersToClip.reserve( layerIdNodeList.size() );
+    for ( int i = 0; i < layerIdNodeList.size(); ++i )
+    {
+      QDomElement layerElem = layerIdNodeList.at( i ).toElement();
+      QString layerId = layerElem.text();
+      QString layerName = layerElem.attribute( QStringLiteral( "name" ) );
+      QString layerSource = layerElem.attribute( QStringLiteral( "source" ) );
+      QString layerProvider = layerElem.attribute( QStringLiteral( "provider" ) );
+
+      QgsMapLayerRef ref( layerId, layerName, layerSource, layerProvider );
+      if ( mMap->layout() && mMap->layout()->project() )
+        ref.resolveWeakly( mMap->layout()->project() );
+      mLayersToClip << ref;
+    }
+  }
+
+  return true;
+}
+
+void QgsLayoutItemMapClippingSettings::layersAboutToBeRemoved( const QList<QgsMapLayer *> &layers )
+{
+  if ( !mLayersToClip.isEmpty() )
+  {
+    _qgis_removeLayers( mLayersToClip, layers );
+  }
+}
+
+
+bool QgsLayoutItemMapClippingSettings::isActive() const
+{
+  return ( mClipToLayoutItem && mClipLayoutItem ) || mClipToAtlasFeature;
+}
+
+
+QgsGeometry QgsLayoutItemMapClippingSettings::clippedMapItemExtent() const
+{
+  if ( isActive() && mClipLayoutItem )
+  {
+    QgsGeometry clipGeom( mClipLayoutItem->clipPath() );
+    QTransform mapTransformer = mMap->layoutToMapCoordsTransform();
+    clipGeom.transform( mapTransformer );
+    return clipGeom;
+  }
+  return QgsGeometry();
+}
+
+QgsGeometry QgsLayoutItemMapClippingSettings::clipPathInMapItemCoordinates() const
+{
+  if ( isActive() && mClipLayoutItem )
+  {
+    QgsGeometry clipGeom( mClipLayoutItem->clipPath() );
+    clipGeom.transform( mMap->sceneTransform().inverted() );
+    return clipGeom;
+  }
+  return QgsGeometry();
+}
+
+QgsMapClippingRegion QgsLayoutItemMapClippingSettings::toMapClippingRegion() const
+{
+  QgsMapClippingRegion region( clippedMapItemExtent() );
+  region.setFeatureClip( mFeatureClippingType );
+  return region;
+}
+
+void QgsLayoutItemMapClippingSettings::setSourceItem( QgsLayoutItem *item )
+{
+  if ( mClipLayoutItem == item )
+    return;
+
+  if ( mClipLayoutItem )
+  {
+    disconnect( mClipLayoutItem, &QgsLayoutItem::clipPathChanged, mMap, &QgsLayoutItemMap::refresh );
+    disconnect( mClipLayoutItem, &QgsLayoutItem::rotationChanged, mMap, &QgsLayoutItemMap::refresh );
+    disconnect( mClipLayoutItem, &QgsLayoutItem::clipPathChanged, mMap, &QgsLayoutItemMap::extentChanged );
+    disconnect( mClipLayoutItem, &QgsLayoutItem::rotationChanged, mMap, &QgsLayoutItemMap::extentChanged );
+    disconnect( mClipLayoutItem, &QgsLayoutItem::itemWillBeDeleted, this, &QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved );
+  }
+
+  QgsLayoutItem *oldItem = mClipLayoutItem;
+  mClipLayoutItem = item;
+
+  if ( mClipLayoutItem )
+  {
+    // if item size or rotation changes, we need to redraw this map
+    connect( mClipLayoutItem, &QgsLayoutItem::clipPathChanged, mMap, &QgsLayoutItemMap::refresh );
+    connect( mClipLayoutItem, &QgsLayoutItem::rotationChanged, mMap, &QgsLayoutItemMap::refresh );
+    // and if clip item size or rotation changes, then effectively we've changed the visible extent of the map
+    connect( mClipLayoutItem, &QgsLayoutItem::clipPathChanged, mMap, &QgsLayoutItemMap::extentChanged );
+    connect( mClipLayoutItem, &QgsLayoutItem::rotationChanged, mMap, &QgsLayoutItemMap::extentChanged );
+    connect( mClipLayoutItem, &QgsLayoutItem::itemWillBeDeleted, this, &QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved );
+    // trigger a redraw of the clip source, so that it becomes invisible
+    mClipLayoutItem->refresh();
+  }
+
+  if ( oldItem )
+  {
+    // may need to refresh the previous item in order to get it to render
+    oldItem->refresh();
+  }
+
+  emit changed();
+}
+
+void QgsLayoutItemMapClippingSettings::layoutItemToBeRemoved()
+{
+  mClipToLayoutItem = false;
+  mClipLayoutItem = nullptr;
+  mClipLayoutItemUuid = QString();
+}
+
+QgsLayoutItem *QgsLayoutItemMapClippingSettings::sourceItem()
+{
+  return mClipLayoutItem;
+}
+
+void QgsLayoutItemMapClippingSettings::finalizeRestoreFromXml()
+{
+  if ( !mClipLayoutItemUuid.isEmpty() )
+  {
+    if ( QgsLayoutItem *item = mMap->layout()->itemByUuid( mClipLayoutItemUuid, true ) )
+    {
+      setSourceItem( item );
+    }
+  }
+}
+
+
+QgsLayoutItemMapClippingSettings::QgsLayoutItemMapClippingSettings( QgsLayoutItemMapAtlasClippingSettings * mAtlasClip )
+{
+    mMap = mAtlasClip->mMap;
+    mClipToAtlasFeature = mAtlasClip->enabled();
+    mRestrictToLayers = mAtlasClip->mRestrictToLayers;
+    mLayersToClip = mAtlasClip->mLayersToClip;
+    mFeatureClippingType = mAtlasClip->mFeatureClippingType;
+    mForceLabelsInsideFeature = mAtlasClip->mForceLabelsInsideFeature;
+
+}
+
+QgsLayoutItemMapClippingSettings::QgsLayoutItemMapClippingSettings( QgsLayoutItemMapItemClipPathSettings * layoutItemClip )
+{
+    mMap = layoutItemClip->mMap;
+    mClipToLayoutItem = layoutItemClip->mEnabled;
+    mFeatureClippingType = layoutItemClip->mFeatureClippingType;
+    mForceLabelsInsideFeature = layoutItemClip->mForceLabelsInsideClipPath;
+    mClipLayoutItem = layoutItemClip->mClipPathSource;
+    mClipLayoutItemUuid= layoutItemClip->mClipPathUuid;
 }

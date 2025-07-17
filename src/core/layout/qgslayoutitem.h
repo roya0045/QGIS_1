@@ -1123,6 +1123,15 @@ class CORE_EXPORT QgsLayoutItem : public QgsLayoutObject, public QGraphicsRectIt
      */
     void clipPathChanged();
 
+    /**
+     * Emitted before the item is deleted.
+     * 
+     * \see cleanup()
+     * 
+     * \since QGIS 3.46
+     */
+    void itemWillBeDeleted();
+
   protected:
 
     /**

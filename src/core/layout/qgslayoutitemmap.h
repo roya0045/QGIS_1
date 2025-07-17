@@ -141,6 +141,10 @@ class CORE_EXPORT QgsLayoutItemMapAtlasClippingSettings : public QObject
      */
     bool readXml( const QDomElement &element, const QDomDocument &doc, const QgsReadWriteContext &context );
 
+    void finalizeRestoreFromXml();
+
+    friend class QgsLayoutItemMapClippingSettings;
+
   signals:
 
     /**
@@ -290,6 +294,8 @@ class CORE_EXPORT QgsLayoutItemMapItemClipPathSettings : public QObject
      */
     void finalizeRestoreFromXml();
 
+    friend class QgsLayoutItemMapClippingSettings;
+
   signals:
 
     /**
@@ -307,6 +313,244 @@ class CORE_EXPORT QgsLayoutItemMapItemClipPathSettings : public QObject
     QPointer< QgsLayoutItem > mClipPathSource;
     QString mClipPathUuid;
 
+};
+
+/**
+ * \ingroup core
+ * \class QgsLayoutItemMapClippingSettings
+ * \brief Contains settings relating to clipping a layout map , replacing QgsLayoutItemMapItemClipPathSettings & QgsLayoutItemMapAtlasClippingSettings, offering a unified class to handle clipping.
+ * \since QGIS 3.44
+ */
+class CORE_EXPORT QgsLayoutItemMapClippingSettings : public QObject
+{
+    Q_OBJECT
+
+  public:
+
+    /**
+     * Returns the geometry to use for clipping the parent map, in the map item's CRS.
+     *
+     * \see clipPathInMapItemCoordinates()
+     */
+    QgsGeometry clippedMapItemExtent() const;
+
+    /**
+     * Function kept for legacy reasons.
+     */
+    QgsGeometry clippedMapExtent() {return clippedMapItemExtent();}
+
+    /**
+     * Returns the clipping path geometry, in the map item's coordinate space.
+     *
+     * \warning The return path is not in geographic coordinates, rather the map
+     * layout item's QGraphicsItem coordinate space. Use clippedMapExtent() to retrieve
+     * the clip path in the map's CRS.
+     *
+     * \see clippedMapExtent()
+     */
+    QgsGeometry clipPathInMapItemCoordinates() const;
+
+    /**
+     * Returns the clip path as a map clipping region.
+     */
+    QgsMapClippingRegion toMapClippingRegion() const;
+
+
+    /**
+     * Sets the source \a item which will provide the clipping path for the map.
+     *
+     * The specified \a item must return the QgsLayoutItem::FlagProvidesClipPath flag.
+     *
+     * \see sourceItem()
+     */
+    void setSourceItem( QgsLayoutItem *item );
+
+    /**
+     * Returns the source item which will provide the clipping path for the map, or NULLPTR
+     * if no item is set.
+     *
+     * \see setSourceItem()
+     */
+    QgsLayoutItem *sourceItem();
+
+    /**
+     * Constructor for QgsLayoutItemMapAtlasClippingSettings, with the specified \a map parent.
+     */
+    QgsLayoutItemMapClippingSettings( QgsLayoutItemMap *map SIP_TRANSFERTHIS = nullptr );
+
+    /**
+     * Import settings by importing settings from the two classes.
+     * 
+     * \since QGIS 3.44
+     */
+    void importLegacySettings( QgsLayoutItemMapAtlasClippingSettings * mAtlasClip, QgsLayoutItemMapItemClipPathSettings * layoutItemClip );
+
+    /**
+     * Constructor/conversion utility class.
+     */
+    QgsLayoutItemMapClippingSettings( QgsLayoutItemMapAtlasClippingSettings * mAtlasClip );
+
+    /**
+     * Constructor/conversion utility class.
+     */
+    QgsLayoutItemMapClippingSettings( QgsLayoutItemMapItemClipPathSettings * layoutItemClip );
+
+    /**
+     * Returns TRUE if the map content should be clipped to the current atlas feature.
+     *
+     * \see setEnabled()
+     */
+    bool atlasEnabled() const {return mClipToAtlasFeature;}
+
+    /**
+     * Sets whether the map content should be clipped to the current atlas feature.
+     *
+     * \see enabled()
+     */
+    void setAtlasEnabled( bool enabled );
+
+    /**
+     * Returns TRUE if the map content should be clipped to the current atlas feature.
+     *
+     * \see setEnabled()
+     */
+    bool layoutItemEnabled() const{ return mClipToLayoutItem;}
+
+    /**
+     * Sets whether the map content should be clipped to the current atlas feature.
+     *
+     * \see enabled()
+     */
+    void setLayoutItemEnabled( bool enabled );
+
+    /**
+     * Returns TRUE if the atlas clipping mode or the layout item clipping mode are enabled.
+     */
+    bool isActive() const;
+
+    /**
+     * Returns the feature clipping type to apply when clipping to the current atlas feature.
+     *
+     * \see setFeatureClippingType()
+     */
+    QgsMapClippingRegion::FeatureClippingType featureClippingType() const;
+
+    /**
+     * Sets the feature clipping \a type to apply when clipping to the current atlas feature.
+     *
+     * \see featureClippingType()
+     */
+    void setFeatureClippingType( QgsMapClippingRegion::FeatureClippingType type );
+
+    /**
+     * Returns TRUE if labels should only be placed inside the atlas feature geometry.
+     *
+     * \see setForceLabelsInsideFeature()
+     */
+    bool forceLabelsInsideFeature() const;
+
+    /**
+     * Sets whether labels should only be placed inside the atlas feature geometry.
+     *
+     * \see forceLabelsInsideFeature()
+     */
+    void setForceLabelsInsideFeature( bool forceInside );
+
+    /**
+     * Returns TRUE if clipping should be restricted to a subset of layers.
+     *
+     * \see layersToClip()
+     * \see setRestrictToLayers()
+     */
+    bool restrictToLayers() const;
+
+    /**
+     * Sets whether clipping should be restricted to a subset of layers.
+     *
+     * \see setLayersToClip()
+     * \see restrictToLayers()
+     */
+    void setRestrictToLayers( bool enabled );
+
+    /**
+     * Returns the list of map layers to clip to the atlas feature.
+     *
+     * \note This setting is only used if restrictToLayers() is TRUE.
+     *
+     * \see restrictToLayers()
+     * \see setLayersToClip()
+     */
+    QList< QgsMapLayer * > layersToClip() const;
+
+    /**
+     * Sets the list of map \a layers to clip to the atlas feature.
+     *
+     * \note This setting is only used if restrictToLayers() is TRUE.
+     *
+     * \see restrictToLayers()
+     * \see layersToClip()
+     */
+    void setLayersToClip( const QList< QgsMapLayer * > &layers );
+
+    /**
+     * Stores settings in a DOM element, where \a element is the DOM element
+     * corresponding to a 'LayoutMap' tag.
+     * \see readXml()
+     */
+    bool writeXml( QDomElement &element, QDomDocument &document, const QgsReadWriteContext &context ) const;
+
+    /**
+     * Sets the setting's state from a DOM document, where \a element is the DOM
+     * node corresponding to a 'LayoutMap' tag.
+     * \see writeXml()
+     */
+    bool readXml( const QDomElement &element, const QDomDocument &doc, const QgsReadWriteContext &context );
+
+    /**
+     * To be called after all pending items have been restored from XML.
+     * \see readXml()
+     */
+    void finalizeRestoreFromXml();
+
+    /**
+     * Sets a geometry expression to define the area to be clipped. Override the atlas geometry used to perform the clipping.
+     * 
+     * \since QGIS 3.44
+     */
+    void setGeometryExpression( QString expression ){ mGeometryExpression = expression; }
+
+    /**
+     * Returns the geometry expression used to perform the clipping by the atlas.
+     * 
+     * \since QGIS 3.44
+     */
+    QString geometryExpression(){ return mGeometryExpression; }
+
+
+  signals:
+
+    /**
+     * Emitted when the atlas clipping settings are changed.
+     */
+    void changed();
+
+  private slots:
+    void layersAboutToBeRemoved( const QList<QgsMapLayer *> &layers );
+    // disconnect item to prevent segfaults
+    void layoutItemToBeRemoved();
+
+  private:
+
+    QgsLayoutItemMap *mMap = nullptr;
+    bool mClipToAtlasFeature = false;
+    bool mClipToLayoutItem = false;
+    bool mRestrictToLayers = false;
+    QList< QgsMapLayerRef > mLayersToClip;
+    QgsMapClippingRegion::FeatureClippingType mFeatureClippingType = QgsMapClippingRegion::FeatureClippingType::ClipPainterOnly;
+    bool mForceLabelsInsideFeature = false;
+    QString mGeometryExpression = "$geometry";
+    QgsLayoutItem * mClipLayoutItem = nullptr;
+    QString mClipLayoutItemUuid;
 };
 
 
@@ -867,14 +1111,21 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      *
      * \since QGIS 3.16
      */
-    QgsLayoutItemMapAtlasClippingSettings *atlasClippingSettings() { return mAtlasClippingSettings; }
+    QgsLayoutItemMapClippingSettings *atlasClippingSettings() { return mMapClippingSettings; }
 
     /**
      * Returns the map's item based clip path settings.
      *
      * \since QGIS 3.16
      */
-    QgsLayoutItemMapItemClipPathSettings *itemClippingSettings() { return mItemClippingSettings; }
+    QgsLayoutItemMapClippingSettings *itemClippingSettings() { return mMapClippingSettings; }
+
+    /**
+     * Returns the map's item based clip path settings.
+     *
+     * \since QGIS 3.16
+     */
+    QgsLayoutItemMapClippingSettings *mapClippingSettings() { return mMapClippingSettings; }
 
     /**
      * Sets whether the z range is \a enabled (i.e. whether the map will be filtered
@@ -928,7 +1179,8 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      * \since QGIS 3.32
      */
     QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
-
+    QStringList mExportThemes;
+    QStringList::iterator mExportThemeIt;
   protected:
 
     void draw( QgsLayoutItemRenderContext &context ) override;
@@ -1001,6 +1253,7 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      * \since QGIS 3.20
      */
     void previewRefreshed();
+
 
   public slots:
 
@@ -1235,11 +1488,8 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
     bool shouldDrawPart( PartType part ) const;
 
     PartType mCurrentExportPart = NotLayered;
-    QStringList mExportThemes;
-    QStringList::iterator mExportThemeIt;
 
-    QgsLayoutItemMapAtlasClippingSettings *mAtlasClippingSettings = nullptr;
-    QgsLayoutItemMapItemClipPathSettings *mItemClippingSettings = nullptr;
+    QgsLayoutItemMapClippingSettings *mMapClippingSettings = nullptr;
 
     std::unique_ptr<QgsGroupedFeatureFilterProvider> mAtlasFeatureFilterProvider;
 
@@ -1261,6 +1511,10 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      * Key is the original layer id, value is the cloned group
      */
     std::map<QString, std::unique_ptr<QgsGroupLayer>> mGroupLayers;
+
+    QgsGeometry clippingAtlasGeometry() const;
+
+    QgsGeometry clippingExtent() const;
 
     friend class QgsLayoutItemMapGrid;
     friend class QgsLayoutItemMapOverview;
