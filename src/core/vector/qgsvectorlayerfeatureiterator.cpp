@@ -983,7 +983,7 @@ void QgsVectorLayerFeatureIterator::createOrderedJoinList()
 bool QgsVectorLayerFeatureIterator::postProcessFeature( QgsFeature &feature )
 {
   bool result = handleGeometryValidity( feature );
-  if ( result && mHasValidTransform )
+  if ( result )
     geometryToDestinationCrs( feature, mTransform );
 
   if ( result && mDistanceWithinEngine && feature.hasGeometry() )
