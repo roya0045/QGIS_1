@@ -1850,17 +1850,7 @@ QgsMapSettings QgsLayoutItemMap::mapSettings( const QgsRectangle &extent, QSizeF
     jobMapSettings.setZRange( mZRange );
   }
 
-  if ( mAtlasClippingSettings->enabled() && mLayout->reportContext().feature().isValid() )
-  {
-    QgsGeometry clipGeom( atlasGeometry( jobMapSettings.destinationCrs() ) );
-    if ( clipGeom.type() != Qgis::GeometryType::Polygon )
-      return jobMapSettings;
-    QgsMapClippingRegion region( clipGeom );
-    region.setFeatureClip( mAtlasClippingSettings->featureClippingType() );
-    region.setRestrictedLayers( mAtlasClippingSettings->layersToClip() );
-    region.setRestrictToLayers( mAtlasClippingSettings->restrictToLayers() );
-    jobMapSettings.addClippingRegion( region );
-  }
+  QgsGeometry clipGeom = clippingExtent();
 
   if ( mMapClippingSettings->forceLabelsInsideFeature() )
   {
