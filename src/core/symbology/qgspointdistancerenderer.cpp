@@ -25,6 +25,7 @@
 #include "qgsexpressioncontextutils.h"
 #include "qgsmarkersymbol.h"
 #include "qgstextrenderer.h"
+#include "qgssldexportcontext.h"
 
 #include <QDomElement>
 #include <QPainter>
