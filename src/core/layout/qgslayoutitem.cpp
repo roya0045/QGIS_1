@@ -508,7 +508,7 @@ void QgsLayoutItem::attemptMove( const QgsLayoutPoint &p, bool useReferencePoint
 
   evaluatedPoint = applyDataDefinedPosition( evaluatedPoint );
 
-  if ( mDataDefinedProperties.isActive( QgsLayoutObject::PositionY ) )
+  if ( mDataDefinedProperties.isActive( QgsLayoutObject::DataDefinedProperty::PositionY ) )
     evaluatedPoint.setY( evaluatedPoint.y() + mLayout->convertFromLayoutUnits( mLayout->pageCollection()->page( mAnchorPage )->pos().y(), evaluatedPoint.units() ).length() );
   else if ( mAnchorPage > 0 )
     evaluatedPoint = mLayout->pageCollection()->pagePositionToAbsolute( mAnchorPage, evaluatedPoint );
