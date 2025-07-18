@@ -2230,19 +2230,19 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
       mMapItem->endCommand();
     }
   } );
-  connect( mItemClippingTypeComboBox, qOverload<int>( &QComboBox::currentIndexChanged ), this, [this] {
+  connect( mClippingTypeComboBox, qOverload<int>( &QComboBox::currentIndexChanged ), this, [this] {
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Change Map Clipping Behavior" ) );
-      mMapItem->itemClippingSettings()->setFeatureClippingType( static_cast<QgsMapClippingRegion::FeatureClippingType>( mItemClippingTypeComboBox->currentData().toInt() ) );
+      mMapItem->maplippingSettings()->setFeatureClippingType( static_cast<QgsMapClippingRegion::FeatureClippingType>( mItemClippingTypeComboBox->currentData().toInt() ) );
       mMapItem->endCommand();
     }
   } );
-  connect( mForceLabelsInsideItemCheckBox, &QCheckBox::toggled, this, [this]( bool active ) {
+  connect( mForceLabelsInsideCheckBox, &QCheckBox::toggled, this, [this]( bool active ) {
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Change Map Clipping Label Behavior" ) );
-      mMapItem->itemClippingSettings()->setForceLabelsInsideClipPath( active );
+      mMapItem->mapClippingSettings()->setForceLabelsInsideClipPath( active );
       mMapItem->endCommand();
     }
   } );
