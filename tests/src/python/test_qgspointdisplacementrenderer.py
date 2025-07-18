@@ -28,9 +28,41 @@ import qgis  # NOQA
 
 import os
 
+import qgis  # NOQA
+from qgis.PyQt.QtCore import QDir, QSize, QSizeF
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtCore import QSize, QSizeF, QThreadPool, QDir
 from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import (
+    QgsCategorizedSymbolRenderer,
+    QgsFeature,
+    QgsFontUtils,
+    QgsGeometry,
+    QgsGeometryGeneratorSymbolLayer,
+    QgsMapRendererSequentialJob,
+    QgsMapSettings,
+    QgsMapUnitScale,
+    QgsMarkerSymbol,
+    QgsPointClusterRenderer,
+    QgsPointDisplacementRenderer,
+    QgsProject,
+    QgsProperty,
+    QgsReadWriteContext,
+    QgsRectangle,
+    QgsRenderContext,
+    QgsRendererCategory,
+    QgsSingleSymbolRenderer,
+    QgsSymbol,
+    QgsSymbolLayer,
+    QgsTextFormat,
+    QgsTextBufferSettings,
+    QgsTextBackgroundSettings,
+    QgsTextShadowSettings,
+    QgsUnitTypes,
+    QgsVectorLayer,
+)
+import unittest
+from qgis.testing import start_app, QgisTestCase
 
 from qgis.core import (QgsVectorLayer,
                        QgsProject,
@@ -129,7 +161,10 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         """ test properties of renderer against expected"""
         self.assertEqual(r.labelAttributeName(), 'name')
         f = QgsFontUtils.getStandardTestFont('Bold Oblique', 14)
-        self.assertEqual(r.labelFormat().font().styleName(), f.styleName())
+        stylename = r.labelFormat().namedStyle()
+        if stylename == "":
+            stylename = QgsFontUtils.resolveFontStyleName(r.labelFormat().font())
+        self.assertEqual(stylename.replace("Italic", "Oblique"), f.styleName())
         self.assertEqual(r.minimumLabelScale(), 50000)
         self.assertEqual(r.labelColor(), QColor(255, 0, 0))
         self.assertEqual(r.tolerance(), 5)
@@ -511,6 +546,49 @@ class TestQgsPointDisplacementRenderer(unittest.TestCase):
         renderchecker.setControlPathPrefix('displacement_renderer')
         renderchecker.setControlName('expected_displacement_cluster_concentric_labels_diff_size_farther')
         res = renderchecker.runTest('expected_displacement_cluster_concentric_labels_diff_size_farther')
+        self.report += renderchecker.report()
+        self.assertTrue(res)
+        self._tearDown(layer)
+
+    def testClusterRingLabelsDifferentSizesComplexFormat(self):
+        layer, renderer, mapsettings = self._setUp()
+        renderer.setEmbeddedRenderer(self._create_categorized_renderer())
+        layer.renderer().setTolerance(10)
+        layer.renderer().setLabelAttributeName('Class')
+        layer.renderer().setLabelDistanceFactor(0.35)
+        format = QgsTextFormat.fromQFont(QgsFontUtils.getStandardTestFont('Bold', 14))
+        back = QgsTextBackgroundSettings()
+        back.setEnabled(True)
+        back.setType(QgsTextBackgroundSettings.ShapeEllipse)
+        back.setSizeType(QgsTextBackgroundSettings.SizeFixed)
+        back.setSize(QSizeF(1, 2))
+        back.setSizeUnit(QgsUnitTypes.RenderPixels)
+        back.setSizeMapUnitScale(QgsMapUnitScale(1, 2))
+        format.setBackground(back)
+        buff = QgsTextBufferSettings()
+        buff.setEnabled(True)
+        buff.setSize(5)
+        buff.setSizeUnit(QgsUnitTypes.RenderPixels)
+        buff.setSizeMapUnitScale(QgsMapUnitScale(1, 2))
+        buff.setColor(QColor(155, 100, 125))
+        buff.setFillBufferInterior(True)
+        format.setBuffer(buff)
+        shad = QgsTextShadowSettings()
+        shad.setEnabled(True)
+        shad.setShadowPlacement(QgsTextShadowSettings.ShadowBuffer)
+        shad.setOffsetAngle(45)
+        shad.setOffsetDistance(75)
+        shad.setOffsetUnit(QgsUnitTypes.RenderMapUnits)
+        shad.setOffsetMapUnitScale(QgsMapUnitScale(5, 6))
+        shad.setOffsetGlobal(True)
+        shad.setBlurRadius(11)
+        format.setShadow(shad)
+        layer.renderer().setLabelFormat(format)
+        renderchecker = QgsMultiRenderChecker()
+        renderchecker.setMapSettings(mapsettings)
+        renderchecker.setControlPathPrefix('displacement_renderer')
+        renderchecker.setControlName('expected_displacement_cluster_concentric_labels_formatted')
+        res = renderchecker.runTest('expected_displacement_cluster_concentric_labels_formatted')
         self.report += renderchecker.report()
         self.assertTrue(res)
         self._tearDown(layer)
