@@ -2229,7 +2229,7 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Change Map Clipping Behavior" ) );
-      mMapItem->maplippingSettings()->setFeatureClippingType( static_cast<QgsMapClippingRegion::FeatureClippingType>( mItemClippingTypeComboBox->currentData().toInt() ) );
+      mMapItem->mapClippingSettings()->setFeatureClippingType( static_cast<QgsMapClippingRegion::FeatureClippingType>( mClippingTypeComboBox->currentData().toInt() ) );
       mMapItem->endCommand();
     }
   } );
@@ -2237,7 +2237,7 @@ QgsLayoutMapClippingWidget::QgsLayoutMapClippingWidget( QgsLayoutItemMap *map )
     if ( !mBlockUpdates )
     {
       mMapItem->beginCommand( tr( "Change Map Clipping Label Behavior" ) );
-      mMapItem->mapClippingSettings()->setForceLabelsInsideClipPath( active );
+      mMapItem->mapClippingSettings()->setForceLabelsInsideFeature( active );
       mMapItem->endCommand();
     }
   } );
