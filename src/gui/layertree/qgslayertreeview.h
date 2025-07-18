@@ -108,8 +108,6 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
     bool mShowPrivateLayers = false;
     bool mHideValidLayers = false;
     bool mShowAllNodes = true;
-
-
 };
 
 
@@ -369,7 +367,7 @@ class GUI_EXPORT QgsLayerTreeView : public QTreeView
      */
     void showAllNodes( bool show );
 
-///@cond PRIVATE
+    ///@cond PRIVATE
 
     /**
      * Returns a list of custom property keys which are considered as related to view operations
