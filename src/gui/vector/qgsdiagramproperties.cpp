@@ -29,9 +29,6 @@
 #include "moc_qgsdiagramproperties.cpp"
 #include "qgsdiagramrenderer.h"
 #include "qgsfeatureiterator.h"
-#include "qgscolordialog.h"
-#include "qgsmessagelog.h"
-#include "qgsguiutils.h"
 #include "qgssymbolselectordialog.h"
 #include "qgsmapcanvas.h"
 #include "qgsexpressionbuilderdialog.h"
@@ -49,7 +46,6 @@
 #include <QMessageBox>
 #include <QStyledItemDelegate>
 #include <QRandomGenerator>
-#include <QButtonGroup>
 
 QgsExpressionContext QgsDiagramProperties::createExpressionContext() const
 {
@@ -432,56 +428,10 @@ void QgsDiagramProperties::syncToLayer()
 void QgsDiagramProperties::syncToRenderer( const QgsDiagramRenderer *dr )
 {
   mDiagramAttributesTreeWidget->clear();
-  const QgsDiagramRenderer *dr = mLayer->diagramRenderer();
+
   if ( !dr ) //no diagram renderer yet, insert reasonable default
   {
-    mDiagramTypeComboBox->blockSignals( true );
-    mDiagramTypeComboBox->setCurrentIndex( 0 );
-    mDiagramTypeComboBox->blockSignals( false );
-    mFixedSizeRadio->setChecked( true );
-    mDiagramUnitComboBox->setUnit( Qgis::RenderUnit::Millimeters );
-    mDiagramLineUnitComboBox->setUnit( Qgis::RenderUnit::Millimeters );
-    mLabelPlacementComboBox->setCurrentIndex( mLabelPlacementComboBox->findText( tr( "x-height" ) ) );
-    mDiagramSizeSpinBox->setEnabled( true );
-    mDiagramSizeSpinBox->setValue( 15 );
-
-    mIncreaseMinimumSizeSpinBox->setEnabled( true );
-    mIncreaseMinimumSizeLabel->setEnabled( true );
-    mBarWidthSpinBox->setValue( 5 );
-    mScaleVisibilityGroupBox->setChecked( mLayer->hasScaleBasedVisibility() );
-    mScaleRangeWidget->setScaleRange( mLayer->minimumScale(), mLayer->maximumScale() );
-    mShowAllCheckBox->setChecked( true );
-    mCheckBoxAttributeLegend->setChecked( true );
-
-    switch ( mLayer->geometryType() )
-    {
-      case Qgis::GeometryType::Point:
-        radAroundPoint->setChecked( true );
-        break;
-
-      case Qgis::GeometryType::Line:
-        radAroundLine->setChecked( true );
-        chkLineAbove->setChecked( true );
-        chkLineBelow->setChecked( false );
-        chkLineOn->setChecked( false );
-        chkLineOrientationDependent->setChecked( false );
-        break;
-
-      case Qgis::GeometryType::Polygon:
-        radOverCentroid->setChecked( true );
-        mDiagramDistanceLabel->setEnabled( false );
-        mDiagramDistanceSpinBox->setEnabled( false );
-        mDistanceDDBtn->setEnabled( false );
-        break;
-
-      case Qgis::GeometryType::Unknown:
-      case Qgis::GeometryType::Null:
-        break;
-    }
-    mBackgroundColorButton->setColor( QColor( 255, 255, 255, 255 ) );
-    //force a refresh of widget status to match diagram type
-    mDiagramTypeComboBox_currentIndexChanged( mDiagramTypeComboBox->currentIndex() );
-
+    insertDefaults();
   }
   else // already a diagram renderer present
   {
@@ -580,8 +530,6 @@ void QgsDiagramProperties::syncToRenderer( const QgsDiagramRenderer *dr )
       QList<QString>::const_iterator labIt = categoryLabels.constBegin();
       for ( ; catIt != categoryAttributes.constEnd(); ++catIt, ++coIt, ++labIt )
       {
-        if ( QString( *catIt ).isEmpty() && QString( *labIt ).isEmpty() )
-          continue;
         QTreeWidgetItem *newItem = new QTreeWidgetItem( mDiagramAttributesTreeWidget );
         newItem->setText( 0, *catIt );
         newItem->setData( 0, RoleAttributeExpression, *catIt );
@@ -752,8 +700,6 @@ void QgsDiagramProperties::mDiagramTypeComboBox_currentIndexChanged( int index )
     mDiagramSizeSpinBox->setEnabled( mFixedSizeRadio->isChecked() );
     mFrameIncreaseSize->setVisible( true );
   }
-    mDiagramFrame->setEnabled( true );
-    mDiagramType = mDiagramTypeComboBox->itemData( index ).toString();
 
   if ( QgsTextDiagram::DIAGRAM_NAME_TEXT == mDiagramType || QgsPieDiagram::DIAGRAM_NAME_PIE == mDiagramType )
   {
@@ -1020,8 +966,6 @@ std::unique_ptr<QgsDiagramRenderer> QgsDiagramProperties::createRenderer()
     auto dr = std::make_unique<QgsLinearlyInterpolatedDiagramRenderer>();
     dr->setLowerValue( 0.0 );
     dr->setLowerSize( QSizeF( 0.0, 0.0 ) );
-    if ( qgsDoubleNear( mMaxValueSpinBox->value(), 0.0 ) )
-      QgsMessageLog::logMessage( tr( "Maximum size is 0: no feature will be rendered" ), tr( "Rendering" ), Qgis::MessageLevel::Critical );
     dr->setUpperValue( mMaxValueSpinBox->value() );
     dr->setUpperSize( QSizeF( mSizeSpinBox->value(), mSizeSpinBox->value() ) );
 
@@ -1214,7 +1158,6 @@ void QgsDiagramProperties::updatePlacementWidgets()
 
 void QgsDiagramProperties::scalingTypeChanged()
 {
-  mLinearScaleFrame->setEnabled( mAttributeBasedScalingRadio->isChecked() );
   mButtonSizeLegendSettings->setEnabled( mAttributeBasedScalingRadio->isChecked() );
 }
 
