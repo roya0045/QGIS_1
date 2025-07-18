@@ -52,12 +52,11 @@ class GUI_EXPORT QgsPointDisplacementRendererWidget : public QgsRendererWidget, 
     void mLabelFieldComboBox_currentIndexChanged( const QString &text );
     void mRendererComboBox_currentIndexChanged( int index );
     void mPlacementComboBox_currentIndexChanged( int index );
-    void labelFontChanged();
+    void labelFormatChanged();
     void mCircleWidthSpinBox_valueChanged( double d );
     void mCircleColorButton_colorChanged( const QColor &newColor );
     void mDistanceSpinBox_valueChanged( double d );
     void mDistanceUnitWidget_changed();
-    void mLabelColorButton_colorChanged( const QColor &newColor );
     void mCircleModificationSpinBox_valueChanged( double d );
     void mLabelDistanceFactorSpinBox_valueChanged( double d );
     void mScaleDependentLabelsCheckBox_stateChanged( int state );

@@ -24,6 +24,7 @@
 #include "qgsstyleentityvisitor.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgsmarkersymbol.h"
+#include "qgstextrenderer.h"
 
 #include <QDomElement>
 #include <QPainter>
@@ -416,19 +417,20 @@ QString QgsPointDistanceRenderer::getLabel( const QgsFeature &feature ) const
 
 void QgsPointDistanceRenderer::drawLabels( QPointF centerPoint, QgsSymbolRenderContext &context, const QList<QPointF> &labelShifts, const ClusteredGroup &group ) const
 {
+
   QPainter *p = context.renderContext().painter();
   if ( !p )
   {
     return;
   }
 
-  const QPen labelPen( mLabelColor );
+  const QPen labelPen( mLabelFormat.color() );
   p->setPen( labelPen );
 
   //scale font (for printing)
-  QFont pixelSizeFont = mLabelFont;
+  QFont pixelSizeFont = mLabelFormat.toQFont();
 
-  const double fontSizeInPixels = context.renderContext().convertToPainterUnits( mLabelFont.pointSizeF(), Qgis::RenderUnit::Points );
+  const double fontSizeInPixels = context.renderContext().convertToPainterUnits( mLabelFormat.size(), Qgis::RenderUnit::Points );
   pixelSizeFont.setPixelSize( static_cast< int >( std::round( fontSizeInPixels ) ) );
   QFont scaledFont = pixelSizeFont;
   scaledFont.setPixelSize( pixelSizeFont.pixelSize() );
@@ -452,10 +454,14 @@ void QgsPointDistanceRenderer::drawLabels( QPointF centerPoint, QgsSymbolRenderC
       currentLabelShift.setY( currentLabelShift.y() + fontMetrics.ascent() );
     }
 
-    const QPointF drawingPoint( centerPoint + currentLabelShift );
+    QPointF drawingPoint( centerPoint + currentLabelShift );
     const QgsScopedQPainterState painterState( p );
-    p->translate( drawingPoint.x(), drawingPoint.y() );
-    p->drawText( QPointF( 0, 0 ), groupIt->label );
+    QgsTextRenderer::drawText( drawingPoint, 0,
+                               Qgis::TextHorizontalAlignment::Left,
+                               groupIt->label.split( '\n' ),
+                               context.renderContext(),
+                               mLabelFormat,
+                               true );
   }
 }
 
@@ -530,3 +536,14 @@ QgsPointDistanceRenderer::GroupedFeature::GroupedFeature( const QgsFeature &feat
 {}
 
 QgsPointDistanceRenderer::GroupedFeature::~GroupedFeature() = default;
+
+
+void QgsPointDistanceRenderer::setLabelFormat( const QgsTextFormat &format )
+{
+  mLabelFormat = format;
+}
+
+QgsTextFormat QgsPointDistanceRenderer::labelFormat() const
+{
+  return mLabelFormat;
+}
