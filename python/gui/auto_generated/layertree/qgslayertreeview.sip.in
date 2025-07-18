@@ -66,13 +66,6 @@ Allow non-spatial layers and empty groups to be show.
 .. versionadded:: 3.20
 %End
 
-  protected:
-
-.. seealso:: :py:func:`setHideValidLayers`
-
-.. versionadded:: 3.38
-%End
-
     void setHideValidLayers( bool hideValid );
 %Docstring
 Sets whether valid layers should be hidden (i.e. only invalid layers are

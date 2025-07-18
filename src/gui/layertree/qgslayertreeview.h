@@ -88,8 +88,6 @@ class GUI_EXPORT QgsLayerTreeProxyModel : public QSortFilterProxyModel
      */
     void setShowAllNodes( bool show );
 
-  protected:
-
     /**
      * Sets whether valid layers should be hidden (i.e. only invalid layers are shown).
      *
