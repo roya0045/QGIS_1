@@ -56,16 +56,15 @@ QgsPointDisplacementRendererWidget::QgsPointDisplacementRendererWidget( QgsVecto
   connect( mCircleColorButton, &QgsColorButton::colorChanged, this, &QgsPointDisplacementRendererWidget::mCircleColorButton_colorChanged );
   connect( mDistanceSpinBox, static_cast<void ( QDoubleSpinBox::* )( double )>( &QDoubleSpinBox::valueChanged ), this, &QgsPointDisplacementRendererWidget::mDistanceSpinBox_valueChanged );
   connect( mDistanceUnitWidget, &QgsUnitSelectionWidget::changed, this, &QgsPointDisplacementRendererWidget::mDistanceUnitWidget_changed );
-  connect( mCircleModificationSpinBox, static_cast < void ( QDoubleSpinBox::* )( double ) > ( &QDoubleSpinBox::valueChanged ), this, &QgsPointDisplacementRendererWidget::mCircleModificationSpinBox_valueChanged );
-  connect( mLabelDistanceFactorSpinBox, static_cast < void ( QDoubleSpinBox::* )( double ) > ( &QDoubleSpinBox::valueChanged ), this, &QgsPointDisplacementRendererWidget::mLabelDistanceFactorSpinBox_valueChanged );
+  connect( mCircleModificationSpinBox, static_cast< void ( QDoubleSpinBox::* )( double ) >( &QDoubleSpinBox::valueChanged ), this, &QgsPointDisplacementRendererWidget::mCircleModificationSpinBox_valueChanged );
+  connect( mLabelDistanceFactorSpinBox, static_cast< void ( QDoubleSpinBox::* )( double ) >( &QDoubleSpinBox::valueChanged ), this, &QgsPointDisplacementRendererWidget::mLabelDistanceFactorSpinBox_valueChanged );
   connect( mScaleDependentLabelsCheckBox, &QCheckBox::stateChanged, this, &QgsPointDisplacementRendererWidget::mScaleDependentLabelsCheckBox_stateChanged );
   connect( mRendererSettingsButton, &QPushButton::clicked, this, &QgsPointDisplacementRendererWidget::mRendererSettingsButton_clicked );
   this->layout()->setContentsMargins( 0, 0, 0, 0 );
   mLabelFontButton->setMode( QgsFontButton::ModeTextRenderer );
   mLabelFontButton->setDialogTitle( tr( "Label Font" ) );
   mLabelFontButton->registerExpressionContextGenerator( this );
-  mDistanceUnitWidget->setUnits( { Qgis::RenderUnit::Millimeters, Qgis::RenderUnit::MetersInMapUnits, Qgis::RenderUnit::MapUnits, Qgis::RenderUnit::Pixels,
-                                   Qgis::RenderUnit::Points, Qgis::RenderUnit::Inches} );
+  mDistanceUnitWidget->setUnits( { Qgis::RenderUnit::Millimeters, Qgis::RenderUnit::MetersInMapUnits, Qgis::RenderUnit::MapUnits, Qgis::RenderUnit::Pixels, Qgis::RenderUnit::Points, Qgis::RenderUnit::Inches } );
   mCenterSymbolToolButton->setSymbolType( Qgis::SymbolType::Marker );
 
   if ( renderer )
