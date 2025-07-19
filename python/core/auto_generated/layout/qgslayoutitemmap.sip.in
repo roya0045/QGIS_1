@@ -1293,8 +1293,7 @@ Returns the current geometry ( from the source layer or data-defined ) in the pr
 
 .. versionadded:: 3.32
 %End
-    QStringList mExportThemes;
-    QStringList::iterator mExportThemeIt;
+
   protected:
 
     virtual void draw( QgsLayoutItemRenderContext &context );

@@ -1179,8 +1179,7 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
      * \since QGIS 3.32
      */
     QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
-    QStringList mExportThemes;
-    QStringList::iterator mExportThemeIt;
+
   protected:
 
     void draw( QgsLayoutItemRenderContext &context ) override;
@@ -1515,7 +1514,8 @@ class CORE_EXPORT QgsLayoutItemMap : public QgsLayoutItem, public QgsTemporalRan
     QgsGeometry clippingAtlasGeometry() const;
 
     QgsGeometry clippingExtent() const;
-
+    QStringList mExportThemes;
+    QStringList::iterator mExportThemeIt;
     friend class QgsLayoutItemMapGrid;
     friend class QgsLayoutItemMapOverview;
     friend class QgsLayoutItemLegend;
