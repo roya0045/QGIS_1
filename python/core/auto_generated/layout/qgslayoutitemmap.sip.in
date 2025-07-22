@@ -309,7 +309,10 @@ Emitted when the item clipping settings are changed.
 class QgsLayoutItemMapClippingSettings : QObject
 {
 %Docstring(signature="appended")
-Contains settings relating to clipping a layout map , replacing :py:class:`QgsLayoutItemMapItemClipPathSettings` & :py:class:`QgsLayoutItemMapAtlasClippingSettings`, offering a unified class to handle clipping.
+Contains settings relating to clipping a layout map , replacing
+:py:class:`QgsLayoutItemMapItemClipPathSettings` &
+:py:class:`QgsLayoutItemMapAtlasClippingSettings`, offering a unified
+class to handle clipping.
 
 .. versionadded:: 3.44
 %End
@@ -319,11 +322,17 @@ Contains settings relating to clipping a layout map , replacing :py:class:`QgsLa
 %End
   public:
 
-    QgsGeometry clippedMapExtent() const;
+    QgsGeometry clippedMapItemExtent() const;
 %Docstring
-Returns the geometry to use for clipping the parent map, in the map item's CRS.
+Returns the geometry to use for clipping the parent map, in the map
+item's CRS.
 
 .. seealso:: :py:func:`clipPathInMapItemCoordinates`
+%End
+
+    QgsGeometry clippedMapExtent();
+%Docstring
+Function kept for legacy reasons.
 %End
 
     QgsGeometry clipPathInMapItemCoordinates() const;
@@ -347,24 +356,27 @@ Returns the clip path as a map clipping region.
 
     void setSourceItem( QgsLayoutItem *item );
 %Docstring
-Sets the source ``item`` which will provide the clipping path for the map.
+Sets the source ``item`` which will provide the clipping path for the
+map.
 
-The specified ``item`` must return the :py:class:`QgsLayoutItem`.FlagProvidesClipPath flag.
+The specified ``item`` must return the
+:py:class:`QgsLayoutItem`.FlagProvidesClipPath flag.
 
 .. seealso:: :py:func:`sourceItem`
 %End
 
     QgsLayoutItem *sourceItem();
 %Docstring
-Returns the source item which will provide the clipping path for the map, or ``None``
-if no item is set.
+Returns the source item which will provide the clipping path for the
+map, or ``None`` if no item is set.
 
 .. seealso:: :py:func:`setSourceItem`
 %End
 
     QgsLayoutItemMapClippingSettings( QgsLayoutItemMap *map /TransferThis/ = 0 );
 %Docstring
-Constructor for :py:class:`QgsLayoutItemMapAtlasClippingSettings`, with the specified ``map`` parent.
+Constructor for :py:class:`QgsLayoutItemMapAtlasClippingSettings`, with
+the specified ``map`` parent.
 %End
 
     void importLegacySettings( QgsLayoutItemMapAtlasClippingSettings * mAtlasClip, QgsLayoutItemMapItemClipPathSettings * layoutItemClip );
@@ -386,61 +398,70 @@ Constructor/conversion utility class.
 
     bool atlasEnabled() const;
 %Docstring
-Returns ``True`` if the map content should be clipped to the current atlas feature.
+Returns ``True`` if the map content should be clipped to the current
+atlas feature.
 
 .. seealso:: :py:func:`setEnabled`
 %End
 
     void setAtlasEnabled( bool enabled );
 %Docstring
-Sets whether the map content should be clipped to the current atlas feature.
+Sets whether the map content should be clipped to the current atlas
+feature.
 
 .. seealso:: :py:func:`enabled`
 %End
 
     bool layoutItemEnabled() const;
 %Docstring
-Returns ``True`` if the map content should be clipped to the current atlas feature.
+Returns ``True`` if the map content should be clipped to the current
+atlas feature.
 
 .. seealso:: :py:func:`setEnabled`
 %End
 
     void setLayoutItemEnabled( bool enabled );
 %Docstring
-Sets whether the map content should be clipped to the current atlas feature.
+Sets whether the map content should be clipped to the current atlas
+feature.
 
 .. seealso:: :py:func:`enabled`
 %End
 
     bool isActive() const;
 %Docstring
-Returns ``True`` if the atlas clipping mode or the layout item clipping mode are enabled.
+Returns ``True`` if the atlas clipping mode or the layout item clipping
+mode are enabled.
 %End
 
     QgsMapClippingRegion::FeatureClippingType featureClippingType() const;
 %Docstring
-Returns the feature clipping type to apply when clipping to the current atlas feature.
+Returns the feature clipping type to apply when clipping to the current
+atlas feature.
 
 .. seealso:: :py:func:`setFeatureClippingType`
 %End
 
     void setFeatureClippingType( QgsMapClippingRegion::FeatureClippingType type );
 %Docstring
-Sets the feature clipping ``type`` to apply when clipping to the current atlas feature.
+Sets the feature clipping ``type`` to apply when clipping to the current
+atlas feature.
 
 .. seealso:: :py:func:`featureClippingType`
 %End
 
     bool forceLabelsInsideFeature() const;
 %Docstring
-Returns ``True`` if labels should only be placed inside the atlas feature geometry.
+Returns ``True`` if labels should only be placed inside the atlas
+feature geometry.
 
 .. seealso:: :py:func:`setForceLabelsInsideFeature`
 %End
 
     void setForceLabelsInsideFeature( bool forceInside );
 %Docstring
-Sets whether labels should only be placed inside the atlas feature geometry.
+Sets whether labels should only be placed inside the atlas feature
+geometry.
 
 .. seealso:: :py:func:`forceLabelsInsideFeature`
 %End
@@ -499,8 +520,8 @@ corresponding to a 'LayoutMap' tag.
 
     bool readXml( const QDomElement &element, const QDomDocument &doc, const QgsReadWriteContext &context );
 %Docstring
-Sets the setting's state from a DOM document, where ``element`` is the DOM
-node corresponding to a 'LayoutMap' tag.
+Sets the setting's state from a DOM document, where ``element`` is the
+DOM node corresponding to a 'LayoutMap' tag.
 
 .. seealso:: :py:func:`writeXml`
 %End
@@ -514,14 +535,16 @@ To be called after all pending items have been restored from XML.
 
     void setGeometryExpression( QString expression );
 %Docstring
-Sets a geometry expression to define the area to be clipped. Override the atlas geometry used to perform the clipping.
+Sets a geometry expression to define the area to be clipped. Override
+the atlas geometry used to perform the clipping.
 
 .. versionadded:: 3.44
 %End
 
     QString geometryExpression();
 %Docstring
-Returns the geometry expression used to perform the clipping by the atlas.
+Returns the geometry expression used to perform the clipping by the
+atlas.
 
 .. versionadded:: 3.44
 %End
@@ -619,7 +642,7 @@ The caller takes responsibility for deleting the returned object.
     virtual void paint( QPainter *painter, const QStyleOptionGraphicsItem *itemStyle, QWidget *pWidget );
 
 
- virtual int numberExportLayers() const /Deprecated/;
+ virtual int numberExportLayers() const /Deprecated="Since 3.10. "/;
 
 %Docstring
 .. deprecated:: 3.10
@@ -1289,7 +1312,8 @@ only display features within the specified z range.
 
     QgsGeometry atlasGeometry( const QgsCoordinateReferenceSystem crs ) const;
 %Docstring
-Returns the current geometry ( from the source layer or data-defined ) in the provided crs.
+Returns the current geometry ( from the source layer or data-defined )
+in the provided crs.
 
 .. versionadded:: 3.32
 %End

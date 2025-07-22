@@ -695,7 +695,8 @@ Returns the page the item is currently on, with the first page returning
 
     int anchorPage() const;
 %Docstring
-Returns the reference page of the item, should be different than :py:func:`~QgsLayoutItem.page` when using expression to move the object.
+Returns the reference page of the item, should be different than
+:py:func:`~QgsLayoutItem.page` when using expression to move the object.
 
 .. seealso:: :py:func:`page`
 
@@ -1099,8 +1100,13 @@ Cancels the current item command and discards it.
 Returns whether the item should be drawn in the current context.
 %End
 
-    virtual QgsExpressionContext createExpressionContext() const;
+    QgsExpressionContext createExpressionContext( bool dataDefinedContext = true ) const;
+%Docstring
+Creates the expressio context with the varibles of the item.
 
+The ``dataDefineContext`` bool is used to avoid returning the variables
+of the item controlled by expressions, this is to avoid infinite loops.
+%End
 
     virtual bool accept( QgsStyleEntityVisitorInterface *visitor ) const;
 %Docstring
@@ -1224,6 +1230,15 @@ Emitted when the item's clipping path has changed.
 .. seealso:: :py:func:`clipPath`
 
 .. versionadded:: 3.16
+%End
+
+    void itemWillBeDeleted();
+%Docstring
+Emitted before the item is deleted.
+
+.. seealso:: :py:func:`cleanup`
+
+.. versionadded:: 3.46
 %End
 
   protected:

@@ -83,7 +83,7 @@ Tests whether a given legend key is visible for a specified layer.
 .. seealso:: :py:func:`symbolVisible`
 %End
 
-    bool layerVisible( QgsMapLayer *layer ) const;
+    bool layerVisible( QgsMapLayer *layer );
 %Docstring
 Tests whether a map layer is visible.
 

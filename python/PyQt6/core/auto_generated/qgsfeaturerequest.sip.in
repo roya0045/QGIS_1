@@ -541,7 +541,7 @@ called using the feature with invalid geometry as a parameter.
 
     QgsFeatureRequest &setFilterExpression( const QString &expression );
 %Docstring
-Set the filter ``expression``. {:py:class:`QgsExpression`}
+Set the filter expression. {:py:class:`QgsExpression`}
 
 :param expression: expression string
 

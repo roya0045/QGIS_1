@@ -17,3 +17,7 @@ try:
     QgsFileUtils.uniquePath = staticmethod(QgsFileUtils.uniquePath)
 except (NameError, AttributeError):
     pass
+try:
+    QgsFileSearchTask.__overridden_methods__ = ['run']
+except (NameError, AttributeError):
+    pass

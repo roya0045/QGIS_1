@@ -267,6 +267,12 @@ QgsLayoutObject.ElevationProfileMinimumElevation.__doc__ = "Minimum elevation va
 QgsLayoutObject.ElevationProfileMaximumElevation = QgsLayoutObject.DataDefinedProperty.ElevationProfileMaximumElevation
 QgsLayoutObject.ElevationProfileMaximumElevation.is_monkey_patched = True
 QgsLayoutObject.ElevationProfileMaximumElevation.__doc__ = "Maximum elevation value for elevation profile \n.. versionadded:: 3.30"
+QgsLayoutObject.AtlasGeometryOverride = QgsLayoutObject.DataDefinedProperty.AtlasGeometryOverride
+QgsLayoutObject.AtlasGeometryOverride.is_monkey_patched = True
+QgsLayoutObject.AtlasGeometryOverride.__doc__ = "Alternative Atlas geometry \n.. versionadded:: 3.46"
+QgsLayoutObject.ClipGeometryOverride = QgsLayoutObject.DataDefinedProperty.ClipGeometryOverride
+QgsLayoutObject.ClipGeometryOverride.is_monkey_patched = True
+QgsLayoutObject.ClipGeometryOverride.__doc__ = "Layout Map Cliping geometry \n.. versionadded:: 3.46"
 QgsLayoutObject.DataDefinedProperty.__doc__ = """Data defined properties for different item types
 
 * ``NoProperty``: No property
@@ -435,6 +441,14 @@ QgsLayoutObject.DataDefinedProperty.__doc__ = """Data defined properties for dif
 * ``ElevationProfileMaximumElevation``: Maximum elevation value for elevation profile
 
   .. versionadded:: 3.30
+
+* ``AtlasGeometryOverride``: Alternative Atlas geometry
+
+  .. versionadded:: 3.46
+
+* ``ClipGeometryOverride``: Layout Map Cliping geometry
+
+  .. versionadded:: 3.46
 
 
 """

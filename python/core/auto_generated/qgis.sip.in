@@ -1281,6 +1281,8 @@ The development version
       NoCheck,
       SkipInvalid,
       AbortOnInvalid,
+      FixInvalidAbortOnFailure,
+      FixInvalidSkipOnFailure,
     };
 
     enum class SpatialFilterType

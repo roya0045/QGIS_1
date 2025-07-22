@@ -4004,6 +4004,14 @@ QgsFeatureRequest.GeometryAbortOnInvalid = Qgis.InvalidGeometryCheck.AbortOnInva
 QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid = Qgis.InvalidGeometryCheck.AbortOnInvalid
 QgsFeatureRequest.GeometryAbortOnInvalid.is_monkey_patched = True
 QgsFeatureRequest.GeometryAbortOnInvalid.__doc__ = "Close iterator on encountering any features with invalid geometry. This requires a slow geometry validity check for every feature."
+QgsFeatureRequest.GeometryFixInvalidAbortOnFailure = Qgis.InvalidGeometryCheck.FixInvalidAbortOnFailure
+QgsFeatureRequest.InvalidGeometryCheck.GeometryFixInvalidAbortOnFailure = Qgis.InvalidGeometryCheck.FixInvalidAbortOnFailure
+QgsFeatureRequest.GeometryFixInvalidAbortOnFailure.is_monkey_patched = True
+QgsFeatureRequest.GeometryFixInvalidAbortOnFailure.__doc__ = ""
+QgsFeatureRequest.GeometryFixInvalidSkipOnFailure = Qgis.InvalidGeometryCheck.FixInvalidSkipOnFailure
+QgsFeatureRequest.InvalidGeometryCheck.GeometryFixInvalidSkipOnFailure = Qgis.InvalidGeometryCheck.FixInvalidSkipOnFailure
+QgsFeatureRequest.GeometryFixInvalidSkipOnFailure.is_monkey_patched = True
+QgsFeatureRequest.GeometryFixInvalidSkipOnFailure.__doc__ = ""
 Qgis.InvalidGeometryCheck.__doc__ = """Methods for handling of features with invalid geometries
 
 .. note::
@@ -4023,6 +4031,14 @@ Qgis.InvalidGeometryCheck.__doc__ = """Methods for handling of features with inv
 * ``AbortOnInvalid``: Close iterator on encountering any features with invalid geometry. This requires a slow geometry validity check for every feature.
 
   Available as ``QgsFeatureRequest.GeometryAbortOnInvalid`` in older QGIS releases.
+
+* ``FixInvalidAbortOnFailure``: 
+
+  Available as ``QgsFeatureRequest.GeometryFixInvalidAbortOnFailure`` in older QGIS releases.
+
+* ``FixInvalidSkipOnFailure``: 
+
+  Available as ``QgsFeatureRequest.GeometryFixInvalidSkipOnFailure`` in older QGIS releases.
 
 
 """

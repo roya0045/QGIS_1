@@ -218,6 +218,24 @@ Returns the color used for for labeling points.
 .. seealso:: :py:func:`labelFont`
 %End
 
+    QgsTextFormat labelFormat() const;
+%Docstring
+Returns the text format used for drawing text in the label.
+
+.. seealso:: :py:func:`setLabelFormat`
+
+.. versionadded:: 3.28
+%End
+
+    void setLabelFormat( const QgsTextFormat &format );
+%Docstring
+Sets the text ``format`` used for drawing text in the label.
+
+.. seealso:: :py:func:`labelFormat`
+
+.. versionadded:: 3.28
+%End
+
     void setTolerance( double distance );
 %Docstring
 Sets the tolerance distance for grouping points. Units are specified
@@ -285,6 +303,7 @@ set to :py:class:`QgsUnitTypes`.RenderMapUnits.
 %End
 
   protected:
+
 
 
 

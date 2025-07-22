@@ -20,6 +20,7 @@ try:
     QgsLayerTreeUtils.countMapLayerInTree = staticmethod(QgsLayerTreeUtils.countMapLayerInTree)
     QgsLayerTreeUtils.firstGroupWithoutCustomProperty = staticmethod(QgsLayerTreeUtils.firstGroupWithoutCustomProperty)
     QgsLayerTreeUtils.insertLayerAtOptimalPlacement = staticmethod(QgsLayerTreeUtils.insertLayerAtOptimalPlacement)
+    QgsLayerTreeUtils.expressionForLegendKey = staticmethod(QgsLayerTreeUtils.expressionForLegendKey)
     QgsLayerTreeUtils.__group__ = ['layertree']
 except (NameError, AttributeError):
     pass

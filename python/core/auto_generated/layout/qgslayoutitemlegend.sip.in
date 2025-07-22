@@ -38,7 +38,8 @@ Alternative constructor.
 
     QVariant evaluateData( const QModelIndex &index, int role ) const;
 %Docstring
-Similar to data but will also evaluate expressions instead of returning the label.
+Similar to data but will also evaluate expressions instead of returning
+the label.
 
 .. versionadded:: 3.20
 %End
