@@ -137,9 +137,6 @@ DOM node corresponding to a 'LayoutMap' tag.
 .. seealso:: :py:func:`writeXml`
 %End
 
-    void finalizeRestoreFromXml();
-
-
   signals:
 
     void changed();
@@ -286,14 +283,6 @@ DOM node corresponding to a 'LayoutMap' tag.
 
 .. seealso:: :py:func:`writeXml`
 
-.. seealso:: :py:func:`finalizeRestoreFromXml`
-%End
-
-    void finalizeRestoreFromXml();
-%Docstring
-To be called after all pending items have been restored from XML.
-
-.. seealso:: :py:func:`readXml`
 %End
 
 
@@ -524,13 +513,6 @@ Sets the setting's state from a DOM document, where ``element`` is the
 DOM node corresponding to a 'LayoutMap' tag.
 
 .. seealso:: :py:func:`writeXml`
-%End
-
-    void finalizeRestoreFromXml();
-%Docstring
-To be called after all pending items have been restored from XML.
-
-.. seealso:: :py:func:`readXml`
 %End
 
     void setGeometryExpression( QString expression );
@@ -1126,9 +1108,6 @@ be expensive to calculate, so if they are not required in the map
 settings (e.g. for map settings which are used for scale related
 calculations only) then ``includeLayerSettings`` should be ``False``.
 %End
-
-    virtual void finalizeRestoreFromXml();
-
 
     QList<QgsMapLayer *> layersToRender( const QgsExpressionContext *context = 0 ) const;
 %Docstring
